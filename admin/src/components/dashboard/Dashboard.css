@@ -1,0 +1,171 @@
+.dashboard {
+  max-width: 100%;
+}
+
+/* Chart header */
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.chart-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 10px;
+}
+
+/* Recent orders */
+.recent-orders {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.order-item:last-child {
+  border-bottom: none;
+}
+
+.order-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-info strong {
+  font-size: 14px;
+  color: #333;
+}
+
+.order-amount {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.order-status {
+  text-align: right;
+}
+
+/* Top products */
+.top-products {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.product-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.product-item:last-child {
+  border-bottom: none;
+}
+
+.product-image {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-right: 12px;
+}
+
+.product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-info strong {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.product-info span {
+  font-size: 12px;
+  color: #666;
+}
+
+.product-stats {
+  text-align: right;
+  font-size: 12px;
+  color: #666;
+}
+
+/* Pending approvals */
+.pending-approvals {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.approval-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.approval-item:last-child {
+  border-bottom: none;
+}
+
+.approval-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.approval-info strong {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.approval-info span {
+  font-size: 12px;
+  color: #666;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .chart-controls {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .approval-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .approval-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+} 

@@ -1,0 +1,425 @@
+/* Settings Component Styles */
+.settings-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e1e5e9;
+}
+
+.page-header h1 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.page-header p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 16px;
+}
+
+/* Settings Layout */
+.settings-layout {
+  display: flex;
+  gap: 30px;
+  min-height: 600px;
+}
+
+.settings-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.settings-content {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Settings Navigation */
+.settings-nav {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid #f8f9fa;
+  text-align: left;
+}
+
+.nav-item:last-child {
+  border-bottom: none;
+}
+
+.nav-item:hover {
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.nav-item.active {
+  background: #007bff;
+  color: white;
+}
+
+.nav-icon {
+  font-size: 18px;
+  width: 20px;
+  text-align: center;
+}
+
+/* Settings Section */
+.settings-section {
+  padding: 30px;
+}
+
+.section-header {
+  margin-bottom: 30px;
+}
+
+.section-header h2 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.section-header p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 16px;
+}
+
+/* Settings Form */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.file-input {
+  padding: 8px;
+  border: 2px dashed #ced4da;
+  border-radius: 6px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.file-input:hover {
+  border-color: #007bff;
+}
+
+.image-preview {
+  margin-top: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Checkbox Groups */
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.checkbox-group label {
+  margin: 0;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+/* Email Preferences */
+.email-preferences {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.email-preferences h3 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.email-preferences .checkbox-group {
+  margin-bottom: 10px;
+}
+
+.email-preferences .checkbox-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Payment Gateways */
+.payment-gateways h3 {
+  margin: 30px 0 20px 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.payment-gateways h3:first-child {
+  margin-top: 0;
+}
+
+/* Shipping Zones */
+.shipping-zones h3 {
+  margin: 30px 0 20px 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.zones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.zone-item {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+}
+
+.zone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.zone-header h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.zone-cost {
+  background: #28a745;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.zone-countries {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid #e1e5e9;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+}
+
+.btn-primary:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 18px;
+  color: #6c757d;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .settings-layout {
+    flex-direction: column;
+  }
+  
+  .settings-sidebar {
+    width: 100%;
+  }
+  
+  .settings-nav {
+    display: flex;
+    overflow-x: auto;
+  }
+  
+  .nav-item {
+    flex-shrink: 0;
+    min-width: 150px;
+    border-bottom: none;
+    border-right: 1px solid #f8f9fa;
+  }
+  
+  .nav-item:last-child {
+    border-right: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-container {
+    padding: 15px;
+  }
+  
+  .settings-section {
+    padding: 20px;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .settings-nav {
+    flex-wrap: wrap;
+  }
+  
+  .nav-item {
+    min-width: 120px;
+  }
+  
+  .section-header h2 {
+    font-size: 20px;
+  }
+  
+  .payment-gateways h3,
+  .shipping-zones h3 {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-section {
+    padding: 15px;
+  }
+  
+  .nav-item {
+    min-width: 100px;
+    padding: 12px 15px;
+    font-size: 12px;
+  }
+  
+  .nav-icon {
+    font-size: 16px;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 10px;
+    font-size: 14px;
+  }
+  
+  .btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+} 
