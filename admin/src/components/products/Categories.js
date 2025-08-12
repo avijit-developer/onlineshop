@@ -7,7 +7,6 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
-  const [filteredCategories, setFilteredCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,7 +79,6 @@ const Categories = () => {
           bestBlob = blob;
         }
       }
-      // if loop ends without return but bestBlob exists under 500KB, use it as fallback
       if (bestBlob && bestBlob.size < 500 * 1024) {
         const ext = type === 'image/webp' ? 'webp' : 'jpg';
         return new File([bestBlob], `${file.name.split('.')[0]}_compressed.${ext}`, { type });
@@ -106,10 +104,6 @@ const Categories = () => {
   useEffect(() => {
     fetchCategories();
   }, [currentPage, itemsPerPage, searchTerm]);
-
-  useEffect(() => {
-    filterCategories();
-  }, [categories, searchTerm]);
 
   const fetchCategories = async () => {
     try {
@@ -146,7 +140,6 @@ const Categories = () => {
       }));
 
       setCategories(mapped);
-      setFilteredCategories(mapped);
       const totalValue = json?.meta?.total || mapped.length;
       setTotal(totalValue);
       const pagesCount = Math.max(1, Math.ceil(totalValue / itemsPerPage));
@@ -159,20 +152,6 @@ const Categories = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterCategories = () => {
-    let filtered = categories;
-
-    if (searchTerm) {
-      filtered = filtered.filter(category =>
-        category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        category.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredCategories(filtered);
-    setCurrentPage(1);
   };
 
   const getCategoryLevel = (categoryId) => {
@@ -613,7 +592,7 @@ const Categories = () => {
               type="text"
               placeholder="Search categories..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="search-input"
             />
           </div>
@@ -623,7 +602,7 @@ const Categories = () => {
       <div className="stats-cards">
         <div className="stat-card">
           <h3>Total Categories</h3>
-          <p>{categories.length}</p>
+          <p>{total}</p>
         </div>
         <div className="stat-card">
           <h3>Parent Categories</h3>
@@ -713,49 +692,47 @@ const Categories = () => {
             </table>
           </div>
 
-          {(
-            <div className="pagination">
-              <button
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                className="btn btn-secondary"
-              >
-                First
-              </button>
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className="btn btn-secondary"
-              >
-                Prev
-              </button>
-              <span className="page-info">Page {currentPage} of {pagesCount}</span>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(pagesCount, prev + 1))}
-                disabled={currentPage >= pagesCount}
-                className="btn btn-secondary"
-              >
-                Next
-              </button>
-              <button
-                onClick={() => setCurrentPage(pagesCount)}
-                disabled={currentPage >= pagesCount}
-                className="btn btn-secondary"
-              >
-                Last
-              </button>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="page-size-select"
-                style={{ marginLeft: 8 }}
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-          )}
+          <div className="pagination">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="btn btn-secondary"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="btn btn-secondary"
+            >
+              Prev
+            </button>
+            <span className="page-info">Page {currentPage} of {pagesCount}</span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(pagesCount, prev + 1))}
+              disabled={currentPage >= pagesCount}
+              className="btn btn-secondary"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setCurrentPage(pagesCount)}
+              disabled={currentPage >= pagesCount}
+              className="btn btn-secondary"
+            >
+              Last
+            </button>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              className="page-size-select"
+              style={{ marginLeft: 8 }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
         </>
       ) : (
         <div className="hierarchy-view">
