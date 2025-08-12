@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import './Categories.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const CLOUD_NAME = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
@@ -10,7 +11,8 @@ const Categories = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -112,7 +114,7 @@ const Categories = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/v1/categories?parent=all&limit=1000`, {
+      const res = await fetch(`${API_BASE}/api/v1/categories?parent=all&page=${currentPage}&limit=${itemsPerPage}`, {
         headers: getAuthHeaders()
       });
       const json = await res.json();
@@ -143,6 +145,7 @@ const Categories = () => {
       }));
 
       setCategories(mapped);
+      setTotal(json?.meta?.total || mapped.length);
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast.error(error.message || 'Failed to load categories');
@@ -282,8 +285,12 @@ const Categories = () => {
       if (formData.parentId) fd.append('parent', formData.parentId);
       fd.append('featured', String(!!formData.featured));
       fd.append('sortOrder', String(sortNorm));
+
+      // Direct upload to Cloudinary first if a file is selected
       if (imageFile) {
-        fd.append('imageFile', imageFile);
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'categories');
+        fd.append('imageUrl', imageUrl);
+        fd.append('imagePublicId', imagePublicId);
       }
 
       if (showAddModal) {
@@ -535,6 +542,37 @@ const Categories = () => {
     );
   };
 
+  const getUploadSignature = async (subfolder) => {
+    const res = await fetch(`${API_BASE}/api/v1/uploads/signature`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder: subfolder })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Failed to get upload signature');
+    return json.data;
+  };
+
+  const uploadToCloudinary = async (file, subfolder = 'categories') => {
+    if (!CLOUD_NAME) throw new Error('Missing REACT_APP_CLOUDINARY_CLOUD_NAME');
+    const { signature, timestamp, folder, apiKey } = await getUploadSignature(subfolder);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('api_key', apiKey);
+    fd.append('timestamp', String(timestamp));
+    fd.append('signature', signature);
+    fd.append('folder', folder);
+    fd.append('unique_filename', 'true');
+    fd.append('overwrite', 'false');
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+      method: 'POST',
+      body: fd
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error?.message || 'Cloudinary upload failed');
+    return { imageUrl: json.secure_url, imagePublicId: json.public_id };
+  };
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentCategories = filteredCategories.slice(indexOfFirstItem, indexOfLastItem);
@@ -674,22 +712,46 @@ const Categories = () => {
           {totalPages > 1 && (
             <div className="pagination">
               <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="btn btn-secondary"
+              >
+                First
+              </button>
+              <button
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="btn btn-secondary"
               >
-                Previous
+                Prev
               </button>
               <span className="page-info">
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of {Math.max(1, Math.ceil(total / itemsPerPage))}
               </span>
               <button
                 onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= Math.ceil(total / itemsPerPage)}
                 className="btn btn-secondary"
               >
                 Next
               </button>
+              <button
+                onClick={() => setCurrentPage(Math.max(1, Math.ceil(total / itemsPerPage)))}
+                disabled={currentPage >= Math.ceil(total / itemsPerPage)}
+                className="btn btn-secondary"
+              >
+                Last
+              </button>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="page-size-select"
+                style={{ marginLeft: 8 }}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
             </div>
           )}
         </>

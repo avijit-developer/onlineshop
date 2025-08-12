@@ -67,9 +67,14 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
     parentId = parentDoc._id;
   }
 
+  // If direct upload was used, accept imageUrl + imagePublicId instead of file
+  const imageUrl = req.body.imageUrl;
+  const imagePublicId = req.body.imagePublicId;
   if (!req.file || !req.file.buffer) {
-    res.status(400);
-    throw new Error('image is required');
+    if (!imageUrl || !imagePublicId) {
+      res.status(400);
+      throw new Error('image is required');
+    }
   }
 
   // Check duplicate sortOrder under same parent
@@ -80,11 +85,13 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
   }
 
   let uploaded = null;
-  try {
-    uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
-  } catch (e) {
-    res.status(502);
-    throw new Error(`Cloudinary upload failed: ${e?.message || e}`);
+  if (req.file && req.file.buffer) {
+    try {
+      uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
+    } catch (e) {
+      res.status(502);
+      throw new Error(`Cloudinary upload failed: ${e?.message || e}`);
+    }
   }
 
   try {
@@ -92,10 +99,10 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
       name: String(name).trim(),
       description: description ? String(description).trim() : '',
       parent: parentId,
-      image: uploaded?.url || '',
+      image: (uploaded?.url || imageUrl || ''),
       featured: String(featured) === 'true' || featured === true,
       sortOrder: Number(sortOrder) || 0,
-      imagePublicId: uploaded?.publicId || undefined
+      imagePublicId: (uploaded?.publicId || imagePublicId || undefined)
     });
     return res.status(201).json({ success: true, data: created });
   } catch (e) {
@@ -132,6 +139,8 @@ router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async
   }
 
   let uploaded = null;
+  const imageUrl = req.body.imageUrl;
+  const imagePublicId = req.body.imagePublicId;
   if (req.file && req.file.buffer) {
     try {
       uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
@@ -156,6 +165,8 @@ router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async
   if (parentId !== undefined) existing.parent = parentId;
   if (uploaded?.url) existing.image = uploaded.url;
   if (uploaded?.publicId) existing.imagePublicId = uploaded.publicId;
+  if (!uploaded && imageUrl) existing.image = imageUrl;
+  if (!uploaded && imagePublicId) existing.imagePublicId = imagePublicId;
   if (featured !== undefined) existing.featured = String(featured) === 'true' || featured === true;
   if (sortOrder !== undefined) existing.sortOrder = Number(sortOrder) || 0;
 
