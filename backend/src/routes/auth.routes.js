@@ -34,7 +34,9 @@ router.post('/login', async (req, res) => {
     throw new Error('Invalid email format');
   }
 
-  const admin = await Admin.findOne({ email: email.toLowerCase(), isActive: true });
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  const admin = await Admin.findOne({ email: normalizedEmail, $or: [{ isActive: true }, { isActive: { $exists: false } }] });
   if (!admin) {
     res.status(401);
     throw new Error('Invalid credentials');
@@ -66,7 +68,7 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', authenticate, requireAdmin, async (req, res) => {
   const admin = await Admin.findById(req.user.id).lean();
-  if (!admin || !admin.isActive) {
+  if (!admin || admin.isActive === false) {
     res.status(401);
     throw new Error('Admin not found or inactive');
   }
