@@ -38,11 +38,11 @@ function App() {
     setLoading(false);
   }, []);
 
-  const login = (userData) => {
+  const login = ({ token, user }) => {
     setIsAuthenticated(true);
-    setUser(userData);
-    localStorage.setItem('adminToken', 'dummy-token');
-    localStorage.setItem('adminUser', JSON.stringify(userData));
+    setUser(user);
+    localStorage.setItem('adminToken', token);
+    localStorage.setItem('adminUser', JSON.stringify(user));
   };
 
   const logout = () => {

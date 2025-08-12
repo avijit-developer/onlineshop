@@ -4,32 +4,37 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import './Login.css';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   const onSubmit = async (data) => {
     setLoading(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Load data from JSON file
-      const response = await fetch('/data.json');
-      const jsonData = await response.json();
-      
-      // Find admin user
-      const admin = jsonData.users.admins.find(
-        admin => admin.email === data.email && admin.password === data.password
-      );
-      
-      if (admin) {
-        onLogin(admin);
-        toast.success('Login successful!');
-      } else {
-        toast.error('Invalid email or password');
+      const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, password: data.password })
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const message = json?.message || 'Login failed';
+        toast.error(message);
+        return;
       }
+
+      const { token, user } = json;
+      if (!token || !user) {
+        toast.error('Invalid response from server');
+        return;
+      }
+
+      onLogin({ token, user });
+      toast.success('Login successful!');
     } catch (error) {
       toast.error('Login failed. Please try again.');
     } finally {
@@ -96,12 +101,6 @@ const Login = ({ onLogin }) => {
             </Link>
           </div>
         </form>
-        
-        <div className="demo-credentials">
-          <h4>Demo Credentials:</h4>
-          <p><strong>Admin:</strong> admin@example.com / admin123</p>
-          <p><strong>Vendor Owner:</strong> vendor@example.com / vendor123</p>
-        </div>
       </div>
     </div>
   );
