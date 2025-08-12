@@ -5,7 +5,19 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(file.mimetype)) {
+      const err = new Error('Only image files (jpg, png, webp, gif) are allowed');
+      err.code = 'UNSUPPORTED_MEDIA_TYPE';
+      return cb(err);
+    }
+    cb(null, true);
+  }
+});
 
 // List categories with optional parent filter and pagination
 router.get('/', authenticate, requireAdmin, async (req, res) => {
@@ -57,7 +69,12 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
 
   let uploaded = null;
   if (req.file && req.file.buffer) {
-    uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
+    try {
+      uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
+    } catch (e) {
+      res.status(502);
+      throw new Error(`Cloudinary upload failed: ${e?.message || e}`);
+    }
   }
 
   const created = await Category.create({
@@ -99,7 +116,12 @@ router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async
 
   let uploaded = null;
   if (req.file && req.file.buffer) {
-    uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
+    try {
+      uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
+    } catch (e) {
+      res.status(502);
+      throw new Error(`Cloudinary upload failed: ${e?.message || e}`);
+    }
   }
 
   const existing = await Category.findById(id);
