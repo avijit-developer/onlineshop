@@ -72,6 +72,13 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
     throw new Error('image is required');
   }
 
+  // Check duplicate sortOrder under same parent
+  const existingRank = await Category.findOne({ parent: parentId, sortOrder: Number(sortOrder) || 0 }).lean();
+  if (existingRank) {
+    res.status(409);
+    throw new Error('Sort Order already used for this parent. Please choose a different rank.');
+  }
+
   let uploaded = null;
   try {
     uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
@@ -80,17 +87,24 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
     throw new Error(`Cloudinary upload failed: ${e?.message || e}`);
   }
 
-  const created = await Category.create({
-    name: String(name).trim(),
-    description: description ? String(description).trim() : '',
-    parent: parentId,
-    image: uploaded?.url || '',
-    featured: String(featured) === 'true' || featured === true,
-    sortOrder: Number(sortOrder) || 0,
-    imagePublicId: uploaded?.publicId || undefined
-  });
-
-  res.status(201).json({ success: true, data: created });
+  try {
+    const created = await Category.create({
+      name: String(name).trim(),
+      description: description ? String(description).trim() : '',
+      parent: parentId,
+      image: uploaded?.url || '',
+      featured: String(featured) === 'true' || featured === true,
+      sortOrder: Number(sortOrder) || 0,
+      imagePublicId: uploaded?.publicId || undefined
+    });
+    return res.status(201).json({ success: true, data: created });
+  } catch (e) {
+    if (e && e.code === 11000) {
+      res.status(409);
+      throw new Error('Sort Order already used for this parent. Please choose a different rank.');
+    }
+    throw e;
+  }
 });
 
 // Update a category
@@ -145,9 +159,16 @@ router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async
   if (featured !== undefined) existing.featured = String(featured) === 'true' || featured === true;
   if (sortOrder !== undefined) existing.sortOrder = Number(sortOrder) || 0;
 
-  const updated = await existing.save();
-
-  res.json({ success: true, data: updated });
+  try {
+    const updated = await existing.save();
+    return res.json({ success: true, data: updated });
+  } catch (e) {
+    if (e && e.code === 11000) {
+      res.status(409);
+      throw new Error('Sort Order already used for this parent. Please choose a different rank.');
+    }
+    throw e;
+  }
 });
 
 // Delete a category (only if no children)

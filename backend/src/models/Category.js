@@ -13,6 +13,9 @@ const categorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Prevent same sortOrder under the same parent
+categorySchema.index({ parent: 1, sortOrder: 1 }, { unique: true, name: 'uniq_parent_sortOrder' });
+
 function slugify(name) {
   return String(name)
     .trim()

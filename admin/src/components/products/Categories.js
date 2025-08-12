@@ -25,6 +25,7 @@ const Categories = () => {
     sortOrder: 0
   });
   const [imageFile, setImageFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('adminToken');
@@ -179,22 +180,39 @@ const Categories = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (submitting) return;
+      setSubmitting(true);
+
       if (!formData.name.trim()) {
         toast.error('Name is required');
+        setSubmitting(false);
         return;
       }
       if (showAddModal && !imageFile) {
         toast.error('Image is required');
+        setSubmitting(false);
         return;
       }
       if (imageFile && imageFile.size > 150 * 1024) {
         toast.error('File too large. Max 150 KB allowed');
+        setSubmitting(false);
+        return;
+      }
+
+      // Client-side duplicate sort order check under the same parent
+      const parentIdNorm = formData.parentId || null;
+      const sortNorm = Number(formData.sortOrder) || 0;
+      const conflict = categories.find(c => c.parentId === parentIdNorm && c.sortOrder === sortNorm && (!selectedCategory || c.id !== selectedCategory.id));
+      if (conflict) {
+        toast.error('Sort Order already used for this parent. Please choose a different rank.');
+        setSubmitting(false);
         return;
       }
 
       const newLevel = calculateNewLevel(formData.parentId);
       if (newLevel > 5) {
         toast.error('Cannot create category beyond 5 levels of hierarchy');
+        setSubmitting(false);
         return;
       }
 
@@ -203,7 +221,7 @@ const Categories = () => {
       fd.append('description', formData.description || '');
       if (formData.parentId) fd.append('parent', formData.parentId);
       fd.append('featured', String(!!formData.featured));
-      fd.append('sortOrder', String(Number(formData.sortOrder) || 0));
+      fd.append('sortOrder', String(sortNorm));
       if (imageFile) {
         fd.append('imageFile', imageFile);
       }
@@ -234,6 +252,8 @@ const Categories = () => {
       await fetchCategories();
     } catch (error) {
       toast.error(error.message || 'Failed to save category');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -737,8 +757,8 @@ const Categories = () => {
               >
                 Cancel
               </button>
-              <button onClick={handleSubmit} className="btn btn-primary">
-                {showAddModal ? 'Add Category' : 'Update Category'}
+              <button onClick={handleSubmit} className="btn btn-primary" disabled={submitting}>
+                {submitting ? (showAddModal ? 'Saving...' : 'Updating...') : (showAddModal ? 'Add Category' : 'Update Category')}
               </button>
             </div>
           </div>
