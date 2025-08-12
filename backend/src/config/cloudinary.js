@@ -4,22 +4,31 @@ const cloudinary = require('cloudinary').v2;
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUD_NAME || process.env.Cloud_name;
 const API_KEY = process.env.CLOUDINARY_API_KEY || process.env.API_KEY || process.env.CLOUDINARY_KEY;
 const API_SECRET = process.env.CLOUDINARY_API_SECRET || process.env.API_SECRET || process.env.CLOUDINARY_SECRET || process.env.CLOUDINARY_APISECTRET;
+const CLOUDINARY_URL = process.env.CLOUDINARY_URL;
 const CLOUDINARY_FOLDER = process.env.CLOUDINARY_FOLDER || 'onlineshop';
 
 const missing = [];
-if (!CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
-if (!API_KEY) missing.push('CLOUDINARY_API_KEY');
-if (!API_SECRET) missing.push('CLOUDINARY_API_SECRET');
-if (missing.length) {
-  console.warn(`Cloudinary env vars are not fully set. Missing: ${missing.join(', ')}. Accepted keys include CLOUDINARY_*, or CLOUD_NAME/API_KEY/API_SECRET.`);
+const hasDiscreteCreds = Boolean(CLOUD_NAME && API_KEY && API_SECRET);
+const hasUrl = Boolean(CLOUDINARY_URL);
+
+if (!hasDiscreteCreds && !hasUrl) {
+  if (!CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME (or CLOUD_NAME)');
+  if (!API_KEY) missing.push('CLOUDINARY_API_KEY (or API_KEY)');
+  if (!API_SECRET) missing.push('CLOUDINARY_API_SECRET (or API_SECRET)');
+  console.warn(`Cloudinary env vars are not fully set. Missing: ${missing.join(', ')}. You can also set CLOUDINARY_URL.`);
 }
 
-cloudinary.config({
-  cloud_name: CLOUD_NAME,
-  api_key: API_KEY,
-  api_secret: API_SECRET,
-  secure: true
-});
+if (hasDiscreteCreds) {
+  cloudinary.config({
+    cloud_name: CLOUD_NAME,
+    api_key: API_KEY,
+    api_secret: API_SECRET,
+    secure: true
+  });
+} else if (hasUrl) {
+  // Let the SDK read CLOUDINARY_URL from env
+  cloudinary.config({ secure: true });
+}
 
 function getFolderPath(subfolder) {
   return subfolder ? `${CLOUDINARY_FOLDER}/${subfolder}` : CLOUDINARY_FOLDER;
