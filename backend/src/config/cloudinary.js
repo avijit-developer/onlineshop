@@ -42,16 +42,13 @@ async function uploadImageBuffer(buffer, filename, subfolder) {
         use_filename: false,
         unique_filename: true,
         overwrite: false,
-        resource_type: 'image',
-        eager: [
-          { fetch_format: 'auto', quality: 'auto', crop: 'limit', width: 1600 }
-        ]
+        resource_type: 'image'
       },
       (error, result) => {
         if (error) {
           return reject(error);
         }
-        const secureUrl = result?.eager?.[0]?.secure_url || result?.secure_url;
+        const secureUrl = result?.secure_url;
         resolve({
           publicId: result.public_id,
           url: secureUrl
