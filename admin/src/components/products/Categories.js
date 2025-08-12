@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Categories.css';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
@@ -23,6 +25,14 @@ const Categories = () => {
     sortOrder: 0
   });
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : ''
+    };
+  };
+
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -33,55 +43,45 @@ const Categories = () => {
 
   const fetchCategories = async () => {
     try {
-      // Simulate API call
-      setTimeout(() => {
-        const sampleCategories = generateSampleCategories();
-        setCategories(sampleCategories);
-        setLoading(false);
-      }, 1000);
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/categories?parent=all&limit=1000`, {
+        headers: getAuthHeaders()
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || 'Failed to fetch categories');
+
+      // Map backend categories to UI structure with computed level and parentId
+      const items = json.data || [];
+      const idToCategory = new Map(items.map(c => [c._id, c]));
+      const computeLevel = (cat) => {
+        let level = 1; let cur = cat;
+        while (cur.parent) {
+          level += 1;
+          cur = idToCategory.get(cur.parent) || null;
+          if (!cur) break;
+        }
+        return level;
+      };
+      const mapped = items.map(c => ({
+        id: c._id,
+        name: c.name,
+        description: c.description || '',
+        parentId: c.parent || null,
+        image: c.image || '',
+        featured: !!c.featured,
+        sortOrder: c.sortOrder || 0,
+        level: computeLevel(c),
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt
+      }));
+
+      setCategories(mapped);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      toast.error('Failed to load categories');
+      toast.error(error.message || 'Failed to load categories');
+    } finally {
       setLoading(false);
     }
-  };
-
-  const generateSampleCategories = () => {
-    const categories = [
-      // Level 1 - Main Categories
-      { id: 1, name: 'Electronics', description: 'Electronic devices and gadgets', parentId: null, image: '/electronics.jpg', featured: true, sortOrder: 1, level: 1, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 2, name: 'Fashion', description: 'Clothing and accessories', parentId: null, image: '/fashion.jpg', featured: true, sortOrder: 2, level: 1, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 3, name: 'Home & Garden', description: 'Home improvement and garden supplies', parentId: null, image: '/home.jpg', featured: false, sortOrder: 3, level: 1, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 4, name: 'Sports & Outdoors', description: 'Sports equipment and outdoor gear', parentId: null, image: '/sports.jpg', featured: false, sortOrder: 4, level: 1, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      
-      // Level 2 - Electronics Subcategories
-      { id: 5, name: 'Smartphones', description: 'Mobile phones and accessories', parentId: 1, image: '/smartphones.jpg', featured: true, sortOrder: 1, level: 2, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 6, name: 'Laptops', description: 'Portable computers and accessories', parentId: 1, image: '/laptops.jpg', featured: true, sortOrder: 2, level: 2, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 7, name: 'Audio & Video', description: 'Speakers, headphones, and video equipment', parentId: 1, image: '/audio.jpg', featured: false, sortOrder: 3, level: 2, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      
-      // Level 2 - Fashion Subcategories
-      { id: 8, name: 'Men\'s Clothing', description: 'Clothing for men', parentId: 2, image: '/mens-clothing.jpg', featured: true, sortOrder: 1, level: 2, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 9, name: 'Women\'s Clothing', description: 'Clothing for women', parentId: 2, image: '/womens-clothing.jpg', featured: true, sortOrder: 2, level: 2, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 10, name: 'Accessories', description: 'Jewelry, bags, and fashion accessories', parentId: 2, image: '/accessories.jpg', featured: false, sortOrder: 3, level: 2, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      
-      // Level 3 - Smartphones Subcategories
-      { id: 11, name: 'Android Phones', description: 'Android smartphones', parentId: 5, image: '/android.jpg', featured: true, sortOrder: 1, level: 3, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 12, name: 'iPhone', description: 'Apple iPhone devices', parentId: 5, image: '/iphone.jpg', featured: true, sortOrder: 2, level: 3, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 13, name: 'Phone Accessories', description: 'Cases, chargers, and phone accessories', parentId: 5, image: '/phone-accessories.jpg', featured: false, sortOrder: 3, level: 3, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      
-      // Level 3 - Laptops Subcategories
-      { id: 14, name: 'Gaming Laptops', description: 'High-performance gaming laptops', parentId: 6, image: '/gaming-laptops.jpg', featured: true, sortOrder: 1, level: 3, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 15, name: 'Business Laptops', description: 'Professional and business laptops', parentId: 6, image: '/business-laptops.jpg', featured: false, sortOrder: 2, level: 3, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      
-      // Level 4 - Android Phones Subcategories
-      { id: 16, name: 'Samsung Galaxy', description: 'Samsung Galaxy smartphones', parentId: 11, image: '/samsung.jpg', featured: true, sortOrder: 1, level: 4, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 17, name: 'Google Pixel', description: 'Google Pixel smartphones', parentId: 11, image: '/pixel.jpg', featured: false, sortOrder: 2, level: 4, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      
-      // Level 5 - Samsung Galaxy Subcategories
-      { id: 18, name: 'Galaxy S Series', description: 'Samsung Galaxy S series', parentId: 16, image: '/galaxy-s.jpg', featured: true, sortOrder: 1, level: 5, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-      { id: 19, name: 'Galaxy Note Series', description: 'Samsung Galaxy Note series', parentId: 16, image: '/galaxy-note.jpg', featured: false, sortOrder: 2, level: 5, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-    ];
-    return categories;
   };
 
   const filterCategories = () => {
@@ -106,11 +106,9 @@ const Categories = () => {
 
   const getAvailableParents = (currentCategoryId = null) => {
     return categories.filter(cat => {
-      // Don't include the current category or its descendants
       if (currentCategoryId && (cat.id === currentCategoryId || isDescendant(cat.id, currentCategoryId))) {
         return false;
       }
-      // Don't include categories that would exceed 5 levels
       const currentLevel = getCategoryLevel(cat.id);
       return currentLevel < 5;
     });
@@ -157,63 +155,64 @@ const Categories = () => {
   const handleDeleteCategory = async (categoryId) => {
     if (window.confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
       try {
-        // Check if category has children
-        const hasChildren = categories.some(cat => cat.parentId === categoryId);
-        if (hasChildren) {
-          toast.error('Cannot delete category with subcategories. Please delete subcategories first.');
-          return;
-        }
-
-        const updatedCategories = categories.filter(cat => cat.id !== categoryId);
-        setCategories(updatedCategories);
+        const res = await fetch(`${API_BASE}/api/v1/categories/${categoryId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to delete category');
+        await fetchCategories();
         toast.success('Category deleted successfully');
       } catch (error) {
-        toast.error('Failed to delete category');
+        toast.error(error.message || 'Failed to delete category');
       }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate hierarchy level
-    const newLevel = calculateNewLevel(formData.parentId);
-    if (newLevel > 5) {
-      toast.error('Cannot create category beyond 5 levels of hierarchy');
-      return;
-    }
-    
-    if (showAddModal) {
-      // Add new category
-      const newCategory = {
-        id: Date.now(),
-        ...formData,
-        parentId: formData.parentId || null,
-        level: newLevel,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+    try {
+      const newLevel = calculateNewLevel(formData.parentId);
+      if (newLevel > 5) {
+        toast.error('Cannot create category beyond 5 levels of hierarchy');
+        return;
+      }
+
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        parent: formData.parentId || null,
+        image: formData.image,
+        featured: formData.featured,
+        sortOrder: Number(formData.sortOrder) || 0
       };
-      setCategories([...categories, newCategory]);
-      toast.success('Category added successfully');
-    } else {
-      // Update existing category
-      const updatedCategories = categories.map(category =>
-        category.id === selectedCategory.id 
-          ? { 
-              ...category, 
-              ...formData,
-              parentId: formData.parentId || null,
-              level: newLevel,
-              updatedAt: new Date().toISOString()
-            }
-          : category
-      );
-      setCategories(updatedCategories);
-      toast.success('Category updated successfully');
+
+      if (showAddModal) {
+        const res = await fetch(`${API_BASE}/api/v1/categories`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || 'Failed to add category');
+        toast.success('Category added successfully');
+      } else {
+        const res = await fetch(`${API_BASE}/api/v1/categories/${selectedCategory.id}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || 'Failed to update category');
+        toast.success('Category updated successfully');
+      }
+
+      setShowAddModal(false);
+      setShowEditModal(false);
+      await fetchCategories();
+    } catch (error) {
+      toast.error(error.message || 'Failed to save category');
     }
-    
-    setShowAddModal(false);
-    setShowEditModal(false);
   };
 
   const handleInputChange = (e) => {
@@ -237,15 +236,19 @@ const Categories = () => {
 
   const toggleFeatured = async (categoryId) => {
     try {
-      const updatedCategories = categories.map(category =>
-        category.id === categoryId 
-          ? { ...category, featured: !category.featured, updatedAt: new Date().toISOString() }
-          : category
-      );
-      setCategories(updatedCategories);
+      const category = categories.find(c => c.id === categoryId);
+      if (!category) return;
+      const res = await fetch(`${API_BASE}/api/v1/categories/${categoryId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ featured: !category.featured })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || 'Failed to update featured status');
+      await fetchCategories();
       toast.success('Featured status updated successfully');
     } catch (error) {
-      toast.error('Failed to update featured status');
+      toast.error(error.message || 'Failed to update featured status');
     }
   };
 
@@ -260,8 +263,6 @@ const Categories = () => {
   };
 
   const getProductCount = (categoryId) => {
-    // This would be calculated from products data
-    // For now, returning a random number for demonstration
     return Math.floor(Math.random() * 50);
   };
 
@@ -275,11 +276,9 @@ const Categories = () => {
     setExpandedCategories(newExpanded);
   };
 
-  // Helper function to get category path for display
   const getCategoryPath = (categoryId) => {
     const category = categories.find(cat => cat.id === parseInt(categoryId));
     if (!category) return '';
-    
     const path = [];
     let current = category;
     while (current) {
@@ -289,17 +288,12 @@ const Categories = () => {
     return path.join(' › ');
   };
 
-  // Helper function to build tree structure from flat array
   const buildCategoryTree = (availableCategories) => {
     const tree = [];
     const categoryMap = {};
-    
-    // Create a map of all categories
     availableCategories.forEach(category => {
       categoryMap[category.id] = { ...category, children: [] };
     });
-    
-    // Build the tree structure
     availableCategories.forEach(category => {
       if (category.parentId && categoryMap[category.parentId]) {
         categoryMap[category.parentId].children.push(categoryMap[category.id]);
@@ -307,15 +301,12 @@ const Categories = () => {
         tree.push(categoryMap[category.id]);
       }
     });
-    
     return tree;
   };
 
-  // Helper function to render tree node
   const renderTreeNode = (node, depth = 0) => {
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedCategories.has(node.id);
-    
     return (
       <div key={node.id} className="tree-node" style={{ marginLeft: `${depth * 20}px` }}>
         <div className="tree-node-content">
@@ -352,10 +343,8 @@ const Categories = () => {
     );
   };
 
-  // Main function to render the category tree
   const renderCategoryTree = (availableCategories) => {
     const tree = buildCategoryTree(availableCategories);
-    
     if (tree.length === 0) {
       return (
         <div className="empty-tree">
@@ -363,7 +352,6 @@ const Categories = () => {
         </div>
       );
     }
-    
     return (
       <div className="category-tree-container">
         <div className="tree-header">
@@ -435,7 +423,6 @@ const Categories = () => {
     );
   };
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentCategories = filteredCategories.slice(indexOfFirstItem, indexOfLastItem);
@@ -498,7 +485,7 @@ const Categories = () => {
         </div>
         <div className="stat-card">
           <h3>Max Depth</h3>
-          <p>{Math.max(...categories.map(cat => cat.level))}</p>
+          <p>{Math.max(0, ...categories.map(cat => cat.level || 0))}</p>
         </div>
       </div>
 
@@ -572,7 +559,6 @@ const Categories = () => {
             </table>
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="pagination">
               <button
@@ -622,7 +608,6 @@ const Categories = () => {
         </div>
       )}
 
-      {/* Add/Edit Category Modal */}
       {(showAddModal || showEditModal) && (
         <div className="modal-overlay">
           <div className="modal large-modal">
@@ -642,7 +627,6 @@ const Categories = () => {
                     required
                   />
                 </div>
-                
                 <div className="form-group">
                   <label>Parent Category</label>
                   <div className="parent-category-selector">
@@ -672,7 +656,6 @@ const Categories = () => {
                     {formData.parentId ? `New level will be: ${calculateNewLevel(formData.parentId)}` : 'This will be a top-level category (Level 1)'}
                   </small>
                 </div>
-
                 <div className="form-group">
                   <label>Sort Order</label>
                   <input
@@ -683,7 +666,6 @@ const Categories = () => {
                     min="0"
                   />
                 </div>
-
                 <div className="form-group">
                   <label>Featured Category</label>
                   <div className="checkbox-group">
@@ -696,7 +678,6 @@ const Categories = () => {
                     <span>Mark as featured</span>
                   </div>
                 </div>
-
                 <div className="form-group full-width">
                   <label>Description</label>
                   <textarea
@@ -706,7 +687,6 @@ const Categories = () => {
                     rows="4"
                   />
                 </div>
-
                 <div className="form-group full-width">
                   <label>Category Image</label>
                   <input
