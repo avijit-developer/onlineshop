@@ -24,11 +24,18 @@ const Categories = () => {
     featured: false,
     sortOrder: 0
   });
+  const [imageFile, setImageFile] = useState(null);
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('adminToken');
     return {
       'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : ''
+    };
+  };
+  const getAuthHeaderOnly = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
       Authorization: token ? `Bearer ${token}` : ''
     };
   };
@@ -50,7 +57,6 @@ const Categories = () => {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || 'Failed to fetch categories');
 
-      // Map backend categories to UI structure with computed level and parentId
       const items = json.data || [];
       const idToCategory = new Map(items.map(c => [c._id, c]));
       const computeLevel = (cat) => {
@@ -87,7 +93,6 @@ const Categories = () => {
   const filterCategories = () => {
     let filtered = categories;
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(category =>
         category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,6 +141,7 @@ const Categories = () => {
       featured: false,
       sortOrder: 0
     });
+    setImageFile(null);
     setShowAddModal(true);
   };
 
@@ -149,6 +155,7 @@ const Categories = () => {
       featured: category.featured || false,
       sortOrder: category.sortOrder || 0
     });
+    setImageFile(null);
     setShowEditModal(true);
   };
 
@@ -178,20 +185,21 @@ const Categories = () => {
         return;
       }
 
-      const payload = {
-        name: formData.name,
-        description: formData.description,
-        parent: formData.parentId || null,
-        image: formData.image,
-        featured: formData.featured,
-        sortOrder: Number(formData.sortOrder) || 0
-      };
+      const fd = new FormData();
+      fd.append('name', formData.name);
+      fd.append('description', formData.description || '');
+      if (formData.parentId) fd.append('parent', formData.parentId);
+      fd.append('featured', String(!!formData.featured));
+      fd.append('sortOrder', String(Number(formData.sortOrder) || 0));
+      if (imageFile) {
+        fd.append('imageFile', imageFile);
+      }
 
       if (showAddModal) {
         const res = await fetch(`${API_BASE}/api/v1/categories`, {
           method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(payload)
+          headers: getAuthHeaderOnly(),
+          body: fd
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json?.message || 'Failed to add category');
@@ -199,8 +207,8 @@ const Categories = () => {
       } else {
         const res = await fetch(`${API_BASE}/api/v1/categories/${selectedCategory.id}`, {
           method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(payload)
+          headers: getAuthHeaderOnly(),
+          body: fd
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json?.message || 'Failed to update category');
@@ -209,6 +217,7 @@ const Categories = () => {
 
       setShowAddModal(false);
       setShowEditModal(false);
+      setImageFile(null);
       await fetchCategories();
     } catch (error) {
       toast.error(error.message || 'Failed to save category');
@@ -231,6 +240,7 @@ const Categories = () => {
         ...prev,
         image: imageUrl
       }));
+      setImageFile(file);
     }
   };
 
@@ -677,15 +687,6 @@ const Categories = () => {
                     />
                     <span>Mark as featured</span>
                   </div>
-                </div>
-                <div className="form-group full-width">
-                  <label>Description</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows="4"
-                  />
                 </div>
                 <div className="form-group full-width">
                   <label>Category Image</label>
