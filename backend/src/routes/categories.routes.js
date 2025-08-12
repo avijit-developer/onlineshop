@@ -1,8 +1,11 @@
 const express = require('express');
+const multer = require('multer');
 const Category = require('../models/Category');
 const { authenticate, requireAdmin } = require('../middleware/auth');
+const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // List categories with optional parent filter and pagination
 router.get('/', authenticate, requireAdmin, async (req, res) => {
@@ -35,14 +38,13 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 });
 
 // Create a category
-router.post('/', authenticate, requireAdmin, async (req, res) => {
-  const { name, description, parent, image, featured = false, sortOrder = 0 } = req.body || {};
+router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (req, res) => {
+  const { name, description, parent, featured = 'false', sortOrder = '0', image } = req.body || {};
   if (!name) {
     res.status(400);
     throw new Error('name is required');
   }
 
-  // Validate parent exists if provided
   let parentId = null;
   if (parent) {
     const parentDoc = await Category.findById(parent).lean();
@@ -53,33 +55,37 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     parentId = parentDoc._id;
   }
 
+  let uploaded = null;
+  if (req.file && req.file.buffer) {
+    uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
+  }
+
   const created = await Category.create({
     name: String(name).trim(),
     description: description ? String(description).trim() : '',
     parent: parentId,
-    image: image || '',
-    featured: Boolean(featured),
-    sortOrder: Number(sortOrder) || 0
+    image: uploaded?.url || (image || ''),
+    featured: String(featured) === 'true' || featured === true,
+    sortOrder: Number(sortOrder) || 0,
+    imagePublicId: uploaded?.publicId || undefined
   });
 
   res.status(201).json({ success: true, data: created });
 });
 
 // Update a category
-router.put('/:id', authenticate, requireAdmin, async (req, res) => {
+router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async (req, res) => {
   const { id } = req.params;
-  const { name, description, parent, image, featured, sortOrder } = req.body || {};
+  const { name, description, parent, featured, sortOrder, image } = req.body || {};
 
-  // Prevent setting parent to itself
   if (parent && parent === id) {
     res.status(400);
     throw new Error('parent cannot be self');
   }
 
-  // Validate parent exists if provided
   let parentId = undefined;
   if (parent !== undefined) {
-    if (parent === null || parent === '') {
+    if (parent === null || parent === '' || parent === 'null') {
       parentId = null;
     } else {
       const parentDoc = await Category.findById(parent).lean();
@@ -91,23 +97,32 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     }
   }
 
-  const updated = await Category.findByIdAndUpdate(
-    id,
-    {
-      ...(name !== undefined ? { name: String(name).trim() } : {}),
-      ...(description !== undefined ? { description: String(description).trim() } : {}),
-      ...(parentId !== undefined ? { parent: parentId } : {}),
-      ...(image !== undefined ? { image } : {}),
-      ...(featured !== undefined ? { featured: Boolean(featured) } : {}),
-      ...(sortOrder !== undefined ? { sortOrder: Number(sortOrder) || 0 } : {})
-    },
-    { new: true }
-  );
+  let uploaded = null;
+  if (req.file && req.file.buffer) {
+    uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
+  }
 
-  if (!updated) {
+  const existing = await Category.findById(id);
+  if (!existing) {
     res.status(404);
     throw new Error('category not found');
   }
+
+  // If a new image uploaded, delete old
+  if (uploaded?.publicId && existing.imagePublicId) {
+    deleteImageByPublicId(existing.imagePublicId).catch(() => {});
+  }
+
+  existing.name = name !== undefined ? String(name).trim() : existing.name;
+  existing.description = description !== undefined ? String(description).trim() : existing.description;
+  if (parentId !== undefined) existing.parent = parentId;
+  if (image !== undefined && !uploaded) existing.image = image; // explicit string
+  if (uploaded?.url) existing.image = uploaded.url;
+  if (uploaded?.publicId) existing.imagePublicId = uploaded.publicId;
+  if (featured !== undefined) existing.featured = String(featured) === 'true' || featured === true;
+  if (sortOrder !== undefined) existing.sortOrder = Number(sortOrder) || 0;
+
+  const updated = await existing.save();
 
   res.json({ success: true, data: updated });
 });
@@ -124,6 +139,9 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   if (!deleted) {
     res.status(404);
     throw new Error('category not found');
+  }
+  if (deleted.imagePublicId) {
+    deleteImageByPublicId(deleted.imagePublicId).catch(() => {});
   }
   res.json({ success: true });
 });
