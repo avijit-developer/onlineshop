@@ -555,6 +555,16 @@ const Categories = () => {
   const currentCategories = categories;
   const pagesCount = Math.max(1, Math.ceil(total / itemsPerPage));
 
+  // Build display list with placeholders to keep consistent row count
+  const displayCategories = (() => {
+    const rows = [...currentCategories];
+    const deficit = Math.max(0, itemsPerPage - rows.length);
+    for (let i = 0; i < deficit; i++) {
+      rows.push({ id: `placeholder-${i}`, isPlaceholder: true });
+    }
+    return rows;
+  })();
+
   if (loading) {
     return <div className="loading">Loading categories...</div>;
   }
@@ -582,18 +592,20 @@ const Categories = () => {
             Add Category
           </button>
           <div className="search-filter-container">
-            <input
-              type="text"
-              placeholder="Search categories..."
-              value={pendingSearch}
-              onChange={(e) => setPendingSearch(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { setSearchTerm(pendingSearch.trim()); setCurrentPage(1); } }}
-              className="search-input"
-            />
-            <button className="btn btn-primary" onClick={() => { setSearchTerm(pendingSearch.trim()); setCurrentPage(1); }}>Search</button>
-            {searchTerm && (
-              <button className="btn btn-secondary" onClick={() => { setPendingSearch(''); setSearchTerm(''); setCurrentPage(1); }}>Clear</button>
-            )}
+            <div className="search-group">
+              <input
+                type="text"
+                placeholder="Search categories..."
+                value={pendingSearch}
+                onChange={(e) => setPendingSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { setSearchTerm(pendingSearch.trim()); setCurrentPage(1); } }}
+                className="search-input"
+              />
+              <button className="btn btn-primary" onClick={() => { setSearchTerm(pendingSearch.trim()); setCurrentPage(1); }}>Search</button>
+              {searchTerm && (
+                <button className="btn btn-secondary" onClick={() => { setPendingSearch(''); setSearchTerm(''); setCurrentPage(1); }}>Clear</button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -638,52 +650,66 @@ const Categories = () => {
                 </tr>
               </thead>
               <tbody>
-                {currentCategories.map((category) => (
+                {displayCategories.map((category) => (
                   <tr key={category.id}>
-                    <td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
                       <div className="category-info">
-                        <img src={category.image || '/default-category.png'} alt={category.name} className="category-image" />
-                        <div>
-                          <strong>{category.name}</strong>
-                          <small>{category.description}</small>
+                        {!category.isPlaceholder ? (
+                          <>
+                            <img src={category.image || '/default-category.png'} alt={category.name} className="category-image" />
+                            <div>
+                              <strong>{category.name}</strong>
+                              <small>{category.description}</small>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="placeholder-bar" />
+                        )}
+                      </div>
+                    </td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
+                      {!category.isPlaceholder ? (
+                        <span className={`level-badge level-${category.level}`}>
+                          Level {category.level}
+                        </span>
+                      ) : (
+                        <div className="placeholder-dot" />
+                      )}
+                    </td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? getParentName(category.parentId) : ''}</td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? getProductCount(category.id) : ''}</td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? getSubcategories(category.id).length : ''}</td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
+                      {!category.isPlaceholder ? (
+                        <span className={`featured-badge ${category.featured ? 'featured' : 'not-featured'}`}>
+                          {category.featured ? 'Yes' : 'No'}
+                        </span>
+                      ) : ''}
+                    </td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? (category.sortOrder || 0) : ''}</td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
+                      {!category.isPlaceholder ? (
+                        <div className="action-buttons">
+                          <button
+                            onClick={() => handleEditCategory(category)}
+                            className="btn btn-info btn-sm"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => toggleFeatured(category.id)}
+                            className={`btn btn-sm ${category.featured ? 'btn-warning' : 'btn-success'}`}
+                          >
+                            {category.featured ? 'Unfeature' : 'Feature'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCategory(category.id)}
+                            className="btn btn-danger btn-sm"
+                          >
+                            Delete
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`level-badge level-${category.level}`}>
-                        Level {category.level}
-                      </span>
-                    </td>
-                    <td>{getParentName(category.parentId)}</td>
-                    <td>{getProductCount(category.id)}</td>
-                    <td>{getSubcategories(category.id).length}</td>
-                    <td>
-                      <span className={`featured-badge ${category.featured ? 'featured' : 'not-featured'}`}>
-                        {category.featured ? 'Yes' : 'No'}
-                      </span>
-                    </td>
-                    <td>{category.sortOrder || 0}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          onClick={() => handleEditCategory(category)}
-                          className="btn btn-info btn-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => toggleFeatured(category.id)}
-                          className={`btn btn-sm ${category.featured ? 'btn-warning' : 'btn-success'}`}
-                        >
-                          {category.featured ? 'Unfeature' : 'Feature'}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCategory(category.id)}
-                          className="btn btn-danger btn-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
