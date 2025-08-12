@@ -179,6 +179,19 @@ const Categories = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (!formData.name.trim()) {
+        toast.error('Name is required');
+        return;
+      }
+      if (showAddModal && !imageFile) {
+        toast.error('Image is required');
+        return;
+      }
+      if (imageFile && imageFile.size > 150 * 1024) {
+        toast.error('File too large. Max 150 KB allowed');
+        return;
+      }
+
       const newLevel = calculateNewLevel(formData.parentId);
       if (newLevel > 5) {
         toast.error('Cannot create category beyond 5 levels of hierarchy');
@@ -235,6 +248,10 @@ const Categories = () => {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 150 * 1024) {
+        toast.error('File too large. Max 150 KB allowed');
+        return;
+      }
       const imageUrl = URL.createObjectURL(file);
       setFormData(prev => ({
         ...prev,
@@ -689,12 +706,13 @@ const Categories = () => {
                   </div>
                 </div>
                 <div className="form-group full-width">
-                  <label>Category Image</label>
+                  <label>Category Image {showAddModal && <span style={{color:'#e53e3e'}}>*</span>}</label>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleImageUpload}
                   />
+                  <small className="form-help">Upload JPG/PNG/WebP/GIF up to 150 KB</small>
                   {formData.image && (
                     <div className="image-preview">
                       <img src={formData.image} alt="Category preview" />

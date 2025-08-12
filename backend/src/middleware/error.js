@@ -9,7 +9,7 @@ const notFound = (req, res, next) => {
     // Multer file size limit
     if (err && err.code === 'LIMIT_FILE_SIZE') {
       status = 413;
-      err.message = err.message || 'File too large. Max 5MB allowed';
+      err.message = err.message || 'File too large. Max 150 KB allowed';
     }
   
     const message = err && err.message ? String(err.message) : 'Internal Server Error';

@@ -7,7 +7,7 @@ const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudina
 const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 150 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowed.includes(file.mimetype)) {
@@ -51,7 +51,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // Create a category
 router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (req, res) => {
-  const { name, description, parent, featured = 'false', sortOrder = '0', image } = req.body || {};
+  const { name, description, parent, featured = 'false', sortOrder = '0' } = req.body || {};
   if (!name) {
     res.status(400);
     throw new Error('name is required');
@@ -67,21 +67,24 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
     parentId = parentDoc._id;
   }
 
+  if (!req.file || !req.file.buffer) {
+    res.status(400);
+    throw new Error('image is required');
+  }
+
   let uploaded = null;
-  if (req.file && req.file.buffer) {
-    try {
-      uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
-    } catch (e) {
-      res.status(502);
-      throw new Error(`Cloudinary upload failed: ${e?.message || e}`);
-    }
+  try {
+    uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'categories');
+  } catch (e) {
+    res.status(502);
+    throw new Error(`Cloudinary upload failed: ${e?.message || e}`);
   }
 
   const created = await Category.create({
     name: String(name).trim(),
     description: description ? String(description).trim() : '',
     parent: parentId,
-    image: uploaded?.url || (image || ''),
+    image: uploaded?.url || '',
     featured: String(featured) === 'true' || featured === true,
     sortOrder: Number(sortOrder) || 0,
     imagePublicId: uploaded?.publicId || undefined
@@ -93,7 +96,7 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
 // Update a category
 router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async (req, res) => {
   const { id } = req.params;
-  const { name, description, parent, featured, sortOrder, image } = req.body || {};
+  const { name, description, parent, featured, sortOrder } = req.body || {};
 
   if (parent && parent === id) {
     res.status(400);
@@ -130,7 +133,6 @@ router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async
     throw new Error('category not found');
   }
 
-  // If a new image uploaded, delete old
   if (uploaded?.publicId && existing.imagePublicId) {
     deleteImageByPublicId(existing.imagePublicId).catch(() => {});
   }
@@ -138,7 +140,6 @@ router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async
   existing.name = name !== undefined ? String(name).trim() : existing.name;
   existing.description = description !== undefined ? String(description).trim() : existing.description;
   if (parentId !== undefined) existing.parent = parentId;
-  if (image !== undefined && !uploaded) existing.image = image; // explicit string
   if (uploaded?.url) existing.image = uploaded.url;
   if (uploaded?.publicId) existing.imagePublicId = uploaded.publicId;
   if (featured !== undefined) existing.featured = String(featured) === 'true' || featured === true;
