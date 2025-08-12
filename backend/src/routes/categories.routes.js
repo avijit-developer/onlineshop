@@ -77,12 +77,7 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
     }
   }
 
-  // Check duplicate sortOrder under same parent
-  const existingRank = await Category.findOne({ parent: parentId, sortOrder: Number(sortOrder) || 0 }).lean();
-  if (existingRank) {
-    res.status(409);
-    throw new Error('Sort Order already used for this parent. Please choose a different rank.');
-  }
+  // Allow duplicate sortOrder under the same parent
 
   let uploaded = null;
   if (req.file && req.file.buffer) {
@@ -106,10 +101,6 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
     });
     return res.status(201).json({ success: true, data: created });
   } catch (e) {
-    if (e && e.code === 11000) {
-      res.status(409);
-      throw new Error('Sort Order already used for this parent. Please choose a different rank.');
-    }
     throw e;
   }
 });
@@ -174,10 +165,6 @@ router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async
     const updated = await existing.save();
     return res.json({ success: true, data: updated });
   } catch (e) {
-    if (e && e.code === 11000) {
-      res.status(409);
-      throw new Error('Sort Order already used for this parent. Please choose a different rank.');
-    }
     throw e;
   }
 });

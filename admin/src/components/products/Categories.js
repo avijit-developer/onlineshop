@@ -27,6 +27,7 @@ const Categories = () => {
   });
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingSearch, setPendingSearch] = useState('');
 
   // Compress image to <= maxBytes using WebP (preferred) or JPEG fallback
   const compressImageFile = async (file, maxBytes = 150 * 1024, maxWidth = 1200, maxHeight = 1200) => {
@@ -248,15 +249,8 @@ const Categories = () => {
         return;
       }
 
-      // Client-side duplicate sort order check under the same parent
-      const parentIdNorm = formData.parentId || null;
+      // Client-side duplicate sort order check under the same parent (removed as per request)
       const sortNorm = Number(formData.sortOrder) || 0;
-      const conflict = categories.find(c => c.parentId === parentIdNorm && c.sortOrder === sortNorm && (!selectedCategory || c.id !== selectedCategory.id));
-      if (conflict) {
-        toast.error('Sort Order already used for this parent. Please choose a different rank.');
-        setSubmitting(false);
-        return;
-      }
 
       const newLevel = calculateNewLevel(formData.parentId);
       if (newLevel > 5) {
@@ -591,10 +585,15 @@ const Categories = () => {
             <input
               type="text"
               placeholder="Search categories..."
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              value={pendingSearch}
+              onChange={(e) => setPendingSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { setSearchTerm(pendingSearch.trim()); setCurrentPage(1); } }}
               className="search-input"
             />
+            <button className="btn btn-primary" onClick={() => { setSearchTerm(pendingSearch.trim()); setCurrentPage(1); }}>Search</button>
+            {searchTerm && (
+              <button className="btn btn-secondary" onClick={() => { setPendingSearch(''); setSearchTerm(''); setCurrentPage(1); }}>Clear</button>
+            )}
           </div>
         </div>
       </div>
