@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import './Categories.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-const CLOUD_NAME = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
+// const CLOUD_NAME = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
@@ -550,12 +550,11 @@ const Categories = () => {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json?.message || 'Failed to get upload signature');
-    return json.data;
+    return json.data; // includes cloudName and apiKey
   };
 
   const uploadToCloudinary = async (file, subfolder = 'categories') => {
-    if (!CLOUD_NAME) throw new Error('Missing REACT_APP_CLOUDINARY_CLOUD_NAME');
-    const { signature, timestamp, folder, apiKey } = await getUploadSignature(subfolder);
+    const { signature, timestamp, folder, apiKey, cloudName } = await getUploadSignature(subfolder);
     const fd = new FormData();
     fd.append('file', file);
     fd.append('api_key', apiKey);
@@ -564,7 +563,7 @@ const Categories = () => {
     fd.append('folder', folder);
     fd.append('unique_filename', 'true');
     fd.append('overwrite', 'false');
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: 'POST',
       body: fd
     });
