@@ -147,7 +147,12 @@ const Categories = () => {
 
       setCategories(mapped);
       setFilteredCategories(mapped);
-      setTotal(json?.meta?.total || mapped.length);
+      const totalValue = json?.meta?.total || mapped.length;
+      setTotal(totalValue);
+      const pagesCount = Math.max(1, Math.ceil(totalValue / itemsPerPage));
+      if (currentPage > pagesCount) {
+        setCurrentPage(pagesCount);
+      }
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast.error(error.message || 'Failed to load categories');
@@ -575,7 +580,7 @@ const Categories = () => {
   };
 
   const currentCategories = categories;
-  const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
+  const pagesCount = Math.max(1, Math.ceil(total / itemsPerPage));
 
   if (loading) {
     return <div className="loading">Loading categories...</div>;
@@ -708,7 +713,7 @@ const Categories = () => {
             </table>
           </div>
 
-          {totalPages > 1 && (
+          {(
             <div className="pagination">
               <button
                 onClick={() => setCurrentPage(1)}
@@ -718,23 +723,23 @@ const Categories = () => {
                 First
               </button>
               <button
-                onClick={() => setCurrentPage(currentPage - 1)}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 className="btn btn-secondary"
               >
                 Prev
               </button>
-              <span className="page-info">Page {currentPage} of {totalPages}</span>
+              <span className="page-info">Page {currentPage} of {pagesCount}</span>
               <button
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage >= Math.ceil(total / itemsPerPage)}
+                onClick={() => setCurrentPage(prev => Math.min(pagesCount, prev + 1))}
+                disabled={currentPage >= pagesCount}
                 className="btn btn-secondary"
               >
                 Next
               </button>
               <button
-                onClick={() => setCurrentPage(Math.max(1, Math.ceil(total / itemsPerPage)))}
-                disabled={currentPage >= Math.ceil(total / itemsPerPage)}
+                onClick={() => setCurrentPage(pagesCount)}
+                disabled={currentPage >= pagesCount}
                 className="btn btn-secondary"
               >
                 Last
