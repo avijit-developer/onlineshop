@@ -105,7 +105,7 @@ const Categories = () => {
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [currentPage, itemsPerPage, searchTerm]);
 
   useEffect(() => {
     filterCategories();
@@ -114,7 +114,8 @@ const Categories = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/v1/categories?parent=all&page=${currentPage}&limit=${itemsPerPage}`, {
+      const qParam = searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : '';
+      const res = await fetch(`${API_BASE}/api/v1/categories?parent=all&page=${currentPage}&limit=${itemsPerPage}${qParam}`, {
         headers: getAuthHeaders()
       });
       const json = await res.json();
@@ -145,6 +146,7 @@ const Categories = () => {
       }));
 
       setCategories(mapped);
+      setFilteredCategories(mapped);
       setTotal(json?.meta?.total || mapped.length);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -572,10 +574,8 @@ const Categories = () => {
     return { imageUrl: json.secure_url, imagePublicId: json.public_id };
   };
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentCategories = filteredCategories.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
+  const currentCategories = categories;
+  const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
 
   if (loading) {
     return <div className="loading">Loading categories...</div>;
@@ -724,9 +724,7 @@ const Categories = () => {
               >
                 Prev
               </button>
-              <span className="page-info">
-                Page {currentPage} of {Math.max(1, Math.ceil(total / itemsPerPage))}
-              </span>
+              <span className="page-info">Page {currentPage} of {totalPages}</span>
               <button
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage >= Math.ceil(total / itemsPerPage)}
