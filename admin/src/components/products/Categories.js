@@ -167,7 +167,7 @@ const Categories = () => {
           headers: getAuthHeaders()
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.message || 'Failed to delete category');
+        if (!res.ok) throw new Error(json?.message || `Failed to delete category (HTTP ${res.status})`);
         await fetchCategories();
         toast.success('Category deleted successfully');
       } catch (error) {
@@ -201,8 +201,8 @@ const Categories = () => {
           headers: getAuthHeaderOnly(),
           body: fd
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.message || 'Failed to add category');
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || `Failed to add category (HTTP ${res.status})`);
         toast.success('Category added successfully');
       } else {
         const res = await fetch(`${API_BASE}/api/v1/categories/${selectedCategory.id}`, {
@@ -210,8 +210,8 @@ const Categories = () => {
           headers: getAuthHeaderOnly(),
           body: fd
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.message || 'Failed to update category');
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || `Failed to update category (HTTP ${res.status})`);
         toast.success('Category updated successfully');
       }
 
@@ -253,8 +253,8 @@ const Categories = () => {
         headers: getAuthHeaders(),
         body: JSON.stringify({ featured: !category.featured })
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.message || 'Failed to update featured status');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || `Failed to update featured status (HTTP ${res.status})`);
       await fetchCategories();
       toast.success('Featured status updated successfully');
     } catch (error) {
