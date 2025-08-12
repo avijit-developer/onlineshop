@@ -1,20 +1,23 @@
 const cloudinary = require('cloudinary').v2;
 
-const {
-  CLOUDINARY_CLOUD_NAME,
-  CLOUDINARY_API_KEY,
-  CLOUDINARY_API_SECRET,
-  CLOUDINARY_FOLDER = 'onlineshop'
-} = process.env;
+// Accept multiple env var names for compatibility
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUD_NAME || process.env.Cloud_name;
+const API_KEY = process.env.CLOUDINARY_API_KEY || process.env.API_KEY || process.env.CLOUDINARY_KEY;
+const API_SECRET = process.env.CLOUDINARY_API_SECRET || process.env.API_SECRET || process.env.CLOUDINARY_SECRET || process.env.CLOUDINARY_APISECTRET;
+const CLOUDINARY_FOLDER = process.env.CLOUDINARY_FOLDER || 'onlineshop';
 
-if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
-  console.warn('Cloudinary env vars are not fully set. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET');
+const missing = [];
+if (!CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+if (!API_KEY) missing.push('CLOUDINARY_API_KEY');
+if (!API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+if (missing.length) {
+  console.warn(`Cloudinary env vars are not fully set. Missing: ${missing.join(', ')}. Accepted keys include CLOUDINARY_*, or CLOUD_NAME/API_KEY/API_SECRET.`);
 }
 
 cloudinary.config({
-  cloud_name: CLOUDINARY_CLOUD_NAME,
-  api_key: CLOUDINARY_API_KEY,
-  api_secret: CLOUDINARY_API_SECRET,
+  cloud_name: CLOUD_NAME,
+  api_key: API_KEY,
+  api_secret: API_SECRET,
   secure: true
 });
 
@@ -55,7 +58,6 @@ async function deleteImageByPublicId(publicId) {
   try {
     await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
   } catch (err) {
-    // Log and continue; not fatal for main flow
     console.warn('Cloudinary delete failed:', err?.message || err);
   }
 }
