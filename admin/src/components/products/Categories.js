@@ -706,6 +706,15 @@ const Categories = () => {
                   </div>
                 </div>
                 <div className="form-group full-width">
+                  <label>Description</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows="4"
+                  />
+                </div>
+                <div className="form-group full-width">
                   <label>Category Image {showAddModal && <span style={{color:'#e53e3e'}}>*</span>}</label>
                   <input
                     type="file"
