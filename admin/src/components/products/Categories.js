@@ -27,6 +27,66 @@ const Categories = () => {
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Compress image to <= maxBytes using WebP (preferred) or JPEG fallback
+  const compressImageFile = async (file, maxBytes = 150 * 1024, maxWidth = 1200, maxHeight = 1200) => {
+    const toDataUrl = (img, type, quality) => {
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      return canvas.toDataURL(type, quality);
+    };
+
+    const loadImage = (src) => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+
+    const readFileAsDataUrl = (f) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(f);
+    });
+
+    const dataUrl = await readFileAsDataUrl(file);
+    const img = await loadImage(dataUrl);
+
+    // Try WebP first, then JPEG
+    const tryTypes = ['image/webp', 'image/jpeg'];
+    for (const type of tryTypes) {
+      let quality = 0.9;
+      let bestBlob = null;
+      let bestSize = Infinity;
+      for (; quality >= 0.4; quality -= 0.1) {
+        const outDataUrl = toDataUrl(img, type, quality);
+        const res = await fetch(outDataUrl);
+        const blob = await res.blob();
+        if (blob.size <= maxBytes) {
+          const ext = type === 'image/webp' ? 'webp' : 'jpg';
+          return new File([blob], `${file.name.split('.')[0]}_compressed.${ext}`, { type });
+        }
+        if (blob.size < bestSize) {
+          bestSize = blob.size;
+          bestBlob = blob;
+        }
+      }
+      // if loop ends without return but bestBlob exists under 500KB, use it as fallback
+      if (bestBlob && bestBlob.size < 500 * 1024) {
+        const ext = type === 'image/webp' ? 'webp' : 'jpg';
+        return new File([bestBlob], `${file.name.split('.')[0]}_compressed.${ext}`, { type });
+      }
+    }
+    throw new Error('Unable to compress image under 150 KB');
+  };
+
   const getAuthHeaders = () => {
     const token = localStorage.getItem('adminToken');
     return {
@@ -265,19 +325,24 @@ const Categories = () => {
     }));
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 150 * 1024) {
-        toast.error('File too large. Max 150 KB allowed');
-        return;
+      try {
+        const compressed = await compressImageFile(file, 150 * 1024);
+        if (compressed.size > 150 * 1024) {
+          toast.error('File too large. Max 150 KB allowed');
+          return;
+        }
+        const imageUrl = URL.createObjectURL(compressed);
+        setFormData(prev => ({
+          ...prev,
+          image: imageUrl
+        }));
+        setImageFile(compressed);
+      } catch (err) {
+        toast.error(err?.message || 'Failed to process image');
       }
-      const imageUrl = URL.createObjectURL(file);
-      setFormData(prev => ({
-        ...prev,
-        image: imageUrl
-      }));
-      setImageFile(file);
     }
   };
 
@@ -741,7 +806,7 @@ const Categories = () => {
                     accept="image/*"
                     onChange={handleImageUpload}
                   />
-                  <small className="form-help">Upload JPG/PNG/WebP/GIF up to 150 KB</small>
+                  <small className="form-help">Upload JPG/PNG/WebP/GIF up to 150 KB (auto-compressed)</small>
                   {formData.image && (
                     <div className="image-preview">
                       <img src={formData.image} alt="Category preview" />
