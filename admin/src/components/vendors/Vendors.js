@@ -449,7 +449,7 @@ const Vendors = () => {
       {/* Existing Modals: Profile, Commission, Chat */}
       {showProfileModal && selectedVendor && (
         <div className="modal-overlay">
-          <div className="modal">
+          <div className="modal profile-modal">
             <div className="modal-header">
               <h2>Vendor Profile</h2>
               <button onClick={() => setShowProfileModal(false)} className="close-btn">&times;</button>

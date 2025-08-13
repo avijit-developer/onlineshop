@@ -518,3 +518,27 @@
     text-align: center;
   }
 } 
+
+/* Larger profile modal */
+.modal.profile-modal {
+  max-width: 900px;
+  width: 100%;
+}
+
+.vendor-profile {
+  gap: 24px;
+}
+
+.profile-header img {
+  width: 100px;
+  height: 100px;
+}
+
+.profile-details {
+  grid-template-columns: repeat(3, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.vendor-stats {
+  grid-template-columns: repeat(3, 1fr);
+} 
