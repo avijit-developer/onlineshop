@@ -16,17 +16,12 @@ const Vendors = () => {
 
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showCommissionModal, setShowCommissionModal] = useState(false);
-  const [showChatModal, setShowChatModal] = useState(false);
-  const [commissionSettings, setCommissionSettings] = useState({
-    globalCommission: 10,
-    vendorSpecific: {}
-  });
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [addSubmitting, setAddSubmitting] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
     companyName: '',
@@ -94,16 +89,15 @@ const Vendors = () => {
     }
   };
 
-  const handleEnableDisable = async (vendorId, enabled) => {
+  const handleEnableToggle = async (vendor, enabled) => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/vendors/${vendorId}/enable`, {
+      const res = await fetch(`${API_BASE}/api/v1/vendors/${vendor._id || vendor.id}/enable`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ enabled })
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.message || 'Failed to update enable status');
-      toast.success(`Vendor ${enabled ? 'enabled' : 'disabled'} successfully`);
       fetchVendors();
     } catch (error) {
       toast.error(error.message || 'Failed to update vendor status');
@@ -113,33 +107,6 @@ const Vendors = () => {
   const viewProfile = (vendor) => {
     setSelectedVendor(vendor);
     setShowProfileModal(true);
-  };
-
-  const openCommissionModal = (vendor) => {
-    setSelectedVendor(vendor);
-    setShowCommissionModal(true);
-  };
-
-  const openChatModal = (vendor) => {
-    setSelectedVendor(vendor);
-    setShowChatModal(true);
-    setChatMessages([
-      { id: 1, sender: 'admin', message: 'Hello! How can I help you?', timestamp: new Date().toISOString() },
-      { id: 2, sender: 'vendor', message: 'I have a question about my commission.', timestamp: new Date().toISOString() }
-    ]);
-  };
-
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: chatMessages.length + 1,
-        sender: 'admin',
-        message: newMessage,
-        timestamp: new Date().toISOString()
-      };
-      setChatMessages([...chatMessages, message]);
-      setNewMessage('');
-    }
   };
 
   const getUploadSignature = async (subfolder) => {
@@ -232,6 +199,80 @@ const Vendors = () => {
     }
   };
 
+  const openEdit = (vendor) => {
+    setSelectedVendor(vendor);
+    setFormData({
+      name: vendor.name || '',
+      companyName: vendor.companyName || '',
+      email: vendor.email || '',
+      phone: vendor.phone || '',
+      address: vendor.address || '',
+      commission: vendor.commission ?? 10,
+      logoPreview: vendor.logo || ''
+    });
+    setImageFile(null);
+    setShowEditModal(true);
+  };
+
+  const submitEditVendor = async (e) => {
+    e.preventDefault();
+    try {
+      if (editSubmitting) return;
+      setEditSubmitting(true);
+      const vendorId = selectedVendor?._id || selectedVendor?.id;
+      if (!vendorId) throw new Error('No vendor selected');
+      if (!formData.name.trim() || !formData.companyName.trim() || !formData.email.trim()) {
+        toast.error('Name, Company and Email are required');
+        setEditSubmitting(false);
+        return;
+      }
+      let payload = {
+        name: formData.name.trim(),
+        companyName: formData.companyName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        address: formData.address.trim(),
+        commission: Number(formData.commission) || 0
+      };
+      if (imageFile) {
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'vendors');
+        payload.imageUrl = imageUrl;
+        payload.imagePublicId = imagePublicId;
+      }
+      const res = await fetch(`${API_BASE}/api/v1/vendors/${vendorId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to update vendor');
+      toast.success('Vendor updated successfully');
+      setShowEditModal(false);
+      setImageFile(null);
+      fetchVendors();
+    } catch (error) {
+      toast.error(error.message || 'Failed to update vendor');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteVendor = async (vendor) => {
+    if (!window.confirm('Are you sure you want to delete this vendor?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/vendors/${vendor._id || vendor.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to delete vendor');
+      toast.success('Vendor deleted');
+      fetchVendors();
+    } catch (error) {
+      toast.error(error.message || 'Failed to delete vendor');
+    }
+  };
+
   const pagesCount = Math.max(1, Math.ceil(total / itemsPerPage));
 
   if (loading) {
@@ -303,7 +344,7 @@ const Vendors = () => {
               <th>Email</th>
               <th>Phone</th>
               <th>Status</th>
-              <th>Balance</th>
+              <th>Enabled</th>
               <th>Commission</th>
               <th>Actions</th>
             </tr>
@@ -328,50 +369,24 @@ const Vendors = () => {
                     {vendor.status}
                   </span>
                 </td>
-                <td>${vendor.balance?.toLocaleString() || '0'}</td>
-                <td>{vendor.commission || commissionSettings.globalCommission}%</td>
+                <td>
+                  <label className="toggle-switch">
+                    <input type="checkbox" checked={!!vendor.enabled} onChange={(e) => handleEnableToggle(vendor, e.target.checked)} />
+                    <span className="slider" />
+                  </label>
+                </td>
+                <td>{vendor.commission ?? 10}%</td>
                 <td>
                   <div className="action-buttons">
-                    <button
-                      onClick={() => viewProfile(vendor)}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      View
-                    </button>
+                    <button onClick={() => viewProfile(vendor)} className="btn btn-secondary btn-sm">View</button>
                     {vendor.status === 'pending' && (
                       <>
-                        <button
-                          onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')}
-                          className="btn btn-success btn-sm"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')}
-                          className="btn btn-danger btn-sm"
-                        >
-                          Reject
-                        </button>
+                        <button onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
+                        <button onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')} className="btn btn-danger btn-sm">Reject</button>
                       </>
                     )}
-                    <button
-                      onClick={() => openCommissionModal(vendor)}
-                      className="btn btn-info btn-sm"
-                    >
-                      Commission
-                    </button>
-                    <button
-                      onClick={() => openChatModal(vendor)}
-                      className="btn btn-primary btn-sm"
-                    >
-                      Chat
-                    </button>
-                    <button
-                      onClick={() => handleEnableDisable(vendor._id || vendor.id, !vendor.enabled)}
-                      className={`btn btn-sm ${vendor.enabled ? 'btn-warning' : 'btn-success'}`}
-                    >
-                      {vendor.enabled ? 'Disable' : 'Enable'}
-                    </button>
+                    <button onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">Edit</button>
+                    <button onClick={() => handleDeleteVendor(vendor)} className="btn btn-danger btn-sm">Delete</button>
                   </div>
                 </td>
               </tr>
@@ -383,9 +398,9 @@ const Vendors = () => {
       <div className="pagination">
         <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="btn btn-secondary">First</button>
         <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="btn btn-secondary">Prev</button>
-        <span className="page-info">Page {currentPage} of {pagesCount}</span>
-        <button onClick={() => setCurrentPage(p => Math.min(pagesCount, p + 1))} disabled={currentPage >= pagesCount} className="btn btn-secondary">Next</button>
-        <button onClick={() => setCurrentPage(pagesCount)} disabled={currentPage >= pagesCount} className="btn btn-secondary">Last</button>
+        <span className="page-info">Page {currentPage} of {Math.max(1, Math.ceil(total / itemsPerPage))}</span>
+        <button onClick={() => setCurrentPage(p => Math.min(Math.max(1, Math.ceil(total / itemsPerPage)), p + 1))} disabled={currentPage >= Math.max(1, Math.ceil(total / itemsPerPage))} className="btn btn-secondary">Next</button>
+        <button onClick={() => setCurrentPage(Math.max(1, Math.ceil(total / itemsPerPage)))} disabled={currentPage >= Math.max(1, Math.ceil(total / itemsPerPage))} className="btn btn-secondary">Last</button>
         <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="page-size-select" style={{ marginLeft: 8 }}>
           <option value={10}>10</option>
           <option value={20}>20</option>
@@ -446,7 +461,60 @@ const Vendors = () => {
         </div>
       )}
 
-      {/* Existing Modals: Profile, Commission, Chat */}
+      {/* Edit Vendor Modal */}
+      {showEditModal && (
+        <div className="modal-overlay">
+          <div className="modal large-modal">
+            <div className="modal-header">
+              <h2>Edit Vendor</h2>
+              <button onClick={() => setShowEditModal(false)} className="close-btn">&times;</button>
+            </div>
+            <form onSubmit={submitEditVendor} className="modal-body">
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Name *</label>
+                  <input type="text" name="name" value={formData.name} onChange={handleAddInput} required />
+                </div>
+                <div className="form-group">
+                  <label>Company Name *</label>
+                  <input type="text" name="companyName" value={formData.companyName} onChange={handleAddInput} required />
+                </div>
+                <div className="form-group">
+                  <label>Email *</label>
+                  <input type="email" name="email" value={formData.email} onChange={handleAddInput} required />
+                </div>
+                <div className="form-group">
+                  <label>Phone</label>
+                  <input type="text" name="phone" value={formData.phone} onChange={handleAddInput} />
+                </div>
+                <div className="form-group full-width">
+                  <label>Address</label>
+                  <input type="text" name="address" value={formData.address} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>Commission (%)</label>
+                  <input type="number" name="commission" min="0" max="100" step="0.1" value={formData.commission} onChange={handleAddInput} />
+                </div>
+                <div className="form-group full-width">
+                  <label>Logo</label>
+                  <input type="file" accept="image/*" onChange={handleLogoChange} />
+                  {formData.logoPreview && (
+                    <div className="image-preview">
+                      <img src={formData.logoPreview} alt="Logo preview" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </form>
+            <div className="modal-footer">
+              <button onClick={() => setShowEditModal(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={submitEditVendor} className="btn btn-primary" disabled={editSubmitting}>{editSubmitting ? 'Saving...' : 'Update Vendor'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Modal */}
       {showProfileModal && selectedVendor && (
         <div className="modal-overlay">
           <div className="modal profile-modal">
@@ -470,96 +538,13 @@ const Vendors = () => {
                   <div className="detail-group"><label>Status:</label><span className={`status-badge ${selectedVendor.status}`}>{selectedVendor.status}</span></div>
                   <div className="detail-group"><label>Balance:</label><span>${selectedVendor.balance?.toLocaleString() || '0'}</span></div>
                   <div className="detail-group"><label>Total Earnings:</label><span>${selectedVendor.totalEarnings?.toLocaleString() || '0'}</span></div>
-                  <div className="detail-group"><label>Commission:</label><span>{selectedVendor.commission || commissionSettings.globalCommission}%</span></div>
+                  <div className="detail-group"><label>Commission:</label><span>{selectedVendor.commission ?? 10}%</span></div>
                 </div>
                 <div className="vendor-stats">
                   <div className="stat-item"><h4>Products</h4><p>{selectedVendor.productsCount || 0}</p></div>
                   <div className="stat-item"><h4>Orders</h4><p>{selectedVendor.ordersCount || 0}</p></div>
                   <div className="stat-item"><h4>Rating</h4><p>{selectedVendor.rating || 'N/A'}</p></div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCommissionModal && selectedVendor && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>Commission Settings</h2>
-              <button onClick={() => setShowCommissionModal(false)} className="close-btn">&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="commission-settings">
-                <div className="setting-group">
-                  <label>Global Commission Rate:</label>
-                  <input
-                    type="number"
-                    value={commissionSettings.globalCommission}
-                    onChange={(e) => setCommissionSettings({
-                      ...commissionSettings,
-                      globalCommission: parseFloat(e.target.value)
-                    })}
-                    min="0"
-                    max="100"
-                    step="0.1"
-                  />
-                  <span>%</span>
-                </div>
-                <div className="setting-group">
-                  <label>Vendor Specific Commission:</label>
-                  <input
-                    type="number"
-                    value={commissionSettings.vendorSpecific[selectedVendor._id || selectedVendor.id] || commissionSettings.globalCommission}
-                    onChange={(e) => setCommissionSettings({
-                      ...commissionSettings,
-                      vendorSpecific: {
-                        ...commissionSettings.vendorSpecific,
-                        [selectedVendor._id || selectedVendor.id]: parseFloat(e.target.value)
-                      }
-                    })}
-                    min="0"
-                    max="100"
-                    step="0.1"
-                  />
-                  <span>%</span>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button onClick={() => setShowCommissionModal(false)} className="btn btn-secondary">Cancel</button>
-              <button onClick={() => setShowCommissionModal(false)} className="btn btn-primary">Update Commission</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showChatModal && selectedVendor && (
-        <div className="modal-overlay">
-          <div className="modal chat-modal">
-            <div className="modal-header">
-              <h2>Chat with {selectedVendor.companyName}</h2>
-              <button onClick={() => setShowChatModal(false)} className="close-btn">&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="chat-messages">
-                {chatMessages.map((message) => (
-                  <div key={message.id} className={`message ${message.sender}`}>
-                    <div className="message-content">{message.message}</div>
-                    <div className="message-time">{new Date(message.timestamp).toLocaleTimeString()}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="chat-input">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                />
-                <button onClick={sendMessage} className="btn btn-primary">Send</button>
               </div>
             </div>
           </div>
