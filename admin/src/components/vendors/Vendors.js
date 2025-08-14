@@ -27,7 +27,10 @@ const Vendors = () => {
     companyName: '',
     email: '',
     phone: '',
-    address: '',
+    address1: '',
+    address2: '',
+    city: '',
+    zip: '',
     commission: 10,
     logoPreview: ''
   });
@@ -140,7 +143,7 @@ const Vendors = () => {
   };
 
   const handleOpenAdd = () => {
-    setFormData({ name: '', companyName: '', email: '', phone: '', address: '', commission: 10, logoPreview: '' });
+    setFormData({ name: '', companyName: '', email: '', phone: '', address1: '', address2: '', city: '', zip: '', commission: 10, logoPreview: '' });
     setImageFile(null);
     setShowAddModal(true);
   };
@@ -173,7 +176,10 @@ const Vendors = () => {
         companyName: formData.companyName.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        address: formData.address.trim(),
+        address1: formData.address1.trim(),
+        address2: formData.address2.trim(),
+        city: formData.city.trim(),
+        zip: formData.zip.trim(),
         commission: Number(formData.commission) || 0
       };
       if (imageFile) {
@@ -206,7 +212,10 @@ const Vendors = () => {
       companyName: vendor.companyName || '',
       email: vendor.email || '',
       phone: vendor.phone || '',
-      address: vendor.address || '',
+      address1: vendor.address1 || '',
+      address2: vendor.address2 || '',
+      city: vendor.city || '',
+      zip: vendor.zip || '',
       commission: vendor.commission ?? 10,
       logoPreview: vendor.logo || ''
     });
@@ -231,7 +240,10 @@ const Vendors = () => {
         companyName: formData.companyName.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        address: formData.address.trim(),
+        address1: formData.address1.trim(),
+        address2: formData.address2.trim(),
+        city: formData.city.trim(),
+        zip: formData.zip.trim(),
         commission: Number(formData.commission) || 0
       };
       if (imageFile) {
@@ -378,15 +390,15 @@ const Vendors = () => {
                 <td>{vendor.commission ?? 10}%</td>
                 <td>
                   <div className="action-buttons">
-                    <button onClick={() => viewProfile(vendor)} className="btn btn-secondary btn-sm">View</button>
+                    <button title="View" onClick={() => viewProfile(vendor)} className="btn btn-secondary btn-sm">👁️</button>
                     {vendor.status === 'pending' && (
                       <>
-                        <button onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
-                        <button onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')} className="btn btn-danger btn-sm">Reject</button>
+                        <button title="Approve" onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')} className="btn btn-success btn-sm">✔️</button>
+                        <button title="Reject" onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')} className="btn btn-danger btn-sm">✖️</button>
                       </>
                     )}
-                    <button onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">Edit</button>
-                    <button onClick={() => handleDeleteVendor(vendor)} className="btn btn-danger btn-sm">Delete</button>
+                    <button title="Edit" onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">✏️</button>
+                    <button title="Delete" onClick={() => handleDeleteVendor(vendor)} className="btn btn-danger btn-sm">🗑️</button>
                   </div>
                 </td>
               </tr>
@@ -431,12 +443,24 @@ const Vendors = () => {
                   <input type="email" name="email" value={formData.email} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>Phone</label>
-                  <input type="text" name="phone" value={formData.phone} onChange={handleAddInput} />
+                  <label>Phone *</label>
+                  <input type="text" name="phone" value={formData.phone} onChange={handleAddInput} required />
                 </div>
-                <div className="form-group full-width">
-                  <label>Address</label>
-                  <input type="text" name="address" value={formData.address} onChange={handleAddInput} />
+                <div className="form-group">
+                  <label>Address 1</label>
+                  <input type="text" name="address1" value={formData.address1} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>Address 2</label>
+                  <input type="text" name="address2" value={formData.address2} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>City</label>
+                  <input type="text" name="city" value={formData.city} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>ZIP</label>
+                  <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} />
                 </div>
                 <div className="form-group">
                   <label>Commission (%)</label>
@@ -484,12 +508,24 @@ const Vendors = () => {
                   <input type="email" name="email" value={formData.email} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>Phone</label>
-                  <input type="text" name="phone" value={formData.phone} onChange={handleAddInput} />
+                  <label>Phone *</label>
+                  <input type="text" name="phone" value={formData.phone} onChange={handleAddInput} required />
                 </div>
-                <div className="form-group full-width">
-                  <label>Address</label>
-                  <input type="text" name="address" value={formData.address} onChange={handleAddInput} />
+                <div className="form-group">
+                  <label>Address 1</label>
+                  <input type="text" name="address1" value={formData.address1} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>Address 2</label>
+                  <input type="text" name="address2" value={formData.address2} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>City</label>
+                  <input type="text" name="city" value={formData.city} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>ZIP</label>
+                  <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} />
                 </div>
                 <div className="form-group">
                   <label>Commission (%)</label>
@@ -520,7 +556,12 @@ const Vendors = () => {
           <div className="modal profile-modal">
             <div className="modal-header">
               <h2>Vendor Profile</h2>
-              <button onClick={() => setShowProfileModal(false)} className="close-btn">&times;</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {selectedVendor?.status === 'pending' && (
+                  <button onClick={() => handleStatusChange(selectedVendor._id || selectedVendor.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
+                )}
+                <button onClick={() => setShowProfileModal(false)} className="close-btn">&times;</button>
+              </div>
             </div>
             <div className="modal-body">
               <div className="vendor-profile">

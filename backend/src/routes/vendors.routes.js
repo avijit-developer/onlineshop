@@ -37,10 +37,10 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // POST /vendors (accepts direct upload fields imageUrl/imagePublicId for logo)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
-  const { name, companyName, email, phone, address, commission, imageUrl, imagePublicId } = req.body || {};
-  if (!name || !companyName || !email) {
+  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId } = req.body || {};
+  if (!name || !companyName || !email || !phone) {
     res.status(400);
-    throw new Error('name, companyName and email are required');
+    throw new Error('name, companyName, email and phone are required');
   }
   if (!isValidEmail(email)) {
     res.status(400);
@@ -57,7 +57,11 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     name: String(name).trim(),
     companyName: String(companyName).trim(),
     email: String(email).trim().toLowerCase(),
-    phone: phone ? String(phone).trim() : '',
+    phone: String(phone).trim(),
+    address1: address1 ? String(address1).trim() : '',
+    address2: address2 ? String(address2).trim() : '',
+    city: city ? String(city).trim() : '',
+    zip: zip ? String(zip).trim() : '',
     address: address ? String(address).trim() : '',
     commission: commission !== undefined ? Number(commission) : undefined,
     logo: imageUrl || '',
@@ -70,7 +74,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 // PUT /vendors/:id
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, companyName, email, phone, address, commission, imageUrl, imagePublicId, status, enabled } = req.body || {};
+  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, status, enabled } = req.body || {};
 
   const vendor = await Vendor.findById(id);
   if (!vendor) {
@@ -88,6 +92,10 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     vendor.email = String(email).trim().toLowerCase();
   }
   if (phone !== undefined) vendor.phone = String(phone).trim();
+  if (address1 !== undefined) vendor.address1 = String(address1).trim();
+  if (address2 !== undefined) vendor.address2 = String(address2).trim();
+  if (city !== undefined) vendor.city = String(city).trim();
+  if (zip !== undefined) vendor.zip = String(zip).trim();
   if (address !== undefined) vendor.address = String(address).trim();
   if (commission !== undefined) vendor.commission = Number(commission);
   if (status !== undefined) vendor.status = status;
