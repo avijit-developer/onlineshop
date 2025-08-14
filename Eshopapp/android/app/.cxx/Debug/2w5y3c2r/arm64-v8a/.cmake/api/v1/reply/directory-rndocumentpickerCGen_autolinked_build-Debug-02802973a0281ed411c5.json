@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "rndocumentpickerCGen_autolinked_build",
+		"source" : "D:/project/Eshopapp/node_modules/@react-native-documents/picker/android/build/generated/source/codegen/jni"
+	}
+}

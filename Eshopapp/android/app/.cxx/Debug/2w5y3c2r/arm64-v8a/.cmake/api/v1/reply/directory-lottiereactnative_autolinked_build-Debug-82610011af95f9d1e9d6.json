@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "lottiereactnative_autolinked_build",
+		"source" : "D:/project/Eshopapp/node_modules/lottie-react-native/android/build/generated/source/codegen/jni"
+	}
+}
