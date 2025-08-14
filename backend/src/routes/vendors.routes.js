@@ -38,9 +38,9 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 // POST /vendors (accepts direct upload fields imageUrl/imagePublicId for logo)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
   const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId } = req.body || {};
-  if (!name || !companyName || !email || !phone) {
+  if (!name || !companyName || !email || !phone || !address1 || !city || !zip) {
     res.status(400);
-    throw new Error('name, companyName, email and phone are required');
+    throw new Error('name, companyName, email, phone, address1, city and zip are required');
   }
   if (!isValidEmail(email)) {
     res.status(400);
@@ -58,10 +58,10 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     companyName: String(companyName).trim(),
     email: String(email).trim().toLowerCase(),
     phone: String(phone).trim(),
-    address1: address1 ? String(address1).trim() : '',
+    address1: String(address1).trim(),
     address2: address2 ? String(address2).trim() : '',
-    city: city ? String(city).trim() : '',
-    zip: zip ? String(zip).trim() : '',
+    city: String(city).trim(),
+    zip: String(zip).trim(),
     address: address ? String(address).trim() : '',
     commission: commission !== undefined ? Number(commission) : undefined,
     logo: imageUrl || '',

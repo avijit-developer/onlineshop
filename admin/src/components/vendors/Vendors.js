@@ -447,20 +447,20 @@ const Vendors = () => {
                   <input type="text" name="phone" value={formData.phone} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>Address 1</label>
-                  <input type="text" name="address1" value={formData.address1} onChange={handleAddInput} />
+                  <label>Address 1 *</label>
+                  <input type="text" name="address1" value={formData.address1} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
                   <label>Address 2</label>
                   <input type="text" name="address2" value={formData.address2} onChange={handleAddInput} />
                 </div>
                 <div className="form-group">
-                  <label>City</label>
-                  <input type="text" name="city" value={formData.city} onChange={handleAddInput} />
+                  <label>City *</label>
+                  <input type="text" name="city" value={formData.city} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>ZIP</label>
-                  <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} />
+                  <label>ZIP *</label>
+                  <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
                   <label>Commission (%)</label>
@@ -512,20 +512,20 @@ const Vendors = () => {
                   <input type="text" name="phone" value={formData.phone} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>Address 1</label>
-                  <input type="text" name="address1" value={formData.address1} onChange={handleAddInput} />
+                  <label>Address 1 *</label>
+                  <input type="text" name="address1" value={formData.address1} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
                   <label>Address 2</label>
                   <input type="text" name="address2" value={formData.address2} onChange={handleAddInput} />
                 </div>
                 <div className="form-group">
-                  <label>City</label>
-                  <input type="text" name="city" value={formData.city} onChange={handleAddInput} />
+                  <label>City *</label>
+                  <input type="text" name="city" value={formData.city} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>ZIP</label>
-                  <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} />
+                  <label>ZIP *</label>
+                  <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
                   <label>Commission (%)</label>
@@ -566,7 +566,7 @@ const Vendors = () => {
             <div className="modal-body">
               <div className="vendor-profile">
                 <div className="profile-header">
-                  <img src={selectedVendor.logo || '/default-vendor.png'} alt={selectedVendor.companyName} />
+                  <img src={(selectedVendor.logo && selectedVendor.logo.trim()) ? selectedVendor.logo : '/default-vendor.png'} alt={selectedVendor.companyName} />
                   <div>
                     <h3>{selectedVendor.companyName}</h3>
                     <p>{selectedVendor.name}</p>
