@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Vendors.css';
+import defaultVendor from '../../assets/default-vendor.png';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -366,7 +367,7 @@ const Vendors = () => {
               <tr key={vendor._id || vendor.id}>
                 <td>
                   <div className="vendor-info">
-                    <img src={vendor.logo || '/default-vendor.png'} alt={vendor.companyName} className="vendor-logo" />
+                    <img src={vendor.logo && vendor.logo.trim() ? vendor.logo : defaultVendor} alt={vendor.companyName} className="vendor-logo" />
                     <div>
                       <strong>{vendor.name}</strong>
                       <small>{vendor._id || vendor.id}</small>
@@ -471,7 +472,7 @@ const Vendors = () => {
                   <input type="file" accept="image/*" onChange={handleLogoChange} />
                   {formData.logoPreview && (
                     <div className="image-preview">
-                      <img src={formData.logoPreview} alt="Logo preview" />
+                      <img src={(formData.logoPreview && formData.logoPreview.trim()) ? formData.logoPreview : defaultVendor} alt="Logo preview" />
                     </div>
                   )}
                 </div>
@@ -536,7 +537,7 @@ const Vendors = () => {
                   <input type="file" accept="image/*" onChange={handleLogoChange} />
                   {formData.logoPreview && (
                     <div className="image-preview">
-                      <img src={formData.logoPreview} alt="Logo preview" />
+                      <img src={(formData.logoPreview && formData.logoPreview.trim()) ? formData.logoPreview : defaultVendor} alt="Logo preview" />
                     </div>
                   )}
                 </div>
@@ -566,7 +567,7 @@ const Vendors = () => {
             <div className="modal-body">
               <div className="vendor-profile">
                 <div className="profile-header">
-                  <img src={(selectedVendor.logo && selectedVendor.logo.trim()) ? selectedVendor.logo : '/default-vendor.png'} alt={selectedVendor.companyName} />
+                  <img src={selectedVendor.logo && selectedVendor.logo.trim() ? selectedVendor.logo : defaultVendor} alt={selectedVendor.companyName} />
                   <div>
                     <h3>{selectedVendor.companyName}</h3>
                     <p>{selectedVendor.name}</p>
