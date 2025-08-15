@@ -175,15 +175,9 @@ const Products = () => {
 
   const filterProducts = () => {
     let filtered = products;
-    // Note: searchTerm filtering is now handled by the API, not locally
+    // Note: searchTerm, category, and vendor filtering are now handled by the API, not locally
     if (statusFilter !== 'all') {
       filtered = filtered.filter(product => product.status === statusFilter);
-    }
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter(product => String(product.category) === String(categoryFilter));
-    }
-    if (vendorFilter !== 'all') {
-      filtered = filtered.filter(product => String(product.vendor) === String(vendorFilter));
     }
     setFilteredProducts(filtered);
     setCurrentPage(1);
@@ -416,19 +410,40 @@ const Products = () => {
     }));
   };
 
-  const getCategoryName = (categoryId) => {
-    const category = categories.find(c => String(c.id) === String(categoryId));
-    return category ? category.name : 'N/A';
+  const getCategoryName = (category) => {
+    // Handle both populated data (object) and ID references
+    if (category && typeof category === 'object' && category.name) {
+      return category.name;
+    }
+    if (category) {
+      const categoryObj = categories.find(c => String(c.id) === String(category));
+      return categoryObj ? categoryObj.name : 'N/A';
+    }
+    return 'N/A';
   };
 
-  const getVendorName = (vendorId) => {
-    const vendor = vendors.find(v => String(v.id) === String(vendorId));
-    return vendor ? vendor.companyName : 'N/A';
+  const getVendorName = (vendor) => {
+    // Handle both populated data (object) and ID references
+    if (vendor && typeof vendor === 'object' && vendor.companyName) {
+      return vendor.companyName;
+    }
+    if (vendor) {
+      const vendorObj = vendors.find(v => String(v.id) === String(vendor));
+      return vendorObj ? vendorObj.companyName : 'N/A';
+    }
+    return 'N/A';
   };
 
-  const getBrandName = (brandId) => {
-    const brand = brands.find(b => String(b.id) === String(brandId));
-    return brand ? brand.name : 'N/A';
+  const getBrandName = (brand) => {
+    // Handle both populated data (object) and ID references
+    if (brand && typeof brand === 'object' && brand.name) {
+      return brand.name;
+    }
+    if (brand) {
+      const brandObj = brands.find(b => String(b.id) === String(brand));
+      return brandObj ? brandObj.name : 'N/A';
+    }
+    return 'N/A';
   };
 
   // Pagination (API-like)
@@ -459,6 +474,20 @@ const Products = () => {
             <button className="btn btn-primary" onClick={() => { setCurrentPage(1); fetchData(); }}>Search</button>
             {searchTerm && (
               <button className="btn btn-secondary" onClick={() => { setSearchTerm(''); setCurrentPage(1); fetchData(); }}>Clear</button>
+            )}
+            {(searchTerm || categoryFilter !== 'all' || vendorFilter !== 'all') && (
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => { 
+                  setSearchTerm(''); 
+                  setCategoryFilter('all'); 
+                  setVendorFilter('all'); 
+                  setCurrentPage(1); 
+                  fetchData(); 
+                }}
+              >
+                Clear All Filters
+              </button>
             )}
           </div>
           <button onClick={handleAddProduct} className="btn btn-primary">Add Product</button>
@@ -499,6 +528,18 @@ const Products = () => {
           <div className="stat-card">
             <h3>Search Results</h3>
             <p>Showing filtered results for: "{searchTerm}"</p>
+          </div>
+        )}
+        {categoryFilter !== 'all' && (
+          <div className="stat-card">
+            <h3>Category Filter</h3>
+            <p>Showing products from: {categories.find(c => c.id === categoryFilter)?.name || 'Unknown Category'}</p>
+          </div>
+        )}
+        {vendorFilter !== 'all' && (
+          <div className="stat-card">
+            <h3>Vendor Filter</h3>
+            <p>Showing products from: {vendors.find(v => v.id === vendorFilter)?.companyName || 'Unknown Vendor'}</p>
           </div>
         )}
       </div>
