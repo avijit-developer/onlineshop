@@ -699,27 +699,9 @@ const Products = () => {
                       <label>Variant Attributes (comma separated):</label>
                       <input
                         type="text"
-                        value={(() => {
-                          // Show trailing comma if user is typing it
-                          const vals = variantAttributes || [];
-                          // Only allow one empty string at the end
-                          let arr = [...vals];
-                          if (arr.length > 1 && arr[arr.length - 1] === '' && arr[arr.length - 2] === '') {
-                            arr = arr.slice(0, -1);
-                          }
-                          let str = arr.filter((v, i) => v !== '' || i === arr.length - 1).join(', ');
-                          if (arr.length > 0 && arr[arr.length - 1] === '') {
-                            str += ',';
-                          }
-                          return str;
-                        })()}
+                        value={variantAttributes.join(', ')}
                         onChange={e => {
-                          let val = e.target.value;
-                          let arr = val.split(',').map(v => v.trim());
-                          // Only allow one empty string at the end
-                          if (arr.length > 1 && arr[arr.length - 1] === '' && arr[arr.length - 2] === '') {
-                            arr = arr.slice(0, -1);
-                          }
+                          const arr = e.target.value.split(',').map(v => v.trim()).filter(v => v.length > 0);
                           handleAttributeNamesChange(arr);
                         }}
                         placeholder="e.g. Attribute1, Attribute2, Attribute3"
@@ -730,24 +712,9 @@ const Products = () => {
                         <label>{attr} Values (comma separated):</label>
                         <input
                           type="text"
-                          value={(() => {
-                            // Show trailing comma if user is typing it
-                            const vals = attributeValues[attr] || [];
-                            let str = vals.join(', ');
-                            // If last value is empty, add trailing comma
-                            if (vals.length > 0 && vals[vals.length - 1] === '') {
-                              str += ',';
-                            }
-                            return str;
-                          })()}
+                          value={(attributeValues[attr] || []).join(', ')}
                           onChange={e => {
-                            let val = e.target.value;
-                            // Split by comma, preserve empty values for trailing comma
-                            let arr = val.split(',').map(v => v.trim());
-                            // If last char is comma, add empty string to array
-                            if (val.endsWith(',')) {
-                              if (arr[arr.length - 1] !== '') arr.push('');
-                            }
+                            const arr = e.target.value.split(',').map(v => v.trim()).filter(v => v.length > 0);
                             handleAttributeValuesChange(attr, arr);
                           }}
                           placeholder={`e.g. Value1, Value2, Value3`}
