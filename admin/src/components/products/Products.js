@@ -410,20 +410,26 @@ const Products = () => {
     <div className="products-container">
       <div className="page-header">
         <h1>Product Management</h1>
-        <div className="header-actions">
-          <div className="search-filter-container" style={{ display: 'flex', gap: 8 }}>
+        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="search-filter-container" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="text"
               placeholder="Search products..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); fetchData(); }}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { setCurrentPage(1); fetchData(); } }}
               className="search-input"
+              style={{ minWidth: 260 }}
             />
-            <button onClick={handleAddProduct} className="btn btn-primary">Add Product</button>
+            <button className="btn btn-primary" onClick={() => { setCurrentPage(1); fetchData(); }}>Search</button>
+            {searchTerm && (
+              <button className="btn btn-secondary" onClick={() => { setSearchTerm(''); setCurrentPage(1); fetchData(); }}>Clear</button>
+            )}
           </div>
+          <button onClick={handleAddProduct} className="btn btn-primary">Add Product</button>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); fetchData(); }}
             className="filter-select"
           >
             <option value="all">All Status</option>
@@ -433,7 +439,7 @@ const Products = () => {
           </select>
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); fetchData(); }}
             className="filter-select"
           >
             <option value="all">All Categories</option>
@@ -443,7 +449,7 @@ const Products = () => {
           </select>
           <select
             value={vendorFilter}
-            onChange={(e) => setVendorFilter(e.target.value)}
+            onChange={(e) => { setVendorFilter(e.target.value); setCurrentPage(1); fetchData(); }}
             className="filter-select"
           >
             <option value="all">All Vendors</option>
@@ -530,22 +536,16 @@ const Products = () => {
                     >
                       Edit
                     </button>
-                    {product.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleStatusChange(product.id, 'approved')}
-                          className="btn btn-success btn-sm"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(product.id, 'rejected')}
-                          className="btn btn-danger btn-sm"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
+                    <select
+                      value={product.status}
+                      onChange={(e) => handleStatusChange(product._id || product.id, e.target.value)}
+                      className="filter-select"
+                      style={{ minWidth: 120 }}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
                   </div>
                 </td>
               </tr>
