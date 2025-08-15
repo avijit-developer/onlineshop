@@ -373,6 +373,23 @@ const Products = () => {
     }));
   };
 
+  const handleDeleteProduct = async (product) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    try {
+      const id = product._id || product.id;
+      const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to delete product');
+      toast.success('Product deleted');
+      await fetchData();
+    } catch (error) {
+      toast.error(error.message || 'Failed to delete product');
+    }
+  };
+
   const addVariant = () => {
     setFormData(prev => ({
       ...prev,
@@ -436,7 +453,7 @@ const Products = () => {
       <div className="page-header">
         <h1>Product Management</h1>
         <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div className="search-filter-container" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="search-filter-container" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
             <input
               type="text"
               placeholder="Search products..."
@@ -480,10 +497,6 @@ const Products = () => {
         <div className="stat-card">
           <h3>Total Products</h3>
           <p>{products.length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Pending Approval</h3>
-          <p>{products.filter(p => p.status === 'pending').length}</p>
         </div>
         <div className="stat-card">
           <h3>Out of Stock</h3>
@@ -556,6 +569,12 @@ const Products = () => {
                       className="btn btn-info btn-sm"
                     >
                       Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProduct(product)}
+                      className="btn btn-danger btn-sm"
+                    >
+                      Delete
                     </button>
                   </div>
                 </td>
@@ -966,12 +985,7 @@ const Products = () => {
                     <label>Vendor:</label>
                     <span>{getVendorName(selectedProduct.vendor)}</span>
                   </div>
-                  <div className="info-item">
-                    <label>Status:</label>
-                    <span className={`status-badge ${selectedProduct.status}`}>
-                      {selectedProduct.status}
-                    </span>
-                  </div>
+                  
                   <div className="info-item">
                     <label>Regular Price:</label>
                     <span>${selectedProduct.regularPrice}</span>
