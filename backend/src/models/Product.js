@@ -23,7 +23,7 @@ const productSchema = new mongoose.Schema(
     brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', required: false, index: true },
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true, index: true },
 
-    sku: { type: String, trim: true, index: true },
+    sku: { type: String, trim: true },
     tags: { type: [String], default: [] },
 
     regularPrice: { type: Number, required: true, min: 0 },
