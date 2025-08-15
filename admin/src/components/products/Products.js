@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Products.css';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Products = () => {
   // Dynamic matrix variant state
   const [variantAttributes, setVariantAttributes] = useState([]); // e.g. ['Attribute1', 'Attribute2']
@@ -78,6 +80,14 @@ const Products = () => {
     variants: []
   });
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : ''
+    };
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -88,61 +98,79 @@ const Products = () => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/data.json');
-      const data = await response.json();
-      setProducts(data.products || []);
-      setCategories(data.categories || []);
-      setVendors(data.vendors || []);
-      setBrands(data.brands || []);
+      setLoading(true);
+      // Fetch products
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('q', searchTerm);
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (categoryFilter && categoryFilter !== 'all') params.append('category', categoryFilter);
+      if (vendorFilter && vendorFilter !== 'all') params.append('vendor', vendorFilter);
+      params.append('page', String(currentPage));
+      params.append('limit', String(itemsPerPage));
+
+      const [prodRes, catRes, venRes, brRes] = await Promise.all([
+        fetch(`${API_BASE}/api/v1/products?${params.toString()}`, { headers: getAuthHeaders() }),
+        fetch(`${API_BASE}/api/v1/categories?parent=all&page=1&limit=1000`, { headers: getAuthHeaders() }),
+        fetch(`${API_BASE}/api/v1/vendors?page=1&limit=1000`, { headers: getAuthHeaders() }),
+        fetch(`${API_BASE}/api/v1/brands?page=1&limit=1000`, { headers: getAuthHeaders() })
+      ]);
+
+      const [prodJson, catJson, venJson, brJson] = await Promise.all([
+        prodRes.json(), catRes.json(), venRes.json(), brRes.json()
+      ]);
+
+      if (!prodRes.ok) throw new Error(prodJson?.message || 'Failed to fetch products');
+      if (!catRes.ok) throw new Error(catJson?.message || 'Failed to fetch categories');
+      if (!venRes.ok) throw new Error(venJson?.message || 'Failed to fetch vendors');
+      if (!brRes.ok) throw new Error(brJson?.message || 'Failed to fetch brands');
+
+      setProducts(prodJson.data || []);
+      setCategories((catJson.data || []).map(c => ({ id: c._id, name: c.name })));
+      setVendors((venJson.data || []).map(v => ({ id: v._id, companyName: v.companyName })));
+      setBrands((brJson.data || []).map(b => ({ id: b._id, name: b.name })));
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
+      toast.error(error.message || 'Failed to load data');
       setLoading(false);
     }
   };
 
   const filterProducts = () => {
     let filtered = products;
-
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.sku || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.description || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
-    // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(product => product.status === statusFilter);
     }
-
-    // Category filter
     if (categoryFilter !== 'all') {
-      filtered = filtered.filter(product => product.categoryId === parseInt(categoryFilter));
+      filtered = filtered.filter(product => String(product.category) === String(categoryFilter));
     }
-
-    // Vendor filter
     if (vendorFilter !== 'all') {
-      filtered = filtered.filter(product => product.vendorId === parseInt(vendorFilter));
+      filtered = filtered.filter(product => String(product.vendor) === String(vendorFilter));
     }
-
     setFilteredProducts(filtered);
     setCurrentPage(1);
   };
 
   const handleStatusChange = async (productId, newStatus) => {
     try {
-      const updatedProducts = products.map(product =>
-        product.id === productId ? { ...product, status: newStatus } : product
-      );
-      setProducts(updatedProducts);
-      
+      const res = await fetch(`${API_BASE}/api/v1/products/${productId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: newStatus })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to update product status');
       toast.success(`Product ${newStatus === 'approved' ? 'approved' : 'rejected'} successfully`);
+      await fetchData();
     } catch (error) {
-      toast.error('Failed to update product status');
+      toast.error(error.message || 'Failed to update product status');
     }
   };
 
@@ -171,20 +199,20 @@ const Products = () => {
   const handleEditProduct = (product) => {
     setSelectedProduct(product);
     setFormData({
-      name: product.name,
-      description: product.description,
-      categoryId: product.categoryId,
-      brandId: product.brandId,
-      vendorId: product.vendorId,
-      regularPrice: product.regularPrice,
-      specialPrice: product.specialPrice || '',
-      tax: product.tax,
-      stock: product.stock,
-      lowStockAlert: product.lowStockAlert || '',
-      sku: product.sku,
-      tags: product.tags?.join(', ') || '',
-      seoTitle: product.seoTitle || '',
-      seoDescription: product.seoDescription || '',
+      name: product.name || '',
+      description: product.description || '',
+      categoryId: product.category || '',
+      brandId: product.brand || '',
+      vendorId: product.vendor || '',
+      regularPrice: product.regularPrice ?? '',
+      specialPrice: product.specialPrice ?? '',
+      tax: product.tax ?? '',
+      stock: product.stock ?? '',
+      lowStockAlert: product.lowStockAlert ?? '',
+      sku: product.sku || '',
+      tags: (product.tags || []).join(', '),
+      seoTitle: '',
+      seoDescription: '',
       images: product.images || [],
       variants: product.variants || []
     });
@@ -196,39 +224,54 @@ const Products = () => {
     setShowDetailsModal(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (showAddModal) {
-      // Add new product
-      const newProduct = {
-        id: Date.now(),
-        ...formData,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        description: formData.description?.trim() || '',
+        category: formData.categoryId,
+        brand: formData.brandId,
+        vendor: formData.vendorId,
+        regularPrice: Number(formData.regularPrice) || 0,
+        specialPrice: formData.specialPrice !== '' ? Number(formData.specialPrice) : undefined,
+        tax: formData.tax !== '' ? Number(formData.tax) : undefined,
+        stock: formData.stock !== '' ? Number(formData.stock) : undefined,
+        lowStockAlert: formData.lowStockAlert !== '' ? Number(formData.lowStockAlert) : undefined,
+        sku: formData.sku?.trim() || undefined,
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        images: formData.images || [],
+        imagePublicIds: [],
+        variants: matrixVariants.map(v => ({ attributes: Object.fromEntries(Object.entries(v).filter(([k]) => variantAttributes.includes(k))), price: v.price ? Number(v.price) : undefined, specialPrice: v.specialPrice ? Number(v.specialPrice) : undefined, images: [] }))
       };
-      setProducts([...products, newProduct]);
-      toast.success('Product added successfully');
-    } else {
-      // Update existing product
-      const updatedProducts = products.map(product =>
-        product.id === selectedProduct.id 
-          ? { 
-              ...product, 
-              ...formData,
-              tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-              updatedAt: new Date().toISOString()
-            }
-          : product
-      );
-      setProducts(updatedProducts);
-      toast.success('Product updated successfully');
+
+      if (showAddModal) {
+        const res = await fetch(`${API_BASE}/api/v1/products`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to add product');
+        toast.success('Product added successfully');
+      } else {
+        const id = selectedProduct?._id || selectedProduct?.id;
+        const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to update product');
+        toast.success('Product updated successfully');
+      }
+
+      setShowAddModal(false);
+      setShowEditModal(false);
+      await fetchData();
+    } catch (error) {
+      toast.error(error.message || 'Failed to save product');
     }
-    
-    setShowAddModal(false);
-    setShowEditModal(false);
   };
 
   const handleInputChange = (e) => {
@@ -288,17 +331,17 @@ const Products = () => {
   };
 
   const getCategoryName = (categoryId) => {
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find(c => String(c.id) === String(categoryId));
     return category ? category.name : 'N/A';
   };
 
   const getVendorName = (vendorId) => {
-    const vendor = vendors.find(v => v.id === vendorId);
+    const vendor = vendors.find(v => String(v.id) === String(vendorId));
     return vendor ? vendor.companyName : 'N/A';
   };
 
   const getBrandName = (brandId) => {
-    const brand = brands.find(b => b.id === brandId);
+    const brand = brands.find(b => String(b.id) === String(brandId));
     return brand ? brand.name : 'N/A';
   };
 
