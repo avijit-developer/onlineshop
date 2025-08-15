@@ -125,14 +125,6 @@ const Products = () => {
     variants: []
   });
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
-      'Content-Type': 'application/json',
-      Authorization: token ? `Bearer ${token}` : ''
-    };
-  };
-
   useEffect(() => {
     fetchData();
   }, []);
