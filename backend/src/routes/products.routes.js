@@ -22,15 +22,18 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
     ];
   }
   if (status !== 'all') filters.status = status;
-  if (category) filters.category = category;
-  if (brand) filters.brand = brand;
-  if (vendor) filters.vendor = vendor;
+  if (category && category !== 'all') filters.category = category;
+  if (brand && brand !== 'all') filters.brand = brand;
+  if (vendor && vendor !== 'all') filters.vendor = vendor;
 
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
   const [items, total] = await Promise.all([
     Product.find(filters)
+      .populate('category', 'name')
+      .populate('brand', 'name')
+      .populate('vendor', 'companyName')
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * perPage)
       .limit(perPage)
@@ -125,7 +128,8 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
       : [],
     status: body.status || 'pending',
     featured: Boolean(body.featured),
-    enabled: body.enabled !== undefined ? Boolean(body.enabled) : true
+    enabled: body.enabled !== undefined ? Boolean(body.enabled) : true,
+    productType: Array.isArray(body.variants) && body.variants.length > 0 ? 'configurable' : 'simple'
   });
 
   res.status(201).json({ success: true, data: created });
@@ -202,6 +206,11 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   if (body.status !== undefined) product.status = body.status;
   if (body.featured !== undefined) product.featured = Boolean(body.featured);
   if (body.enabled !== undefined) product.enabled = Boolean(body.enabled);
+
+  // Update productType based on variants
+  if (body.variants !== undefined) {
+    product.productType = Array.isArray(body.variants) && body.variants.length > 0 ? 'configurable' : 'simple';
+  }
 
   const updated = await product.save();
   res.json({ success: true, data: updated });

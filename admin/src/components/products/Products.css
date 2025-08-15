@@ -231,6 +231,24 @@
   color: #721c24;
 }
 
+.product-type-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.product-type-badge.simple {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.product-type-badge.configurable {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
 .action-buttons {
   display: flex;
   gap: 5px;

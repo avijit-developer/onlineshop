@@ -459,7 +459,6 @@ const Products = () => {
               placeholder="Search products..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { setCurrentPage(1); fetchData(); } }}
               className="search-input"
               style={{ minWidth: 260 }}
             />
@@ -506,19 +505,20 @@ const Products = () => {
 
       <div className="products-table-container">
         <table className="products-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>SKU</th>
-              <th>Category</th>
-              <th>Brand</th>
-              <th>Vendor</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
+                      <thead>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Brand</th>
+                <th>Vendor</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
           <tbody>
             {currentProducts.map((product) => (
               <tr key={product.id}>
@@ -548,6 +548,11 @@ const Products = () => {
                 <td>
                   <span className={`stock-badge ${product.stock === 0 ? 'out-of-stock' : 'in-stock'}`}>
                     {product.stock}
+                  </span>
+                </td>
+                <td>
+                  <span className={`product-type-badge ${product.productType === 'configurable' ? 'configurable' : 'simple'}`}>
+                    {product.productType === 'configurable' ? 'Configurable' : 'Simple'}
                   </span>
                 </td>
                 <td>
