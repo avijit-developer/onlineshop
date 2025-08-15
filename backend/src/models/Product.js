@@ -67,4 +67,37 @@ productSchema.pre('validate', function (next) {
   next();
 });
 
+// Ensure productType is always correct based on variants
+productSchema.pre('save', function (next) {
+  const hasVariants = this.variants && Array.isArray(this.variants) && this.variants.length > 0;
+  const correctProductType = hasVariants ? 'configurable' : 'simple';
+  
+  if (this.productType !== correctProductType) {
+    console.log(`Auto-correcting product "${this.name}" type from ${this.productType} to ${correctProductType} (variants: ${hasVariants ? this.variants.length : 0})`);
+    this.productType = correctProductType;
+  }
+  
+  next();
+});
+
+// Static method to check and fix product types
+productSchema.statics.fixProductTypes = async function() {
+  const products = await this.find({});
+  let fixedCount = 0;
+  
+  for (const product of products) {
+    const hasVariants = product.variants && Array.isArray(product.variants) && product.variants.length > 0;
+    const correctProductType = hasVariants ? 'configurable' : 'simple';
+    
+    if (product.productType !== correctProductType) {
+      product.productType = correctProductType;
+      await product.save();
+      fixedCount++;
+      console.log(`Fixed product "${product.name}" type to ${correctProductType}`);
+    }
+  }
+  
+  return { total: products.length, fixed: fixedCount };
+};
+
 module.exports = mongoose.model('Product', productSchema);

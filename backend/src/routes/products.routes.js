@@ -102,6 +102,12 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     }
   }
 
+  // Determine product type based on variants
+  const hasVariants = Array.isArray(body.variants) && body.variants.length > 0;
+  const productType = hasVariants ? 'configurable' : 'simple';
+  
+  console.log(`Creating product "${body.name}" with type: ${productType} (variants: ${hasVariants ? body.variants.length : 0})`);
+
   const created = await Product.create({
     name: String(body.name).trim(),
     description: body.description ? String(body.description).trim() : '',
@@ -116,7 +122,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
     images: Array.isArray(body.images) ? body.images : [],
     imagePublicIds: Array.isArray(body.imagePublicIds) ? body.imagePublicIds : [],
-    variants: Array.isArray(body.variants)
+    variants: hasVariants
       ? body.variants.map(v => ({
           attributes: v.attributes || {},
           sku: v.sku ? String(v.sku).trim() : undefined,
@@ -129,7 +135,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     status: body.status || 'pending',
     featured: Boolean(body.featured),
     enabled: body.enabled !== undefined ? Boolean(body.enabled) : true,
-    productType: Array.isArray(body.variants) && body.variants.length > 0 ? 'configurable' : 'simple'
+    productType: productType
   });
 
   res.status(201).json({ success: true, data: created });
@@ -209,7 +215,12 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 
   // Update productType based on variants
   if (body.variants !== undefined) {
-    product.productType = Array.isArray(body.variants) && body.variants.length > 0 ? 'configurable' : 'simple';
+    const hasVariants = Array.isArray(body.variants) && body.variants.length > 0;
+    const newProductType = hasVariants ? 'configurable' : 'simple';
+    
+    console.log(`Updating product "${product.name}" type from ${product.productType} to ${newProductType} (variants: ${hasVariants ? body.variants.length : 0})`);
+    
+    product.productType = newProductType;
   }
 
   const updated = await product.save();

@@ -20,38 +20,18 @@ const migrateProductTypes = async () => {
   try {
     console.log('Starting product type migration...');
     
-    // Find all products
-    const products = await Product.find({});
-    console.log(`Found ${products.length} products to migrate`);
-    
-    let updatedCount = 0;
-    let simpleCount = 0;
-    let configurableCount = 0;
-    
-    for (const product of products) {
-      const hasVariants = product.variants && product.variants.length > 0;
-      const newProductType = hasVariants ? 'configurable' : 'simple';
-      
-      // Only update if the productType is different or doesn't exist
-      if (product.productType !== newProductType) {
-        await Product.findByIdAndUpdate(product._id, { productType: newProductType });
-        updatedCount++;
-        
-        if (newProductType === 'simple') {
-          simpleCount++;
-        } else {
-          configurableCount++;
-        }
-        
-        console.log(`Updated product "${product.name}" (${product._id}) to type: ${newProductType}`);
-      }
-    }
+    // Use the new static method from the Product model
+    const result = await Product.fixProductTypes();
     
     console.log('\nMigration completed successfully!');
-    console.log(`Total products processed: ${products.length}`);
-    console.log(`Products updated: ${updatedCount}`);
-    console.log(`Simple products: ${simpleCount}`);
-    console.log(`Configurable products: ${configurableCount}`);
+    console.log(`Total products processed: ${result.total}`);
+    console.log(`Products fixed: ${result.fixed}`);
+    
+    // Get final counts
+    const simpleCount = await Product.countDocuments({ productType: 'simple' });
+    const configurableCount = await Product.countDocuments({ productType: 'configurable' });
+    
+    console.log(`Final counts - Simple: ${simpleCount}, Configurable: ${configurableCount}`);
     
   } catch (error) {
     console.error('Migration failed:', error);
