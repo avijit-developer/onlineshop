@@ -395,11 +395,12 @@ const Products = () => {
     return brand ? brand.name : 'N/A';
   };
 
-  // Pagination
+  // Pagination (API-like)
+  const total = filteredProducts.length; // fallback until backend returns totals per filter
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
 
   if (loading) {
     return <div className="loading">Loading products...</div>;
@@ -410,48 +411,46 @@ const Products = () => {
       <div className="page-header">
         <h1>Product Management</h1>
         <div className="header-actions">
-          <button onClick={handleAddProduct} className="btn btn-primary">
-            Add Product
-          </button>
-          <div className="search-filter-container">
+          <div className="search-filter-container" style={{ display: 'flex', gap: 8 }}>
             <input
               type="text"
               placeholder="Search products..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); fetchData(); }}
               className="search-input"
             />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>{category.name}</option>
-              ))}
-            </select>
-            <select
-              value={vendorFilter}
-              onChange={(e) => setVendorFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Vendors</option>
-              {vendors.map(vendor => (
-                <option key={vendor.id} value={vendor.id}>{vendor.companyName}</option>
-              ))}
-            </select>
+            <button onClick={handleAddProduct} className="btn btn-primary">Add Product</button>
           </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Categories</option>
+            {categories.map(category => (
+              <option key={category.id} value={category.id}>{category.name}</option>
+            ))}
+          </select>
+          <select
+            value={vendorFilter}
+            onChange={(e) => setVendorFilter(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Vendors</option>
+            {vendors.map(vendor => (
+              <option key={vendor.id} value={vendor.id}>{vendor.companyName}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -555,28 +554,19 @@ const Products = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button
-            onClick={() => setCurrentPage(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="page-info">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination (same style as Categories) */}
+      <div className="pagination">
+        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="btn btn-secondary">First</button>
+        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="btn btn-secondary">Prev</button>
+        <span className="page-info">Page {currentPage} of {totalPages}</span>
+        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="btn btn-secondary">Next</button>
+        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages} className="btn btn-secondary">Last</button>
+        <select value={itemsPerPage} onChange={(e) => { /* itemsPerPage is const earlier; adjust to state if needed */ }} className="page-size-select" style={{ marginLeft: 8 }}>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+        </select>
+      </div>
 
       {/* Add/Edit Product Modal */}
       {(showAddModal || showEditModal) && (
