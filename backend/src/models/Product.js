@@ -36,6 +36,9 @@ const productSchema = new mongoose.Schema(
     imagePublicIds: { type: [String], default: [] },
 
     variants: { type: [variantSchema], default: [] },
+    
+    // New field: product type - 'simple' or 'configurable'
+    productType: { type: String, enum: ['simple', 'configurable'], default: 'simple', index: true },
 
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
     featured: { type: Boolean, default: false, index: true },
