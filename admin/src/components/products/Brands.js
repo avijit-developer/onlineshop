@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Brands.css';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Brands = () => {
   const [brands, setBrands] = useState([]);
-  const [filteredBrands, setFilteredBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -16,127 +19,211 @@ const Brands = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    logo: '',
+    logoPreview: '',
     website: '',
     categories: [],
     featured: false,
     sortOrder: 0
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : ''
+    };
+  };
+  const getAuthHeaderOnly = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
+      Authorization: token ? `Bearer ${token}` : ''
+    };
+  };
 
   useEffect(() => {
-    fetchData();
+    fetchCategories();
   }, []);
 
   useEffect(() => {
-    filterBrands();
-  }, [brands, searchTerm]);
+    fetchBrands();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, itemsPerPage, searchTerm]);
 
-  const fetchData = async () => {
+  const fetchBrands = async () => {
     try {
-      const response = await fetch('/data.json');
-      const data = await response.json();
-      setBrands(data.brands || []);
-      setCategories(data.categories || []);
-      setLoading(false);
+      setLoading(true);
+      const qParam = searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : '';
+      const res = await fetch(`${API_BASE}/api/v1/brands?page=${currentPage}&limit=${itemsPerPage}${qParam}`, {
+        headers: getAuthHeaders()
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || 'Failed to fetch brands');
+      setBrands(json.data || []);
+      const totalValue = json?.meta?.total ?? (json.data?.length || 0);
+      setTotal(totalValue);
+      const pagesCount = Math.max(1, Math.ceil(totalValue / itemsPerPage));
+      if (currentPage > pagesCount) {
+        setCurrentPage(pagesCount);
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
+      console.error('Error fetching brands:', error);
+      toast.error(error.message || 'Failed to load brands');
+    } finally {
       setLoading(false);
     }
   };
 
-  const filterBrands = () => {
-    let filtered = brands;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(brand =>
-        brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        brand.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        brand.website.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/categories?parent=all&page=1&limit=1000`, {
+        headers: getAuthHeaders()
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || 'Failed to fetch categories');
+      const items = json.data || [];
+      const mapped = items.map(c => ({ id: c._id, name: c.name }));
+      setCategories(mapped);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast.error(error.message || 'Failed to load categories');
     }
+  };
 
-    setFilteredBrands(filtered);
-    setCurrentPage(1);
+  const getUploadSignature = async (subfolder) => {
+    const res = await fetch(`${API_BASE}/api/v1/uploads/signature`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder: subfolder })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Failed to get upload signature');
+    return json.data; // includes cloudName and apiKey
+  };
+
+  const uploadToCloudinary = async (file, subfolder = 'brands') => {
+    const { signature, timestamp, folder, apiKey, cloudName } = await getUploadSignature(subfolder);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('api_key', apiKey);
+    fd.append('timestamp', String(timestamp));
+    fd.append('signature', signature);
+    fd.append('folder', folder);
+    fd.append('unique_filename', 'true');
+    fd.append('overwrite', 'false');
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: fd
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error?.message || 'Cloudinary upload failed');
+    return { imageUrl: json.secure_url, imagePublicId: json.public_id };
   };
 
   const handleAddBrand = () => {
     setFormData({
       name: '',
       description: '',
-      logo: '',
+      logoPreview: '',
       website: '',
       categories: [],
       featured: false,
       sortOrder: 0
     });
+    setImageFile(null);
     setShowAddModal(true);
   };
 
   const handleEditBrand = (brand) => {
     setSelectedBrand(brand);
     setFormData({
-      name: brand.name,
+      name: brand.name || '',
       description: brand.description || '',
-      logo: brand.logo || '',
+      logoPreview: brand.logo || '',
       website: brand.website || '',
-      categories: brand.categories || [],
-      featured: brand.featured || false,
+      categories: Array.isArray(brand.categories) ? brand.categories.map(c => (typeof c === 'string' ? c : (c?._id || c))) : [],
+      featured: !!brand.featured,
       sortOrder: brand.sortOrder || 0
     });
+    setImageFile(null);
     setShowEditModal(true);
   };
 
-  const handleDeleteBrand = async (brandId) => {
-    if (window.confirm('Are you sure you want to delete this brand? This action cannot be undone.')) {
-      try {
-        // Check if brand has products
-        const hasProducts = false; // This would be checked against products data
-        if (hasProducts) {
-          toast.error('Cannot delete brand with products. Please remove products first.');
-          return;
-        }
-
-        const updatedBrands = brands.filter(brand => brand.id !== brandId);
-        setBrands(updatedBrands);
-        toast.success('Brand deleted successfully');
-      } catch (error) {
-        toast.error('Failed to delete brand');
-      }
+  const handleDeleteBrand = async (brand) => {
+    if (!window.confirm('Are you sure you want to delete this brand? This action cannot be undone.')) return;
+    try {
+      const id = brand._id || brand.id;
+      const res = await fetch(`${API_BASE}/api/v1/brands/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to delete brand');
+      toast.success('Brand deleted successfully');
+      fetchBrands();
+    } catch (error) {
+      toast.error(error.message || 'Failed to delete brand');
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (showAddModal) {
-      // Add new brand
-      const newBrand = {
-        id: Date.now(),
-        ...formData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+    try {
+      if (submitting) return;
+      setSubmitting(true);
+
+      if (!formData.name.trim()) {
+        toast.error('Name is required');
+        setSubmitting(false);
+        return;
+      }
+
+      let payload = {
+        name: formData.name.trim(),
+        description: formData.description?.trim() || '',
+        website: formData.website?.trim() || '',
+        categories: formData.categories, // array of ids
+        featured: !!formData.featured,
+        sortOrder: Number(formData.sortOrder) || 0
       };
-      setBrands([...brands, newBrand]);
-      toast.success('Brand added successfully');
-    } else {
-      // Update existing brand
-      const updatedBrands = brands.map(brand =>
-        brand.id === selectedBrand.id 
-          ? { 
-              ...brand, 
-              ...formData,
-              updatedAt: new Date().toISOString()
-            }
-          : brand
-      );
-      setBrands(updatedBrands);
-      toast.success('Brand updated successfully');
+
+      if (imageFile) {
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'brands');
+        payload.imageUrl = imageUrl;
+        payload.imagePublicId = imagePublicId;
+      }
+
+      if (showAddModal) {
+        const res = await fetch(`${API_BASE}/api/v1/brands`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to add brand');
+        toast.success('Brand added successfully');
+      } else {
+        const id = selectedBrand?._id || selectedBrand?.id;
+        const res = await fetch(`${API_BASE}/api/v1/brands/${id}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to update brand');
+        toast.success('Brand updated successfully');
+      }
+
+      setShowAddModal(false);
+      setShowEditModal(false);
+      setImageFile(null);
+      fetchBrands();
+    } catch (error) {
+      toast.error(error.message || 'Failed to save brand');
+    } finally {
+      setSubmitting(false);
     }
-    
-    setShowAddModal(false);
-    setShowEditModal(false);
   };
 
   const handleInputChange = (e) => {
@@ -145,39 +232,49 @@ const Brands = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    if (name === 'searchTerm') {
+      setCurrentPage(1);
+    }
   };
 
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setImageFile(file);
       const logoUrl = URL.createObjectURL(file);
       setFormData(prev => ({
         ...prev,
-        logo: logoUrl
+        logoPreview: logoUrl
       }));
     }
   };
 
   const handleCategoryChange = (categoryId) => {
-    setFormData(prev => ({
-      ...prev,
-      categories: prev.categories.includes(categoryId)
-        ? prev.categories.filter(id => id !== categoryId)
-        : [...prev.categories, categoryId]
-    }));
+    setFormData(prev => {
+      const exists = prev.categories.includes(categoryId);
+      return {
+        ...prev,
+        categories: exists
+          ? prev.categories.filter(id => id !== categoryId)
+          : [...prev.categories, categoryId]
+      };
+    });
   };
 
-  const toggleFeatured = async (brandId) => {
+  const toggleFeatured = async (brand) => {
     try {
-      const updatedBrands = brands.map(brand =>
-        brand.id === brandId 
-          ? { ...brand, featured: !brand.featured, updatedAt: new Date().toISOString() }
-          : brand
-      );
-      setBrands(updatedBrands);
+      const id = brand._id || brand.id;
+      const res = await fetch(`${API_BASE}/api/v1/brands/${id}/feature`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ featured: !brand.featured })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to update featured status');
       toast.success('Featured status updated successfully');
+      fetchBrands();
     } catch (error) {
-      toast.error('Failed to update featured status');
+      toast.error(error.message || 'Failed to update featured status');
     }
   };
 
@@ -192,16 +289,10 @@ const Brands = () => {
   };
 
   const getProductCount = (brandId) => {
-    // This would be calculated from products data
-    // For now, returning a random number for demonstration
     return Math.floor(Math.random() * 100);
   };
 
-  // Pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentBrands = filteredBrands.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredBrands.length / itemsPerPage);
+  const pagesCount = Math.max(1, Math.ceil(total / itemsPerPage));
 
   if (loading) {
     return <div className="loading">Loading brands...</div>;
@@ -220,7 +311,7 @@ const Brands = () => {
               type="text"
               placeholder="Search brands..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="search-input"
             />
           </div>
@@ -230,7 +321,7 @@ const Brands = () => {
       <div className="stats-cards">
         <div className="stat-card">
           <h3>Total Brands</h3>
-          <p>{brands.length}</p>
+          <p>{total}</p>
         </div>
         <div className="stat-card">
           <h3>Featured Brands</h3>
@@ -242,7 +333,7 @@ const Brands = () => {
         </div>
         <div className="stat-card">
           <h3>Total Products</h3>
-          <p>{brands.reduce((sum, brand) => sum + getProductCount(brand.id), 0)}</p>
+          <p>{brands.reduce((sum, brand) => sum + getProductCount(brand._id || brand.id), 0)}</p>
         </div>
       </div>
 
@@ -260,8 +351,8 @@ const Brands = () => {
             </tr>
           </thead>
           <tbody>
-            {currentBrands.map((brand) => (
-              <tr key={brand.id}>
+            {brands.map((brand) => (
+              <tr key={brand._id || brand.id}>
                 <td>
                   <div className="brand-info">
                     <img src={brand.logo || '/default-brand.png'} alt={brand.name} className="brand-logo" />
@@ -280,8 +371,8 @@ const Brands = () => {
                     <span className="no-website">No website</span>
                   )}
                 </td>
-                <td>{getCategoryNames(brand.categories)}</td>
-                <td>{getProductCount(brand.id)}</td>
+                <td>{getCategoryNames(brand.categories || [])}</td>
+                <td>{getProductCount(brand._id || brand.id)}</td>
                 <td>
                   <span className={`featured-badge ${brand.featured ? 'featured' : 'not-featured'}`}>
                     {brand.featured ? 'Yes' : 'No'}
@@ -297,13 +388,13 @@ const Brands = () => {
                       Edit
                     </button>
                     <button
-                      onClick={() => toggleFeatured(brand.id)}
+                      onClick={() => toggleFeatured(brand)}
                       className={`btn btn-sm ${brand.featured ? 'btn-warning' : 'btn-success'}`}
                     >
                       {brand.featured ? 'Unfeature' : 'Feature'}
                     </button>
                     <button
-                      onClick={() => handleDeleteBrand(brand.id)}
+                      onClick={() => handleDeleteBrand(brand)}
                       className="btn btn-danger btn-sm"
                     >
                       Delete
@@ -316,35 +407,38 @@ const Brands = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {pagesCount > 1 && (
         <div className="pagination">
           <button
-            onClick={() => setCurrentPage(currentPage - 1)}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className="btn btn-secondary"
           >
             Previous
           </button>
           <span className="page-info">
-            Page {currentPage} of {totalPages}
+            Page {currentPage} of {pagesCount}
           </span>
           <button
-            onClick={() => setCurrentPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => Math.min(pagesCount, p + 1))}
+            disabled={currentPage === pagesCount}
             className="btn btn-secondary"
           >
             Next
           </button>
+          <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="page-size-select" style={{ marginLeft: 8 }}>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
         </div>
       )}
 
-      {/* Brands Grid View */}
       <div className="brands-grid-section">
         <h2>Brands Overview</h2>
         <div className="brands-grid">
           {brands.map((brand) => (
-            <div key={brand.id} className="brand-card">
+            <div key={brand._id || brand.id} className="brand-card">
               <div className="brand-card-header">
                 <img src={brand.logo || '/default-brand.png'} alt={brand.name} className="brand-card-logo" />
                 {brand.featured && <span className="featured-star">★</span>}
@@ -353,8 +447,8 @@ const Brands = () => {
                 <h3>{brand.name}</h3>
                 <p>{brand.description}</p>
                 <div className="brand-stats">
-                  <span>{getProductCount(brand.id)} Products</span>
-                  <span>{getCategoryNames(brand.categories)}</span>
+                  <span>{getProductCount(brand._id || brand.id)} Products</span>
+                  <span>{getCategoryNames(brand.categories || [])}</span>
                 </div>
                 {brand.website && (
                   <a href={brand.website} target="_blank" rel="noopener noreferrer" className="brand-website">
@@ -367,7 +461,6 @@ const Brands = () => {
         </div>
       </div>
 
-      {/* Add/Edit Brand Modal */}
       {(showAddModal || showEditModal) && (
         <div className="modal-overlay">
           <div className="modal">
@@ -387,7 +480,7 @@ const Brands = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Website</label>
                   <input
@@ -440,9 +533,9 @@ const Brands = () => {
                     accept="image/*"
                     onChange={handleLogoUpload}
                   />
-                  {formData.logo && (
+                  {formData.logoPreview && (
                     <div className="logo-preview">
-                      <img src={formData.logo} alt="Brand logo preview" />
+                      <img src={formData.logoPreview} alt="Brand logo preview" />
                     </div>
                   )}
                 </div>
@@ -474,8 +567,8 @@ const Brands = () => {
               >
                 Cancel
               </button>
-              <button onClick={handleSubmit} className="btn btn-primary">
-                {showAddModal ? 'Add Brand' : 'Update Brand'}
+              <button onClick={handleSubmit} className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Saving...' : (showAddModal ? 'Add Brand' : 'Update Brand')}
               </button>
             </div>
           </div>
