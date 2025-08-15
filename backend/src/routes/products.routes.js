@@ -52,6 +52,16 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     }
   }
 
+  // Validate variant requirements if variants present
+  if (Array.isArray(body.variants)) {
+    for (const v of body.variants) {
+      if (!v || !v.sku || v.price === undefined || v.price === null) {
+        res.status(400);
+        throw new Error('Each variant must have sku and price');
+      }
+    }
+  }
+
   // Validate refs
   const [c, b, v] = await Promise.all([
     Category.findById(body.category).lean(),
@@ -78,7 +88,16 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     lowStockAlert: body.lowStockAlert !== undefined ? Number(body.lowStockAlert) : undefined,
     images: Array.isArray(body.images) ? body.images : [],
     imagePublicIds: Array.isArray(body.imagePublicIds) ? body.imagePublicIds : [],
-    variants: Array.isArray(body.variants) ? body.variants : [],
+    variants: Array.isArray(body.variants)
+      ? body.variants.map(v => ({
+          attributes: v.attributes || {},
+          sku: v.sku ? String(v.sku).trim() : undefined,
+          price: v.price !== undefined ? Number(v.price) : undefined,
+          specialPrice: v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+          stock: v.stock !== undefined ? Number(v.stock) : 0,
+          images: Array.isArray(v.images) ? v.images : []
+        }))
+      : [],
     status: body.status || 'pending',
     featured: Boolean(body.featured),
     enabled: body.enabled !== undefined ? Boolean(body.enabled) : true

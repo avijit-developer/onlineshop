@@ -3,10 +3,10 @@ const mongoose = require('mongoose');
 const variantSchema = new mongoose.Schema(
   {
     attributes: { type: Map, of: String, default: {} },
+    sku: { type: String, trim: true },
     price: { type: Number },
     specialPrice: { type: Number },
     stock: { type: Number, default: 0 },
-    sku: { type: String, trim: true },
     images: { type: [String], default: [] },
     imagePublicIds: { type: [String], default: [] }
   },
@@ -31,7 +31,6 @@ const productSchema = new mongoose.Schema(
     tax: { type: Number, default: 0 },
 
     stock: { type: Number, default: 0 },
-    lowStockAlert: { type: Number, default: 0 },
 
     images: { type: [String], default: [] },
     imagePublicIds: { type: [String], default: [] },

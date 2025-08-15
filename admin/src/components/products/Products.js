@@ -73,7 +73,6 @@ const Products = () => {
     specialPrice: '',
     tax: '',
     stock: '',
-    lowStockAlert: '',
     sku: '',
     tags: '',
     seoTitle: '',
@@ -187,7 +186,6 @@ const Products = () => {
       specialPrice: '',
       tax: '',
       stock: '',
-      lowStockAlert: '',
       sku: '',
       tags: '',
       seoTitle: '',
@@ -210,7 +208,6 @@ const Products = () => {
       specialPrice: product.specialPrice ?? '',
       tax: product.tax ?? '',
       stock: product.stock ?? '',
-      lowStockAlert: product.lowStockAlert ?? '',
       sku: product.sku || '',
       tags: (product.tags || []).join(', '),
       seoTitle: '',
@@ -239,13 +236,28 @@ const Products = () => {
         specialPrice: formData.specialPrice !== '' ? Number(formData.specialPrice) : undefined,
         tax: formData.tax !== '' ? Number(formData.tax) : undefined,
         stock: formData.stock !== '' ? Number(formData.stock) : undefined,
-        lowStockAlert: formData.lowStockAlert !== '' ? Number(formData.lowStockAlert) : undefined,
         sku: formData.sku?.trim() || undefined,
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         images: formData.images || [],
         imagePublicIds: [],
-        variants: matrixVariants.map(v => ({ attributes: Object.fromEntries(Object.entries(v).filter(([k]) => variantAttributes.includes(k))), price: v.price ? Number(v.price) : undefined, specialPrice: v.specialPrice ? Number(v.specialPrice) : undefined, images: [] }))
+        variants: matrixVariants.map(v => ({
+          attributes: Object.fromEntries(Object.entries(v).filter(([k]) => variantAttributes.includes(k))),
+          sku: (v.sku || '').trim(),
+          price: v.price !== '' && v.price !== undefined ? Number(v.price) : undefined,
+          specialPrice: v.specialPrice !== '' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+          stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
+          images: []
+        }))
       };
+
+      if (payload.variants.length > 0) {
+        for (const v of payload.variants) {
+          if (!v.sku || v.price === undefined) {
+            toast.error('Each variant must have SKU and Price');
+            return;
+          }
+        }
+      }
 
       if (showAddModal) {
         const res = await fetch(`${API_BASE}/api/v1/products`, {
@@ -417,10 +429,6 @@ const Products = () => {
           <p>{products.filter(p => p.status === 'pending').length}</p>
         </div>
         <div className="stat-card">
-          <h3>Low Stock</h3>
-          <p>{products.filter(p => p.stock <= (p.lowStockAlert || 10)).length}</p>
-        </div>
-        <div className="stat-card">
           <h3>Out of Stock</h3>
           <p>{products.filter(p => p.stock === 0).length}</p>
         </div>
@@ -464,7 +472,7 @@ const Products = () => {
                   </div>
                 </td>
                 <td>
-                  <span className={`stock-badge ${product.stock === 0 ? 'out-of-stock' : product.stock <= (product.lowStockAlert || 10) ? 'low-stock' : 'in-stock'}`}>
+                  <span className={`stock-badge ${product.stock === 0 ? 'out-of-stock' : 'in-stock'}`}>
                     {product.stock}
                   </span>
                 </td>
@@ -660,17 +668,7 @@ const Products = () => {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label>Low Stock Alert</label>
-                  <input
-                    type="number"
-                    name="lowStockAlert"
-                    value={formData.lowStockAlert}
-                    onChange={handleInputChange}
-                    min="0"
-                  />
-                </div>
-
+                
                 <div className="form-group full-width">
                   <label>Description</label>
                   <textarea
@@ -780,8 +778,10 @@ const Products = () => {
                             {variantAttributes.map(attr => (
                               <th key={attr}>{attr}</th>
                             ))}
+                            <th>SKU</th>
                             <th>Price</th>
                             <th>Special Price</th>
+                            <th>Stock Qty</th>
                             <th>Images</th>
                           </tr>
                         </thead>
@@ -793,11 +793,21 @@ const Products = () => {
                               ))}
                               <td>
                                 <input
+                                  type="text"
+                                  value={variant.sku || ''}
+                                  onChange={e => updateMatrixVariant(index, 'sku', e.target.value)}
+                                  placeholder="SKU"
+                                  required
+                                />
+                              </td>
+                              <td>
+                                <input
                                   type="number"
                                   value={variant.price}
                                   min="0"
                                   step="0.01"
                                   onChange={e => updateMatrixVariant(index, 'price', e.target.value)}
+                                  required
                                 />
                               </td>
                               <td>
@@ -807,6 +817,14 @@ const Products = () => {
                                   min="0"
                                   step="0.01"
                                   onChange={e => updateMatrixVariant(index, 'specialPrice', e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  value={variant.stock || ''}
+                                  min="0"
+                                  onChange={e => updateMatrixVariant(index, 'stock', e.target.value)}
                                 />
                               </td>
                               <td>
@@ -904,7 +922,7 @@ const Products = () => {
                   </div>
                   <div className="info-item">
                     <label>Stock:</label>
-                    <span className={`stock-badge ${selectedProduct.stock === 0 ? 'out-of-stock' : selectedProduct.stock <= (selectedProduct.lowStockAlert || 10) ? 'low-stock' : 'in-stock'}`}>
+                    <span className={`stock-badge ${selectedProduct.stock === 0 ? 'out-of-stock' : 'in-stock'}`}>
                       {selectedProduct.stock}
                     </span>
                   </div>
