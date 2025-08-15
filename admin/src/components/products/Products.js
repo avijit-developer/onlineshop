@@ -211,6 +211,22 @@ const Products = () => {
     }
   };
 
+  const handleEnableToggle = async (product, isEnabled) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/products/${product._id || product.id}/enabled`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ enabled: isEnabled })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to update product status');
+      toast.success(`Product ${isEnabled ? 'enabled' : 'disabled'} successfully`);
+      await fetchData();
+    } catch (error) {
+      toast.error(error.message || 'Failed to update product status');
+    }
+  };
+
   const handleAddProduct = () => {
     setFormData({
       name: '',
@@ -427,16 +443,7 @@ const Products = () => {
             )}
           </div>
           <button onClick={handleAddProduct} className="btn btn-primary">Add Product</button>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); fetchData(); }}
-            className="filter-select"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          
           <select
             value={categoryFilter}
             onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); fetchData(); }}
@@ -504,6 +511,8 @@ const Products = () => {
                 <td>{product.sku}</td>
                 <td>{getCategoryName(product.categoryId)}</td>
                 <td>{getVendorName(product.vendorId)}</td>
+                {/* Use correct vendor field */}
+                
                 <td>
                   <div className="price-info">
                     <span className="regular-price">${product.regularPrice}</span>
@@ -518,9 +527,10 @@ const Products = () => {
                   </span>
                 </td>
                 <td>
-                  <span className={`status-badge ${product.status}`}>
-                    {product.status}
-                  </span>
+                  <label className="toggle-switch">
+                    <input type="checkbox" checked={!!product.enabled} onChange={(e) => handleEnableToggle(product, e.target.checked)} />
+                    <span className="slider" />
+                  </label>
                 </td>
                 <td>
                   <div className="action-buttons">
@@ -536,16 +546,6 @@ const Products = () => {
                     >
                       Edit
                     </button>
-                    <select
-                      value={product.status}
-                      onChange={(e) => handleStatusChange(product._id || product.id, e.target.value)}
-                      className="filter-select"
-                      style={{ minWidth: 120 }}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
                   </div>
                 </td>
               </tr>
@@ -1003,52 +1003,38 @@ const Products = () => {
                     <div className="variants-list">
                       {selectedProduct.variants.map((variant, index) => (
                         <div key={index} className="variant-item">
-                          <strong>{variant.name}</strong>
-                          <span>Options: {variant.options.join(', ')}</span>
-                          <span>Price: ${variant.price}</span>
-                          <span>Stock: {variant.stock}</span>
-                          <div className="variant-images">
-                            <h5>Images</h5>
-                            {variant.images && variant.images.length > 0 ? (
+                          <div>
+                            <strong>SKU:</strong> {variant.sku || 'N/A'}
+                          </div>
+                          <div>
+                            <strong>Attributes:</strong>{' '}
+                            {variant.attributes ? (
+                              <>
+                                {Array.from(variant.attributes instanceof Map ? variant.attributes.entries() : Object.entries(variant.attributes)).map(([k, v], i) => (
+                                  <span key={i}>{k}: {v}{i < Object.entries(variant.attributes).length - 1 ? ', ' : ''}</span>
+                                ))}
+                              </>
+                            ) : 'N/A'}
+                          </div>
+                          <div>
+                            <strong>Price:</strong> {variant.price != null ? `$${variant.price}` : 'N/A'}
+                          </div>
+                          <div>
+                            <strong>Stock:</strong> {variant.stock ?? 0}
+                          </div>
+                          {variant.images && variant.images.length > 0 && (
+                            <div className="variant-images">
+                              <h5>Images</h5>
                               <div className="images-grid">
                                 {variant.images.map((image, imgIndex) => (
-                                  <img
-                                    key={imgIndex}
-                                    src={typeof image === 'string' ? image : URL.createObjectURL(image)}
-                                    alt={`Variant ${index + 1} Image ${imgIndex + 1}`}
-                                  />
+                                  <img key={imgIndex} src={image} alt={`Variant ${index + 1} Image ${imgIndex + 1}`} />
                                 ))}
                               </div>
-                            ) : (
-                              <p>No images uploaded for this variant.</p>
-                            )}
-                            <input
-                              type="file"
-                              multiple
-                              accept="image/*"
-                              onChange={e => {
-                                const files = Array.from(e.target.files);
-                                updateVariant(index, 'images', [...(variant.images || []), ...files]);
-                              }}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeVariant(index)}
-                            className="btn btn-danger btn-sm remove-variant"
-                          >
-                            Remove Variant
-                          </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
-                    <button
-                      type="button"
-                      onClick={addVariant}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      Add Variant
-                    </button>
                   </div>
                 )}
 

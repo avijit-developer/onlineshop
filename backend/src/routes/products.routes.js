@@ -167,4 +167,16 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
+// PATCH /products/:id/enabled
+router.patch('/:id/enabled', authenticate, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { enabled } = req.body || {};
+  const updated = await Product.findByIdAndUpdate(id, { enabled: Boolean(enabled) }, { new: true }).lean();
+  if (!updated) {
+    res.status(404);
+    throw new Error('product not found');
+  }
+  res.json({ success: true, data: updated });
+});
+
 module.exports = router;
