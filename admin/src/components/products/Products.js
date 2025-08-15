@@ -92,9 +92,9 @@ const Products = () => {
     return { imageUrl: json.secure_url, imagePublicId: json.public_id };
   };
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [vendorFilter, setVendorFilter] = useState('all');
@@ -131,23 +131,19 @@ const Products = () => {
   }, []);
 
   useEffect(() => {
-    filterProducts();
-  }, [products, statusFilter, categoryFilter, vendorFilter]);
+    fetchData();
+  }, [currentPage, itemsPerPage, categoryFilter, vendorFilter, statusFilter, appliedSearchTerm]);
 
-  // Fetch data when page or items per page changes
-  useEffect(() => {
-    if (currentPage > 0) {
-      console.log(`Pagination changed - Page: ${currentPage}, Items: ${itemsPerPage}`);
-      fetchData();
-    }
-  }, [currentPage, itemsPerPage]);
+
+
+
 
   const fetchData = async () => {
     try {
       setLoading(true);
       // Fetch products
       const params = new URLSearchParams();
-      if (searchTerm) params.append('q', searchTerm);
+      if (appliedSearchTerm) params.append('q', appliedSearchTerm);
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
       if (categoryFilter && categoryFilter !== 'all') params.append('category', categoryFilter);
       if (vendorFilter && vendorFilter !== 'all') params.append('vendor', vendorFilter);
@@ -183,15 +179,7 @@ const Products = () => {
     }
   };
 
-  const filterProducts = () => {
-    let filtered = products;
-    // Note: searchTerm, category, and vendor filtering are now handled by the API, not locally
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(product => product.status === statusFilter);
-    }
-    setFilteredProducts(filtered);
-    setCurrentPage(1);
-  };
+
 
   // Pagination handlers
   const handlePageChange = (newPage) => {
@@ -496,19 +484,19 @@ const Products = () => {
               className="search-input"
               style={{ minWidth: 260 }}
             />
-            <button className="btn btn-primary" onClick={() => { setCurrentPage(1); fetchData(); }}>Search</button>
+            <button className="btn btn-primary" onClick={() => { setAppliedSearchTerm(searchTerm); setCurrentPage(1); }}>Search</button>
             {searchTerm && (
-              <button className="btn btn-secondary" onClick={() => { setSearchTerm(''); setCurrentPage(1); fetchData(); }}>Clear</button>
+              <button className="btn btn-secondary" onClick={() => { setSearchTerm(''); setAppliedSearchTerm(''); setCurrentPage(1); }}>Clear</button>
             )}
             {(searchTerm || categoryFilter !== 'all' || vendorFilter !== 'all') && (
               <button 
                 className="btn btn-secondary" 
                 onClick={() => { 
                   setSearchTerm(''); 
+                  setAppliedSearchTerm(''); 
                   setCategoryFilter('all'); 
                   setVendorFilter('all'); 
                   setCurrentPage(1); 
-                  fetchData(); 
                 }}
               >
                 Clear All Filters
@@ -519,7 +507,7 @@ const Products = () => {
           
           <select
             value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); fetchData(); }}
+            onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
             className="filter-select"
           >
             <option value="all">All Categories</option>
@@ -529,7 +517,7 @@ const Products = () => {
           </select>
           <select
             value={vendorFilter}
-            onChange={(e) => { setVendorFilter(e.target.value); setCurrentPage(1); fetchData(); }}
+            onChange={(e) => { setVendorFilter(e.target.value); setCurrentPage(1); }}
             className="filter-select"
           >
             <option value="all">All Vendors</option>
@@ -587,7 +575,7 @@ const Products = () => {
             </thead>
           <tbody>
             {currentProducts.map((product) => (
-              <tr key={product.id}>
+              <tr key={product._id || product.id}>
                 <td>
                   <div className="product-info">
                     <img src={product.images[0] || '/default-product.png'} alt={product.name} className="product-image" />
@@ -657,14 +645,14 @@ const Products = () => {
       {/* Pagination (API-based) */}
       <div className="pagination">
         <button 
-          onClick={() => goToPage(1)} 
+          onClick={() => { setCurrentPage(1); }}  
           disabled={currentPage === 1} 
           className="btn btn-secondary"
         >
           First
         </button>
         <button 
-          onClick={() => handlePageChange(Math.max(1, currentPage - 1))} 
+          onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); }}  
           disabled={currentPage === 1} 
           className="btn btn-secondary"
         >
@@ -672,14 +660,14 @@ const Products = () => {
         </button>
         <span className="page-info">Page {currentPage} of {totalPages}</span>
         <button 
-          onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))} 
+          onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); }}  
           disabled={currentPage >= totalPages} 
           className="btn btn-secondary"
         >
           Next
         </button>
         <button 
-          onClick={() => goToPage(totalPages)} 
+          onClick={() => { setCurrentPage(totalPages); }}  
           disabled={currentPage >= totalPages} 
           className="btn btn-secondary"
         >
@@ -687,7 +675,11 @@ const Products = () => {
         </button>
         <select 
           value={itemsPerPage} 
-          onChange={(e) => handleItemsPerPageChange(e.target.value)} 
+          onChange={(e) => { 
+            const newLimit = Number(e.target.value) || 10;
+            setItemsPerPage(newLimit);
+            setCurrentPage(1);
+          }} 
           className="page-size-select" 
           style={{ marginLeft: 8 }}
         >
