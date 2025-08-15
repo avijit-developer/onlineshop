@@ -9,6 +9,8 @@ const Products = () => {
   const [variantAttributes, setVariantAttributes] = useState([]); // e.g. ['Attribute1', 'Attribute2']
   const [attributeValues, setAttributeValues] = useState({}); // { Attribute1: ['A', 'B'], Attribute2: ['X', 'Y'] }
   const [matrixVariants, setMatrixVariants] = useState([]);
+  const [variantAttributesInput, setVariantAttributesInput] = useState('');
+  const [attributeValuesInput, setAttributeValuesInput] = useState({});
 
   // Generate matrix combinations (dynamic)
   const generateMatrixVariants = () => {
@@ -742,9 +744,11 @@ const Products = () => {
                       <label>Variant Attributes (comma separated):</label>
                       <input
                         type="text"
-                        value={variantAttributes.join(', ')}
+                        value={variantAttributesInput}
                         onChange={e => {
-                          const arr = e.target.value.split(',').map(v => v.trim()).filter(v => v.length > 0);
+                          const raw = e.target.value;
+                          setVariantAttributesInput(raw);
+                          const arr = raw.split(',').map(v => v.trim()).filter(v => v.length > 0);
                           handleAttributeNamesChange(arr);
                         }}
                         placeholder="e.g. Attribute1, Attribute2, Attribute3"
@@ -755,9 +759,11 @@ const Products = () => {
                         <label>{attr} Values (comma separated):</label>
                         <input
                           type="text"
-                          value={(attributeValues[attr] || []).join(', ')}
+                          value={attributeValuesInput[attr] !== undefined ? attributeValuesInput[attr] : (attributeValues[attr] || []).join(', ')}
                           onChange={e => {
-                            const arr = e.target.value.split(',').map(v => v.trim()).filter(v => v.length > 0);
+                            const raw = e.target.value;
+                            setAttributeValuesInput(prev => ({ ...prev, [attr]: raw }));
+                            const arr = raw.split(',').map(v => v.trim()).filter(v => v.length > 0);
                             handleAttributeValuesChange(attr, arr);
                           }}
                           placeholder={`e.g. Value1, Value2, Value3`}
