@@ -131,7 +131,7 @@ const Products = () => {
 
   useEffect(() => {
     filterProducts();
-  }, [products, searchTerm, statusFilter, categoryFilter, vendorFilter]);
+  }, [products, statusFilter, categoryFilter, vendorFilter]);
 
   const fetchData = async () => {
     try {
@@ -175,13 +175,7 @@ const Products = () => {
 
   const filterProducts = () => {
     let filtered = products;
-    if (searchTerm) {
-      filtered = filtered.filter(product =>
-        (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.sku || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.description || '').toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    // Note: searchTerm filtering is now handled by the API, not locally
     if (statusFilter !== 'all') {
       filtered = filtered.filter(product => product.status === statusFilter);
     }
@@ -501,6 +495,12 @@ const Products = () => {
           <h3>Out of Stock</h3>
           <p>{products.filter(p => p.stock === 0).length}</p>
         </div>
+        {searchTerm && (
+          <div className="stat-card">
+            <h3>Search Results</h3>
+            <p>Showing filtered results for: "{searchTerm}"</p>
+          </div>
+        )}
       </div>
 
       <div className="products-table-container">
