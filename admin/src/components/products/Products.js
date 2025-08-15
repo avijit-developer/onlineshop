@@ -99,7 +99,7 @@ const Products = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [vendorFilter, setVendorFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -133,6 +133,14 @@ const Products = () => {
   useEffect(() => {
     filterProducts();
   }, [products, statusFilter, categoryFilter, vendorFilter]);
+
+  // Fetch data when page or items per page changes
+  useEffect(() => {
+    if (currentPage > 0) {
+      console.log(`Pagination changed - Page: ${currentPage}, Items: ${itemsPerPage}`);
+      fetchData();
+    }
+  }, [currentPage, itemsPerPage]);
 
   const fetchData = async () => {
     try {
@@ -183,6 +191,23 @@ const Products = () => {
     }
     setFilteredProducts(filtered);
     setCurrentPage(1);
+  };
+
+  // Pagination handlers
+  const handlePageChange = (newPage) => {
+    console.log(`Changing page to: ${newPage}`);
+    setCurrentPage(newPage);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    console.log(`Changing items per page to: ${newItemsPerPage}`);
+    setItemsPerPage(parseInt(newItemsPerPage));
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  const goToPage = (page) => {
+    console.log(`Going to page: ${page}`);
+    setCurrentPage(page);
   };
 
   const handleStatusChange = async (productId, newStatus) => {
@@ -632,14 +657,14 @@ const Products = () => {
       {/* Pagination (API-based) */}
       <div className="pagination">
         <button 
-          onClick={() => { setCurrentPage(1); fetchData(); }} 
+          onClick={() => goToPage(1)} 
           disabled={currentPage === 1} 
           className="btn btn-secondary"
         >
           First
         </button>
         <button 
-          onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); fetchData(); }} 
+          onClick={() => handlePageChange(Math.max(1, currentPage - 1))} 
           disabled={currentPage === 1} 
           className="btn btn-secondary"
         >
@@ -647,14 +672,14 @@ const Products = () => {
         </button>
         <span className="page-info">Page {currentPage} of {totalPages}</span>
         <button 
-          onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); fetchData(); }} 
+          onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))} 
           disabled={currentPage >= totalPages} 
           className="btn btn-secondary"
         >
           Next
         </button>
         <button 
-          onClick={() => { setCurrentPage(totalPages); fetchData(); }} 
+          onClick={() => goToPage(totalPages)} 
           disabled={currentPage >= totalPages} 
           className="btn btn-secondary"
         >
@@ -662,10 +687,7 @@ const Products = () => {
         </button>
         <select 
           value={itemsPerPage} 
-          onChange={(e) => { 
-            // TODO: Implement itemsPerPage as state if needed
-            console.log('Items per page changed to:', e.target.value);
-          }} 
+          onChange={(e) => handleItemsPerPageChange(e.target.value)} 
           className="page-size-select" 
           style={{ marginLeft: 8 }}
         >
