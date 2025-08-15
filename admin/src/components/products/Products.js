@@ -100,6 +100,7 @@ const Products = () => {
   const [vendorFilter, setVendorFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -162,6 +163,7 @@ const Products = () => {
       if (!brRes.ok) throw new Error(brJson?.message || 'Failed to fetch brands');
 
       setProducts(prodJson.data || []);
+      setTotalCount(prodJson.meta?.total || 0);
       setCategories((catJson.data || []).map(c => ({ id: c._id, name: c.name })));
       setVendors((venJson.data || []).map(v => ({ id: v._id, companyName: v.companyName })));
       setBrands((brJson.data || []).map(b => ({ id: b._id, name: b.name })));
@@ -446,12 +448,10 @@ const Products = () => {
     return 'N/A';
   };
 
-  // Pagination (API-like)
-  const total = filteredProducts.length; // fallback until backend returns totals per filter
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  // Pagination (API-based)
+  const total = totalCount; // Use total count from API
   const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
+  const currentProducts = products; // Products are already paginated by API
 
   if (loading) {
     return <div className="loading">Loading products...</div>;
@@ -518,11 +518,11 @@ const Products = () => {
       <div className="stats-cards">
         <div className="stat-card">
           <h3>Total Products</h3>
-          <p>{products.length}</p>
+          <p>{totalCount}</p>
         </div>
         <div className="stat-card">
-          <h3>Out of Stock</h3>
-          <p>{products.filter(p => p.stock === 0).length}</p>
+          <h3>Showing</h3>
+          <p>{products.length} of {totalCount}</p>
         </div>
         {searchTerm && (
           <div className="stat-card">
@@ -568,7 +568,6 @@ const Products = () => {
                     <img src={product.images[0] || '/default-product.png'} alt={product.name} className="product-image" />
                     <div>
                       <strong>{product.name}</strong>
-                      <small>{product.description.substring(0, 50)}...</small>
                     </div>
                   </div>
                 </td>
@@ -630,14 +629,46 @@ const Products = () => {
         </table>
       </div>
 
-      {/* Pagination (same style as Categories) */}
+      {/* Pagination (API-based) */}
       <div className="pagination">
-        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="btn btn-secondary">First</button>
-        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="btn btn-secondary">Prev</button>
+        <button 
+          onClick={() => { setCurrentPage(1); fetchData(); }} 
+          disabled={currentPage === 1} 
+          className="btn btn-secondary"
+        >
+          First
+        </button>
+        <button 
+          onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); fetchData(); }} 
+          disabled={currentPage === 1} 
+          className="btn btn-secondary"
+        >
+          Prev
+        </button>
         <span className="page-info">Page {currentPage} of {totalPages}</span>
-        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="btn btn-secondary">Next</button>
-        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages} className="btn btn-secondary">Last</button>
-        <select value={itemsPerPage} onChange={(e) => { /* itemsPerPage is const earlier; adjust to state if needed */ }} className="page-size-select" style={{ marginLeft: 8 }}>
+        <button 
+          onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); fetchData(); }} 
+          disabled={currentPage >= totalPages} 
+          className="btn btn-secondary"
+        >
+          Next
+        </button>
+        <button 
+          onClick={() => { setCurrentPage(totalPages); fetchData(); }} 
+          disabled={currentPage >= totalPages} 
+          className="btn btn-secondary"
+        >
+          Last
+        </button>
+        <select 
+          value={itemsPerPage} 
+          onChange={(e) => { 
+            // TODO: Implement itemsPerPage as state if needed
+            console.log('Items per page changed to:', e.target.value);
+          }} 
+          className="page-size-select" 
+          style={{ marginLeft: 8 }}
+        >
           <option value={10}>10</option>
           <option value={20}>20</option>
           <option value={50}>50</option>
