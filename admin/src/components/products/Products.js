@@ -348,13 +348,22 @@ const Products = () => {
     }));
   };
 
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const imageUrls = files.map(file => URL.createObjectURL(file));
-    setFormData(prev => ({
-      ...prev,
-      images: [...prev.images, ...imageUrls]
-    }));
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    try {
+      const uploads = [];
+      for (const f of files) {
+        const { imageUrl } = await uploadToCloudinary(f, 'products');
+        uploads.push(imageUrl);
+      }
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...uploads]
+      }));
+    } catch (err) {
+      toast.error(err?.message || 'Failed to upload images');
+    }
   };
 
   const removeImage = (index) => {
@@ -489,6 +498,7 @@ const Products = () => {
               <th>Product</th>
               <th>SKU</th>
               <th>Category</th>
+              <th>Brand</th>
               <th>Vendor</th>
               <th>Price</th>
               <th>Stock</th>
@@ -509,8 +519,9 @@ const Products = () => {
                   </div>
                 </td>
                 <td>{product.sku}</td>
-                <td>{getCategoryName(product.categoryId)}</td>
-                <td>{getVendorName(product.vendorId)}</td>
+                <td>{getCategoryName(product.category || product.categoryId)}</td>
+                <td>{getBrandName(product.brand || product.brandId)}</td>
+                <td>{getVendorName(product.vendor || product.vendorId)}</td>
                 {/* Use correct vendor field */}
                 
                 <td>

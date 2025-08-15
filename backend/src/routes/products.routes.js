@@ -44,7 +44,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 // POST /products (JSON only, images handled via direct uploads)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
   const body = req.body || {};
-  const required = ['name', 'category', 'brand', 'vendor', 'regularPrice'];
+  const required = ['name', 'category', 'vendor', 'regularPrice'];
   for (const f of required) {
     if (!body[f]) {
       res.status(400);
@@ -63,21 +63,47 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   }
 
   // Validate refs
-  const [c, b, v] = await Promise.all([
+  const [c, v, b] = await Promise.all([
     Category.findById(body.category).lean(),
-    Brand.findById(body.brand).lean(),
-    Vendor.findById(body.vendor).lean()
+    Vendor.findById(body.vendor).lean(),
+    body.brand ? Brand.findById(body.brand).lean() : Promise.resolve(true)
   ]);
-  if (!c || !b || !v) {
+  if (!c || !v || !b) {
     res.status(400);
-    throw new Error('Invalid category, brand or vendor');
+    throw new Error('Invalid category, vendor or brand');
+  }
+
+  // Uniqueness checks
+  if (body.sku) {
+    const existsSku = await Product.findOne({ sku: String(body.sku).trim() }).select({ _id: 1 }).lean();
+    if (existsSku) {
+      res.status(409);
+      throw new Error('Product SKU already exists');
+    }
+  }
+  if (Array.isArray(body.variants)) {
+    const variantSkus = body.variants.map(v => (v?.sku || '').trim()).filter(Boolean);
+    if (variantSkus.length) {
+      const dupInPayload = new Set();
+      const seen = new Set();
+      for (const s of variantSkus) { if (seen.has(s)) dupInPayload.add(s); seen.add(s); }
+      if (dupInPayload.size) {
+        res.status(409);
+        throw new Error(`Duplicate variant SKU(s): ${Array.from(dupInPayload).join(', ')}`);
+      }
+      const existsVariant = await Product.findOne({ 'variants.sku': { $in: variantSkus } }).select({ _id: 1 }).lean();
+      if (existsVariant) {
+        res.status(409);
+        throw new Error('One or more variant SKUs already exist');
+      }
+    }
   }
 
   const created = await Product.create({
     name: String(body.name).trim(),
     description: body.description ? String(body.description).trim() : '',
     category: body.category,
-    brand: body.brand,
+    brand: body.brand || undefined,
     vendor: body.vendor,
     sku: body.sku ? String(body.sku).trim() : undefined,
     tags: Array.isArray(body.tags) ? body.tags : [],
@@ -85,7 +111,6 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     specialPrice: body.specialPrice !== undefined ? Number(body.specialPrice) : undefined,
     tax: body.tax !== undefined ? Number(body.tax) : undefined,
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
-    lowStockAlert: body.lowStockAlert !== undefined ? Number(body.lowStockAlert) : undefined,
     images: Array.isArray(body.images) ? body.images : [],
     imagePublicIds: Array.isArray(body.imagePublicIds) ? body.imagePublicIds : [],
     variants: Array.isArray(body.variants)
@@ -124,9 +149,13 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     product.category = body.category;
   }
   if (body.brand !== undefined) {
-    const b = await Brand.findById(body.brand).lean();
-    if (!b) { res.status(400); throw new Error('invalid brand'); }
-    product.brand = body.brand;
+    if (body.brand) {
+      const b = await Brand.findById(body.brand).lean();
+      if (!b) { res.status(400); throw new Error('invalid brand'); }
+      product.brand = body.brand;
+    } else {
+      product.brand = undefined;
+    }
   }
   if (body.vendor !== undefined) {
     const v = await Vendor.findById(body.vendor).lean();
@@ -134,18 +163,41 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     product.vendor = body.vendor;
   }
 
-  if (body.sku !== undefined) product.sku = String(body.sku).trim();
+  if (body.sku !== undefined) {
+    const newSku = String(body.sku).trim();
+    const existsSku = await Product.findOne({ _id: { $ne: id }, sku: newSku }).select({ _id: 1 }).lean();
+    if (existsSku) { res.status(409); throw new Error('Product SKU already exists'); }
+    product.sku = newSku;
+  }
   if (body.tags !== undefined) product.tags = Array.isArray(body.tags) ? body.tags : [];
 
   if (body.regularPrice !== undefined) product.regularPrice = Number(body.regularPrice);
   if (body.specialPrice !== undefined) product.specialPrice = Number(body.specialPrice);
   if (body.tax !== undefined) product.tax = Number(body.tax);
   if (body.stock !== undefined) product.stock = Number(body.stock);
-  if (body.lowStockAlert !== undefined) product.lowStockAlert = Number(body.lowStockAlert);
 
   if (body.images !== undefined) product.images = Array.isArray(body.images) ? body.images : [];
   if (body.imagePublicIds !== undefined) product.imagePublicIds = Array.isArray(body.imagePublicIds) ? body.imagePublicIds : [];
-  if (body.variants !== undefined) product.variants = Array.isArray(body.variants) ? body.variants : [];
+  if (body.variants !== undefined) {
+    if (!Array.isArray(body.variants)) { res.status(400); throw new Error('variants must be an array'); }
+    const variantSkus = body.variants.map(v => (v?.sku || '').trim()).filter(Boolean);
+    if (variantSkus.length) {
+      const dupInPayload = new Set();
+      const seen = new Set();
+      for (const s of variantSkus) { if (seen.has(s)) dupInPayload.add(s); seen.add(s); }
+      if (dupInPayload.size) { res.status(409); throw new Error(`Duplicate variant SKU(s): ${Array.from(dupInPayload).join(', ')}`); }
+      const existsVariant = await Product.findOne({ _id: { $ne: id }, 'variants.sku': { $in: variantSkus } }).select({ _id: 1 }).lean();
+      if (existsVariant) { res.status(409); throw new Error('One or more variant SKUs already exist'); }
+    }
+    product.variants = body.variants.map(v => ({
+      attributes: v.attributes || {},
+      sku: v.sku ? String(v.sku).trim() : undefined,
+      price: v.price !== undefined ? Number(v.price) : undefined,
+      specialPrice: v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+      stock: v.stock !== undefined ? Number(v.stock) : 0,
+      images: Array.isArray(v.images) ? v.images : []
+    }));
+  }
 
   if (body.status !== undefined) product.status = body.status;
   if (body.featured !== undefined) product.featured = Boolean(body.featured);

@@ -20,7 +20,7 @@ const productSchema = new mongoose.Schema(
     description: { type: String, trim: true },
 
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
-    brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', required: true, index: true },
+    brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', required: false, index: true },
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true, index: true },
 
     sku: { type: String, trim: true, index: true },
@@ -43,6 +43,10 @@ const productSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Unique indexes for SKUs (ignore missing)
+productSchema.index({ sku: 1 }, { unique: true, partialFilterExpression: { sku: { $type: 'string' } } });
+productSchema.index({ 'variants.sku': 1 }, { unique: true, partialFilterExpression: { 'variants.sku': { $type: 'string' } } });
 
 function slugify(name) {
   return String(name)
