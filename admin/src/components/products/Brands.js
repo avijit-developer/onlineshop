@@ -20,10 +20,8 @@ const Brands = () => {
     name: '',
     description: '',
     logoPreview: '',
-    website: '',
     categories: [],
-    featured: false,
-    sortOrder: 0
+    featured: false
   });
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -32,12 +30,6 @@ const Brands = () => {
     const token = localStorage.getItem('adminToken');
     return {
       'Content-Type': 'application/json',
-      Authorization: token ? `Bearer ${token}` : ''
-    };
-  };
-  const getAuthHeaderOnly = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
       Authorization: token ? `Bearer ${token}` : ''
     };
   };
@@ -125,10 +117,8 @@ const Brands = () => {
       name: '',
       description: '',
       logoPreview: '',
-      website: '',
       categories: [],
-      featured: false,
-      sortOrder: 0
+      featured: false
     });
     setImageFile(null);
     setShowAddModal(true);
@@ -140,17 +130,15 @@ const Brands = () => {
       name: brand.name || '',
       description: brand.description || '',
       logoPreview: brand.logo || '',
-      website: brand.website || '',
       categories: Array.isArray(brand.categories) ? brand.categories.map(c => (typeof c === 'string' ? c : (c?._id || c))) : [],
-      featured: !!brand.featured,
-      sortOrder: brand.sortOrder || 0
+      featured: !!brand.featured
     });
     setImageFile(null);
     setShowEditModal(true);
   };
 
   const handleDeleteBrand = async (brand) => {
-    if (!window.confirm('Are you sure you want to delete this brand? This action cannot be undone.')) return;
+    if (!window.confirm('Are you sure you want to delete this brand?')) return;
     try {
       const id = brand._id || brand.id;
       const res = await fetch(`${API_BASE}/api/v1/brands/${id}`, {
@@ -177,14 +165,22 @@ const Brands = () => {
         setSubmitting(false);
         return;
       }
+      if (!imageFile && !formData.logoPreview && showAddModal) {
+        toast.error('Logo is required');
+        setSubmitting(false);
+        return;
+      }
+      if (!Array.isArray(formData.categories) || formData.categories.length === 0) {
+        toast.error('Please select at least one category');
+        setSubmitting(false);
+        return;
+      }
 
       let payload = {
         name: formData.name.trim(),
         description: formData.description?.trim() || '',
-        website: formData.website?.trim() || '',
-        categories: formData.categories, // array of ids
-        featured: !!formData.featured,
-        sortOrder: Number(formData.sortOrder) || 0
+        categories: formData.categories,
+        featured: !!formData.featured
       };
 
       if (imageFile) {
@@ -257,23 +253,6 @@ const Brands = () => {
     });
   };
 
-  const toggleFeatured = async (brand) => {
-    try {
-      const id = brand._id || brand.id;
-      const res = await fetch(`${API_BASE}/api/v1/brands/${id}/feature`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ featured: !brand.featured })
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message || 'Failed to update featured status');
-      toast.success('Featured status updated successfully');
-      fetchBrands();
-    } catch (error) {
-      toast.error(error.message || 'Failed to update featured status');
-    }
-  };
-
   const getCategoryNames = (categoryIds) => {
     if (!categoryIds || categoryIds.length === 0) return 'None';
     return categoryIds
@@ -282,10 +261,6 @@ const Brands = () => {
         return category ? category.name : 'Unknown';
       })
       .join(', ');
-  };
-
-  const getProductCount = (brandId) => {
-    return Math.floor(Math.random() * 100);
   };
 
   const pagesCount = Math.max(1, Math.ceil(total / itemsPerPage));
@@ -327,10 +302,6 @@ const Brands = () => {
           <h3>Active Brands</h3>
           <p>{brands.length}</p>
         </div>
-        <div className="stat-card">
-          <h3>Total Products</h3>
-          <p>{brands.reduce((sum, brand) => sum + getProductCount(brand._id || brand.id), 0)}</p>
-        </div>
       </div>
 
       <div className="brands-table-container">
@@ -338,11 +309,8 @@ const Brands = () => {
           <thead>
             <tr>
               <th>Brand</th>
-              <th>Website</th>
               <th>Categories</th>
-              <th>Products</th>
               <th>Featured</th>
-              <th>Sort Order</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -358,23 +326,12 @@ const Brands = () => {
                     </div>
                   </div>
                 </td>
-                <td>
-                  {brand.website ? (
-                    <a href={brand.website} target="_blank" rel="noopener noreferrer" className="website-link">
-                      {brand.website}
-                    </a>
-                  ) : (
-                    <span className="no-website">No website</span>
-                  )}
-                </td>
                 <td>{getCategoryNames(brand.categories || [])}</td>
-                <td>{getProductCount(brand._id || brand.id)}</td>
                 <td>
                   <span className={`featured-badge ${brand.featured ? 'featured' : 'not-featured'}`}>
                     {brand.featured ? 'Yes' : 'No'}
                   </span>
                 </td>
-                <td>{brand.sortOrder || 0}</td>
                 <td>
                   <div className="action-buttons">
                     <button
@@ -382,12 +339,6 @@ const Brands = () => {
                       className="btn btn-info btn-sm"
                     >
                       Edit
-                    </button>
-                    <button
-                      onClick={() => toggleFeatured(brand)}
-                      className={`btn btn-sm ${brand.featured ? 'btn-warning' : 'btn-success'}`}
-                    >
-                      {brand.featured ? 'Unfeature' : 'Feature'}
                     </button>
                     <button
                       onClick={() => handleDeleteBrand(brand)}
@@ -430,33 +381,6 @@ const Brands = () => {
         </div>
       )}
 
-      <div className="brands-grid-section">
-        <h2>Brands Overview</h2>
-        <div className="brands-grid">
-          {brands.map((brand) => (
-            <div key={brand._id || brand.id} className="brand-card">
-              <div className="brand-card-header">
-                <img src={brand.logo || '/default-brand.png'} alt={brand.name} className="brand-card-logo" />
-                {brand.featured && <span className="featured-star">★</span>}
-              </div>
-              <div className="brand-card-body">
-                <h3>{brand.name}</h3>
-                <p>{brand.description}</p>
-                <div className="brand-stats">
-                  <span>{getProductCount(brand._id || brand.id)} Products</span>
-                  <span>{getCategoryNames(brand.categories || [])}</span>
-                </div>
-                {brand.website && (
-                  <a href={brand.website} target="_blank" rel="noopener noreferrer" className="brand-website">
-                    Visit Website
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {(showAddModal || showEditModal) && (
         <div className="modal-overlay">
           <div className="modal">
@@ -477,41 +401,6 @@ const Brands = () => {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label>Website</label>
-                  <input
-                    type="url"
-                    name="website"
-                    value={formData.website}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Sort Order</label>
-                  <input
-                    type="number"
-                    name="sortOrder"
-                    value={formData.sortOrder}
-                    onChange={handleInputChange}
-                    min="0"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Featured Brand</label>
-                  <div className="checkbox-group">
-                    <input
-                      type="checkbox"
-                      name="featured"
-                      checked={formData.featured}
-                      onChange={handleInputChange}
-                    />
-                    <span>Mark as featured</span>
-                  </div>
-                </div>
-
                 <div className="form-group full-width">
                   <label>Description</label>
                   <textarea
@@ -523,7 +412,7 @@ const Brands = () => {
                 </div>
 
                 <div className="form-group full-width">
-                  <label>Brand Logo</label>
+                  <label>Brand Logo *</label>
                   <input
                     type="file"
                     accept="image/*"
@@ -537,7 +426,7 @@ const Brands = () => {
                 </div>
 
                 <div className="form-group full-width">
-                  <label>Assigned Categories</label>
+                  <label>Assigned Categories *</label>
                   <div className="categories-selection">
                     {categories.map(category => (
                       <div key={category.id} className="category-checkbox">

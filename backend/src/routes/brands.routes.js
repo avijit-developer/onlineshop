@@ -35,7 +35,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
   const [items, total] = await Promise.all([
     Brand.find(filters)
-      .sort({ sortOrder: 1, name: 1 })
+      .sort({ name: 1 })
       .skip((pageNum - 1) * perPage)
       .limit(perPage)
       .lean(),
@@ -47,7 +47,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // POST /brands (accepts imageUrl/imagePublicId OR file upload as logoFile)
 router.post('/', authenticate, requireAdmin, upload.single('logoFile'), async (req, res) => {
-  const { name, description = '', website = '', categories = '[]', featured = 'false', sortOrder = '0' } = req.body || {};
+  const { name, description = '', categories = '[]', featured = 'false' } = req.body || {};
   if (!name) {
     res.status(400);
     throw new Error('name is required');
@@ -62,19 +62,25 @@ router.post('/', authenticate, requireAdmin, upload.single('logoFile'), async (r
     res.status(400);
     throw new Error('categories must be a JSON array');
   }
-
-  // Validate category ids if provided
-  if (categoryIds.length) {
-    const found = await Category.find({ _id: { $in: categoryIds } }, { _id: 1 }).lean();
-    if (found.length !== categoryIds.length) {
-      res.status(400);
-      throw new Error('One or more categories not found');
-    }
+  if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+    res.status(400);
+    throw new Error('At least one category is required');
   }
 
-  // Support direct upload fields
+  // Validate category ids
+  const found = await Category.find({ _id: { $in: categoryIds } }, { _id: 1 }).lean();
+  if (found.length !== categoryIds.length) {
+    res.status(400);
+    throw new Error('One or more categories not found');
+  }
+
+  // Support direct upload fields; require a logo one way or the other
   const imageUrl = req.body.imageUrl;
   const imagePublicId = req.body.imagePublicId;
+  if (!req.file && !imageUrl) {
+    res.status(400);
+    throw new Error('logo is required');
+  }
 
   let uploaded = null;
   if (req.file && req.file.buffer) {
@@ -89,10 +95,8 @@ router.post('/', authenticate, requireAdmin, upload.single('logoFile'), async (r
   const created = await Brand.create({
     name: String(name).trim(),
     description: String(description).trim(),
-    website: String(website).trim(),
     categories: categoryIds,
     featured: String(featured) === 'true' || featured === true,
-    sortOrder: Number(sortOrder) || 0,
     logo: uploaded?.url || imageUrl || '',
     logoPublicId: uploaded?.publicId || imagePublicId || ''
   });
@@ -109,7 +113,7 @@ router.put('/:id', authenticate, requireAdmin, upload.single('logoFile'), async 
     throw new Error('brand not found');
   }
 
-  const { name, description, website, categories, featured, sortOrder } = req.body || {};
+  const { name, description, categories, featured } = req.body || {};
 
   // Parse categories if provided
   let categoryIds;
@@ -118,12 +122,14 @@ router.put('/:id', authenticate, requireAdmin, upload.single('logoFile'), async 
       const parsed = typeof categories === 'string' ? JSON.parse(categories) : categories;
       if (!Array.isArray(parsed)) throw new Error('categories must be array');
       categoryIds = parsed.filter(Boolean);
-      if (categoryIds.length) {
-        const found = await Category.find({ _id: { $in: categoryIds } }, { _id: 1 }).lean();
-        if (found.length !== categoryIds.length) {
-          res.status(400);
-          throw new Error('One or more categories not found');
-        }
+      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        res.status(400);
+        throw new Error('At least one category is required');
+      }
+      const found = await Category.find({ _id: { $in: categoryIds } }, { _id: 1 }).lean();
+      if (found.length !== categoryIds.length) {
+        res.status(400);
+        throw new Error('One or more categories not found');
       }
     } catch (e) {
       res.status(400);
@@ -149,10 +155,8 @@ router.put('/:id', authenticate, requireAdmin, upload.single('logoFile'), async 
 
   if (name !== undefined) brand.name = String(name).trim();
   if (description !== undefined) brand.description = String(description).trim();
-  if (website !== undefined) brand.website = String(website).trim();
   if (categoryIds !== undefined) brand.categories = categoryIds;
   if (featured !== undefined) brand.featured = String(featured) === 'true' || featured === true;
-  if (sortOrder !== undefined) brand.sortOrder = Number(sortOrder) || 0;
   if (uploaded?.url) brand.logo = uploaded.url;
   if (uploaded?.publicId) brand.logoPublicId = uploaded.publicId;
   if (!uploaded && imageUrl !== undefined) brand.logo = imageUrl;
