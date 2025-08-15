@@ -12,6 +12,13 @@ const Products = () => {
   const [variantAttributesInput, setVariantAttributesInput] = useState('');
   const [attributeValuesInput, setAttributeValuesInput] = useState({});
 
+  const removeMatrixVariant = (index) => {
+    setMatrixVariants(prev => prev.filter((_, i) => i !== index));
+  };
+  const removeMatrixVariantImage = (variantIndex, imageIndex) => {
+    setMatrixVariants(prev => prev.map((v, i) => i === variantIndex ? { ...v, images: (v.images || []).filter((_, j) => j !== imageIndex) } : v));
+  };
+
   // Generate matrix combinations (dynamic)
   const generateMatrixVariants = () => {
     if (variantAttributes.length === 0) return;
@@ -23,7 +30,7 @@ const Products = () => {
     setMatrixVariants(combos.map(combo => {
       const obj = {};
       combo.forEach((val, idx) => { obj[variantAttributes[idx]] = val; });
-      return { ...obj, price: '', specialPrice: '', images: [] };
+      return { ...obj, sku: '', price: '', specialPrice: '', stock: '', images: [] };
     }));
   };
 
@@ -46,6 +53,43 @@ const Products = () => {
   // Update matrix variant field
   const updateMatrixVariant = (index, field, value) => {
     setMatrixVariants(prev => prev.map((v, i) => i === index ? { ...v, [field]: value } : v));
+  };
+
+  // Cloudinary Direct Upload helpers (for variant images)
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : ''
+    };
+  };
+  const getUploadSignature = async (subfolder) => {
+    const res = await fetch(`${API_BASE}/api/v1/uploads/signature`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder: subfolder })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Failed to get upload signature');
+    return json.data;
+  };
+  const uploadToCloudinary = async (file, subfolder = 'products/variants') => {
+    const { signature, timestamp, folder, apiKey, cloudName } = await getUploadSignature(subfolder);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('api_key', apiKey);
+    fd.append('timestamp', String(timestamp));
+    fd.append('signature', signature);
+    fd.append('folder', folder);
+    fd.append('unique_filename', 'true');
+    fd.append('overwrite', 'false');
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: fd
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error?.message || 'Cloudinary upload failed');
+    return { imageUrl: json.secure_url, imagePublicId: json.public_id };
   };
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -246,7 +290,7 @@ const Products = () => {
           price: v.price !== '' && v.price !== undefined ? Number(v.price) : undefined,
           specialPrice: v.specialPrice !== '' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
-          images: []
+          images: (v.images || []).map(img => typeof img === 'string' ? img : img.imageUrl) // Convert File objects to URLs
         }))
       };
 
@@ -832,23 +876,46 @@ const Products = () => {
                                   type="file"
                                   multiple
                                   accept="image/*"
-                                  onChange={e => {
-                                    const files = Array.from(e.target.files);
-                                    updateMatrixVariant(index, 'images', files);
+                                  onChange={async e => {
+                                    const files = Array.from(e.target.files || []);
+                                    if (files.length === 0) return;
+                                    try {
+                                      const uploads = [];
+                                      for (const f of files) {
+                                        const { imageUrl } = await uploadToCloudinary(f, 'products/variants');
+                                        uploads.push(imageUrl);
+                                      }
+                                      const merged = [...(variant.images || []), ...uploads];
+                                      updateMatrixVariant(index, 'images', merged);
+                                    } catch (err) {
+                                      toast.error(err?.message || 'Failed to upload images');
+                                    }
                                   }}
                                 />
                                 {variant.images && variant.images.length > 0 && (
-                                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                                  <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                                     {variant.images.map((img, i) => (
-                                      <img
-                                        key={i}
-                                        src={typeof img === 'string' ? img : URL.createObjectURL(img)}
-                                        alt={`Matrix Variant ${index + 1} Image ${i + 1}`}
-                                        style={{ width: 40, height: 40, objectFit: 'cover' }}
-                                      />
+                                      <div key={i} style={{ position: 'relative' }}>
+                                        <img
+                                          src={img}
+                                          alt={`Matrix Variant ${index + 1} Image ${i + 1}`}
+                                          style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => removeMatrixVariantImage(index, i)}
+                                          className="btn btn-danger btn-xs"
+                                          style={{ position: 'absolute', top: -6, right: -6 }}
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
                                     ))}
                                   </div>
                                 )}
+                                <div style={{ marginTop: 8 }}>
+                                  <button type="button" className="btn btn-danger btn-sm" onClick={() => removeMatrixVariant(index)}>Remove Row</button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -896,15 +963,15 @@ const Products = () => {
                 <div className="product-info-grid">
                   <div className="info-item">
                     <label>Category:</label>
-                    <span>{getCategoryName(selectedProduct.categoryId)}</span>
+                    <span>{getCategoryName(selectedProduct.category)}</span>
                   </div>
                   <div className="info-item">
                     <label>Brand:</label>
-                    <span>{getBrandName(selectedProduct.brandId)}</span>
+                    <span>{getBrandName(selectedProduct.brand)}</span>
                   </div>
                   <div className="info-item">
                     <label>Vendor:</label>
-                    <span>{getVendorName(selectedProduct.vendorId)}</span>
+                    <span>{getVendorName(selectedProduct.vendor)}</span>
                   </div>
                   <div className="info-item">
                     <label>Status:</label>
@@ -958,9 +1025,48 @@ const Products = () => {
                           <span>Options: {variant.options.join(', ')}</span>
                           <span>Price: ${variant.price}</span>
                           <span>Stock: {variant.stock}</span>
+                          <div className="variant-images">
+                            <h5>Images</h5>
+                            {variant.images && variant.images.length > 0 ? (
+                              <div className="images-grid">
+                                {variant.images.map((image, imgIndex) => (
+                                  <img
+                                    key={imgIndex}
+                                    src={typeof image === 'string' ? image : URL.createObjectURL(image)}
+                                    alt={`Variant ${index + 1} Image ${imgIndex + 1}`}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <p>No images uploaded for this variant.</p>
+                            )}
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={e => {
+                                const files = Array.from(e.target.files);
+                                updateVariant(index, 'images', [...(variant.images || []), ...files]);
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeVariant(index)}
+                            className="btn btn-danger btn-sm remove-variant"
+                          >
+                            Remove Variant
+                          </button>
                         </div>
                       ))}
                     </div>
+                    <button
+                      type="button"
+                      onClick={addVariant}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      Add Variant
+                    </button>
                   </div>
                 )}
 
