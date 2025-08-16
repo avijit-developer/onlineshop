@@ -66,7 +66,7 @@ router.post('/login', async (req, res) => {
   }
 
   const token = jwt.sign(
-    { id: vendorUserDoc._id.toString(), role: 'vendor', email: vendorUserDoc.email, vendorId: vendor._id.toString() },
+    { id: vendorUserDoc._id.toString(), role: 'vendor', email: vendorUserDoc.email, vendorId: vendor._id.toString(), permissions: vendorUserDoc.permissions || [] },
     getJwtSecret(),
     { expiresIn: getJwtExpiry() }
   );

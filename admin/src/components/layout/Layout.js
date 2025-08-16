@@ -75,7 +75,7 @@ const Layout = ({ children, user, onLogout }) => {
           <div className="header-right">
             <div className="user-info">
               <span>Welcome, {user?.name}</span>
-              <span className="user-role">({user?.role})</span>
+              <span className="user-role">({user?.role}{user?.role==='vendor' && user?.vendorCompany ? ` • ${user.vendorCompany}`:''})</span>
             </div>
             <button className="btn btn-secondary btn-sm" onClick={onLogout}>
               Logout

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const VendorUser = require('../models/VendorUser');
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET || 'dev-secret';
@@ -42,4 +43,27 @@ const requireRole = (roles) => (req, res, next) => {
   return next();
 };
 
-module.exports = { authenticate, requireAdmin, requireRole };
+const requirePermission = (permission) => async (req, res, next) => {
+  // Admin bypass
+  if (req.user && req.user.role === 'admin') return next();
+  if (!req.user || req.user.role !== 'vendor') {
+    res.status(403);
+    return next(new Error('Insufficient permissions'));
+  }
+  try {
+    let permissions = Array.isArray(req.user.permissions) ? req.user.permissions : null;
+    if (!permissions) {
+      const vu = await VendorUser.findById(req.user.id).select({ permissions: 1 }).lean();
+      permissions = vu?.permissions || [];
+    }
+    if (!permissions.includes(permission)) {
+      res.status(403);
+      return next(new Error('Permission denied'));
+    }
+    return next();
+  } catch (e) {
+    return next(e);
+  }
+};
+
+module.exports = { authenticate, requireAdmin, requireRole, requirePermission };

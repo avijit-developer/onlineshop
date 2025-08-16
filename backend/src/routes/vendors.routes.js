@@ -1,11 +1,18 @@
 const express = require('express');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireRole } = require('../middleware/auth');
 const Vendor = require('../models/Vendor');
 const router = express.Router();
 
 function isValidEmail(email) {
   return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+
+// GET /vendors/me (vendor user)
+router.get('/me', authenticate, requireRole(['vendor']), async (req, res) => {
+  const v = await Vendor.findById(req.user.vendorId).lean();
+  if (!v) { res.status(404); throw new Error('Vendor not found'); }
+  res.json({ success: true, data: v });
+});
 
 // GET /vendors?status=&q=&page=&limit=
 router.get('/', authenticate, requireAdmin, async (req, res) => {
