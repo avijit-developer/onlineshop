@@ -108,7 +108,15 @@ const AdminUsers = () => {
         setValue('name', item.name);
         setValue('email', item.email);
         setValue('password', '');
-        setValue('vendor', item.vendor?._id || item.vendor || '');
+        
+        // Handle multiple vendors - convert single vendor to array format
+        let vendorIds = [];
+        if (item.vendor) {
+          vendorIds = [item.vendor._id || item.vendor];
+        } else if (item.vendors) {
+          vendorIds = Array.isArray(item.vendors) ? item.vendors.map(v => v._id || v) : [item.vendors];
+        }
+        setValue('vendors', vendorIds);
         
         // Enhanced role selection logic - check multiple possible data structures
         let roleId = '';
@@ -150,12 +158,12 @@ const AdminUsers = () => {
         }
       } else {
         if (editingItem) {
-          const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, vendor: data.vendor, roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, vendors: data.vendors || [], roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to update vendor user');
           toast.success('Vendor user updated');
         } else {
-          const res = await fetch(`${API_BASE}/api/v1/vendor-users`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password, vendor: data.vendor, roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/vendor-users`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password, vendors: data.vendors || [], roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to create vendor user');
           toast.success('Vendor user created');
@@ -272,7 +280,14 @@ const AdminUsers = () => {
                       </div>
                     </td>
                     <td>{item.email}</td>
-                    {tab==='vendorUsers' && <td>{item.vendor?.companyName || item.vendor}</td>}
+                    {tab==='vendorUsers' && (
+                      <td>
+                        {item.vendors && Array.isArray(item.vendors) ? 
+                          item.vendors.map(v => v.companyName || v).join(', ') : 
+                          item.vendor?.companyName || item.vendor || '—'
+                        }
+                      </td>
+                    )}
                     {tab==='vendorUsers' && (
                       <td>
                         {(item.permissions || []).length ? (item.permissions || []).join(', ') : '—'}
@@ -422,14 +437,20 @@ const AdminUsers = () => {
                     {tab==='vendorUsers' && (
                       <>
                         <div className="form-group">
-                          <label className="form-label">Vendor</label>
-                          <select className={`form-control ${errors.vendor ? 'error' : ''}`} {...register('vendor', { required: 'Vendor is required' })}>
-                            <option value="">Select Vendor</option>
+                          <label className="form-label">Vendors</label>
+                          <div className="vendor-checkboxes">
                             {vendors.map(v => (
-                              <option key={v.id} value={v.id}>{v.name}</option>
+                              <label key={v.id} className="checkbox-label">
+                                <input 
+                                  type="checkbox" 
+                                  value={v.id} 
+                                  {...register('vendors')} 
+                                /> 
+                                {v.name}
+                              </label>
                             ))}
-                          </select>
-                          {errors.vendor && <span className="error-message">{errors.vendor.message}</span>}
+                          </div>
+                          {errors.vendors && <span className="error-message">{errors.vendors.message}</span>}
                         </div>
                         <div className="form-group">
                           <label className="form-label">Role</label>

@@ -25,6 +25,7 @@ router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit'
   
   // If user is a vendor, only show their own vendor information
   if (req.user.role === 'vendor') {
+    // For now, keep the single vendorId logic, but we'll need to update this for multi-vendor support
     filters._id = new mongoose.Types.ObjectId(req.user.vendorId);
     console.log('Vendor user - filtering to own vendor:', req.user.vendorId);
     console.log('Vendor user - full user object:', req.user);
@@ -92,6 +93,20 @@ router.post('/', authenticate, requirePermission('vendor.add'), async (req, res)
     logo: imageUrl || '',
     logoPublicId: imagePublicId || ''
   });
+
+  // If the user creating the vendor is a vendor user, automatically assign them to this new vendor
+  if (req.user.role === 'vendor') {
+    try {
+      const VendorUser = require('../models/VendorUser');
+      await VendorUser.findByIdAndUpdate(
+        req.user.id,
+        { $addToSet: { vendors: created._id } }
+      );
+      console.log(`Vendor user ${req.user.id} automatically assigned to new vendor ${created._id}`);
+    } catch (error) {
+      console.error('Error assigning vendor user to new vendor:', error);
+    }
+  }
 
   res.status(201).json({ success: true, data: created });
 });

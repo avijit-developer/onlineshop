@@ -26,7 +26,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
   const [items, total] = await Promise.all([
-    VendorUser.find(filters).populate('vendor', 'companyName').populate('roleRef','name').skip((pageNum - 1) * perPage).limit(perPage).lean(),
+    VendorUser.find(filters).populate('vendors', 'companyName').populate('roleRef','name').skip((pageNum - 1) * perPage).limit(perPage).lean(),
     VendorUser.countDocuments(filters)
   ]);
   res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
@@ -34,15 +34,20 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // Create vendor user (admin-only)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
-  const { name, email, password, vendor, permissions = [], roleRef } = req.body || {};
-  if (!name || !email || !password || !vendor) {
+  const { name, email, password, vendors = [], permissions = [], roleRef } = req.body || {};
+  if (!name || !email || !password || !vendors.length) {
     res.status(400);
-    throw new Error('name, email, password and vendor are required');
+    throw new Error('name, email, password and at least one vendor are required');
   }
   if (!isValidEmail(email)) { res.status(400); throw new Error('Invalid email format'); }
   if (String(password).length < 8) { res.status(400); throw new Error('Password must be at least 8 characters'); }
-  const v = await Vendor.findById(vendor).lean();
-  if (!v) { res.status(400); throw new Error('Vendor not found'); }
+  
+  // Validate all vendors exist
+  const vendorIds = Array.isArray(vendors) ? vendors : [vendors];
+  const existingVendors = await Vendor.find({ _id: { $in: vendorIds } }).lean();
+  if (existingVendors.length !== vendorIds.length) {
+    res.status(400); throw new Error('One or more vendors not found');
+  }
 
   const exists = await VendorUser.findOne({ email: email.trim().toLowerCase() }).lean();
   if (exists) { res.status(409); throw new Error('Email already in use'); }
@@ -58,14 +63,21 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const created = await VendorUser.create({ name: String(name).trim(), email: String(email).trim().toLowerCase(), passwordHash, vendor, roleRef: roleRefId, permissions: mergedPermissions });
+  const created = await VendorUser.create({ 
+    name: String(name).trim(), 
+    email: String(email).trim().toLowerCase(), 
+    passwordHash, 
+    vendors: vendorIds, 
+    roleRef: roleRefId, 
+    permissions: mergedPermissions 
+  });
   res.status(201).json({ success: true, data: created });
 });
 
 // Update vendor user (admin-only)
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, email, password, vendor, permissions, isActive, roleRef } = req.body || {};
+  const { name, email, password, vendors = [], permissions, isActive, roleRef } = req.body || {};
   const user = await VendorUser.findById(id);
   if (!user) { res.status(404); throw new Error('vendor user not found'); }
   if (name !== undefined) user.name = String(name).trim();
@@ -77,10 +89,15 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     if (String(password).length < 8) { res.status(400); throw new Error('Password must be at least 8 characters'); }
     user.passwordHash = await bcrypt.hash(password, 10);
   }
-  if (vendor !== undefined) {
-    const v = await Vendor.findById(vendor).lean();
-    if (!v) { res.status(400); throw new Error('Vendor not found'); }
-    user.vendor = vendor;
+  if (vendors !== undefined) {
+    const vendorIds = Array.isArray(vendors) ? vendors : [vendors];
+    if (vendorIds.length > 0) {
+      const existingVendors = await Vendor.find({ _id: { $in: vendorIds } }).lean();
+      if (existingVendors.length !== vendorIds.length) {
+        res.status(400); throw new Error('One or more vendors not found');
+      }
+    }
+    user.vendors = vendorIds;
   }
   if (roleRef !== undefined) {
     if (roleRef) {

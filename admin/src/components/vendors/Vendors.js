@@ -315,7 +315,7 @@ const Vendors = () => {
         <h1>Vendor Management</h1>
         <div className="header-actions">
           <div className="view-toggle">
-            {(!isVendor && userPerms.has('vendor.add')) && (
+            {((!isVendor && userPerms.has('vendor.add')) || (isVendor && userPerms.has('vendor.add'))) && (
               <button className="btn btn-primary" onClick={handleOpenAdd}>Add Vendor</button>
             )}
           </div>
