@@ -70,10 +70,17 @@ const Vendors = () => {
       setLoading(true);
       const q = searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : '';
       const status = statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : '';
+      
+      console.log('Fetching vendors with user:', currentUser);
+      console.log('User permissions:', userPerms);
+      
       const res = await fetch(`${API_BASE}/api/v1/vendors?page=${currentPage}&limit=${itemsPerPage}${status}${q}`, {
         headers: getAuthHeaders()
       });
       const json = await res.json();
+      
+      console.log('Vendors API response:', { status: res.status, ok: res.ok, data: json });
+      
       if (!res.ok) throw new Error(json?.message || 'Failed to load vendors');
       setVendors(json.data || []);
       setTotal(json?.meta?.total || 0);
