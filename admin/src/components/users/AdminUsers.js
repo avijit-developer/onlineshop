@@ -42,6 +42,13 @@ const AdminUsers = () => {
     loadLists();
   }, [tab]);
 
+  // Ensure roles are loaded when editing vendor users
+  useEffect(() => {
+    if (showModal && tab === 'vendorUsers' && roles.length === 0) {
+      loadLists();
+    }
+  }, [showModal, tab, roles.length]);
+
   const loadLists = async () => {
     try {
       setLoading(true);
@@ -85,29 +92,36 @@ const AdminUsers = () => {
   const openEdit = (item) => {
     setEditingItem(item);
     console.log('Editing item:', item); // Debug log
-    if (tab === 'admins') {
-      setValue('name', item.name);
-      setValue('email', item.email);
-      setValue('password', '');
-      setValue('isActive', item.isActive);
-    } else if (tab === 'vendorUsers') {
-      setValue('name', item.name);
-      setValue('email', item.email);
-      setValue('password', '');
-      setValue('vendor', item.vendor?._id || item.vendor || '');
-      
-      // Enhanced role selection logic - check multiple possible data structures
-      let roleId = '';
-      if (item.roleRef) {
-        roleId = typeof item.roleRef === 'object' ? item.roleRef._id : item.roleRef;
-      } else if (item.role) {
-        roleId = typeof item.role === 'object' ? item.role._id : item.role;
+    console.log('Available roles:', roles); // Debug log
+    
+    // Use setTimeout to ensure form is ready before setting values
+    setTimeout(() => {
+      if (tab === 'admins') {
+        setValue('name', item.name);
+        setValue('email', item.email);
+        setValue('password', '');
+        setValue('isActive', item.isActive);
+      } else if (tab === 'vendorUsers') {
+        setValue('name', item.name);
+        setValue('email', item.email);
+        setValue('password', '');
+        setValue('vendor', item.vendor?._id || item.vendor || '');
+        
+        // Enhanced role selection logic - check multiple possible data structures
+        let roleId = '';
+        if (item.roleRef) {
+          roleId = typeof item.roleRef === 'object' ? item.roleRef._id : item.roleRef;
+        } else if (item.role) {
+          roleId = typeof item.role === 'object' ? item.role._id : item.role;
+        }
+        
+        console.log('Role data:', { roleRef: item.roleRef, role: item.role, finalRoleId: roleId }); // Debug log
+        console.log('Setting roleRef to:', roleId); // Debug log
+        setValue('roleRef', roleId);
+        setValue('isActive', item.isActive);
       }
-      
-      console.log('Role data:', { roleRef: item.roleRef, role: item.role, finalRoleId: roleId }); // Debug log
-      setValue('roleRef', roleId);
-      setValue('isActive', item.isActive);
-    }
+    }, 100);
+    
     setShowModal(true);
   };
 
@@ -410,10 +424,24 @@ const AdminUsers = () => {
                         </div>
                         <div className="form-group">
                           <label className="form-label">Role</label>
-                          <select className="form-control" {...register('roleRef')}>
+                          <select 
+                            className="form-control" 
+                            {...register('roleRef')}
+                            onChange={(e) => {
+                              console.log('Role select changed to:', e.target.value);
+                              setValue('roleRef', e.target.value);
+                            }}
+                          >
                             <option value="">(None)</option>
-                            {roles.map(r => (<option key={r._id} value={r._id}>{r.name}</option>))}
+                            {roles.map(r => (
+                              <option key={r._id} value={r._id}>
+                                {r.name} (ID: {r._id})
+                              </option>
+                            ))}
                           </select>
+                          <small className="form-text text-muted">
+                            Available roles: {roles.length} | Selected: {editingItem?.roleRef?._id || editingItem?.roleRef || editingItem?.role?._id || editingItem?.role || 'None'}
+                          </small>
                         </div>
                       </>
                     )}
