@@ -26,27 +26,38 @@ const AdminUsers = () => {
   // Function to refresh vendor user permissions after role updates
   const refreshVendorUserPermissions = async () => {
     try {
+      console.log('Starting vendor user permissions refresh...');
       const res = await fetch(`${API_BASE}/api/v1/vendor-users/refresh-permissions`, { 
         method: 'POST', 
         headers: authHeaders() 
       });
       if (res.ok) {
-        console.log('Vendor user permissions refreshed successfully');
+        const data = await res.json();
+        console.log('Vendor user permissions refreshed successfully:', data);
+        toast.success(`Updated permissions for ${data.updatedCount || 0} vendor users`);
+      } else {
+        const errorData = await res.json();
+        console.error('Failed to refresh vendor user permissions:', errorData);
+        toast.error('Failed to refresh vendor user permissions');
       }
     } catch (e) {
       console.error('Failed to refresh vendor user permissions:', e);
+      toast.error('Failed to refresh vendor user permissions');
     }
   };
 
   // Function to refresh current user permissions
   const refreshCurrentUserPermissions = async () => {
     try {
+      console.log('Starting current user permissions refresh...');
       const res = await fetch(`${API_BASE}/api/v1/auth/refresh-permissions`, { 
         method: 'POST', 
         headers: authHeaders() 
       });
       if (res.ok) {
         const data = await res.json();
+        console.log('Current user permissions refreshed:', data);
+        
         // Update the stored user data with new permissions
         const currentUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
         const updatedUser = { ...currentUser, permissions: data.permissions };
@@ -61,9 +72,14 @@ const AdminUsers = () => {
         }, 1500);
         
         console.log('Current user permissions refreshed and page will reload');
+      } else {
+        const errorData = await res.json();
+        console.error('Failed to refresh current user permissions:', errorData);
+        toast.error('Failed to refresh current user permissions');
       }
     } catch (e) {
       console.error('Failed to refresh current user permissions:', e);
+      toast.error('Failed to refresh current user permissions');
     }
   };
 
@@ -187,12 +203,15 @@ const AdminUsers = () => {
         }
       } else if (tab === 'roles') {
         if (editingItem) {
+          console.log('Updating role with data:', { name: data.name, description: data.description, permissions: data.permissions });
           const res = await fetch(`${API_BASE}/api/v1/roles/${editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to update role');
+          console.log('Role updated successfully:', json);
           toast.success('Role updated');
           
           // After updating a role, refresh vendor users and their permissions
+          console.log('Starting permission refresh after role update...');
           await refreshVendorUserPermissions();
           
           // Also refresh the current user's permissions if they're a vendor user
@@ -390,50 +409,7 @@ const AdminUsers = () => {
               <h3 className="modal-title">{editingItem ? 'Edit' : 'Add'} {tab==='admins'?'Admin': tab==='vendorUsers' ? 'Vendor User' : 'Role'}</h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
             </div>
-            <form onSubmit={handleSubmit(async data => {
-              try {
-                if (tab==='roles') {
-                  if (editingItem) {
-                    const res = await fetch(`${API_BASE}/api/v1/roles/${editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
-                    const json = await res.json().catch(()=>({}));
-                    if (!res.ok) throw new Error(json?.message || 'Failed to update role');
-                    toast.success('Role updated');
-                    
-                    // After updating a role, refresh vendor users and their permissions
-                    await refreshVendorUserPermissions();
-                    
-                    // Also refresh the current user's permissions if they're a vendor user
-                    await refreshCurrentUserPermissions();
-                    
-                    // Refresh vendor users list to get updated role information
-                    if (tab === 'roles') {
-                      try {
-                        const vuRes = await fetch(`${API_BASE}/api/v1/vendor-users`, { headers: authHeaders() });
-                        const vuJson = await vuRes.json();
-                        if (vuRes.ok) {
-                          setVendorUsers(vuJson.data || []);
-                        }
-                      } catch (e) {
-                        console.error('Failed to refresh vendor users after role update:', e);
-                      }
-                    }
-                  } else {
-                    const res = await fetch(`${API_BASE}/api/v1/roles`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
-                    const json = await res.json().catch(()=>({}));
-                    if (!res.ok) throw new Error(json?.message || 'Failed to create role');
-                    toast.success('Role created');
-                  }
-                } else {
-                  await onSubmit(data);
-                  return; // prevent double close
-                }
-                setShowModal(false);
-                setEditingItem(null);
-                loadLists();
-              } catch (err) {
-                toast.error(err.message || 'Failed to save');
-              }
-            })}>
+            <form onSubmit={handleSubmit(onSubmit)}>
               <div className="modal-body">
                 {tab==='roles' ? (
                   <>
