@@ -4,14 +4,14 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const Brand = require('../models/Brand');
 const Vendor = require('../models/Vendor');
-const { authenticate, requireAdmin, requireRole } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireRole, requirePermission, requireAnyPermission } = require('../middleware/auth');
 const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 } });
 
 // GET /products?q=&status=&category=&brand=&vendor=&page=&limit=
-router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) => {
+router.get('/', authenticate, requireRole(['admin','vendor']), requirePermission('products.view'), async (req, res) => {
   const { q = '', status = 'all', category, brand, vendor, page = 1, limit = 10 } = req.query;
   const filters = {};
   if (q) {
@@ -49,7 +49,7 @@ router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) 
 });
 
 // POST /products (JSON only, images handled via direct uploads)
-router.post('/', authenticate, requireRole(['admin','vendor']), async (req, res) => {
+router.post('/', authenticate, requireRole(['admin','vendor']), requirePermission('products.add'), async (req, res) => {
   const body = req.body || {};
   const required = ['name', 'category', 'vendor', 'regularPrice'];
   for (const f of required) {
@@ -152,7 +152,7 @@ router.post('/', authenticate, requireRole(['admin','vendor']), async (req, res)
 });
 
 // PUT /products/:id
-router.put('/:id', authenticate, requireRole(['admin','vendor']), async (req, res) => {
+router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermission('products.edit'), async (req, res) => {
   const { id } = req.params;
   const body = req.body || {};
   const product = await Product.findById(id);
@@ -244,7 +244,7 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), async (req, re
 });
 
 // DELETE /products/:id
-router.delete('/:id', authenticate, requireRole(['admin','vendor']), async (req, res) => {
+router.delete('/:id', authenticate, requireRole(['admin','vendor']), requirePermission('products.delete'), async (req, res) => {
   const { id } = req.params;
   // Enforce vendor ownership for deletion
   if (req.user.role === 'vendor') {
@@ -262,7 +262,7 @@ router.delete('/:id', authenticate, requireRole(['admin','vendor']), async (req,
 });
 
 // PATCH /products/:id/enabled
-router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), async (req, res) => {
+router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), requireAnyPermission(['products.edit','products.delete']), async (req, res) => {
   const { id } = req.params;
   const { enabled } = req.body || {};
   if (req.user.role === 'vendor') {

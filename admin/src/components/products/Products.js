@@ -132,6 +132,11 @@ const Products = () => {
   })();
   const isVendorUser = adminUser?.role === 'vendor';
   const currentVendorId = isVendorUser ? adminUser?.vendorId : '';
+  const vendorPerms = new Set((adminUser?.permissions || []));
+  const canViewProducts = !isVendorUser || vendorPerms.has('products.view');
+  const canAddProducts = !isVendorUser || vendorPerms.has('products.add');
+  const canEditProducts = !isVendorUser || vendorPerms.has('products.edit');
+  const canDeleteProducts = !isVendorUser || vendorPerms.has('products.delete');
 
   useEffect(() => {
     fetchData();
@@ -519,7 +524,7 @@ const Products = () => {
               </button>
             )}
           </div>
-          <button onClick={handleAddProduct} className="btn btn-primary">Add Product</button>
+          <button onClick={handleAddProduct} className="btn btn-primary" disabled={isVendorUser && !canAddProducts}>Add Product</button>
           
           <select
             value={categoryFilter}
@@ -652,12 +657,14 @@ const Products = () => {
                     <button
                       onClick={() => handleEditProduct(product)}
                       className="btn btn-info btn-sm"
+                      disabled={isVendorUser && !canEditProducts}
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDeleteProduct(product)}
                       className="btn btn-danger btn-sm"
+                      disabled={isVendorUser && !canDeleteProducts}
                     >
                       Delete
                     </button>
