@@ -8,6 +8,7 @@ const Layout = ({ children, user, onLogout }) => {
 
   const isVendor = user?.role === 'vendor';
 
+  // Get fresh permissions from localStorage (updated by refresh function)
   const userPerms = new Set((user?.permissions || []));
   const allMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },

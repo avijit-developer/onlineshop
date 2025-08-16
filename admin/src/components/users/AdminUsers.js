@@ -38,6 +38,29 @@ const AdminUsers = () => {
     }
   };
 
+  // Function to refresh current user permissions
+  const refreshCurrentUserPermissions = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/refresh-permissions`, { 
+        method: 'POST', 
+        headers: authHeaders() 
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Update the stored user data with new permissions
+        const currentUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+        const updatedUser = { ...currentUser, permissions: data.permissions };
+        localStorage.setItem('adminUser', JSON.stringify(updatedUser));
+        
+        // Trigger a page reload to update the UI with new permissions
+        window.location.reload();
+        console.log('Current user permissions refreshed and page reloaded');
+      }
+    } catch (e) {
+      console.error('Failed to refresh current user permissions:', e);
+    }
+  };
+
   useEffect(() => {
     loadLists();
   }, [tab]);
@@ -331,6 +354,9 @@ const AdminUsers = () => {
                     
                     // After updating a role, refresh vendor users and their permissions
                     await refreshVendorUserPermissions();
+                    
+                    // Also refresh the current user's permissions if they're a vendor user
+                    await refreshCurrentUserPermissions();
                     
                     // Refresh vendor users list to get updated role information
                     if (tab === 'roles') {

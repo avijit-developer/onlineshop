@@ -149,4 +149,33 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
+// Refresh vendor user permissions (called after role updates)
+router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res) => {
+  try {
+    // Get all vendor users
+    const vendorUsers = await VendorUser.find({}).populate('roleRef').lean();
+    
+    for (const vendorUser of vendorUsers) {
+      let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
+      
+      // Add role permissions if roleRef exists
+      if (vendorUser.roleRef && vendorUser.roleRef.permissions) {
+        const rolePermissions = Array.isArray(vendorUser.roleRef.permissions) ? vendorUser.roleRef.permissions : [];
+        const allPermissions = [...permissions, ...rolePermissions];
+        permissions = [...new Set(allPermissions)]; // Remove duplicates
+      }
+      
+      // Update vendor user with merged permissions
+      await VendorUser.findByIdAndUpdate(vendorUser._id, { permissions });
+    }
+    
+    console.log(`Refreshed permissions for ${vendorUsers.length} vendor users`);
+    res.json({ success: true, message: `Refreshed permissions for ${vendorUsers.length} vendor users` });
+  } catch (error) {
+    console.error('Error refreshing vendor user permissions:', error);
+    res.status(500);
+    throw new Error('Failed to refresh vendor user permissions');
+  }
+});
+
 module.exports = router;

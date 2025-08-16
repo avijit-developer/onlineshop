@@ -119,4 +119,38 @@ router.get('/me', authenticate, requireAdmin, async (req, res) => {
   });
 });
 
+// Refresh current user permissions
+router.post('/refresh-permissions', authenticate, async (req, res) => {
+  try {
+    if (req.user.role === 'admin') {
+      // Admin users have all permissions
+      res.json({ success: true, permissions: ['*'] });
+    } else if (req.user.role === 'vendor') {
+      // Get fresh permissions from database
+      const vendorUser = await VendorUser.findById(req.user.id).populate('roleRef').lean();
+      if (!vendorUser) {
+        res.status(404);
+        throw new Error('Vendor user not found');
+      }
+
+      let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
+      
+      // Add role permissions if roleRef exists
+      if (vendorUser.roleRef && vendorUser.roleRef.permissions) {
+        const rolePermissions = Array.isArray(vendorUser.roleRef.permissions) ? vendorUser.roleRef.permissions : [];
+        const allPermissions = [...permissions, ...rolePermissions];
+        permissions = [...new Set(allPermissions)]; // Remove duplicates
+      }
+
+      res.json({ success: true, permissions });
+    } else {
+      res.status(400);
+      throw new Error('Invalid user role');
+    }
+  } catch (error) {
+    res.status(500);
+    throw new Error('Failed to refresh permissions');
+  }
+});
+
 module.exports = router;
