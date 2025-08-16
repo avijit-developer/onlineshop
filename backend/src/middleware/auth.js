@@ -43,27 +43,42 @@ const requireRole = (roles) => (req, res, next) => {
   return next();
 };
 
-const requirePermission = (permission) => async (req, res, next) => {
-  // Admin bypass
-  if (req.user && req.user.role === 'admin') return next();
-  if (!req.user || req.user.role !== 'vendor') {
-    res.status(403);
-    return next(new Error('Insufficient permissions'));
-  }
-  try {
-    let permissions = Array.isArray(req.user.permissions) ? req.user.permissions : null;
-    if (!permissions) {
+const getUserPermissions = async (req) => {
+  if (req.user?.role === 'admin') return ['*'];
+  if (req.user?.role === 'vendor') {
+    let perms = Array.isArray(req.user.permissions) ? req.user.permissions : null;
+    if (!perms) {
       const vu = await VendorUser.findById(req.user.id).select({ permissions: 1 }).lean();
-      permissions = vu?.permissions || [];
+      perms = vu?.permissions || [];
     }
-    if (!permissions.includes(permission)) {
-      res.status(403);
-      return next(new Error('Permission denied'));
-    }
-    return next();
+    return perms;
+  }
+  return [];
+};
+
+const requirePermission = (permission) => async (req, res, next) => {
+  try {
+    const perms = await getUserPermissions(req);
+    if (perms.includes('*') || perms.includes(permission)) return next();
+    res.status(403);
+    return next(new Error('Permission denied'));
   } catch (e) {
     return next(e);
   }
 };
 
-module.exports = { authenticate, requireAdmin, requireRole, requirePermission };
+const requireAnyPermission = (permissions) => async (req, res, next) => {
+  try {
+    const perms = await getUserPermissions(req);
+    if (perms.includes('*')) return next();
+    for (const p of permissions) {
+      if (perms.includes(p)) return next();
+    }
+    res.status(403);
+    return next(new Error('Permission denied'));
+  } catch (e) {
+    return next(e);
+  }
+};
+
+module.exports = { authenticate, requireAdmin, requireRole, requirePermission, requireAnyPermission };

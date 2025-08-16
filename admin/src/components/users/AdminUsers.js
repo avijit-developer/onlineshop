@@ -297,13 +297,36 @@ const AdminUsers = () => {
                     </div>
                     <div className="form-group">
                       <label className="form-label">Permissions</label>
-                      <div className="permissions-checkboxes">
-                        {['products.read','products.write','orders.read','orders.write','reports.read'].map(p => (
-                          <label key={p} className="checkbox-label">
-                            <input type="checkbox" value={p} {...register('permissions')} /> {p}
-                          </label>
-                        ))}
-                      </div>
+                      <details>
+                        <summary>Products</summary>
+                        <div className="permissions-checkboxes">
+                          {['products.view','products.add','products.edit','products.delete'].map(p => (
+                            <label key={p} className="checkbox-label">
+                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                      <details>
+                        <summary>Orders</summary>
+                        <div className="permissions-checkboxes">
+                          {['orders.view','orders.add','orders.edit','orders.delete'].map(p => (
+                            <label key={p} className="checkbox-label">
+                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                      <details>
+                        <summary>Reports</summary>
+                        <div className="permissions-checkboxes">
+                          {['reports.view'].map(p => (
+                            <label key={p} className="checkbox-label">
+                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                            </label>
+                          ))}
+                        </div>
+                      </details>
                     </div>
                     <div className="form-group">
                       <label className="form-label">Active</label>
@@ -345,6 +368,39 @@ const AdminUsers = () => {
                             <option value="">(None)</option>
                             {roles.map(r => (<option key={r._id} value={r._id}>{r.name}</option>))}
                           </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Extra Permissions</label>
+                          <details>
+                            <summary>Products</summary>
+                            <div className="permissions-checkboxes">
+                              {['products.view','products.add','products.edit','products.delete'].map(p => (
+                                <label key={p} className="checkbox-label">
+                                  <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                                </label>
+                              ))}
+                            </div>
+                          </details>
+                          <details>
+                            <summary>Orders</summary>
+                            <div className="permissions-checkboxes">
+                              {['orders.view','orders.add','orders.edit','orders.delete'].map(p => (
+                                <label key={p} className="checkbox-label">
+                                  <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                                </label>
+                              ))}
+                            </div>
+                          </details>
+                          <details>
+                            <summary>Reports</summary>
+                            <div className="permissions-checkboxes">
+                              {['reports.view'].map(p => (
+                                <label key={p} className="checkbox-label">
+                                  <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                                </label>
+                              ))}
+                            </div>
+                          </details>
                         </div>
                       </>
                     )}
