@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { authenticate, requireAdmin, requireRole, requireAnyPermission, requirePermission } = require('../middleware/auth');
 const Vendor = require('../models/Vendor');
 const router = express.Router();
@@ -24,8 +25,9 @@ router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit'
   
   // If user is a vendor, only show their own vendor information
   if (req.user.role === 'vendor') {
-    filters._id = req.user.vendorId;
+    filters._id = new mongoose.Types.ObjectId(req.user.vendorId);
     console.log('Vendor user - filtering to own vendor:', req.user.vendorId);
+    console.log('Vendor user - full user object:', req.user);
   }
   
   if (status !== 'all') filters.status = status;
@@ -40,6 +42,8 @@ router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit'
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
+  console.log('Final filters applied:', JSON.stringify(filters, null, 2));
+
   const [items, total] = await Promise.all([
     Vendor.find(filters)
       .sort({ createdAt: -1 })
@@ -48,6 +52,10 @@ router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit'
       .lean(),
     Vendor.countDocuments(filters)
   ]);
+
+  console.log('Query results - items count:', items.length);
+  console.log('Query results - total count:', total);
+  console.log('Query results - items:', items.map(item => ({ id: item._id, companyName: item.companyName })));
 
   res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
 });
@@ -95,6 +103,7 @@ router.put('/:id', authenticate, requirePermission('vendor.edit'), async (req, r
 
   // If user is a vendor, ensure they can only edit their own vendor
   if (req.user.role === 'vendor' && req.user.vendorId !== id) {
+    console.log('Vendor user trying to edit different vendor:', { userVendorId: req.user.vendorId, requestedVendorId: id });
     res.status(403);
     throw new Error('You can only edit your own vendor information');
   }
@@ -153,6 +162,7 @@ router.patch('/:id/enable', authenticate, requirePermission('vendor.edit'), asyn
   
   // If user is a vendor, ensure they can only modify their own vendor
   if (req.user.role === 'vendor' && req.user.vendorId !== id) {
+    console.log('Vendor user trying to modify different vendor:', { userVendorId: req.user.vendorId, requestedVendorId: id });
     res.status(403);
     throw new Error('You can only modify your own vendor information');
   }
