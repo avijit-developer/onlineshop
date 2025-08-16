@@ -266,4 +266,29 @@ router.post('/invalidate-tokens', authenticate, requireAdmin, async (req, res) =
   }
 });
 
+// Test endpoint to verify permission refresh is working
+router.get('/test-permissions', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const vendorUsers = await VendorUser.find({}).populate('roleRef').select('name email permissions roleRef').lean();
+    const testData = vendorUsers.map(vu => ({
+      id: vu._id,
+      name: vu.name,
+      email: vu.email,
+      permissions: vu.permissions,
+      roleName: vu.roleRef?.name || 'No Role',
+      rolePermissions: vu.roleRef?.permissions || []
+    }));
+    
+    res.json({ 
+      success: true, 
+      message: 'Permission test data',
+      vendorUsers: testData
+    });
+  } catch (error) {
+    console.error('Error in test endpoint:', error);
+    res.status(500);
+    throw new Error('Failed to get test data');
+  }
+});
+
 module.exports = router;

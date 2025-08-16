@@ -242,6 +242,14 @@ const AdminUsers = () => {
           console.log('Starting permission refresh after role update...');
           await refreshVendorUserPermissions(editingItem.id);
           
+          // Verify the role was updated correctly
+          console.log('Verifying role update...');
+          const verifyRes = await fetch(`${API_BASE}/api/v1/roles/${editingItem.id}`, { headers: authHeaders() });
+          const verifyJson = await verifyRes.json();
+          if (verifyRes.ok) {
+            console.log('Role verification - updated permissions:', verifyJson.data.permissions);
+          }
+          
           // Also refresh the current user's permissions if they're a vendor user
           await refreshCurrentUserPermissions();
           
