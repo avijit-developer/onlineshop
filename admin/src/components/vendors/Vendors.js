@@ -15,6 +15,16 @@ const Vendors = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [total, setTotal] = useState(0);
 
+  // Get current user and permissions
+  const getCurrentUser = () => {
+    const userData = localStorage.getItem('adminUser');
+    return userData ? JSON.parse(userData) : null;
+  };
+
+  const currentUser = getCurrentUser();
+  const userPerms = new Set(currentUser?.permissions || []);
+  const isVendor = currentUser?.role === 'vendor';
+
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
@@ -298,7 +308,9 @@ const Vendors = () => {
         <h1>Vendor Management</h1>
         <div className="header-actions">
           <div className="view-toggle">
-            <button className="btn btn-primary" onClick={handleOpenAdd}>Add Vendor</button>
+            {(!isVendor || userPerms.has('vendor.add')) && (
+              <button className="btn btn-primary" onClick={handleOpenAdd}>Add Vendor</button>
+            )}
           </div>
           <div className="search-filter-container">
             <div className="search-group">
@@ -392,14 +404,18 @@ const Vendors = () => {
                 <td>
                   <div className="action-buttons">
                     <button title="View" onClick={() => viewProfile(vendor)} className="btn btn-secondary btn-sm">👁️</button>
-                    {vendor.status === 'pending' && (
+                    {vendor.status === 'pending' && (!isVendor || userPerms.has('vendor.approve')) && (
                       <>
                         <button title="Approve" onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')} className="btn btn-success btn-sm">✔️</button>
                         <button title="Reject" onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')} className="btn btn-danger btn-sm">✖️</button>
                       </>
                     )}
-                    <button title="Edit" onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">✏️</button>
-                    <button title="Delete" onClick={() => handleDeleteVendor(vendor)} className="btn btn-danger btn-sm">🗑️</button>
+                    {(!isVendor || userPerms.has('vendor.edit')) && (
+                      <button title="Edit" onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">✏️</button>
+                    )}
+                    {(!isVendor || userPerms.has('vendor.delete')) && (
+                      <button title="Delete" onClick={() => handleDeleteVendor(vendor)} className="btn btn-danger btn-sm">🗑️</button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -558,7 +574,7 @@ const Vendors = () => {
             <div className="modal-header">
               <h2>Vendor Profile</h2>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {selectedVendor?.status === 'pending' && (
+                {selectedVendor?.status === 'pending' && (!isVendor || userPerms.has('vendor.approve')) && (
                   <button onClick={() => handleStatusChange(selectedVendor._id || selectedVendor.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
                 )}
                 <button onClick={() => setShowProfileModal(false)} className="close-btn">&times;</button>
