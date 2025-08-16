@@ -153,17 +153,19 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res) => {
   try {
     const { roleId } = req.body || {};
-    console.log('Refreshing permissions for roleId:', roleId);
+    console.log('🔍 BACKEND DEBUG: Refreshing permissions for roleId:', roleId);
+    console.log('🔍 BACKEND DEBUG: Request body:', req.body);
     
     let vendorUsers;
     if (roleId) {
       // Only refresh vendor users who have this specific role
       vendorUsers = await VendorUser.find({ roleRef: roleId }).populate('roleRef').lean();
-      console.log(`Found ${vendorUsers.length} vendor users with role ${roleId}`);
+      console.log(`🔍 BACKEND DEBUG: Found ${vendorUsers.length} vendor users with role ${roleId}`);
+      console.log('🔍 BACKEND DEBUG: Vendor users found:', vendorUsers.map(vu => ({ id: vu._id, name: vu.name, roleRef: vu.roleRef?._id })));
     } else {
       // Refresh all vendor users (fallback)
       vendorUsers = await VendorUser.find({}).populate('roleRef').lean();
-      console.log(`Refreshing all ${vendorUsers.length} vendor users`);
+      console.log(`🔍 BACKEND DEBUG: Refreshing all ${vendorUsers.length} vendor users`);
     }
     
     let updatedCount = 0;
@@ -171,12 +173,17 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
     
     for (const vendorUser of vendorUsers) {
       let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
+      console.log(`🔍 BACKEND DEBUG: Vendor user ${vendorUser._id} (${vendorUser.name}) - current permissions:`, permissions);
       
       // Add role permissions if roleRef exists
       if (vendorUser.roleRef && vendorUser.roleRef.permissions) {
         const rolePermissions = Array.isArray(vendorUser.roleRef.permissions) ? vendorUser.roleRef.permissions : [];
+        console.log(`🔍 BACKEND DEBUG: Role permissions for ${vendorUser.roleRef.name}:`, rolePermissions);
         const allPermissions = [...permissions, ...rolePermissions];
         permissions = [...new Set(allPermissions)]; // Remove duplicates
+        console.log(`🔍 BACKEND DEBUG: Combined permissions for ${vendorUser._id}:`, permissions);
+      } else {
+        console.log(`🔍 BACKEND DEBUG: No roleRef or role permissions for ${vendorUser._id}`);
       }
       
       // Update vendor user with merged permissions
@@ -184,10 +191,12 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
       updatedCount++;
       affectedUserIds.push(vendorUser._id.toString());
       
-      console.log(`Updated vendor user ${vendorUser._id} with permissions:`, permissions);
+      console.log(`✅ BACKEND DEBUG: Updated vendor user ${vendorUser._id} with permissions:`, permissions);
     }
     
-    console.log(`Refreshed permissions for ${updatedCount} vendor users`);
+    console.log(`✅ BACKEND DEBUG: Refreshed permissions for ${updatedCount} vendor users`);
+    console.log(`🔍 BACKEND DEBUG: Affected user IDs:`, affectedUserIds);
+    
     res.json({ 
       success: true, 
       message: `Refreshed permissions for ${updatedCount} vendor users`,
@@ -195,7 +204,7 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
       affectedUserIds
     });
   } catch (error) {
-    console.error('Error refreshing vendor user permissions:', error);
+    console.error('❌ BACKEND DEBUG: Error refreshing vendor user permissions:', error);
     res.status(500);
     throw new Error('Failed to refresh vendor user permissions');
   }
