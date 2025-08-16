@@ -18,6 +18,7 @@ const productSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     slug: { type: String, trim: true, lowercase: true, index: true, unique: true },
     description: { type: String, trim: true },
+    shortDescription: { type: String, trim: true },
 
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
     brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', required: false, index: true },

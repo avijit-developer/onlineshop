@@ -111,6 +111,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   const created = await Product.create({
     name: String(body.name).trim(),
     description: body.description ? String(body.description).trim() : '',
+    shortDescription: body.shortDescription ? String(body.shortDescription).trim() : undefined,
     category: body.category,
     brand: body.brand || undefined,
     vendor: body.vendor,
@@ -153,6 +154,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 
   if (body.name !== undefined) product.name = String(body.name).trim();
   if (body.description !== undefined) product.description = String(body.description).trim();
+  if (body.shortDescription !== undefined) product.shortDescription = String(body.shortDescription).trim();
   if (body.category !== undefined) {
     const c = await Category.findById(body.category).lean();
     if (!c) { res.status(400); throw new Error('invalid category'); }

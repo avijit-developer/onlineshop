@@ -111,6 +111,7 @@ const Products = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    shortDescription: '',
     categoryId: '',
     brandId: '',
     vendorId: '',
@@ -256,6 +257,7 @@ const Products = () => {
     setFormData({
       name: product.name || '',
       description: product.description || '',
+      shortDescription: product.shortDescription || '',
       categoryId: product.category || '',
       brandId: product.brand || '',
       vendorId: product.vendor || '',
@@ -284,6 +286,7 @@ const Products = () => {
       const payload = {
         name: formData.name.trim(),
         description: formData.description?.trim() || '',
+        shortDescription: formData.shortDescription?.trim() || undefined,
         category: formData.categoryId,
         brand: formData.brandId,
         vendor: formData.vendorId,
@@ -816,6 +819,16 @@ const Products = () => {
                 </div>
 
                 
+                <div className="form-group full-width">
+                  <label>Short Description</label>
+                  <textarea
+                    name="shortDescription"
+                    value={formData.shortDescription}
+                    onChange={handleInputChange}
+                    rows="3"
+                  />
+                </div>
+
                 <div className="form-group full-width">
                   <label>Description</label>
                   <textarea
