@@ -235,6 +235,7 @@ const Products = () => {
     setFormData({
       name: '',
       description: '',
+      shortDescription: '',
       categoryId: '',
       brandId: '',
       vendorId: '',
@@ -249,6 +250,12 @@ const Products = () => {
       images: [],
       variants: []
     });
+    // Reset dynamic variant matrix state when opening Add Product
+    setVariantAttributes([]);
+    setAttributeValues({});
+    setMatrixVariants([]);
+    setVariantAttributesInput('');
+    setAttributeValuesInput({});
     setShowAddModal(true);
   };
 
