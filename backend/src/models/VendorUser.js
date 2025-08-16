@@ -10,7 +10,8 @@ const vendorUserSchema = new mongoose.Schema(
     vendors: { type: [mongoose.Schema.Types.ObjectId], ref: 'Vendor', default: [], index: true }, // New multi-vendor support
     roleRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: false },
     permissions: { type: [String], default: [] },
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    tokenInvalidatedAt: { type: Date, default: null } // Track when tokens were invalidated
   },
   { timestamps: true }
 );

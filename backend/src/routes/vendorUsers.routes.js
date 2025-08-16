@@ -186,4 +186,33 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
   }
 });
 
+// Invalidate all vendor user tokens (force re-authentication)
+router.post('/invalidate-tokens', authenticate, requireAdmin, async (req, res) => {
+  try {
+    // Get all vendor users
+    const vendorUsers = await VendorUser.find({}).lean();
+    
+    // Update all vendor users to force token refresh
+    // We'll add a timestamp that will be checked during authentication
+    const invalidateTimestamp = new Date();
+    await VendorUser.updateMany({}, { 
+      $set: { 
+        tokenInvalidatedAt: invalidateTimestamp 
+      } 
+    });
+    
+    console.log(`Invalidated tokens for ${vendorUsers.length} vendor users at ${invalidateTimestamp}`);
+    res.json({ 
+      success: true, 
+      message: `Invalidated tokens for ${vendorUsers.length} vendor users`,
+      invalidatedCount: vendorUsers.length,
+      invalidatedAt: invalidateTimestamp
+    });
+  } catch (error) {
+    console.error('Error invalidating vendor user tokens:', error);
+    res.status(500);
+    throw new Error('Failed to invalidate vendor user tokens');
+  }
+});
+
 module.exports = router;

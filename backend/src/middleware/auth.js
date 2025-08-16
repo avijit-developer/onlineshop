@@ -9,7 +9,7 @@ function getJwtSecret() {
   return secret;
 }
 
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) {
@@ -18,6 +18,20 @@ const authenticate = (req, res, next) => {
   }
   try {
     const payload = jwt.verify(token, getJwtSecret());
+    
+    // Check if token is invalidated for vendor users
+    if (payload.role === 'vendor') {
+      const vendorUser = await VendorUser.findById(payload.id).select({ tokenInvalidatedAt: 1 }).lean();
+      if (vendorUser && vendorUser.tokenInvalidatedAt) {
+        // Check if token was issued before invalidation
+        const tokenIssuedAt = payload.iat ? new Date(payload.iat * 1000) : new Date(0);
+        if (tokenIssuedAt < vendorUser.tokenInvalidatedAt) {
+          res.status(401);
+          return next(new Error('Token has been invalidated. Please log in again.'));
+        }
+      }
+    }
+    
     req.user = payload;
     req.token = token;
     return next();

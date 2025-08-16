@@ -35,6 +35,9 @@ const AdminUsers = () => {
         const data = await res.json();
         console.log('Vendor user permissions refreshed successfully:', data);
         toast.success(`Updated permissions for ${data.updatedCount || 0} vendor users`);
+        
+        // Force all vendor users to re-authenticate by invalidating their tokens
+        await invalidateVendorUserTokens();
       } else {
         const errorData = await res.json();
         console.error('Failed to refresh vendor user permissions:', errorData);
@@ -43,6 +46,27 @@ const AdminUsers = () => {
     } catch (e) {
       console.error('Failed to refresh vendor user permissions:', e);
       toast.error('Failed to refresh vendor user permissions');
+    }
+  };
+
+  // Function to invalidate all vendor user tokens
+  const invalidateVendorUserTokens = async () => {
+    try {
+      console.log('Invalidating vendor user tokens...');
+      const res = await fetch(`${API_BASE}/api/v1/vendor-users/invalidate-tokens`, { 
+        method: 'POST', 
+        headers: authHeaders() 
+      });
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Vendor user tokens invalidated:', data);
+        toast.success('All vendor users will need to log in again to get updated permissions');
+      } else {
+        const errorData = await res.json();
+        console.error('Failed to invalidate vendor user tokens:', errorData);
+      }
+    } catch (e) {
+      console.error('Failed to invalidate vendor user tokens:', e);
     }
   };
 
