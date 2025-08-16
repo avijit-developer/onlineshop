@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
     { expiresIn: getJwtExpiry() }
   );
 
-  return res.json({ success: true, token, user: { id: vendorUserDoc._id, name: vendorUserDoc.name, email: vendorUserDoc.email, role: 'vendor', vendorId: vendor._id } });
+  return res.json({ success: true, token, user: { id: vendorUserDoc._id, name: vendorUserDoc.name, email: vendorUserDoc.email, role: 'vendor', vendorId: vendor._id, vendorCompany: vendor.companyName, permissions: vendorUserDoc.permissions || [] } });
 });
 
 router.get('/me', authenticate, requireAdmin, async (req, res) => {

@@ -8,12 +8,13 @@ const Layout = ({ children, user, onLogout }) => {
 
   const isVendor = user?.role === 'vendor';
 
+  const userPerms = new Set((user?.permissions || []));
   const allMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     !isVendor && { path: '/customers', label: 'Customers', icon: '👥' },
     !isVendor && { path: '/admin-users', label: 'Admin Users', icon: '👤' },
     !isVendor && { path: '/vendors', label: 'Vendors', icon: '🏪' },
-    { path: '/products', label: 'Products', icon: '📦' },
+    (!isVendor || userPerms.has('products.view')) && { path: '/products', label: 'Products', icon: '📦' },
     !isVendor && { path: '/categories', label: 'Categories', icon: '📁' },
     !isVendor && { path: '/brands', label: 'Brands', icon: '🏷️' },
     !isVendor && { path: '/orders', label: 'Orders', icon: '🛒' },
