@@ -6,22 +6,24 @@ const Layout = ({ children, user, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
-  const menuItems = [
+  const isVendor = user?.role === 'vendor';
+
+  const allMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-    { path: '/customers', label: 'Customers', icon: '👥' },
-    { path: '/admin-users', label: 'Admin Users', icon: '👤' },
+    !isVendor && { path: '/customers', label: 'Customers', icon: '👥' },
+    !isVendor && { path: '/admin-users', label: 'Admin Users', icon: '👤' },
     { path: '/vendors', label: 'Vendors', icon: '🏪' },
     { path: '/products', label: 'Products', icon: '📦' },
     { path: '/categories', label: 'Categories', icon: '📁' },
     { path: '/brands', label: 'Brands', icon: '🏷️' },
-    { path: '/orders', label: 'Orders', icon: '🛒' },
-    { path: '/inventory', label: 'Inventory', icon: '📋' },
-    { path: '/payments', label: 'Payments', icon: '💰' },
-    { path: '/coupons', label: 'Coupons', icon: '🎁' },
-    { path: '/banners', label: 'Banners', icon: '🖼️' },
-    { path: '/reviews', label: 'Reviews', icon: '⭐' },
-    { path: '/settings', label: 'Settings', icon: '⚙️' },
-  ];
+    !isVendor && { path: '/orders', label: 'Orders', icon: '🛒' },
+    !isVendor && { path: '/inventory', label: 'Inventory', icon: '📋' },
+    !isVendor && { path: '/payments', label: 'Payments', icon: '💰' },
+    !isVendor && { path: '/coupons', label: 'Coupons', icon: '🎁' },
+    !isVendor && { path: '/banners', label: 'Banners', icon: '🖼️' },
+    !isVendor && { path: '/reviews', label: 'Reviews', icon: '⭐' },
+    !isVendor && { path: '/settings', label: 'Settings', icon: '⚙️' },
+  ].filter(Boolean);
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -32,7 +34,7 @@ const Layout = ({ children, user, onLogout }) => {
       {/* Sidebar */}
       <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>Admin Panel</h2>
+          <h2>{isVendor ? 'Vendor Panel' : 'Admin Panel'}</h2>
           <button 
             className="sidebar-toggle"
             onClick={() => setSidebarOpen(false)}
@@ -42,7 +44,7 @@ const Layout = ({ children, user, onLogout }) => {
         </div>
         
         <nav className="sidebar-nav">
-          {menuItems.map((item) => (
+          {allMenuItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
@@ -67,7 +69,7 @@ const Layout = ({ children, user, onLogout }) => {
             >
               ☰
             </button>
-            <h1>{menuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}</h1>
+            <h1>{allMenuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}</h1>
           </div>
           
           <div className="header-right">

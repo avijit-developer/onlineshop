@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const Category = require('../models/Category');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireRole } = require('../middleware/auth');
 const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
 
 const router = express.Router();
@@ -20,7 +20,7 @@ const upload = multer({
 });
 
 // List categories with optional parent filter and pagination
-router.get('/', authenticate, requireAdmin, async (req, res) => {
+router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const { parent = 'root', q = '', page = 1, limit = 50 } = req.query;
   const filters = {};
   if (parent === 'root') {

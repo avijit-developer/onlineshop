@@ -7,9 +7,10 @@ const uploads = require('./uploads.routes');
 const vendors = require('./vendors.routes');
 const brands = require('./brands.routes');
 const products = require('./products.routes');
-
+const vendorUsers = require('./vendorUsers.routes');
+ 
 const router = express.Router();
-
+ 
 router.get('/', (req, res) => res.json({ message: 'API v1' }));
 router.use('/auth', auth);
 router.use('/users', users);
@@ -19,5 +20,6 @@ router.use('/uploads', uploads);
 router.use('/vendors', vendors);
 router.use('/brands', brands);
 router.use('/products', products);
-
+router.use('/vendor-users', vendorUsers);
+ 
 module.exports = router;

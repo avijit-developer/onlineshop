@@ -127,6 +127,12 @@ const Products = () => {
     variants: []
   });
 
+  const adminUser = (() => {
+    try { return JSON.parse(localStorage.getItem('adminUser')); } catch { return null; }
+  })();
+  const isVendorUser = adminUser?.role === 'vendor';
+  const currentVendorId = isVendorUser ? adminUser?.vendorId : '';
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -147,7 +153,7 @@ const Products = () => {
       if (appliedSearchTerm) params.append('q', appliedSearchTerm);
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
       if (categoryFilter && categoryFilter !== 'all') params.append('category', categoryFilter);
-      if (vendorFilter && vendorFilter !== 'all') params.append('vendor', vendorFilter);
+      if (!isVendorUser && vendorFilter && vendorFilter !== 'all') params.append('vendor', vendorFilter);
       params.append('page', String(currentPage));
       params.append('limit', String(itemsPerPage));
 
@@ -267,7 +273,7 @@ const Products = () => {
       shortDescription: product.shortDescription || '',
       categoryId: product.category || '',
       brandId: product.brand || '',
-      vendorId: product.vendor || '',
+      vendorId: isVendorUser ? currentVendorId : (product.vendor || ''),
       regularPrice: product.regularPrice ?? '',
       specialPrice: product.specialPrice ?? '',
       tax: product.tax ?? '',
@@ -296,7 +302,7 @@ const Products = () => {
         shortDescription: formData.shortDescription?.trim() || undefined,
         category: formData.categoryId,
         brand: formData.brandId,
-        vendor: formData.vendorId,
+        vendor: isVendorUser ? currentVendorId : formData.vendorId,
         regularPrice: Number(formData.regularPrice) || 0,
         specialPrice: formData.specialPrice !== '' ? Number(formData.specialPrice) : undefined,
         tax: formData.tax !== '' ? Number(formData.tax) : undefined,
@@ -525,16 +531,27 @@ const Products = () => {
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
           </select>
-          <select
-            value={vendorFilter}
-            onChange={(e) => { setVendorFilter(e.target.value); setCurrentPage(1); }}
-            className="filter-select"
-          >
-            <option value="all">All Vendors</option>
-            {vendors.map(vendor => (
-              <option key={vendor.id} value={vendor.id}>{vendor.companyName}</option>
-            ))}
-          </select>
+          {isVendorUser ? (
+            <select
+              value={currentVendorId}
+              onChange={(e) => { setVendorFilter(e.target.value); setCurrentPage(1); }}
+              className="filter-select"
+              disabled
+            >
+              <option value="">{vendors.find(v => v.id === currentVendorId)?.companyName || 'Select Vendor'}</option>
+            </select>
+          ) : (
+            <select
+              value={vendorFilter}
+              onChange={(e) => { setVendorFilter(e.target.value); setCurrentPage(1); }}
+              className="filter-select"
+            >
+              <option value="all">All Vendors</option>
+              {vendors.map(vendor => (
+                <option key={vendor.id} value={vendor.id}>{vendor.companyName}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -762,17 +779,21 @@ const Products = () => {
 
                 <div className="form-group">
                   <label>Vendor *</label>
-                  <select
-                    name="vendorId"
-                    value={formData.vendorId}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Select Vendor</option>
-                    {vendors.map(vendor => (
-                      <option key={vendor.id} value={vendor.id}>{vendor.companyName}</option>
-                    ))}
-                  </select>
+                  {isVendorUser ? (
+                    <input type="text" value={vendors.find(v => v.id === currentVendorId)?.companyName || ''} readOnly />
+                  ) : (
+                    <select
+                      name="vendorId"
+                      value={formData.vendorId}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Select Vendor</option>
+                      {vendors.map(vendor => (
+                        <option key={vendor.id} value={vendor.id}>{vendor.companyName}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="form-group">

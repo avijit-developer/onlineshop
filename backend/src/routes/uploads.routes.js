@@ -1,10 +1,10 @@
 const express = require('express');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireRole } = require('../middleware/auth');
 const { cloudinary, getFolderPath } = require('../config/cloudinary');
 
 const router = express.Router();
 
-router.post('/signature', authenticate, requireAdmin, async (req, res) => {
+router.post('/signature', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const { folder = '' } = req.body || {};
   const subfolder = typeof folder === 'string' && folder ? folder : '';
   const fullFolder = getFolderPath(subfolder);

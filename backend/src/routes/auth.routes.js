@@ -2,6 +2,8 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
+const VendorUser = require('../models/VendorUser');
+const Vendor = require('../models/Vendor');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -36,34 +38,40 @@ router.post('/login', async (req, res) => {
 
   const normalizedEmail = String(email).trim().toLowerCase();
 
+  // Try Admin login first
   const admin = await Admin.findOne({ email: normalizedEmail, $or: [{ isActive: true }, { isActive: { $exists: false } }] });
-  if (!admin) {
-    res.status(401);
-    throw new Error('Invalid credentials');
+  if (admin) {
+    const ok = await bcrypt.compare(password, admin.passwordHash);
+    if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+    const token = jwt.sign(
+      { id: admin._id.toString(), role: 'admin', email: admin.email },
+      getJwtSecret(),
+      { expiresIn: getJwtExpiry() }
+    );
+    return res.json({ success: true, token, user: { id: admin._id, name: admin.name, email: admin.email, role: 'admin' } });
   }
 
-  const ok = await bcrypt.compare(password, admin.passwordHash);
-  if (!ok) {
-    res.status(401);
-    throw new Error('Invalid credentials');
+  // Try Vendor User login
+  const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').lean();
+  if (!vendorUser) { res.status(401); throw new Error('Invalid credentials'); }
+  const vendorUserDoc = await VendorUser.findOne({ email: normalizedEmail, isActive: true });
+  const ok = await bcrypt.compare(password, vendorUserDoc.passwordHash);
+  if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+
+  // Ensure vendor is enabled/approved
+  const vendor = await Vendor.findById(vendorUserDoc.vendor).lean();
+  if (!vendor || vendor.enabled === false || vendor.status !== 'approved') {
+    res.status(403);
+    throw new Error('Vendor is not approved or is disabled');
   }
 
   const token = jwt.sign(
-    { id: admin._id.toString(), role: 'admin', email: admin.email },
+    { id: vendorUserDoc._id.toString(), role: 'vendor', email: vendorUserDoc.email, vendorId: vendor._id.toString() },
     getJwtSecret(),
     { expiresIn: getJwtExpiry() }
   );
 
-  res.json({
-    success: true,
-    token,
-    user: {
-      id: admin._id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role
-    }
-  });
+  return res.json({ success: true, token, user: { id: vendorUserDoc._id, name: vendorUserDoc.name, email: vendorUserDoc.email, role: 'vendor', vendorId: vendor._id } });
 });
 
 router.get('/me', authenticate, requireAdmin, async (req, res) => {

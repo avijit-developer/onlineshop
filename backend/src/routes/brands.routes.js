@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const Brand = require('../models/Brand');
 const Category = require('../models/Category');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireRole } = require('../middleware/auth');
 const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
 
 const router = express.Router();
@@ -21,7 +21,7 @@ const upload = multer({
 });
 
 // GET /brands?q=&page=&limit=&featured=
-router.get('/', authenticate, requireAdmin, async (req, res) => {
+router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const { q = '', page = 1, limit = 10, featured } = req.query;
   const filters = {};
   if (q) {

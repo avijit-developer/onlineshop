@@ -4,14 +4,14 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const Brand = require('../models/Brand');
 const Vendor = require('../models/Vendor');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireRole } = require('../middleware/auth');
 const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 } });
 
 // GET /products?q=&status=&category=&brand=&vendor=&page=&limit=
-router.get('/', authenticate, requireAdmin, async (req, res) => {
+router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const { q = '', status = 'all', category, brand, vendor, page = 1, limit = 10 } = req.query;
   const filters = {};
   if (q) {
@@ -24,7 +24,11 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   if (status !== 'all') filters.status = status;
   if (category && category !== 'all') filters.category = category;
   if (brand && brand !== 'all') filters.brand = brand;
-  if (vendor && vendor !== 'all') filters.vendor = vendor;
+  if (req.user.role === 'vendor') {
+    filters.vendor = req.user.vendorId;
+  } else if (vendor && vendor !== 'all') {
+    filters.vendor = vendor;
+  }
 
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
@@ -45,7 +49,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 });
 
 // POST /products (JSON only, images handled via direct uploads)
-router.post('/', authenticate, requireAdmin, async (req, res) => {
+router.post('/', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const body = req.body || {};
   const required = ['name', 'category', 'vendor', 'regularPrice'];
   for (const f of required) {
@@ -63,6 +67,11 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
         throw new Error('Each variant must have sku and price');
       }
     }
+  }
+
+  // Enforce vendor scoping
+  if (req.user.role === 'vendor') {
+    body.vendor = req.user.vendorId;
   }
 
   // Validate refs
@@ -143,13 +152,18 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 });
 
 // PUT /products/:id
-router.put('/:id', authenticate, requireAdmin, async (req, res) => {
+router.put('/:id', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const { id } = req.params;
   const body = req.body || {};
   const product = await Product.findById(id);
   if (!product) {
     res.status(404);
     throw new Error('product not found');
+  }
+  // Vendor can only edit own product
+  if (req.user.role === 'vendor' && String(product.vendor) !== String(req.user.vendorId)) {
+    res.status(403);
+    throw new Error('Forbidden');
   }
 
   if (body.name !== undefined) product.name = String(body.name).trim();
@@ -230,8 +244,14 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 });
 
 // DELETE /products/:id
-router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+router.delete('/:id', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const { id } = req.params;
+  // Enforce vendor ownership for deletion
+  if (req.user.role === 'vendor') {
+    const doc = await Product.findById(id).select({ vendor: 1 }).lean();
+    if (!doc) { res.status(404); throw new Error('product not found'); }
+    if (String(doc.vendor) !== String(req.user.vendorId)) { res.status(403); throw new Error('Forbidden'); }
+  }
   const deleted = await Product.findByIdAndDelete(id).lean();
   if (!deleted) {
     res.status(404);
@@ -242,9 +262,14 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 });
 
 // PATCH /products/:id/enabled
-router.patch('/:id/enabled', authenticate, requireAdmin, async (req, res) => {
+router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const { id } = req.params;
   const { enabled } = req.body || {};
+  if (req.user.role === 'vendor') {
+    const doc = await Product.findById(id).select({ vendor: 1 }).lean();
+    if (!doc) { res.status(404); throw new Error('product not found'); }
+    if (String(doc.vendor) !== String(req.user.vendorId)) { res.status(403); throw new Error('Forbidden'); }
+  }
   const updated = await Product.findByIdAndUpdate(id, { enabled: Boolean(enabled) }, { new: true }).lean();
   if (!updated) {
     res.status(404);

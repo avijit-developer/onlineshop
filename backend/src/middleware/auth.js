@@ -34,4 +34,12 @@ const requireAdmin = (req, res, next) => {
   return next();
 };
 
-module.exports = { authenticate, requireAdmin };
+const requireRole = (roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    res.status(403);
+    return next(new Error('Insufficient permissions'));
+  }
+  return next();
+};
+
+module.exports = { authenticate, requireAdmin, requireRole };
