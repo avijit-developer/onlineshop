@@ -160,8 +160,8 @@ const Products = () => {
       const [prodRes, catRes, venRes, brRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/products?${params.toString()}`, { headers: getAuthHeaders() }),
         fetch(`${API_BASE}/api/v1/categories?parent=all&page=1&limit=1000`, { headers: getAuthHeaders() }),
-        fetch(`${API_BASE}/api/v1/vendors?page=1&limit=1000`, { headers: getAuthHeaders() }),
-        fetch(`${API_BASE}/api/v1/brands?page=1&limit=1000`, { headers: getAuthHeaders() })
+        ...(!isVendorUser ? [fetch(`${API_BASE}/api/v1/vendors?page=1&limit=1000`, { headers: getAuthHeaders() })] : [Promise.resolve({ ok: true, json: async () => ({ data: [] }) })]),
+        ...(!isVendorUser ? [fetch(`${API_BASE}/api/v1/brands?page=1&limit=1000`, { headers: getAuthHeaders() })] : [Promise.resolve({ ok: true, json: async () => ({ data: [] }) })])
       ]);
 
       const [prodJson, catJson, venJson, brJson] = await Promise.all([
