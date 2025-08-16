@@ -10,6 +10,25 @@ function isValidEmail(email) {
   return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// List admins
+router.get('/', authenticate, requireAdmin, async (req, res) => {
+  const { q = '', page = 1, limit = 20 } = req.query;
+  const filters = {};
+  if (q) {
+    filters.$or = [
+      { name: { $regex: String(q), $options: 'i' } },
+      { email: { $regex: String(q), $options: 'i' } }
+    ];
+  }
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const [items, total] = await Promise.all([
+    Admin.find(filters).sort({ createdAt: -1 }).skip((pageNum - 1) * perPage).limit(perPage).lean(),
+    Admin.countDocuments(filters)
+  ]);
+  res.json({ success: true, data: items.map(a => ({ id: a._id, name: a.name, email: a.email, role: a.role, isActive: a.isActive, createdAt: a.createdAt })), meta: { total, page: pageNum, limit: perPage } });
+});
+
 // Create a new admin (admin-only)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
   const { name, email, password, isActive } = req.body || {};
@@ -63,6 +82,34 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
       userLinkId: user?._id || null
     }
   });
+});
+
+// Update admin
+router.put('/:id', authenticate, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, email, password, isActive } = req.body || {};
+  const admin = await Admin.findById(id);
+  if (!admin) { res.status(404); throw new Error('admin not found'); }
+  if (name !== undefined) admin.name = String(name).trim();
+  if (email !== undefined) {
+    if (!isValidEmail(email)) { res.status(400); throw new Error('Invalid email format'); }
+    admin.email = String(email).trim().toLowerCase();
+  }
+  if (password !== undefined) {
+    if (String(password).length < 8) { res.status(400); throw new Error('Password must be at least 8 characters'); }
+    admin.passwordHash = await bcrypt.hash(password, 10);
+  }
+  if (isActive !== undefined) admin.isActive = Boolean(isActive);
+  const updated = await admin.save();
+  res.json({ success: true, data: { id: updated._id, name: updated.name, email: updated.email, role: updated.role, isActive: updated.isActive, createdAt: updated.createdAt } });
+});
+
+// Delete admin
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const deleted = await Admin.findByIdAndDelete(id).lean();
+  if (!deleted) { res.status(404); throw new Error('admin not found'); }
+  res.json({ success: true });
 });
 
 module.exports = router;
