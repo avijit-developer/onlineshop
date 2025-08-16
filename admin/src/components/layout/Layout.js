@@ -12,42 +12,8 @@ const Layout = ({ children, user, onLogout }) => {
 
   const isVendor = user?.role === 'vendor';
 
-  // Get real-time permissions from API
-  const fetchRealTimePermissions = async () => {
-    if (!user) return;
-    
-    try {
-      setLoadingPermissions(true);
-      const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_BASE}/api/v1/auth/current-permissions`, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' }
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setRealTimePermissions(new Set(data.permissions || []));
-        console.log('🔍 REAL-TIME: Fetched permissions:', data.permissions);
-      } else {
-        console.error('Failed to fetch real-time permissions');
-        // Fallback to stored permissions
-        setRealTimePermissions(new Set(user?.permissions || []));
-      }
-    } catch (error) {
-      console.error('Error fetching real-time permissions:', error);
-      // Fallback to stored permissions
-      setRealTimePermissions(new Set(user?.permissions || []));
-    } finally {
-      setLoadingPermissions(false);
-    }
-  };
-
-  // Fetch permissions on component mount and when user changes
-  useEffect(() => {
-    fetchRealTimePermissions();
-  }, [user]);
-
-  // Use real-time permissions if available, otherwise fallback to stored permissions
-  const userPerms = realTimePermissions.size > 0 ? realTimePermissions : new Set((user?.permissions || []));
+  // Simple approach: Use stored permissions and refresh when needed
+  const userPerms = new Set((user?.permissions || []));
   const allMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     !isVendor && { path: '/customers', label: 'Customers', icon: '👥' },

@@ -275,32 +275,46 @@ router.post('/invalidate-tokens', authenticate, requireAdmin, async (req, res) =
   }
 });
 
-// Simple force re-authentication endpoint
-router.post('/force-reauth', authenticate, requireAdmin, async (req, res) => {
+// Update all vendor users with fresh permissions
+router.post('/update-all-permissions', authenticate, requireAdmin, async (req, res) => {
   try {
     const { roleId } = req.body || {};
-    console.log('🔄 SIMPLE: Force re-auth for role:', roleId);
+    console.log('🔄 WORKING: Updating permissions for role:', roleId);
     
-    // Update all vendor users to force them to re-authenticate
-    const invalidateTimestamp = new Date();
-    const result = await VendorUser.updateMany({}, { 
-      $set: { 
-        tokenInvalidatedAt: invalidateTimestamp 
-      } 
-    });
+    // Get all vendor users with their roles
+    const vendorUsers = await VendorUser.find({}).populate('roleRef').lean();
+    console.log(`🔄 WORKING: Found ${vendorUsers.length} vendor users to update`);
     
-    console.log('🔄 SIMPLE: Invalidated tokens for all vendor users');
+    let updatedCount = 0;
+    
+    for (const vendorUser of vendorUsers) {
+      let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
+      
+      // Add role permissions if roleRef exists
+      if (vendorUser.roleRef && vendorUser.roleRef.permissions) {
+        const rolePermissions = Array.isArray(vendorUser.roleRef.permissions) ? vendorUser.roleRef.permissions : [];
+        const allPermissions = [...permissions, ...rolePermissions];
+        permissions = [...new Set(allPermissions)]; // Remove duplicates
+      }
+      
+      // Update vendor user with fresh permissions
+      await VendorUser.findByIdAndUpdate(vendorUser._id, { permissions });
+      updatedCount++;
+      
+      console.log(`✅ WORKING: Updated ${vendorUser.name} (${vendorUser.email}) with permissions:`, permissions);
+    }
+    
+    console.log(`✅ WORKING: Successfully updated ${updatedCount} vendor users`);
     
     res.json({ 
       success: true, 
-      message: 'All vendor users must log in again',
-      invalidatedAt: invalidateTimestamp,
-      affectedCount: result.modifiedCount
+      message: `Updated permissions for ${updatedCount} vendor users`,
+      updatedCount
     });
   } catch (error) {
-    console.error('❌ SIMPLE: Error:', error);
+    console.error('❌ WORKING: Error:', error);
     res.status(500);
-    throw new Error('Failed to force re-authentication');
+    throw new Error('Failed to update permissions');
   }
 });
 

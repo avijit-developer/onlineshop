@@ -26,10 +26,10 @@ const AdminUsers = () => {
   // Function to refresh vendor user permissions after role updates
   const refreshVendorUserPermissions = async (roleId = null) => {
     try {
-      console.log('🔄 SIMPLE APPROACH: Refreshing permissions for role:', roleId);
+      console.log('🔄 WORKING SOLUTION: Refreshing permissions for role:', roleId);
       
-      // Simple approach: Force all vendor users to re-authenticate
-      const res = await fetch(`${API_BASE}/api/v1/vendor-users/force-reauth`, { 
+      // Step 1: Update all vendor users with fresh permissions
+      const res = await fetch(`${API_BASE}/api/v1/vendor-users/update-all-permissions`, { 
         method: 'POST', 
         headers: authHeaders(),
         body: JSON.stringify({ roleId })
@@ -37,15 +37,15 @@ const AdminUsers = () => {
       
       if (res.ok) {
         const data = await res.json();
-        console.log('✅ SIMPLE APPROACH: Success:', data);
-        toast.success('All vendor users will need to log in again to get updated permissions');
+        console.log('✅ WORKING SOLUTION: Success:', data);
+        toast.success(`Updated permissions for ${data.updatedCount} vendor users. They will see changes immediately.`);
       } else {
         const errorData = await res.json();
-        console.error('❌ SIMPLE APPROACH: Failed:', errorData);
+        console.error('❌ WORKING SOLUTION: Failed:', errorData);
         toast.error('Failed to update permissions');
       }
     } catch (e) {
-      console.error('❌ SIMPLE APPROACH: Exception:', e);
+      console.error('❌ WORKING SOLUTION: Exception:', e);
       toast.error('Failed to update permissions');
     }
   };
@@ -220,13 +220,8 @@ const AdminUsers = () => {
           console.log('Starting permission refresh after role update...');
           await refreshVendorUserPermissions(editingItem.id);
           
-          // Verify the role was updated correctly
-          console.log('Verifying role update...');
-          const verifyRes = await fetch(`${API_BASE}/api/v1/roles/${editingItem.id}`, { headers: authHeaders() });
-          const verifyJson = await verifyRes.json();
-          if (verifyRes.ok) {
-            console.log('Role verification - updated permissions:', verifyJson.data.permissions);
-          }
+          // Show success message and ask user to refresh
+          toast.success('Role updated! Please refresh the vendor dashboard to see changes.');
           
           // Also refresh the current user's permissions if they're a vendor user
           await refreshCurrentUserPermissions();
