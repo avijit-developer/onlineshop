@@ -328,13 +328,25 @@ const AdminUsers = () => {
                       {errors.password && <span className="error-message">{errors.password.message}</span>}
                     </div>
                     {tab==='vendorUsers' && (
-                      <div className="form-group">
-                        <label className="form-label">Role</label>
-                        <select className="form-control" {...register('roleRef')}>
-                          <option value="">(None)</option>
-                          {roles.map(r => (<option key={r._id} value={r._id}>{r.name}</option>))}
-                        </select>
-                      </div>
+                      <>
+                        <div className="form-group">
+                          <label className="form-label">Vendor</label>
+                          <select className={`form-control ${errors.vendor ? 'error' : ''}`} {...register('vendor', { required: 'Vendor is required' })}>
+                            <option value="">Select Vendor</option>
+                            {vendors.map(v => (
+                              <option key={v.id} value={v.id}>{v.name}</option>
+                            ))}
+                          </select>
+                          {errors.vendor && <span className="error-message">{errors.vendor.message}</span>}
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Role</label>
+                          <select className="form-control" {...register('roleRef')}>
+                            <option value="">(None)</option>
+                            {roles.map(r => (<option key={r._id} value={r._id}>{r.name}</option>))}
+                          </select>
+                        </div>
+                      </>
                     )}
                   </>
                 )}
