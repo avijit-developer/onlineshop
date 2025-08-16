@@ -152,9 +152,22 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 // Refresh vendor user permissions (called after role updates)
 router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res) => {
   try {
-    // Get all vendor users
-    const vendorUsers = await VendorUser.find({}).populate('roleRef').lean();
+    const { roleId } = req.body || {};
+    console.log('Refreshing permissions for roleId:', roleId);
+    
+    let vendorUsers;
+    if (roleId) {
+      // Only refresh vendor users who have this specific role
+      vendorUsers = await VendorUser.find({ roleRef: roleId }).populate('roleRef').lean();
+      console.log(`Found ${vendorUsers.length} vendor users with role ${roleId}`);
+    } else {
+      // Refresh all vendor users (fallback)
+      vendorUsers = await VendorUser.find({}).populate('roleRef').lean();
+      console.log(`Refreshing all ${vendorUsers.length} vendor users`);
+    }
+    
     let updatedCount = 0;
+    const affectedUserIds = [];
     
     for (const vendorUser of vendorUsers) {
       let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
@@ -169,6 +182,7 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
       // Update vendor user with merged permissions
       await VendorUser.findByIdAndUpdate(vendorUser._id, { permissions });
       updatedCount++;
+      affectedUserIds.push(vendorUser._id.toString());
       
       console.log(`Updated vendor user ${vendorUser._id} with permissions:`, permissions);
     }
@@ -177,7 +191,8 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
     res.json({ 
       success: true, 
       message: `Refreshed permissions for ${updatedCount} vendor users`,
-      updatedCount 
+      updatedCount,
+      affectedUserIds
     });
   } catch (error) {
     console.error('Error refreshing vendor user permissions:', error);
@@ -186,7 +201,43 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
   }
 });
 
-// Invalidate all vendor user tokens (force re-authentication)
+// Invalidate specific vendor user tokens (force re-authentication for affected users)
+router.post('/invalidate-specific-tokens', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { userIds } = req.body || {};
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      res.status(400);
+      throw new Error('userIds array is required');
+    }
+    
+    console.log('Invalidating tokens for specific users:', userIds);
+    
+    // Update specific vendor users to force token refresh
+    const invalidateTimestamp = new Date();
+    const result = await VendorUser.updateMany(
+      { _id: { $in: userIds } }, 
+      { 
+        $set: { 
+          tokenInvalidatedAt: invalidateTimestamp 
+        } 
+      }
+    );
+    
+    console.log(`Invalidated tokens for ${result.modifiedCount} vendor users at ${invalidateTimestamp}`);
+    res.json({ 
+      success: true, 
+      message: `Invalidated tokens for ${result.modifiedCount} vendor users`,
+      invalidatedCount: result.modifiedCount,
+      invalidatedAt: invalidateTimestamp
+    });
+  } catch (error) {
+    console.error('Error invalidating specific vendor user tokens:', error);
+    res.status(500);
+    throw new Error('Failed to invalidate specific vendor user tokens');
+  }
+});
+
+// Invalidate all vendor user tokens (force re-authentication) - kept for backward compatibility
 router.post('/invalidate-tokens', authenticate, requireAdmin, async (req, res) => {
   try {
     // Get all vendor users

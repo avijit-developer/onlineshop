@@ -24,20 +24,23 @@ const AdminUsers = () => {
   };
 
   // Function to refresh vendor user permissions after role updates
-  const refreshVendorUserPermissions = async () => {
+  const refreshVendorUserPermissions = async (roleId = null) => {
     try {
-      console.log('Starting vendor user permissions refresh...');
+      console.log('Starting vendor user permissions refresh...', roleId ? `for role: ${roleId}` : 'for all roles');
       const res = await fetch(`${API_BASE}/api/v1/vendor-users/refresh-permissions`, { 
         method: 'POST', 
-        headers: authHeaders() 
+        headers: authHeaders(),
+        body: JSON.stringify({ roleId })
       });
       if (res.ok) {
         const data = await res.json();
         console.log('Vendor user permissions refreshed successfully:', data);
         toast.success(`Updated permissions for ${data.updatedCount || 0} vendor users`);
         
-        // Force all vendor users to re-authenticate by invalidating their tokens
-        await invalidateVendorUserTokens();
+        // Only invalidate tokens for vendor users affected by this role change
+        if (data.affectedUserIds && data.affectedUserIds.length > 0) {
+          await invalidateSpecificVendorUserTokens(data.affectedUserIds);
+        }
       } else {
         const errorData = await res.json();
         console.error('Failed to refresh vendor user permissions:', errorData);
@@ -49,24 +52,25 @@ const AdminUsers = () => {
     }
   };
 
-  // Function to invalidate all vendor user tokens
-  const invalidateVendorUserTokens = async () => {
+  // Function to invalidate specific vendor user tokens
+  const invalidateSpecificVendorUserTokens = async (userIds) => {
     try {
-      console.log('Invalidating vendor user tokens...');
-      const res = await fetch(`${API_BASE}/api/v1/vendor-users/invalidate-tokens`, { 
+      console.log('Invalidating tokens for specific vendor users:', userIds);
+      const res = await fetch(`${API_BASE}/api/v1/vendor-users/invalidate-specific-tokens`, { 
         method: 'POST', 
-        headers: authHeaders() 
+        headers: authHeaders(),
+        body: JSON.stringify({ userIds })
       });
       if (res.ok) {
         const data = await res.json();
-        console.log('Vendor user tokens invalidated:', data);
-        toast.success('All vendor users will need to log in again to get updated permissions');
+        console.log('Specific vendor user tokens invalidated:', data);
+        toast.success(`${data.invalidatedCount || 0} vendor users will need to log in again to get updated permissions`);
       } else {
         const errorData = await res.json();
-        console.error('Failed to invalidate vendor user tokens:', errorData);
+        console.error('Failed to invalidate specific vendor user tokens:', errorData);
       }
     } catch (e) {
-      console.error('Failed to invalidate vendor user tokens:', e);
+      console.error('Failed to invalidate specific vendor user tokens:', e);
     }
   };
 
@@ -236,7 +240,7 @@ const AdminUsers = () => {
           
           // After updating a role, refresh vendor users and their permissions
           console.log('Starting permission refresh after role update...');
-          await refreshVendorUserPermissions();
+          await refreshVendorUserPermissions(editingItem.id);
           
           // Also refresh the current user's permissions if they're a vendor user
           await refreshCurrentUserPermissions();

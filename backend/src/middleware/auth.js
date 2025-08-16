@@ -26,6 +26,7 @@ const authenticate = async (req, res, next) => {
         // Check if token was issued before invalidation
         const tokenIssuedAt = payload.iat ? new Date(payload.iat * 1000) : new Date(0);
         if (tokenIssuedAt < vendorUser.tokenInvalidatedAt) {
+          console.log(`Token invalidated for vendor user ${payload.id}. Token issued: ${tokenIssuedAt}, Invalidated: ${vendorUser.tokenInvalidatedAt}`);
           res.status(401);
           return next(new Error('Token has been invalidated. Please log in again.'));
         }
