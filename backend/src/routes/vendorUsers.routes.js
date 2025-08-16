@@ -275,6 +275,35 @@ router.post('/invalidate-tokens', authenticate, requireAdmin, async (req, res) =
   }
 });
 
+// Simple force re-authentication endpoint
+router.post('/force-reauth', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { roleId } = req.body || {};
+    console.log('🔄 SIMPLE: Force re-auth for role:', roleId);
+    
+    // Update all vendor users to force them to re-authenticate
+    const invalidateTimestamp = new Date();
+    const result = await VendorUser.updateMany({}, { 
+      $set: { 
+        tokenInvalidatedAt: invalidateTimestamp 
+      } 
+    });
+    
+    console.log('🔄 SIMPLE: Invalidated tokens for all vendor users');
+    
+    res.json({ 
+      success: true, 
+      message: 'All vendor users must log in again',
+      invalidatedAt: invalidateTimestamp,
+      affectedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('❌ SIMPLE: Error:', error);
+    res.status(500);
+    throw new Error('Failed to force re-authentication');
+  }
+});
+
 // Test endpoint to verify permission refresh is working
 router.get('/test-permissions', authenticate, requireAdmin, async (req, res) => {
   try {
