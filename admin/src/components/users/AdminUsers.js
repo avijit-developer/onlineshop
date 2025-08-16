@@ -327,10 +327,16 @@ const AdminUsers = () => {
                           ))}
                         </div>
                       </details>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Active</label>
-                      <input type="checkbox" {...register('isActive')} />
+                      <details>
+                        <summary>Vendor</summary>
+                        <div className="permissions-checkboxes">
+                          {['vendor.view','vendor.edit'].map(p => (
+                            <label key={p} className="checkbox-label">
+                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                            </label>
+                          ))}
+                        </div>
+                      </details>
                     </div>
                   </>
                 ) : (
