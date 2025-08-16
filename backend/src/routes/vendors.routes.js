@@ -15,7 +15,7 @@ router.get('/me', authenticate, requireRole(['vendor']), async (req, res) => {
 });
 
 // GET /vendors?status=&q=&page=&limit=
-router.get('/', authenticate, requireAdmin, async (req, res) => {
+router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit']), async (req, res) => {
   const { status = 'all', q = '', page = 1, limit = 10 } = req.query;
   const filters = {};
   if (status !== 'all') filters.status = status;
@@ -43,7 +43,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 });
 
 // POST /vendors (accepts direct upload fields imageUrl/imagePublicId for logo)
-router.post('/', authenticate, requireAdmin, async (req, res) => {
+router.post('/', authenticate, requirePermission('vendor.add'), async (req, res) => {
   const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId } = req.body || {};
   if (!name || !companyName || !email || !phone || !address1 || !city || !zip) {
     res.status(400);
@@ -79,7 +79,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 });
 
 // PUT /vendors/:id
-router.put('/:id', authenticate, requireAdmin, async (req, res) => {
+router.put('/:id', authenticate, requirePermission('vendor.edit'), async (req, res) => {
   const { id } = req.params;
   const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, status, enabled } = req.body || {};
 
@@ -115,7 +115,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 });
 
 // PATCH /vendors/:id/status
-router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
+router.patch('/:id/status', authenticate, requirePermission('vendor.approve'), async (req, res) => {
   const { id } = req.params;
   const { status } = req.body || {};
   if (!['pending', 'approved', 'rejected'].includes(status)) {
@@ -131,7 +131,7 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 });
 
 // PATCH /vendors/:id/enable
-router.patch('/:id/enable', authenticate, requireAdmin, async (req, res) => {
+router.patch('/:id/enable', authenticate, requirePermission('vendor.edit'), async (req, res) => {
   const { id } = req.params;
   const { enabled } = req.body || {};
   const updated = await Vendor.findByIdAndUpdate(id, { enabled: Boolean(enabled) }, { new: true }).lean();
@@ -143,7 +143,7 @@ router.patch('/:id/enable', authenticate, requireAdmin, async (req, res) => {
 });
 
 // DELETE /vendors/:id
-router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('vendor.delete'), async (req, res) => {
   const { id } = req.params;
   const deleted = await Vendor.findByIdAndDelete(id).lean();
   if (!deleted) {
