@@ -524,7 +524,9 @@ const Products = () => {
               </button>
             )}
           </div>
-          <button onClick={handleAddProduct} className="btn btn-primary" disabled={isVendorUser && !canAddProducts}>Add Product</button>
+          {(!isVendorUser || canAddProducts) && (
+            <button onClick={handleAddProduct} className="btn btn-primary">Add Product</button>
+          )}
           
           <select
             value={categoryFilter}
@@ -654,20 +656,22 @@ const Products = () => {
                     >
                       View
                     </button>
-                    <button
-                      onClick={() => handleEditProduct(product)}
-                      className="btn btn-info btn-sm"
-                      disabled={isVendorUser && !canEditProducts}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProduct(product)}
-                      className="btn btn-danger btn-sm"
-                      disabled={isVendorUser && !canDeleteProducts}
-                    >
-                      Delete
-                    </button>
+                    {(!isVendorUser || canEditProducts) && (
+                      <button
+                        onClick={() => handleEditProduct(product)}
+                        className="btn btn-info btn-sm"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {(!isVendorUser || canDeleteProducts) && (
+                      <button
+                        onClick={() => handleDeleteProduct(product)}
+                        className="btn btn-danger btn-sm"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
