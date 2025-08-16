@@ -52,9 +52,15 @@ const AdminUsers = () => {
         const updatedUser = { ...currentUser, permissions: data.permissions };
         localStorage.setItem('adminUser', JSON.stringify(updatedUser));
         
-        // Trigger a page reload to update the UI with new permissions
-        window.location.reload();
-        console.log('Current user permissions refreshed and page reloaded');
+        // Show a notification instead of reloading
+        toast.success('Permissions updated successfully! Dashboard will refresh automatically.');
+        
+        // Trigger a page reload after a short delay to update the UI with new permissions
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+        
+        console.log('Current user permissions refreshed and page will reload');
       }
     } catch (e) {
       console.error('Failed to refresh current user permissions:', e);
@@ -179,6 +185,37 @@ const AdminUsers = () => {
           if (!res.ok) throw new Error(json?.message || 'Failed to create admin');
           toast.success('Admin created');
         }
+      } else if (tab === 'roles') {
+        if (editingItem) {
+          const res = await fetch(`${API_BASE}/api/v1/roles/${editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json?.message || 'Failed to update role');
+          toast.success('Role updated');
+          
+          // After updating a role, refresh vendor users and their permissions
+          await refreshVendorUserPermissions();
+          
+          // Also refresh the current user's permissions if they're a vendor user
+          await refreshCurrentUserPermissions();
+          
+          // Refresh vendor users list to get updated role information
+          if (tab === 'roles') {
+            try {
+              const vuRes = await fetch(`${API_BASE}/api/v1/vendor-users`, { headers: authHeaders() });
+              const vuJson = await vuRes.json();
+              if (vuRes.ok) {
+                setVendorUsers(vuJson.data || []);
+              }
+            } catch (e) {
+              console.error('Failed to refresh vendor users after role update:', e);
+            }
+          }
+        } else {
+          const res = await fetch(`${API_BASE}/api/v1/roles`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json?.message || 'Failed to create role');
+          toast.success('Role created');
+        }
       } else {
         if (editingItem) {
           const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, vendors: data.vendors || [], roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
@@ -211,6 +248,16 @@ const AdminUsers = () => {
         const res = await fetch(`${API_BASE}/api/v1/admins/${itemToDelete.id}`, { method: 'DELETE', headers: authHeaders() });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.message || 'Failed to delete admin');
+      } else if (tab === 'roles') {
+        const res = await fetch(`${API_BASE}/api/v1/roles/${itemToDelete.id}`, { method: 'DELETE', headers: authHeaders() });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to delete role');
+        
+        // After deleting a role, refresh vendor users and their permissions
+        await refreshVendorUserPermissions();
+        
+        // Also refresh the current user's permissions if they're a vendor user
+        await refreshCurrentUserPermissions();
       } else {
         const res = await fetch(`${API_BASE}/api/v1/vendor-users/${itemToDelete._id || itemToDelete.id}`, { method: 'DELETE', headers: authHeaders() });
         const json = await res.json().catch(() => ({}));

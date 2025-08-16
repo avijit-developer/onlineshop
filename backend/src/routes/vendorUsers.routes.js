@@ -154,6 +154,7 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
   try {
     // Get all vendor users
     const vendorUsers = await VendorUser.find({}).populate('roleRef').lean();
+    let updatedCount = 0;
     
     for (const vendorUser of vendorUsers) {
       let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
@@ -167,10 +168,17 @@ router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res)
       
       // Update vendor user with merged permissions
       await VendorUser.findByIdAndUpdate(vendorUser._id, { permissions });
+      updatedCount++;
+      
+      console.log(`Updated vendor user ${vendorUser._id} with permissions:`, permissions);
     }
     
-    console.log(`Refreshed permissions for ${vendorUsers.length} vendor users`);
-    res.json({ success: true, message: `Refreshed permissions for ${vendorUsers.length} vendor users` });
+    console.log(`Refreshed permissions for ${updatedCount} vendor users`);
+    res.json({ 
+      success: true, 
+      message: `Refreshed permissions for ${updatedCount} vendor users`,
+      updatedCount 
+    });
   } catch (error) {
     console.error('Error refreshing vendor user permissions:', error);
     res.status(500);
