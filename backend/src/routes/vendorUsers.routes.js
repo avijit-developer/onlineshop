@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const VendorUser = require('../models/VendorUser');
 const Vendor = require('../models/Vendor');
+const Role = require('../models/Role');
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
   const [items, total] = await Promise.all([
-    VendorUser.find(filters).populate('vendor', 'companyName').skip((pageNum - 1) * perPage).limit(perPage).lean(),
+    VendorUser.find(filters).populate('vendor', 'companyName').populate('roleRef','name').skip((pageNum - 1) * perPage).limit(perPage).lean(),
     VendorUser.countDocuments(filters)
   ]);
   res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
@@ -33,7 +34,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // Create vendor user (admin-only)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
-  const { name, email, password, vendor, permissions = [] } = req.body || {};
+  const { name, email, password, vendor, permissions = [], roleRef } = req.body || {};
   if (!name || !email || !password || !vendor) {
     res.status(400);
     throw new Error('name, email, password and vendor are required');
@@ -46,15 +47,25 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   const exists = await VendorUser.findOne({ email: email.trim().toLowerCase() }).lean();
   if (exists) { res.status(409); throw new Error('Email already in use'); }
 
+  let mergedPermissions = Array.isArray(permissions) ? permissions : [];
+  let roleRefId = undefined;
+  if (roleRef) {
+    const role = await Role.findById(roleRef).lean();
+    if (!role) { res.status(400); throw new Error('Role not found'); }
+    const set = new Set([...(role.permissions || []), ...mergedPermissions]);
+    mergedPermissions = Array.from(set);
+    roleRefId = role._id;
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
-  const created = await VendorUser.create({ name: String(name).trim(), email: String(email).trim().toLowerCase(), passwordHash, vendor, permissions: Array.isArray(permissions) ? permissions : [] });
+  const created = await VendorUser.create({ name: String(name).trim(), email: String(email).trim().toLowerCase(), passwordHash, vendor, roleRef: roleRefId, permissions: mergedPermissions });
   res.status(201).json({ success: true, data: created });
 });
 
 // Update vendor user (admin-only)
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, email, password, vendor, permissions, isActive } = req.body || {};
+  const { name, email, password, vendor, permissions, isActive, roleRef } = req.body || {};
   const user = await VendorUser.findById(id);
   if (!user) { res.status(404); throw new Error('vendor user not found'); }
   if (name !== undefined) user.name = String(name).trim();
@@ -71,7 +82,22 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     if (!v) { res.status(400); throw new Error('Vendor not found'); }
     user.vendor = vendor;
   }
-  if (permissions !== undefined) user.permissions = Array.isArray(permissions) ? permissions : [];
+  if (roleRef !== undefined) {
+    if (roleRef) {
+      const role = await Role.findById(roleRef).lean();
+      if (!role) { res.status(400); throw new Error('Role not found'); }
+      user.roleRef = roleRef;
+      // merge role permissions with provided permissions
+      const provided = Array.isArray(permissions) ? permissions : (user.permissions || []);
+      const set = new Set([...(role.permissions || []), ...provided]);
+      user.permissions = Array.from(set);
+    } else {
+      user.roleRef = undefined;
+      if (permissions !== undefined) user.permissions = Array.isArray(permissions) ? permissions : [];
+    }
+  } else if (permissions !== undefined) {
+    user.permissions = Array.isArray(permissions) ? permissions : [];
+  }
   if (isActive !== undefined) user.isActive = Boolean(isActive);
 
   const updated = await user.save();

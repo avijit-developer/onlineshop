@@ -7,6 +7,7 @@ const vendorUserSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['vendor'], default: 'vendor', index: true },
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true, index: true },
+    roleRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: false },
     permissions: { type: [String], default: [] },
     isActive: { type: Boolean, default: true }
   },

@@ -8,6 +8,7 @@ const vendors = require('./vendors.routes');
 const brands = require('./brands.routes');
 const products = require('./products.routes');
 const vendorUsers = require('./vendorUsers.routes');
+const roles = require('./roles.routes');
  
 const router = express.Router();
  
@@ -21,5 +22,6 @@ router.use('/vendors', vendors);
 router.use('/brands', brands);
 router.use('/products', products);
 router.use('/vendor-users', vendorUsers);
+router.use('/roles', roles);
  
 module.exports = router;
