@@ -69,6 +69,7 @@ const AdminUsers = () => {
 
   const openEdit = (item) => {
     setEditingItem(item);
+    console.log('Editing item:', item); // Debug log
     if (tab === 'admins') {
       setValue('name', item.name);
       setValue('email', item.email);
@@ -79,7 +80,10 @@ const AdminUsers = () => {
       setValue('email', item.email);
       setValue('password', '');
       setValue('vendor', item.vendor?._id || item.vendor || '');
-      setValue('roleRef', item.roleRef?._id || item.roleRef || '');
+      // Handle role selection - check both possible data structures
+      const roleId = item.roleRef?._id || item.roleRef || item.role?._id || item.role || '';
+      console.log('Setting roleRef to:', roleId); // Debug log
+      setValue('roleRef', roleId);
       setValue('isActive', item.isActive);
     }
     setShowModal(true);
@@ -101,12 +105,12 @@ const AdminUsers = () => {
         }
       } else {
         if (editingItem) {
-          const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, vendor: data.vendor, permissions: data.permissions || [], isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, vendor: data.vendor, roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to update vendor user');
           toast.success('Vendor user updated');
         } else {
-          const res = await fetch(`${API_BASE}/api/v1/vendor-users`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password, vendor: data.vendor, permissions: data.permissions || [], isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/vendor-users`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password, vendor: data.vendor, roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to create vendor user');
           toast.success('Vendor user created');
