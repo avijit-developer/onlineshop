@@ -181,7 +181,6 @@ const AdminUsers = () => {
                   <th>Name</th>
                   <th>Description</th>
                   <th>Permissions</th>
-                  <th>Active</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -191,7 +190,6 @@ const AdminUsers = () => {
                     <td>{role.name}</td>
                     <td>{role.description}</td>
                     <td>{(role.permissions||[]).join(', ')}</td>
-                    <td>{role.isActive ? 'Yes' : 'No'}</td>
                     <td>
                       <div className="action-buttons">
                         <button className="btn btn-sm btn-primary" onClick={() => { openEdit({ ...role, id: role._id }); setTab('roles'); }}>Edit</button>
@@ -266,12 +264,12 @@ const AdminUsers = () => {
               try {
                 if (tab==='roles') {
                   if (editingItem) {
-                    const res = await fetch(`${API_BASE}/api/v1/roles/${editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [], isActive: !!data.isActive }) });
+                    const res = await fetch(`${API_BASE}/api/v1/roles/${editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
                     const json = await res.json().catch(()=>({}));
                     if (!res.ok) throw new Error(json?.message || 'Failed to update role');
                     toast.success('Role updated');
                   } else {
-                    const res = await fetch(`${API_BASE}/api/v1/roles`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [], isActive: !!data.isActive }) });
+                    const res = await fetch(`${API_BASE}/api/v1/roles`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
                     const json = await res.json().catch(()=>({}));
                     if (!res.ok) throw new Error(json?.message || 'Failed to create role');
                     toast.success('Role created');
