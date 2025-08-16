@@ -52,26 +52,54 @@ router.post('/login', async (req, res) => {
   }
 
   // Try Vendor User login
-  const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').lean();
+  const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').populate('vendors', '_id companyName enabled status').lean();
   if (!vendorUser) { res.status(401); throw new Error('Invalid credentials'); }
   const vendorUserDoc = await VendorUser.findOne({ email: normalizedEmail, isActive: true });
   const ok = await bcrypt.compare(password, vendorUserDoc.passwordHash);
   if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
 
-  // Ensure vendor is enabled/approved
-  const vendor = await Vendor.findById(vendorUserDoc.vendor).lean();
+  // Migrate single vendor to vendors array if needed
+  if (vendorUserDoc.vendor && (!vendorUserDoc.vendors || vendorUserDoc.vendors.length === 0)) {
+    vendorUserDoc.vendors = [vendorUserDoc.vendor];
+    await vendorUserDoc.save();
+    console.log(`Migrated vendor user ${vendorUserDoc._id} from single vendor to vendors array`);
+  }
+
+  // Get the primary vendor (first in vendors array or single vendor)
+  const primaryVendorId = vendorUserDoc.vendors && vendorUserDoc.vendors.length > 0 ? vendorUserDoc.vendors[0] : vendorUserDoc.vendor;
+  const vendor = await Vendor.findById(primaryVendorId).lean();
   if (!vendor || vendor.enabled === false || vendor.status !== 'approved') {
     res.status(403);
     throw new Error('Vendor is not approved or is disabled');
   }
 
   const token = jwt.sign(
-    { id: vendorUserDoc._id.toString(), role: 'vendor', email: vendorUserDoc.email, vendorId: vendor._id.toString(), permissions: vendorUserDoc.permissions || [] },
+    { 
+      id: vendorUserDoc._id.toString(), 
+      role: 'vendor', 
+      email: vendorUserDoc.email, 
+      vendorId: vendor._id.toString(), // Keep for backward compatibility
+      vendors: vendorUserDoc.vendors.map(v => v.toString()), // Add vendors array
+      permissions: vendorUserDoc.permissions || [] 
+    },
     getJwtSecret(),
     { expiresIn: getJwtExpiry() }
   );
 
-  return res.json({ success: true, token, user: { id: vendorUserDoc._id, name: vendorUserDoc.name, email: vendorUserDoc.email, role: 'vendor', vendorId: vendor._id, vendorCompany: vendor.companyName, permissions: vendorUserDoc.permissions || [] } });
+  return res.json({ 
+    success: true, 
+    token, 
+    user: { 
+      id: vendorUserDoc._id, 
+      name: vendorUserDoc.name, 
+      email: vendorUserDoc.email, 
+      role: 'vendor', 
+      vendorId: vendor._id, 
+      vendorCompany: vendor.companyName, 
+      vendors: vendorUserDoc.vendors,
+      permissions: vendorUserDoc.permissions || [] 
+    } 
+  });
 });
 
 router.get('/me', authenticate, requireAdmin, async (req, res) => {

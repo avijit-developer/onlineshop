@@ -26,10 +26,30 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
   const [items, total] = await Promise.all([
-    VendorUser.find(filters).populate('vendors', 'companyName').populate('roleRef','name').skip((pageNum - 1) * perPage).limit(perPage).lean(),
+    VendorUser.find(filters).populate('vendors', 'companyName').populate('vendor', 'companyName').populate('roleRef','name').skip((pageNum - 1) * perPage).limit(perPage).lean(),
     VendorUser.countDocuments(filters)
   ]);
-  res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+  
+  // Process items to handle both single vendor and multiple vendors
+  const processedItems = items.map(item => {
+    // If user has vendors array, use that; otherwise, convert single vendor to array
+    if (item.vendors && item.vendors.length > 0) {
+      return item;
+    } else if (item.vendor) {
+      return {
+        ...item,
+        vendors: [item.vendor],
+        vendor: undefined // Remove single vendor to avoid confusion
+      };
+    } else {
+      return {
+        ...item,
+        vendors: []
+      };
+    }
+  });
+  
+  res.json({ success: true, data: processedItems, meta: { total, page: pageNum, limit: perPage } });
 });
 
 // Create vendor user (admin-only)
