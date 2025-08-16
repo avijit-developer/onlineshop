@@ -23,6 +23,21 @@ const AdminUsers = () => {
     return { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' };
   };
 
+  // Function to refresh vendor user permissions after role updates
+  const refreshVendorUserPermissions = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/vendor-users/refresh-permissions`, { 
+        method: 'POST', 
+        headers: authHeaders() 
+      });
+      if (res.ok) {
+        console.log('Vendor user permissions refreshed successfully');
+      }
+    } catch (e) {
+      console.error('Failed to refresh vendor user permissions:', e);
+    }
+  };
+
   useEffect(() => {
     loadLists();
   }, [tab]);
@@ -80,9 +95,16 @@ const AdminUsers = () => {
       setValue('email', item.email);
       setValue('password', '');
       setValue('vendor', item.vendor?._id || item.vendor || '');
-      // Handle role selection - check both possible data structures
-      const roleId = item.roleRef?._id || item.roleRef || item.role?._id || item.role || '';
-      console.log('Setting roleRef to:', roleId); // Debug log
+      
+      // Enhanced role selection logic - check multiple possible data structures
+      let roleId = '';
+      if (item.roleRef) {
+        roleId = typeof item.roleRef === 'object' ? item.roleRef._id : item.roleRef;
+      } else if (item.role) {
+        roleId = typeof item.role === 'object' ? item.role._id : item.role;
+      }
+      
+      console.log('Role data:', { roleRef: item.roleRef, role: item.role, finalRoleId: roleId }); // Debug log
       setValue('roleRef', roleId);
       setValue('isActive', item.isActive);
     }
@@ -268,6 +290,22 @@ const AdminUsers = () => {
                     const json = await res.json().catch(()=>({}));
                     if (!res.ok) throw new Error(json?.message || 'Failed to update role');
                     toast.success('Role updated');
+                    
+                    // After updating a role, refresh vendor users and their permissions
+                    await refreshVendorUserPermissions();
+                    
+                    // Refresh vendor users list to get updated role information
+                    if (tab === 'roles') {
+                      try {
+                        const vuRes = await fetch(`${API_BASE}/api/v1/vendor-users`, { headers: authHeaders() });
+                        const vuJson = await vuRes.json();
+                        if (vuRes.ok) {
+                          setVendorUsers(vuJson.data || []);
+                        }
+                      } catch (e) {
+                        console.error('Failed to refresh vendor users after role update:', e);
+                      }
+                    }
                   } else {
                     const res = await fetch(`${API_BASE}/api/v1/roles`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
                     const json = await res.json().catch(()=>({}));
