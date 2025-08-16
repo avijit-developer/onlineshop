@@ -142,7 +142,7 @@ router.get('/current-permissions', authenticate, async (req, res) => {
         permissions = [...new Set(allPermissions)]; // Remove duplicates
       }
 
-      console.log(`🔍 REAL-TIME: Vendor user ${req.user.id} permissions:`, permissions);
+      console.log(`🔍 REAL-TIME: Vendor user ${req.user.id} (${vendorUser.email}) permissions:`, permissions);
       res.json({ 
         success: true, 
         permissions,

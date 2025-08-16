@@ -55,36 +55,32 @@ const AdminUsers = () => {
   // Function to refresh current user permissions
   const refreshCurrentUserPermissions = async () => {
     try {
-      console.log('Starting current user permissions refresh...');
-      const res = await fetch(`${API_BASE}/api/v1/auth/refresh-permissions`, { 
-        method: 'POST', 
+      console.log('🔄 REFRESH: Starting current user permissions refresh...');
+      const res = await fetch(`${API_BASE}/api/v1/auth/current-permissions`, { 
+        method: 'GET', 
         headers: authHeaders() 
       });
       if (res.ok) {
         const data = await res.json();
-        console.log('Current user permissions refreshed:', data);
+        console.log('🔄 REFRESH: Current user permissions refreshed:', data);
         
         // Update the stored user data with new permissions
         const currentUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
         const updatedUser = { ...currentUser, permissions: data.permissions };
         localStorage.setItem('adminUser', JSON.stringify(updatedUser));
         
-        // Show a notification instead of reloading
-        toast.success('Permissions updated successfully! Dashboard will refresh automatically.');
+        console.log('🔄 REFRESH: Updated localStorage with new permissions:', data.permissions);
         
-        // Trigger a page reload after a short delay to update the UI with new permissions
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Show success message
+        toast.success('Permissions updated! Please refresh the page to see changes.');
         
-        console.log('Current user permissions refreshed and page will reload');
       } else {
         const errorData = await res.json();
-        console.error('Failed to refresh current user permissions:', errorData);
+        console.error('❌ REFRESH: Failed to refresh current user permissions:', errorData);
         toast.error('Failed to refresh current user permissions');
       }
     } catch (e) {
-      console.error('Failed to refresh current user permissions:', e);
+      console.error('❌ REFRESH: Failed to refresh current user permissions:', e);
       toast.error('Failed to refresh current user permissions');
     }
   };

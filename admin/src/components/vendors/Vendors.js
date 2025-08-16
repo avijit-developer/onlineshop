@@ -65,6 +65,36 @@ const Vendors = () => {
     fetchVendors();
   }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
 
+  // Function to refresh user permissions
+  const refreshUserPermissions = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_BASE}/api/v1/auth/current-permissions`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('🔄 VENDORS: Refreshed permissions:', data.permissions);
+        
+        // Update localStorage with new permissions
+        const currentUser = getCurrentUser();
+        const updatedUser = { ...currentUser, permissions: data.permissions };
+        localStorage.setItem('adminUser', JSON.stringify(updatedUser));
+        
+        // Reload the page to apply new permissions
+        window.location.reload();
+        
+        toast.success('Permissions refreshed!');
+      } else {
+        toast.error('Failed to refresh permissions');
+      }
+    } catch (error) {
+      console.error('Error refreshing permissions:', error);
+      toast.error('Failed to refresh permissions');
+    }
+  };
+
   const fetchVendors = async () => {
     try {
       setLoading(true);
@@ -317,6 +347,11 @@ const Vendors = () => {
           <div className="view-toggle">
             {((!isVendor && userPerms.has('vendor.add')) || (isVendor && userPerms.has('vendor.add'))) && (
               <button className="btn btn-primary" onClick={handleOpenAdd}>Add Vendor</button>
+            )}
+            {isVendor && (
+              <button className="btn btn-secondary" onClick={refreshUserPermissions} title="Refresh permissions">
+                🔄 Refresh Permissions
+              </button>
             )}
           </div>
           <div className="search-filter-container">
