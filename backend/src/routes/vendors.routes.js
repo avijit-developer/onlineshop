@@ -21,6 +21,13 @@ router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit'
   
   const { status = 'all', q = '', page = 1, limit = 10 } = req.query;
   const filters = {};
+  
+  // If user is a vendor, only show their own vendor information
+  if (req.user.role === 'vendor') {
+    filters._id = req.user.vendorId;
+    console.log('Vendor user - filtering to own vendor:', req.user.vendorId);
+  }
+  
   if (status !== 'all') filters.status = status;
   if (q) {
     filters.$or = [
@@ -86,6 +93,12 @@ router.put('/:id', authenticate, requirePermission('vendor.edit'), async (req, r
   const { id } = req.params;
   const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, status, enabled } = req.body || {};
 
+  // If user is a vendor, ensure they can only edit their own vendor
+  if (req.user.role === 'vendor' && req.user.vendorId !== id) {
+    res.status(403);
+    throw new Error('You can only edit your own vendor information');
+  }
+
   const vendor = await Vendor.findById(id);
   if (!vendor) {
     res.status(404);
@@ -137,6 +150,13 @@ router.patch('/:id/status', authenticate, requirePermission('vendor.approve'), a
 router.patch('/:id/enable', authenticate, requirePermission('vendor.edit'), async (req, res) => {
   const { id } = req.params;
   const { enabled } = req.body || {};
+  
+  // If user is a vendor, ensure they can only modify their own vendor
+  if (req.user.role === 'vendor' && req.user.vendorId !== id) {
+    res.status(403);
+    throw new Error('You can only modify your own vendor information');
+  }
+  
   const updated = await Vendor.findByIdAndUpdate(id, { enabled: Boolean(enabled) }, { new: true }).lean();
   if (!updated) {
     res.status(404);

@@ -315,7 +315,7 @@ const Vendors = () => {
         <h1>Vendor Management</h1>
         <div className="header-actions">
           <div className="view-toggle">
-            {(!isVendor || userPerms.has('vendor.add')) && (
+            {(!isVendor && userPerms.has('vendor.add')) && (
               <button className="btn btn-primary" onClick={handleOpenAdd}>Add Vendor</button>
             )}
           </div>
@@ -411,17 +411,20 @@ const Vendors = () => {
                 <td>
                   <div className="action-buttons">
                     <button title="View" onClick={() => viewProfile(vendor)} className="btn btn-secondary btn-sm">👁️</button>
-                    {vendor.status === 'pending' && (!isVendor || userPerms.has('vendor.approve')) && (
+                    {vendor.status === 'pending' && !isVendor && userPerms.has('vendor.approve') && (
                       <>
                         <button title="Approve" onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')} className="btn btn-success btn-sm">✔️</button>
                         <button title="Reject" onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')} className="btn btn-danger btn-sm">✖️</button>
                       </>
                     )}
-                    {(!isVendor || userPerms.has('vendor.edit')) && (
+                    {(!isVendor && userPerms.has('vendor.edit')) && (
                       <button title="Edit" onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">✏️</button>
                     )}
-                    {(!isVendor || userPerms.has('vendor.delete')) && (
+                    {(!isVendor && userPerms.has('vendor.delete')) && (
                       <button title="Delete" onClick={() => handleDeleteVendor(vendor)} className="btn btn-danger btn-sm">🗑️</button>
+                    )}
+                    {isVendor && userPerms.has('vendor.edit') && (
+                      <button title="Edit" onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">✏️</button>
                     )}
                   </div>
                 </td>
@@ -581,7 +584,7 @@ const Vendors = () => {
             <div className="modal-header">
               <h2>Vendor Profile</h2>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {selectedVendor?.status === 'pending' && (!isVendor || userPerms.has('vendor.approve')) && (
+                {selectedVendor?.status === 'pending' && !isVendor && userPerms.has('vendor.approve') && (
                   <button onClick={() => handleStatusChange(selectedVendor._id || selectedVendor.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
                 )}
                 <button onClick={() => setShowProfileModal(false)} className="close-btn">&times;</button>
