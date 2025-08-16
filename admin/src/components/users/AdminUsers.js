@@ -89,19 +89,22 @@ const AdminUsers = () => {
     setShowModal(true);
   };
 
-  const openEdit = (item) => {
+  const openEdit = (item, itemType = null) => {
     setEditingItem(item);
     console.log('Editing item:', item); // Debug log
+    console.log('Item type:', itemType || tab); // Debug log
     console.log('Available roles:', roles); // Debug log
     
     // Use setTimeout to ensure form is ready before setting values
     setTimeout(() => {
-      if (tab === 'admins') {
+      const currentTab = itemType || tab;
+      
+      if (currentTab === 'admins') {
         setValue('name', item.name);
         setValue('email', item.email);
         setValue('password', '');
         setValue('isActive', item.isActive);
-      } else if (tab === 'vendorUsers') {
+      } else if (currentTab === 'vendorUsers') {
         setValue('name', item.name);
         setValue('email', item.email);
         setValue('password', '');
@@ -119,6 +122,12 @@ const AdminUsers = () => {
         console.log('Setting roleRef to:', roleId); // Debug log
         setValue('roleRef', roleId);
         setValue('isActive', item.isActive);
+      } else if (currentTab === 'roles') {
+        // Handle role editing
+        setValue('name', item.name);
+        setValue('description', item.description || '');
+        setValue('permissions', item.permissions || []);
+        console.log('Setting role form values:', { name: item.name, description: item.description, permissions: item.permissions });
       }
     }, 100);
     
@@ -228,7 +237,7 @@ const AdminUsers = () => {
                     <td>{(role.permissions||[]).join(', ')}</td>
                     <td>
                       <div className="action-buttons">
-                        <button className="btn btn-sm btn-primary" onClick={() => { openEdit({ ...role, id: role._id }); setTab('roles'); }}>Edit</button>
+                        <button className="btn btn-sm btn-primary" onClick={() => { setTab('roles'); openEdit({ ...role, id: role._id }, 'roles'); }}>Edit</button>
                         <button className="btn btn-sm btn-danger" onClick={() => askDelete({ ...role, id: role._id })}>Delete</button>
                       </div>
                     </td>
