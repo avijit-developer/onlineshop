@@ -15,15 +15,53 @@ const Vendors = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [total, setTotal] = useState(0);
 
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userPerms, setUserPerms] = useState(new Set());
+  const [isVendor, setIsVendor] = useState(false);
+
   // Get current user and permissions
   const getCurrentUser = () => {
     const userData = localStorage.getItem('adminUser');
     return userData ? JSON.parse(userData) : null;
   };
 
-  const currentUser = getCurrentUser();
-  const userPerms = new Set(currentUser?.permissions || []);
-  const isVendor = currentUser?.role === 'vendor';
+  // Fetch real-time permissions
+  const fetchRealTimePermissions = async () => {
+    try {
+      const user = getCurrentUser();
+      if (!user) return;
+
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_BASE}/api/v1/auth/current-permissions`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setUserPerms(new Set(data.permissions || []));
+        setCurrentUser(user);
+        setIsVendor(user.role === 'vendor');
+        console.log('🔍 VENDORS: Real-time permissions:', data.permissions);
+      } else {
+        // Fallback to stored permissions
+        setUserPerms(new Set(user.permissions || []));
+        setCurrentUser(user);
+        setIsVendor(user.role === 'vendor');
+      }
+    } catch (error) {
+      console.error('Error fetching real-time permissions:', error);
+      // Fallback to stored permissions
+      const user = getCurrentUser();
+      setUserPerms(new Set(user?.permissions || []));
+      setCurrentUser(user);
+      setIsVendor(user?.role === 'vendor');
+    }
+  };
+
+  // Initialize user data and permissions
+  useEffect(() => {
+    fetchRealTimePermissions();
+  }, []);
 
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
