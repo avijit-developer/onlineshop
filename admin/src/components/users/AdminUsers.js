@@ -408,7 +408,7 @@ const AdminUsers = () => {
                       <details>
                         <summary>Vendor</summary>
                         <div className="permissions-checkboxes">
-                          {['vendor.view','vendor.edit'].map(p => (
+                          {['vendor.view','vendor.add','vendor.edit','vendor.delete'].map(p => (
                             <label key={p} className="checkbox-label">
                               <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
                             </label>
