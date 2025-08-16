@@ -16,6 +16,9 @@ router.get('/me', authenticate, requireRole(['vendor']), async (req, res) => {
 
 // GET /vendors?status=&q=&page=&limit=
 router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit']), async (req, res) => {
+  console.log('Vendors GET request - User:', req.user);
+  console.log('Vendors GET request - User permissions:', req.user.permissions);
+  
   const { status = 'all', q = '', page = 1, limit = 10 } = req.query;
   const filters = {};
   if (status !== 'all') filters.status = status;

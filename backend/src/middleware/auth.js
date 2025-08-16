@@ -44,15 +44,28 @@ const requireRole = (roles) => (req, res, next) => {
 };
 
 const getUserPermissions = async (req) => {
-  if (req.user?.role === 'admin') return ['*'];
+  console.log('getUserPermissions - user role:', req.user?.role);
+  console.log('getUserPermissions - user permissions from token:', req.user?.permissions);
+  
+  if (req.user?.role === 'admin') {
+    console.log('getUserPermissions - admin user, returning all permissions');
+    return ['*'];
+  }
+  
   if (req.user?.role === 'vendor') {
     let perms = Array.isArray(req.user.permissions) ? req.user.permissions : null;
+    console.log('getUserPermissions - vendor user, permissions from token:', perms);
+    
     if (!perms) {
+      console.log('getUserPermissions - fetching permissions from database');
       const vu = await VendorUser.findById(req.user.id).select({ permissions: 1 }).lean();
       perms = vu?.permissions || [];
+      console.log('getUserPermissions - permissions from database:', perms);
     }
     return perms;
   }
+  
+  console.log('getUserPermissions - no role found, returning empty array');
   return [];
 };
 
@@ -69,14 +82,29 @@ const requirePermission = (permission) => async (req, res, next) => {
 
 const requireAnyPermission = (permissions) => async (req, res, next) => {
   try {
+    console.log('requireAnyPermission - checking permissions:', permissions);
+    console.log('requireAnyPermission - user:', req.user);
+    
     const perms = await getUserPermissions(req);
-    if (perms.includes('*')) return next();
-    for (const p of permissions) {
-      if (perms.includes(p)) return next();
+    console.log('requireAnyPermission - user permissions:', perms);
+    
+    if (perms.includes('*')) {
+      console.log('requireAnyPermission - admin access granted');
+      return next();
     }
+    
+    for (const p of permissions) {
+      if (perms.includes(p)) {
+        console.log('requireAnyPermission - permission granted:', p);
+        return next();
+      }
+    }
+    
+    console.log('requireAnyPermission - permission denied');
     res.status(403);
     return next(new Error('Permission denied'));
   } catch (e) {
+    console.error('requireAnyPermission - error:', e);
     return next(e);
   }
 };
