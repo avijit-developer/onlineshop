@@ -26,8 +26,6 @@ const Vendors = () => {
   const isVendor = currentUser?.role === 'vendor';
   const isAdmin = currentUser?.role === 'admin';
   const has = (perm) => isAdmin || userPerms.has('*') || userPerms.has(perm);
-  const isAdmin = currentUser?.role === 'admin';
-  const has = (perm) => isAdmin || userPerms.has('*') || userPerms.has(perm);
 
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
