@@ -12,8 +12,39 @@ const Layout = ({ children, user, onLogout }) => {
 
   const isVendor = user?.role === 'vendor';
 
+  // Fetch real-time permissions for vendor users on mount
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      if (!isVendor) return;
+      try {
+        setLoadingPermissions(true);
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch(`${API_BASE}/api/v1/auth/current-permissions`, {
+          headers: { Authorization: token ? `Bearer ${token}` : '' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const perms = new Set(data.permissions || []);
+          setRealTimePermissions(perms);
+          // Also update persisted user to keep consistency
+          const savedUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+          const updatedUser = { ...savedUser, permissions: Array.from(perms) };
+          localStorage.setItem('adminUser', JSON.stringify(updatedUser));
+        }
+      } catch (e) {
+        // ignore
+      } finally {
+        setLoadingPermissions(false);
+      }
+    };
+    fetchPermissions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Simple approach: Use stored permissions and refresh when needed
-  const userPerms = new Set((user?.permissions || []));
+  const userPerms = isVendor && realTimePermissions.size > 0
+    ? realTimePermissions
+    : new Set((user?.permissions || []));
   const allMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     !isVendor && { path: '/customers', label: 'Customers', icon: '👥' },

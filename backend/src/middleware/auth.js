@@ -59,28 +59,28 @@ const requireRole = (roles) => (req, res, next) => {
 };
 
 const getUserPermissions = async (req) => {
-  console.log('getUserPermissions - user role:', req.user?.role);
-  console.log('getUserPermissions - user permissions from token:', req.user?.permissions);
-  
+  // Admin users have full access
   if (req.user?.role === 'admin') {
-    console.log('getUserPermissions - admin user, returning all permissions');
     return ['*'];
   }
-  
+
+  // For vendor users, always compute fresh permissions from the database
   if (req.user?.role === 'vendor') {
-    let perms = Array.isArray(req.user.permissions) ? req.user.permissions : null;
-    console.log('getUserPermissions - vendor user, permissions from token:', perms);
-    
-    if (!perms) {
-      console.log('getUserPermissions - fetching permissions from database');
-      const vu = await VendorUser.findById(req.user.id).select({ permissions: 1 }).lean();
-      perms = vu?.permissions || [];
-      console.log('getUserPermissions - permissions from database:', perms);
-    }
-    return perms;
+    const vendorUser = await VendorUser.findById(req.user.id).populate('roleRef').lean();
+    if (!vendorUser) return [];
+
+    const directPermissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
+    const rolePermissions = Array.isArray(vendorUser?.roleRef?.permissions)
+      ? vendorUser.roleRef.permissions
+      : [];
+
+    // Merge and de-duplicate
+    return Array.from(new Set([...
+      directPermissions,
+      ...rolePermissions
+    ]));
   }
-  
-  console.log('getUserPermissions - no role found, returning empty array');
+
   return [];
 };
 

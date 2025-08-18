@@ -73,6 +73,15 @@ router.post('/login', async (req, res) => {
     throw new Error('Vendor is not approved or is disabled');
   }
 
+  // Merge direct permissions with role permissions for immediate correctness
+  const roleDoc = vendorUserDoc.roleRef
+    ? await (await VendorUser.findById(vendorUserDoc._id).populate('roleRef').lean())?.roleRef
+    : null;
+  const mergedPermissions = Array.from(new Set([...
+    (vendorUserDoc.permissions || []),
+    ...((roleDoc?.permissions) || [])
+  ]));
+
   const token = jwt.sign(
     { 
       id: vendorUserDoc._id.toString(), 
@@ -80,7 +89,7 @@ router.post('/login', async (req, res) => {
       email: vendorUserDoc.email, 
       vendorId: vendor._id.toString(), // Keep for backward compatibility
       vendors: vendorUserDoc.vendors.map(v => v.toString()), // Add vendors array
-      permissions: vendorUserDoc.permissions || [] 
+      permissions: mergedPermissions 
     },
     getJwtSecret(),
     { expiresIn: getJwtExpiry() }
@@ -97,7 +106,7 @@ router.post('/login', async (req, res) => {
       vendorId: vendor._id, 
       vendorCompany: vendor.companyName, 
       vendors: vendorUserDoc.vendors,
-      permissions: vendorUserDoc.permissions || [] 
+      permissions: mergedPermissions 
     } 
   });
 });
