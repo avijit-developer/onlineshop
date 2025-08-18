@@ -195,12 +195,12 @@ const Banners = () => {
     }
   };
 
-  const handleToggleStatus = async (banner) => {
+  const handleToggleStatus = async (banner, newIsActive) => {
     try {
       const res = await fetch(`${API_BASE}/api/v1/banners/${banner._id || banner.id}`, {
         method: 'PUT',
         headers: authHeaders(),
-        body: JSON.stringify({ isActive: !banner.isActive })
+        body: JSON.stringify({ isActive: !!newIsActive })
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.message || 'Failed to update banner');
@@ -375,12 +375,15 @@ const Banners = () => {
                   >
                     Edit
                   </button>
-                  <button
-                    onClick={() => handleToggleStatus(banner)}
-                    className={`btn btn-sm ${banner.isActive ? 'btn-warning' : 'btn-success'}`}
-                  >
-                    {banner.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
+                  <div className="checkbox-group">
+                    <input
+                      type="checkbox"
+                      id={`banner-enabled-${banner._id || banner.id}`}
+                      checked={!!banner.isActive}
+                      onChange={(e) => handleToggleStatus(banner, e.target.checked)}
+                    />
+                    <label htmlFor={`banner-enabled-${banner._id || banner.id}`}>{banner.isActive ? 'Enabled' : 'Disabled'}</label>
+                  </div>
                   <button
                     onClick={() => handleDelete(banner.id)}
                     className="btn btn-danger btn-sm"
