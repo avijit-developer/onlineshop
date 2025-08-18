@@ -32,7 +32,6 @@ const SliderBanner = () => {
             subtitle: b.description || '',
             tag: b.linkText || '',
             image: b.image || b.imageUrl,
-            bgColor: '#42A5F5',
           }));
           setBanners(items);
         }
@@ -46,13 +45,8 @@ const SliderBanner = () => {
   }, []);
 
   const renderItem = ({ item }) => (
-    <View style={[styles.slide, { backgroundColor: item.bgColor }]}>
-      <View style={styles.textContainer}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.subtitle}>{item.subtitle}</Text>
-        <Text style={styles.tag}>{item.tag}</Text>
-      </View>
-      <Image source={{ uri: item.image }} style={styles.image} />
+    <View style={styles.slide}>
+      <Image source={{ uri: item.image }} style={styles.bannerImage} />
     </View>
   );
 
@@ -108,40 +102,13 @@ const styles = StyleSheet.create({
     width: ITEM_WIDTH,
     height: 160,
     borderRadius: 16,
-    flexDirection: 'row',
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    overflow: 'hidden',
     marginRight: 10,
   },
-  textContainer: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  title: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    color: '#fff',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  tag: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  image: {
-    width: 90,
-    height: 120,
-    resizeMode: 'contain',
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   pagination: {
     flexDirection: 'row',
