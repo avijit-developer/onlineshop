@@ -77,7 +77,7 @@ const SliderBanner = () => {
           });
           const dotColor = scrollX.interpolate({
             inputRange,
-            outputRange: ['#ccc', '#FFA726', '#ccc'],
+            outputRange: ['#bbb', '#444', '#bbb'],
             extrapolate: 'clamp',
           });
 
