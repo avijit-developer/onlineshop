@@ -6,16 +6,17 @@ import './Customers.css';
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminUsers = () => {
-  const [tab, setTab] = useState('admins'); // 'admins' | 'vendorUsers'
+  const [tab, setTab] = useState('admins'); // 'admins' | 'vendorUsers' | 'roles'
   const [admins, setAdmins] = useState([]);
   const [vendorUsers, setVendorUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
-  const [roles, setRoles] = useState([]);
+
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm();
 
   const authHeaders = () => {
@@ -23,77 +24,16 @@ const AdminUsers = () => {
     return { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' };
   };
 
-  // Function to refresh vendor user permissions after role updates
-  const refreshVendorUserPermissions = async (roleId = null) => {
-    try {
-      console.log('🔄 WORKING SOLUTION: Refreshing permissions for role:', roleId);
-      
-      // Step 1: Update all vendor users with fresh permissions
-      const res = await fetch(`${API_BASE}/api/v1/vendor-users/update-all-permissions`, { 
-        method: 'POST', 
-        headers: authHeaders(),
-        body: JSON.stringify({ roleId })
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        console.log('✅ WORKING SOLUTION: Success:', data);
-        toast.success(`Updated permissions for ${data.updatedCount} vendor users. They will see changes immediately.`);
-      } else {
-        const errorData = await res.json();
-        console.error('❌ WORKING SOLUTION: Failed:', errorData);
-        toast.error('Failed to update permissions');
-      }
-    } catch (e) {
-      console.error('❌ WORKING SOLUTION: Exception:', e);
-      toast.error('Failed to update permissions');
-    }
-  };
-
-
-
-  // Function to refresh current user permissions
-  const refreshCurrentUserPermissions = async () => {
-    try {
-      console.log('🔄 REFRESH: Starting current user permissions refresh...');
-      const res = await fetch(`${API_BASE}/api/v1/auth/current-permissions`, { 
-        method: 'GET', 
-        headers: authHeaders() 
-      });
-      if (res.ok) {
-        const data = await res.json();
-        console.log('🔄 REFRESH: Current user permissions refreshed:', data);
-        
-        // Update the stored user data with new permissions
-        const currentUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
-        const updatedUser = { ...currentUser, permissions: data.permissions };
-        localStorage.setItem('adminUser', JSON.stringify(updatedUser));
-        
-        console.log('🔄 REFRESH: Updated localStorage with new permissions:', data.permissions);
-        
-        // Show success message
-        toast.success('Permissions updated! Please refresh the page to see changes.');
-        
-      } else {
-        const errorData = await res.json();
-        console.error('❌ REFRESH: Failed to refresh current user permissions:', errorData);
-        toast.error('Failed to refresh current user permissions');
-      }
-    } catch (e) {
-      console.error('❌ REFRESH: Failed to refresh current user permissions:', e);
-      toast.error('Failed to refresh current user permissions');
-    }
-  };
-
   useEffect(() => {
     loadLists();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  // Ensure roles are loaded when editing vendor users
   useEffect(() => {
     if (showModal && tab === 'vendorUsers' && roles.length === 0) {
       loadLists();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showModal, tab, roles.length]);
 
   const loadLists = async () => {
@@ -138,14 +78,8 @@ const AdminUsers = () => {
 
   const openEdit = (item, itemType = null) => {
     setEditingItem(item);
-    console.log('Editing item:', item); // Debug log
-    console.log('Item type:', itemType || tab); // Debug log
-    console.log('Available roles:', roles); // Debug log
-    
-    // Use setTimeout to ensure form is ready before setting values
     setTimeout(() => {
       const currentTab = itemType || tab;
-      
       if (currentTab === 'admins') {
         setValue('name', item.name);
         setValue('email', item.email);
@@ -155,8 +89,6 @@ const AdminUsers = () => {
         setValue('name', item.name);
         setValue('email', item.email);
         setValue('password', '');
-        
-        // Handle multiple vendors - convert single vendor to array format
         let vendorIds = [];
         if (item.vendor) {
           vendorIds = [item.vendor._id || item.vendor];
@@ -164,28 +96,20 @@ const AdminUsers = () => {
           vendorIds = Array.isArray(item.vendors) ? item.vendors.map(v => v._id || v) : [item.vendors];
         }
         setValue('vendors', vendorIds);
-        
-        // Enhanced role selection logic - check multiple possible data structures
         let roleId = '';
         if (item.roleRef) {
           roleId = typeof item.roleRef === 'object' ? item.roleRef._id : item.roleRef;
         } else if (item.role) {
           roleId = typeof item.role === 'object' ? item.role._id : item.role;
         }
-        
-        console.log('Role data:', { roleRef: item.roleRef, role: item.role, finalRoleId: roleId }); // Debug log
-        console.log('Setting roleRef to:', roleId); // Debug log
         setValue('roleRef', roleId);
         setValue('isActive', item.isActive);
       } else if (currentTab === 'roles') {
-        // Handle role editing
         setValue('name', item.name);
         setValue('description', item.description || '');
         setValue('permissions', item.permissions || []);
-        console.log('Setting role form values:', { name: item.name, description: item.description, permissions: item.permissions });
       }
-    }, 100);
-    
+    }, 50);
     setShowModal(true);
   };
 
@@ -205,35 +129,10 @@ const AdminUsers = () => {
         }
       } else if (tab === 'roles') {
         if (editingItem) {
-          console.log('Updating role with data:', { name: data.name, description: data.description, permissions: data.permissions });
           const res = await fetch(`${API_BASE}/api/v1/roles/${editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to update role');
-          console.log('Role updated successfully:', json);
           toast.success('Role updated');
-          
-          // After updating a role, refresh vendor users and their permissions
-          console.log('Starting permission refresh after role update...');
-          await refreshVendorUserPermissions(editingItem.id);
-          
-          // Show success message and ask user to refresh
-          toast.success('Role updated! Please refresh the vendor dashboard to see changes.');
-          
-          // Also refresh the current user's permissions if they're a vendor user
-          await refreshCurrentUserPermissions();
-          
-          // Refresh vendor users list to get updated role information
-          if (tab === 'roles') {
-            try {
-              const vuRes = await fetch(`${API_BASE}/api/v1/vendor-users`, { headers: authHeaders() });
-              const vuJson = await vuRes.json();
-              if (vuRes.ok) {
-                setVendorUsers(vuJson.data || []);
-              }
-            } catch (e) {
-              console.error('Failed to refresh vendor users after role update:', e);
-            }
-          }
         } else {
           const res = await fetch(`${API_BASE}/api/v1/roles`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, description: data.description, permissions: data.permissions || [] }) });
           const json = await res.json().catch(() => ({}));
@@ -242,12 +141,12 @@ const AdminUsers = () => {
         }
       } else {
         if (editingItem) {
-          const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, vendors: data.vendors || [], roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, vendors: data.vendors || [], roleRef: data.roleRef || undefined, isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to update vendor user');
           toast.success('Vendor user updated');
         } else {
-          const res = await fetch(`${API_BASE}/api/v1/vendor-users`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password, vendors: data.vendors || [], roleRef: data.roleRef || undefined, permissions: data.permissions || [], isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/vendor-users`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password, vendors: data.vendors || [], roleRef: data.roleRef || undefined, isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to create vendor user');
           toast.success('Vendor user created');
@@ -276,12 +175,6 @@ const AdminUsers = () => {
         const res = await fetch(`${API_BASE}/api/v1/roles/${itemToDelete.id}`, { method: 'DELETE', headers: authHeaders() });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.message || 'Failed to delete role');
-        
-        // After deleting a role, refresh vendor users and their permissions
-        await refreshVendorUserPermissions();
-        
-        // Also refresh the current user's permissions if they're a vendor user
-        await refreshCurrentUserPermissions();
       } else {
         const res = await fetch(`${API_BASE}/api/v1/vendor-users/${itemToDelete._id || itemToDelete.id}`, { method: 'DELETE', headers: authHeaders() });
         const json = await res.json().catch(() => ({}));
@@ -304,7 +197,7 @@ const AdminUsers = () => {
     <div className="customers">
       <div className="page-header">
         <h2>Users Management</h2>
-        <p>Manage admin users and vendor users</p>
+        <p>Manage admin users, vendor users and roles</p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -358,7 +251,7 @@ const AdminUsers = () => {
                   <th>Name</th>
                   <th>Email</th>
                   {tab==='vendorUsers' && <th>Vendor</th>}
-                  {tab==='vendorUsers' && <th>Permissions</th>}
+                  {tab==='vendorUsers' && <th>Role</th>}
                   <th>Status</th>
                   <th>Created</th>
                   <th>Actions</th>
@@ -384,7 +277,7 @@ const AdminUsers = () => {
                     )}
                     {tab==='vendorUsers' && (
                       <td>
-                        {(item.permissions || []).length ? (item.permissions || []).join(', ') : '—'}
+                        {item.roleRef?.name || item.roleRef || '—'}
                       </td>
                     )}
                     <td>
@@ -462,7 +355,7 @@ const AdminUsers = () => {
                       <details>
                         <summary>Vendor</summary>
                         <div className="permissions-checkboxes">
-                          {['vendor.view','vendor.add','vendor.edit','vendor.delete'].map(p => (
+                          {['vendor.view','vendor.add','vendor.edit','vendor.delete','vendor.approve'].map(p => (
                             <label key={p} className="checkbox-label">
                               <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
                             </label>
@@ -495,12 +388,7 @@ const AdminUsers = () => {
                           <div className="vendor-checkboxes">
                             {vendors.map(v => (
                               <label key={v.id} className="checkbox-label">
-                                <input 
-                                  type="checkbox" 
-                                  value={v.id} 
-                                  {...register('vendors')} 
-                                /> 
-                                {v.name}
+                                <input type="checkbox" value={v.id} {...register('vendors')} /> {v.name}
                               </label>
                             ))}
                           </div>
@@ -508,24 +396,12 @@ const AdminUsers = () => {
                         </div>
                         <div className="form-group">
                           <label className="form-label">Role</label>
-                          <select 
-                            className="form-control" 
-                            {...register('roleRef')}
-                            onChange={(e) => {
-                              console.log('Role select changed to:', e.target.value);
-                              setValue('roleRef', e.target.value);
-                            }}
-                          >
+                          <select className="form-control" {...register('roleRef')} onChange={(e) => setValue('roleRef', e.target.value)}>
                             <option value="">(None)</option>
                             {roles.map(r => (
-                              <option key={r._id} value={r._id}>
-                                {r.name} (ID: {r._id})
-                              </option>
+                              <option key={r._id} value={r._id}>{r.name}</option>
                             ))}
                           </select>
-                          <small className="form-text text-muted">
-                            Available roles: {roles.length} | Selected: {editingItem?.roleRef?._id || editingItem?.roleRef || editingItem?.role?._id || editingItem?.role || 'None'}
-                          </small>
                         </div>
                       </>
                     )}
@@ -562,4 +438,5 @@ const AdminUsers = () => {
   );
 };
 
-export default AdminUsers; 
+export default AdminUsers;
+

@@ -54,7 +54,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // Create vendor user (admin-only)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
-  const { name, email, password, vendors = [], permissions = [], roleRef } = req.body || {};
+  const { name, email, password, vendors = [], roleRef } = req.body || {};
   if (!name || !email || !password || !vendors.length) {
     res.status(400);
     throw new Error('name, email, password and at least one vendor are required');
@@ -72,13 +72,10 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   const exists = await VendorUser.findOne({ email: email.trim().toLowerCase() }).lean();
   if (exists) { res.status(409); throw new Error('Email already in use'); }
 
-  let mergedPermissions = Array.isArray(permissions) ? permissions : [];
   let roleRefId = undefined;
   if (roleRef) {
     const role = await Role.findById(roleRef).lean();
     if (!role) { res.status(400); throw new Error('Role not found'); }
-    const set = new Set([...(role.permissions || []), ...mergedPermissions]);
-    mergedPermissions = Array.from(set);
     roleRefId = role._id;
   }
 
@@ -88,8 +85,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     email: String(email).trim().toLowerCase(), 
     passwordHash, 
     vendors: vendorIds, 
-    roleRef: roleRefId, 
-    permissions: mergedPermissions 
+    roleRef: roleRefId
   });
   res.status(201).json({ success: true, data: created });
 });
@@ -97,7 +93,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 // Update vendor user (admin-only)
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, email, password, vendors = [], permissions, isActive, roleRef } = req.body || {};
+  const { name, email, password, vendors = [], isActive, roleRef } = req.body || {};
   const user = await VendorUser.findById(id);
   if (!user) { res.status(404); throw new Error('vendor user not found'); }
   if (name !== undefined) user.name = String(name).trim();
@@ -124,16 +120,9 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       const role = await Role.findById(roleRef).lean();
       if (!role) { res.status(400); throw new Error('Role not found'); }
       user.roleRef = roleRef;
-      // merge role permissions with provided permissions
-      const provided = Array.isArray(permissions) ? permissions : (user.permissions || []);
-      const set = new Set([...(role.permissions || []), ...provided]);
-      user.permissions = Array.from(set);
     } else {
       user.roleRef = undefined;
-      if (permissions !== undefined) user.permissions = Array.isArray(permissions) ? permissions : [];
     }
-  } else if (permissions !== undefined) {
-    user.permissions = Array.isArray(permissions) ? permissions : [];
   }
   if (isActive !== undefined) user.isActive = Boolean(isActive);
 
@@ -149,198 +138,6 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-// Refresh vendor user permissions (called after role updates)
-router.post('/refresh-permissions', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const { roleId } = req.body || {};
-    console.log('🔍 BACKEND DEBUG: Refreshing permissions for roleId:', roleId);
-    console.log('🔍 BACKEND DEBUG: Request body:', req.body);
-    
-    let vendorUsers;
-    if (roleId) {
-      // Only refresh vendor users who have this specific role
-      vendorUsers = await VendorUser.find({ roleRef: roleId }).populate('roleRef').lean();
-      console.log(`🔍 BACKEND DEBUG: Found ${vendorUsers.length} vendor users with role ${roleId}`);
-      console.log('🔍 BACKEND DEBUG: Vendor users found:', vendorUsers.map(vu => ({ id: vu._id, name: vu.name, roleRef: vu.roleRef?._id })));
-    } else {
-      // Refresh all vendor users (fallback)
-      vendorUsers = await VendorUser.find({}).populate('roleRef').lean();
-      console.log(`🔍 BACKEND DEBUG: Refreshing all ${vendorUsers.length} vendor users`);
-    }
-    
-    let updatedCount = 0;
-    const affectedUserIds = [];
-    
-    for (const vendorUser of vendorUsers) {
-      let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
-      console.log(`🔍 BACKEND DEBUG: Vendor user ${vendorUser._id} (${vendorUser.name}) - current permissions:`, permissions);
-      
-      // Add role permissions if roleRef exists
-      if (vendorUser.roleRef && vendorUser.roleRef.permissions) {
-        const rolePermissions = Array.isArray(vendorUser.roleRef.permissions) ? vendorUser.roleRef.permissions : [];
-        console.log(`🔍 BACKEND DEBUG: Role permissions for ${vendorUser.roleRef.name}:`, rolePermissions);
-        const allPermissions = [...permissions, ...rolePermissions];
-        permissions = [...new Set(allPermissions)]; // Remove duplicates
-        console.log(`🔍 BACKEND DEBUG: Combined permissions for ${vendorUser._id}:`, permissions);
-      } else {
-        console.log(`🔍 BACKEND DEBUG: No roleRef or role permissions for ${vendorUser._id}`);
-      }
-      
-      // Update vendor user with merged permissions
-      await VendorUser.findByIdAndUpdate(vendorUser._id, { permissions });
-      updatedCount++;
-      affectedUserIds.push(vendorUser._id.toString());
-      
-      console.log(`✅ BACKEND DEBUG: Updated vendor user ${vendorUser._id} with permissions:`, permissions);
-    }
-    
-    console.log(`✅ BACKEND DEBUG: Refreshed permissions for ${updatedCount} vendor users`);
-    console.log(`🔍 BACKEND DEBUG: Affected user IDs:`, affectedUserIds);
-    
-    res.json({ 
-      success: true, 
-      message: `Refreshed permissions for ${updatedCount} vendor users`,
-      updatedCount,
-      affectedUserIds
-    });
-  } catch (error) {
-    console.error('❌ BACKEND DEBUG: Error refreshing vendor user permissions:', error);
-    res.status(500);
-    throw new Error('Failed to refresh vendor user permissions');
-  }
-});
-
-// Invalidate specific vendor user tokens (force re-authentication for affected users)
-router.post('/invalidate-specific-tokens', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const { userIds } = req.body || {};
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      res.status(400);
-      throw new Error('userIds array is required');
-    }
-    
-    console.log('Invalidating tokens for specific users:', userIds);
-    
-    // Update specific vendor users to force token refresh
-    const invalidateTimestamp = new Date();
-    const result = await VendorUser.updateMany(
-      { _id: { $in: userIds } }, 
-      { 
-        $set: { 
-          tokenInvalidatedAt: invalidateTimestamp 
-        } 
-      }
-    );
-    
-    console.log(`Invalidated tokens for ${result.modifiedCount} vendor users at ${invalidateTimestamp}`);
-    res.json({ 
-      success: true, 
-      message: `Invalidated tokens for ${result.modifiedCount} vendor users`,
-      invalidatedCount: result.modifiedCount,
-      invalidatedAt: invalidateTimestamp
-    });
-  } catch (error) {
-    console.error('Error invalidating specific vendor user tokens:', error);
-    res.status(500);
-    throw new Error('Failed to invalidate specific vendor user tokens');
-  }
-});
-
-// Invalidate all vendor user tokens (force re-authentication) - kept for backward compatibility
-router.post('/invalidate-tokens', authenticate, requireAdmin, async (req, res) => {
-  try {
-    // Get all vendor users
-    const vendorUsers = await VendorUser.find({}).lean();
-    
-    // Update all vendor users to force token refresh
-    // We'll add a timestamp that will be checked during authentication
-    const invalidateTimestamp = new Date();
-    await VendorUser.updateMany({}, { 
-      $set: { 
-        tokenInvalidatedAt: invalidateTimestamp 
-      } 
-    });
-    
-    console.log(`Invalidated tokens for ${vendorUsers.length} vendor users at ${invalidateTimestamp}`);
-    res.json({ 
-      success: true, 
-      message: `Invalidated tokens for ${vendorUsers.length} vendor users`,
-      invalidatedCount: vendorUsers.length,
-      invalidatedAt: invalidateTimestamp
-    });
-  } catch (error) {
-    console.error('Error invalidating vendor user tokens:', error);
-    res.status(500);
-    throw new Error('Failed to invalidate vendor user tokens');
-  }
-});
-
-// Update all vendor users with fresh permissions
-router.post('/update-all-permissions', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const { roleId } = req.body || {};
-    console.log('🔄 WORKING: Updating permissions for role:', roleId);
-    
-    // Get all vendor users with their roles
-    const vendorUsers = await VendorUser.find({}).populate('roleRef').lean();
-    console.log(`🔄 WORKING: Found ${vendorUsers.length} vendor users to update`);
-    
-    let updatedCount = 0;
-    
-    for (const vendorUser of vendorUsers) {
-      let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
-      
-      // Add role permissions if roleRef exists
-      if (vendorUser.roleRef && vendorUser.roleRef.permissions) {
-        const rolePermissions = Array.isArray(vendorUser.roleRef.permissions) ? vendorUser.roleRef.permissions : [];
-        const allPermissions = [...permissions, ...rolePermissions];
-        permissions = [...new Set(allPermissions)]; // Remove duplicates
-      }
-      
-      // Update vendor user with fresh permissions
-      await VendorUser.findByIdAndUpdate(vendorUser._id, { permissions });
-      updatedCount++;
-      
-      console.log(`✅ WORKING: Updated ${vendorUser.name} (${vendorUser.email}) with permissions:`, permissions);
-    }
-    
-    console.log(`✅ WORKING: Successfully updated ${updatedCount} vendor users`);
-    
-    res.json({ 
-      success: true, 
-      message: `Updated permissions for ${updatedCount} vendor users`,
-      updatedCount
-    });
-  } catch (error) {
-    console.error('❌ WORKING: Error:', error);
-    res.status(500);
-    throw new Error('Failed to update permissions');
-  }
-});
-
-// Test endpoint to verify permission refresh is working
-router.get('/test-permissions', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const vendorUsers = await VendorUser.find({}).populate('roleRef').select('name email permissions roleRef').lean();
-    const testData = vendorUsers.map(vu => ({
-      id: vu._id,
-      name: vu.name,
-      email: vu.email,
-      permissions: vu.permissions,
-      roleName: vu.roleRef?.name || 'No Role',
-      rolePermissions: vu.roleRef?.permissions || []
-    }));
-    
-    res.json({ 
-      success: true, 
-      message: 'Permission test data',
-      vendorUsers: testData
-    });
-  } catch (error) {
-    console.error('Error in test endpoint:', error);
-    res.status(500);
-    throw new Error('Failed to get test data');
-  }
-});
+// Note: Legacy permission maintenance endpoints removed. Permissions are now derived at runtime from role assignment.
 
 module.exports = router;

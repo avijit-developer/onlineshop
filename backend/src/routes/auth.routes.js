@@ -73,13 +73,10 @@ router.post('/login', async (req, res) => {
     throw new Error('Vendor is not approved or is disabled');
   }
 
-  // Merge direct permissions with role permissions for immediate correctness
-  const roleDoc = vendorUserDoc.roleRef
-    ? await (await VendorUser.findById(vendorUserDoc._id).populate('roleRef').lean())?.roleRef
-    : null;
+  // Merge role permissions for immediate correctness
+  const populatedVu = await VendorUser.findById(vendorUserDoc._id).populate('roleRef').lean();
   const mergedPermissions = Array.from(new Set([...
-    (vendorUserDoc.permissions || []),
-    ...((roleDoc?.permissions) || [])
+    (Array.isArray(populatedVu?.roleRef?.permissions) ? populatedVu.roleRef.permissions : [])
   ]));
 
   const token = jwt.sign(

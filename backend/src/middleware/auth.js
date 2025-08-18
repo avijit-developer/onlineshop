@@ -69,15 +69,13 @@ const getUserPermissions = async (req) => {
     const vendorUser = await VendorUser.findById(req.user.id).populate('roleRef').lean();
     if (!vendorUser) return [];
 
-    const directPermissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
     const rolePermissions = Array.isArray(vendorUser?.roleRef?.permissions)
       ? vendorUser.roleRef.permissions
       : [];
 
     // Merge and de-duplicate
     return Array.from(new Set([...
-      directPermissions,
-      ...rolePermissions
+      rolePermissions
     ]));
   }
 
