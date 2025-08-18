@@ -23,11 +23,11 @@ const SliderBanner = () => {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/banners?page=1&limit=10`);
+        const res = await fetch(`${API_BASE}/api/v1/banners/public`);
         const json = await res.json();
         if (res.ok) {
-          const items = (json.data || []).map((b) => ({
-            id: b._id || String(b.id),
+          const items = (json.data || []).map((b, idx) => ({
+            id: b._id || String(b.id) || String(idx),
             title: b.title,
             subtitle: b.description || '',
             tag: b.linkText || '',

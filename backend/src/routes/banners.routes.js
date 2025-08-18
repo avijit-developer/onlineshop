@@ -4,7 +4,7 @@ const Banner = require('../models/Banner');
 
 const router = express.Router();
 
-// List banners with filters and pagination
+// List banners with filters and pagination (admin/vendor)
 router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   const { q = '', status = 'all', page = 1, limit = 10 } = req.query;
   const filters = {};
@@ -24,6 +24,28 @@ router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) 
     Banner.countDocuments(filters)
   ]);
   res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+});
+
+// Public banners: active and within date range
+router.get('/public', async (req, res) => {
+  const now = new Date();
+  const filters = {
+    isActive: true,
+    startDate: { $lte: now },
+    endDate: { $gte: now }
+  };
+  const items = await Banner.find(filters)
+    .sort({ position: 1, createdAt: -1 })
+    .select({
+      title: 1,
+      description: 1,
+      image: 1,
+      linkUrl: 1,
+      linkText: 1,
+      position: 1
+    })
+    .lean();
+  res.json({ success: true, data: items });
 });
 
 // Create banner (admin only)
