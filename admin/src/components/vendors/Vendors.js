@@ -24,6 +24,10 @@ const Vendors = () => {
   const currentUser = getCurrentUser();
   const userPerms = new Set(currentUser?.permissions || []);
   const isVendor = currentUser?.role === 'vendor';
+  const isAdmin = currentUser?.role === 'admin';
+  const has = (perm) => isAdmin || userPerms.has('*') || userPerms.has(perm);
+  const isAdmin = currentUser?.role === 'admin';
+  const has = (perm) => isAdmin || userPerms.has('*') || userPerms.has(perm);
 
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -345,7 +349,7 @@ const Vendors = () => {
         <h1>Vendor Management</h1>
         <div className="header-actions">
           <div className="view-toggle">
-            {((!isVendor && userPerms.has('vendor.add')) || (isVendor && userPerms.has('vendor.add'))) && (
+            {has('vendor.add') && (
               <button className="btn btn-primary" onClick={handleOpenAdd}>Add Vendor</button>
             )}
             {isVendor && (
@@ -437,7 +441,7 @@ const Vendors = () => {
                   </span>
                 </td>
                 <td>
-                  {(!isVendor && userPerms.has('vendor.edit')) || (isVendor && userPerms.has('vendor.edit')) ? (
+                  {has('vendor.edit') ? (
                     <label className="toggle-switch">
                       <input type="checkbox" checked={!!vendor.enabled} onChange={(e) => handleEnableToggle(vendor, e.target.checked)} />
                       <span className="slider" />
@@ -450,20 +454,17 @@ const Vendors = () => {
                 <td>
                   <div className="action-buttons">
                     <button title="View" onClick={() => viewProfile(vendor)} className="btn btn-secondary btn-sm">👁️</button>
-                    {vendor.status === 'pending' && !isVendor && userPerms.has('vendor.approve') && (
+                    {vendor.status === 'pending' && !isVendor && has('vendor.approve') && (
                       <>
                         <button title="Approve" onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')} className="btn btn-success btn-sm">✔️</button>
                         <button title="Reject" onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')} className="btn btn-danger btn-sm">✖️</button>
                       </>
                     )}
-                    {(!isVendor && userPerms.has('vendor.edit')) && (
+                    {has('vendor.edit') && (
                       <button title="Edit" onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">✏️</button>
                     )}
-                    {(!isVendor && userPerms.has('vendor.delete')) && (
+                    {has('vendor.delete') && (
                       <button title="Delete" onClick={() => handleDeleteVendor(vendor)} className="btn btn-danger btn-sm">🗑️</button>
-                    )}
-                    {isVendor && userPerms.has('vendor.edit') && (
-                      <button title="Edit" onClick={() => openEdit(vendor)} className="btn btn-info btn-sm">✏️</button>
                     )}
                   </div>
                 </td>
@@ -623,7 +624,7 @@ const Vendors = () => {
             <div className="modal-header">
               <h2>Vendor Profile</h2>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {selectedVendor?.status === 'pending' && !isVendor && userPerms.has('vendor.approve') && (
+                {selectedVendor?.status === 'pending' && !isVendor && has('vendor.approve') && (
                   <button onClick={() => handleStatusChange(selectedVendor._id || selectedVendor.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
                 )}
                 <button onClick={() => setShowProfileModal(false)} className="close-btn">&times;</button>
@@ -661,4 +662,4 @@ const Vendors = () => {
   );
 };
 
-export default Vendors; 
+export default Vendors;
