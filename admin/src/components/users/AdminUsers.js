@@ -335,7 +335,7 @@ const AdminUsers = () => {
                                 'products.view','products.add','products.edit','products.delete',
                                 'orders.view','orders.add','orders.edit','orders.delete',
                                 'reports.view',
-                                'vendor.view','vendor.add','vendor.edit','vendor.delete','vendor.approve'
+                                'vendor.add','vendor.edit','vendor.delete'
                               ];
                               setValue('permissions', selectAll ? all : []);
                             }}
@@ -375,7 +375,7 @@ const AdminUsers = () => {
                       <details>
                         <summary>Vendor</summary>
                         <div className="permissions-checkboxes">
-                          {['vendor.view','vendor.add','vendor.edit','vendor.delete','vendor.approve'].map(p => (
+                          {['vendor.add','vendor.edit','vendor.delete'].map(p => (
                             <label key={p} className="checkbox-label">
                               <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
                             </label>
