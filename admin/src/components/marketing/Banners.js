@@ -366,7 +366,7 @@ const Banners = () => {
         {getPaginatedData(getFilteredBanners()).map((banner) => (
           <div key={banner.id} className="banner-card">
             <div className="banner-image">
-              <img src={banner.imageUrl} alt={banner.title} />
+              <img src={banner.image || banner.imageUrl} alt={banner.title} />
               <div className="banner-overlay">
                 <div className="banner-actions">
                   <button
