@@ -375,15 +375,10 @@ const Banners = () => {
                   >
                     Edit
                   </button>
-                  <div className="checkbox-group">
-                    <input
-                      type="checkbox"
-                      id={`banner-enabled-${banner._id || banner.id}`}
-                      checked={!!banner.isActive}
-                      onChange={(e) => handleToggleStatus(banner, e.target.checked)}
-                    />
-                    <label htmlFor={`banner-enabled-${banner._id || banner.id}`}>{banner.isActive ? 'Enabled' : 'Disabled'}</label>
-                  </div>
+                  <label className="toggle-switch" title={banner.isActive ? 'Enabled' : 'Disabled'}>
+                    <input type="checkbox" checked={!!banner.isActive} onChange={(e) => handleToggleStatus(banner, e.target.checked)} />
+                    <span className="slider" />
+                  </label>
                   <button
                     onClick={() => handleDelete(banner.id)}
                     className="btn btn-danger btn-sm"
