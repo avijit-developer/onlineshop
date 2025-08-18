@@ -437,10 +437,14 @@ const Vendors = () => {
                   </span>
                 </td>
                 <td>
-                  <label className="toggle-switch">
-                    <input type="checkbox" checked={!!vendor.enabled} onChange={(e) => handleEnableToggle(vendor, e.target.checked)} />
-                    <span className="slider" />
-                  </label>
+                  {(!isVendor && userPerms.has('vendor.edit')) || (isVendor && userPerms.has('vendor.edit')) ? (
+                    <label className="toggle-switch">
+                      <input type="checkbox" checked={!!vendor.enabled} onChange={(e) => handleEnableToggle(vendor, e.target.checked)} />
+                      <span className="slider" />
+                    </label>
+                  ) : (
+                    <span>{vendor.enabled ? 'Yes' : 'No'}</span>
+                  )}
                 </td>
                 <td>{vendor.commission ?? 10}%</td>
                 <td>

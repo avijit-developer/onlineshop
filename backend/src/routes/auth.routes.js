@@ -139,14 +139,10 @@ router.get('/current-permissions', authenticate, async (req, res) => {
         throw new Error('Vendor user not found');
       }
 
-      let permissions = Array.isArray(vendorUser.permissions) ? vendorUser.permissions : [];
-      
-      // Add role permissions if roleRef exists
-      if (vendorUser.roleRef && vendorUser.roleRef.permissions) {
-        const rolePermissions = Array.isArray(vendorUser.roleRef.permissions) ? vendorUser.roleRef.permissions : [];
-        const allPermissions = [...permissions, ...rolePermissions];
-        permissions = [...new Set(allPermissions)]; // Remove duplicates
-      }
+      // Role-only permissions
+      const permissions = Array.isArray(vendorUser?.roleRef?.permissions)
+        ? vendorUser.roleRef.permissions
+        : [];
 
       console.log(`🔍 REAL-TIME: Vendor user ${req.user.id} (${vendorUser.email}) permissions:`, permissions);
       res.json({ 
@@ -154,8 +150,8 @@ router.get('/current-permissions', authenticate, async (req, res) => {
         permissions,
         role: 'vendor',
         roleName: vendorUser.roleRef?.name || 'No Role',
-        directPermissions: vendorUser.permissions || [],
-        rolePermissions: vendorUser.roleRef?.permissions || []
+        directPermissions: [],
+        rolePermissions: permissions
       });
     } else {
       res.status(400);
