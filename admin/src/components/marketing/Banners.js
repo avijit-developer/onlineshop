@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Banners.css';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Banners = () => {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,15 +37,22 @@ const Banners = () => {
     setCurrentPage(1);
   }, [searchTerm, filterStatus]);
 
+  const authHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' };
+  };
+
   const fetchBanners = async () => {
     try {
-      // Generate sample banners data
-      const sampleBanners = generateSampleBanners();
-      setBanners(sampleBanners);
-      setLoading(false);
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/banners?page=1&limit=100`, { headers: authHeaders() });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || 'Failed to load banners');
+      setBanners(json.data || []);
     } catch (error) {
       console.error('Error fetching banners:', error);
       toast.error('Failed to load banners');
+    } finally {
       setLoading(false);
     }
   };
@@ -104,69 +113,130 @@ const Banners = () => {
     ];
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (editingBanner) {
-      // Update existing banner
-      const updatedBanners = banners.map(banner => 
-        banner.id === editingBanner.id 
-          ? { ...formData, id: editingBanner.id, createdAt: editingBanner.createdAt, views: editingBanner.views, clicks: editingBanner.clicks }
-          : banner
-      );
-      setBanners(updatedBanners);
-      toast.success('Banner updated successfully');
-    } else {
-      // Add new banner
-      const newBanner = {
-        ...formData,
-        id: Date.now(),
-        views: 0,
-        clicks: 0,
-        createdAt: new Date().toISOString()
+    try {
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        imageUrl: formData.imageUrl,
+        linkUrl: formData.linkUrl,
+        linkText: formData.linkText,
+        position: formData.position,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        isActive: formData.isActive,
+        targetType: formData.targetType,
+        targetId: formData.targetId,
+        imagePublicId: formData.imagePublicId || ''
       };
-      setBanners([newBanner, ...banners]);
-      toast.success('Banner created successfully');
+      if (editingBanner) {
+        const res = await fetch(`${API_BASE}/api/v1/banners/${editingBanner._id || editingBanner.id}`, {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to update banner');
+        toast.success('Banner updated successfully');
+      } else {
+        const res = await fetch(`${API_BASE}/api/v1/banners`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to create banner');
+        toast.success('Banner created successfully');
+      }
+      setShowModal(false);
+      setEditingBanner(null);
+      resetForm();
+      fetchBanners();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save banner');
     }
-    
-    setShowModal(false);
-    setEditingBanner(null);
-    resetForm();
   };
 
   const handleEdit = (banner) => {
     setEditingBanner(banner);
-    setFormData(banner);
+    setFormData({
+      title: banner.title || '',
+      description: banner.description || '',
+      imageUrl: banner.image || banner.imageUrl || '',
+      imagePublicId: banner.imagePublicId || '',
+      linkUrl: banner.linkUrl || '',
+      linkText: banner.linkText || '',
+      position: banner.position || 1,
+      startDate: banner.startDate ? banner.startDate.substring(0,10) : '',
+      endDate: banner.endDate ? banner.endDate.substring(0,10) : '',
+      isActive: !!banner.isActive,
+      targetType: banner.targetType || 'none',
+      targetId: banner.targetId || ''
+    });
     setShowModal(true);
   };
 
-  const handleDelete = (bannerId) => {
-    if (window.confirm('Are you sure you want to delete this banner?')) {
-      const updatedBanners = banners.filter(banner => banner.id !== bannerId);
-      setBanners(updatedBanners);
+  const handleDelete = async (bannerId) => {
+    if (!window.confirm('Are you sure you want to delete this banner?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/banners/${bannerId}`, { method: 'DELETE', headers: authHeaders() });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to delete banner');
       toast.success('Banner deleted successfully');
+      fetchBanners();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete banner');
     }
   };
 
-  const handleToggleStatus = (bannerId) => {
-    const updatedBanners = banners.map(banner => 
-      banner.id === bannerId 
-        ? { ...banner, isActive: !banner.isActive }
-        : banner
-    );
-    setBanners(updatedBanners);
-    toast.success('Banner status updated');
+  const handleToggleStatus = async (banner) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/banners/${banner._id || banner.id}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ isActive: !banner.isActive })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to update banner');
+      toast.success('Banner status updated');
+      fetchBanners();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update banner');
+    }
   };
 
-  const handleImageUpload = (e) => {
+  const getUploadSignature = async () => {
+    const res = await fetch(`${API_BASE}/api/v1/uploads/signature`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ folder: 'banners' })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Failed to get upload signature');
+    return json.data;
+  };
+
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      // Simulate image upload
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFormData({...formData, imageUrl: e.target.result});
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    try {
+      const { signature, timestamp, folder, apiKey, cloudName } = await getUploadSignature();
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('api_key', apiKey);
+      fd.append('timestamp', String(timestamp));
+      fd.append('signature', signature);
+      fd.append('folder', folder);
+      fd.append('unique_filename', 'true');
+      fd.append('overwrite', 'false');
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message || 'Cloudinary upload failed');
+      setFormData(prev => ({ ...prev, imageUrl: json.secure_url, imagePublicId: json.public_id }));
+      toast.success('Image uploaded');
+    } catch (err) {
+      toast.error(err.message || 'Image upload failed');
     }
   };
 
@@ -301,7 +371,7 @@ const Banners = () => {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleToggleStatus(banner.id)}
+                    onClick={() => handleToggleStatus(banner)}
                     className={`btn btn-sm ${banner.isActive ? 'btn-warning' : 'btn-success'}`}
                   >
                     {banner.isActive ? 'Deactivate' : 'Activate'}
