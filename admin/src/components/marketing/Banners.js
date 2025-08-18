@@ -501,15 +501,6 @@ const Banners = () => {
                   )}
                 </div>
                 <div className="form-group">
-                  <label>Or Image URL</label>
-                  <input
-                    type="url"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </div>
-                <div className="form-group">
                   <label>Link URL</label>
                   <input
                     type="url"
