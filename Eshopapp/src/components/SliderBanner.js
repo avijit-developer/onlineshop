@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,37 +11,39 @@ import {
 
 const { width } = Dimensions.get('window');
 
-const data = [
-  {
-    id: '1',
-    title: 'Big Sale',
-    subtitle: 'Up to 50%',
-    tag: 'Happening Now',
-    image: '../assets/bag1',
-    bgColor: '#FFA726',
-  },
-  {
-    id: '2',
-    title: 'New Arrivals',
-    subtitle: 'Fresh Styles',
-    tag: 'Explore Now',
-    image: '../../',
-    bgColor: '#66BB6A',
-  },
-  {
-    id: '3',
-    title: 'Flash Deals',
-    subtitle: 'Limited Time',
-    tag: 'Don’t Miss',
-    image: 'https://via.placeholder.com/150x150.png?text=Sale+3',
-    bgColor: '#42A5F5',
-  },
-];
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || 'http://10.0.2.2:5000';
 
 const ITEM_WIDTH = width * 0.9;
 
 const SliderBanner = () => {
   const scrollX = useRef(new Animated.Value(0)).current;
+  const [banners, setBanners] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/banners?page=1&limit=10`);
+        const json = await res.json();
+        if (res.ok) {
+          const items = (json.data || []).map((b) => ({
+            id: b._id || String(b.id),
+            title: b.title,
+            subtitle: b.description || '',
+            tag: b.linkText || '',
+            image: b.image || b.imageUrl,
+            bgColor: '#42A5F5',
+          }));
+          setBanners(items);
+        }
+      } catch (e) {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBanners();
+  }, []);
 
   const renderItem = ({ item }) => (
     <View style={[styles.slide, { backgroundColor: item.bgColor }]}>
@@ -59,7 +61,7 @@ const SliderBanner = () => {
       <Animated.FlatList
         horizontal
         pagingEnabled
-        data={data}
+        data={banners}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         showsHorizontalScrollIndicator={false}
@@ -72,7 +74,7 @@ const SliderBanner = () => {
 
       {/* Pagination Dots */}
       <View style={styles.pagination}>
-        {data.map((_, i) => {
+        {banners.map((_, i) => {
           const inputRange = [(i - 1) * ITEM_WIDTH, i * ITEM_WIDTH, (i + 1) * ITEM_WIDTH];
           const dotWidth = scrollX.interpolate({
             inputRange,
