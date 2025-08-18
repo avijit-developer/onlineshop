@@ -325,6 +325,23 @@ const AdminUsers = () => {
                     </div>
                     <div className="form-group">
                       <label className="form-label">Permissions</label>
+                      <div style={{ marginBottom: 8 }}>
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            onChange={(e) => {
+                              const selectAll = e.target.checked;
+                              const all = [
+                                'products.view','products.add','products.edit','products.delete',
+                                'orders.view','orders.add','orders.edit','orders.delete',
+                                'reports.view',
+                                'vendor.view','vendor.add','vendor.edit','vendor.delete','vendor.approve'
+                              ];
+                              setValue('permissions', selectAll ? all : []);
+                            }}
+                          /> Select All
+                        </label>
+                      </div>
                       <details>
                         <summary>Products</summary>
                         <div className="permissions-checkboxes">

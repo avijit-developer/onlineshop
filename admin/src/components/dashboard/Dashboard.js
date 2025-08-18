@@ -26,6 +26,10 @@ const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState('daily');
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem('adminUser') || 'null'); } catch { return null; }
+  })();
+  const isVendor = currentUser?.role === 'vendor';
 
   useEffect(() => {
     loadDashboardData();
@@ -110,14 +114,18 @@ const Dashboard = () => {
           <h3>{stats.totalVendors}</h3>
           <p>Total Vendors</p>
         </div>
-        <div className="stat-card">
-          <h3>{stats.totalCustomers}</h3>
-          <p>Total Customers</p>
-        </div>
-        <div className="stat-card">
-          <h3>{stats.pendingApprovals}</h3>
-          <p>Pending Approvals</p>
-        </div>
+        {!isVendor && (
+          <div className="stat-card">
+            <h3>{stats.totalCustomers}</h3>
+            <p>Total Customers</p>
+          </div>
+        )}
+        {!isVendor && (
+          <div className="stat-card">
+            <h3>{stats.pendingApprovals}</h3>
+            <p>Pending Approvals</p>
+          </div>
+        )}
         <div className="stat-card">
           <h3>{stats.lowStockProducts}</h3>
           <p>Low Stock Products</p>
@@ -210,41 +218,43 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Pending Approvals */}
-        <div className="col-6">
-          <div className="card">
-            <h3>Pending Approvals</h3>
-            <div className="pending-approvals">
-              {/* Pending Vendors */}
-              {data.vendors.filter(v => v.status === 'pending').map(vendor => (
-                <div key={vendor.id} className="approval-item">
-                  <div className="approval-info">
-                    <strong>{vendor.companyName}</strong>
-                    <span>Vendor Application</span>
+        {/* Pending Approvals (hidden for vendor users) */}
+        {!isVendor && (
+          <div className="col-6">
+            <div className="card">
+              <h3>Pending Approvals</h3>
+              <div className="pending-approvals">
+                {/* Pending Vendors */}
+                {data.vendors.filter(v => v.status === 'pending').map(vendor => (
+                  <div key={vendor.id} className="approval-item">
+                    <div className="approval-info">
+                      <strong>{vendor.companyName}</strong>
+                      <span>Vendor Application</span>
+                    </div>
+                    <div className="approval-actions">
+                      <button className="btn btn-success btn-sm">Approve</button>
+                      <button className="btn btn-danger btn-sm">Reject</button>
+                    </div>
                   </div>
-                  <div className="approval-actions">
-                    <button className="btn btn-success btn-sm">Approve</button>
-                    <button className="btn btn-danger btn-sm">Reject</button>
+                ))}
+                
+                {/* Pending Products */}
+                {data.products.filter(p => p.status === 'pending').map(product => (
+                  <div key={product.id} className="approval-item">
+                    <div className="approval-info">
+                      <strong>{product.name}</strong>
+                      <span>Product Approval</span>
+                    </div>
+                    <div className="approval-actions">
+                      <button className="btn btn-success btn-sm">Approve</button>
+                      <button className="btn btn-danger btn-sm">Reject</button>
+                    </div>
                   </div>
-                </div>
-              ))}
-              
-              {/* Pending Products */}
-              {data.products.filter(p => p.status === 'pending').map(product => (
-                <div key={product.id} className="approval-item">
-                  <div className="approval-info">
-                    <strong>{product.name}</strong>
-                    <span>Product Approval</span>
-                  </div>
-                  <div className="approval-actions">
-                    <button className="btn btn-success btn-sm">Approve</button>
-                    <button className="btn btn-danger btn-sm">Reject</button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
