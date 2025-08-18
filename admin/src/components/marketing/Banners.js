@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import './Banners.css';
 
@@ -13,6 +13,7 @@ const Banners = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(8);
+  const fileInputRef = useRef(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -116,6 +117,10 @@ const Banners = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (!formData.imageUrl) {
+        toast.error('Please upload an image');
+        return;
+      }
       const payload = {
         title: formData.title,
         description: formData.description,
@@ -489,11 +494,20 @@ const Banners = () => {
                 <div className="form-group">
                   <label>Image Upload *</label>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handleImageUpload}
                     className="file-input"
+                    style={{ display: 'none' }}
                   />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                  >
+                    Upload Image
+                  </button>
                   {formData.imageUrl && (
                     <div className="image-preview">
                       <img src={formData.imageUrl} alt="Preview" />
