@@ -47,6 +47,13 @@ const SliderBanner = () => {
   const renderItem = ({ item }) => (
     <View style={styles.slide}>
       <Image source={{ uri: item.image }} style={styles.bannerImage} />
+      {(item.title || item.subtitle || item.tag) && (
+        <View style={styles.overlayTextContainer}>
+          {!!item.title && <Text style={styles.overlayTitle} numberOfLines={1}>{item.title}</Text>}
+          {!!item.subtitle && <Text style={styles.overlaySubtitle} numberOfLines={1}>{item.subtitle}</Text>}
+          {!!item.tag && <Text style={styles.overlayTag} numberOfLines={1}>{item.tag}</Text>}
+        </View>
+      )}
     </View>
   );
 
@@ -109,6 +116,37 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  overlayTextContainer: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    right: 12,
+    gap: 4,
+  },
+  overlayTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  overlaySubtitle: {
+    color: '#fff',
+    fontSize: 13,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  overlayTag: {
+    color: '#fff',
+    fontSize: 11,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.25)'
   },
   pagination: {
     flexDirection: 'row',
