@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const VendorUser = require('../models/VendorUser');
 const Vendor = require('../models/Vendor');
+const User = require('../models/User');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -53,10 +54,10 @@ router.post('/login', async (req, res) => {
 
   // Try Vendor User login
   const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').populate('vendors', '_id companyName enabled status').lean();
-  if (!vendorUser) { res.status(401); throw new Error('Invalid credentials'); }
-  const vendorUserDoc = await VendorUser.findOne({ email: normalizedEmail, isActive: true });
-  const ok = await bcrypt.compare(password, vendorUserDoc.passwordHash);
-  if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+  if (vendorUser) {
+    const vendorUserDoc = await VendorUser.findOne({ email: normalizedEmail, isActive: true });
+    const ok = await bcrypt.compare(password, vendorUserDoc.passwordHash);
+    if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
 
   // Migrate single vendor to vendors array if needed
   if (vendorUserDoc.vendor && (!vendorUserDoc.vendors || vendorUserDoc.vendors.length === 0)) {
@@ -92,20 +93,69 @@ router.post('/login', async (req, res) => {
     { expiresIn: getJwtExpiry() }
   );
 
-  return res.json({ 
-    success: true, 
-    token, 
-    user: { 
-      id: vendorUserDoc._id, 
-      name: vendorUserDoc.name, 
-      email: vendorUserDoc.email, 
-      role: 'vendor', 
-      vendorId: vendor._id, 
-      vendorCompany: vendor.companyName, 
-      vendors: vendorUserDoc.vendors,
-      permissions: mergedPermissions 
-    } 
-  });
+    return res.json({ 
+      success: true, 
+      token, 
+      user: { 
+        id: vendorUserDoc._id, 
+        name: vendorUserDoc.name, 
+        email: vendorUserDoc.email, 
+        role: 'vendor', 
+        vendorId: vendor._id, 
+        vendorCompany: vendor.companyName, 
+        vendors: vendorUserDoc.vendors,
+        permissions: mergedPermissions 
+      } 
+    });
+  }
+
+  // Fallback to customer login
+  const customer = await User.findOne({ email: normalizedEmail, isActive: true });
+  if (!customer || !customer.passwordHash) {
+    res.status(401);
+    throw new Error('Invalid credentials');
+  }
+  const ok = await bcrypt.compare(password, customer.passwordHash);
+  if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+
+  const token = jwt.sign(
+    { id: customer._id.toString(), role: 'customer', email: customer.email },
+    getJwtSecret(),
+    { expiresIn: getJwtExpiry() }
+  );
+
+  return res.json({ success: true, token, user: { id: customer._id, name: customer.name, email: customer.email, role: 'customer' } });
+});
+
+// Public customer registration
+router.post('/register', async (req, res) => {
+  const { name, email, password } = req.body || {};
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error('name, email and password are required');
+  }
+  if (!isValidEmail(email)) {
+    res.status(400);
+    throw new Error('Invalid email format');
+  }
+  if (String(password).length < 6) {
+    res.status(400);
+    throw new Error('Password must be at least 6 characters');
+  }
+
+  const exists = await User.findOne({ email: email.trim().toLowerCase() }).lean();
+  if (exists) { res.status(409); throw new Error('Email already in use'); }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const created = await User.create({ name: String(name).trim(), email: String(email).trim().toLowerCase(), passwordHash });
+
+  const token = jwt.sign(
+    { id: created._id.toString(), role: 'customer', email: created.email },
+    getJwtSecret(),
+    { expiresIn: getJwtExpiry() }
+  );
+
+  res.status(201).json({ success: true, token, user: { id: created._id, name: created.name, email: created.email, role: 'customer' } });
 });
 
 router.get('/me', authenticate, requireAdmin, async (req, res) => {
