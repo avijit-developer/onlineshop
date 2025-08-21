@@ -24,16 +24,20 @@ const MostPopularSection = ({ navigation }) => {
   const fetchSectionData = async () => {
     try {
       setLoading(true);
+      console.log('MostPopularSection: Fetching homepage sections...');
       const response = await api.getHomePageSections();
+      console.log('MostPopularSection: API response:', response);
       if (response.success) {
         const mostPopularSection = response.data.find(section => section.name === 'most-popular');
+        console.log('MostPopularSection: Found section:', mostPopularSection);
         if (mostPopularSection && mostPopularSection.isActive) {
           setSectionConfig(mostPopularSection);
           setProducts(mostPopularSection.products || []);
+          console.log('MostPopularSection: Set products:', mostPopularSection.products?.length || 0);
         }
       }
     } catch (error) {
-      console.error('Failed to fetch most popular products:', error);
+      console.error('MostPopularSection: Failed to fetch:', error);
     } finally {
       setLoading(false);
     }
@@ -81,8 +85,21 @@ const MostPopularSection = ({ navigation }) => {
     );
   }
 
-  if (!sectionConfig || !sectionConfig.isActive || products.length === 0) {
+  if (!sectionConfig || !sectionConfig.isActive) {
+    console.log('MostPopularSection: Section not active or not found');
     return null;
+  }
+
+  if (products.length === 0) {
+    console.log('MostPopularSection: No products found, showing empty state');
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Most Popular</Text>
+        </View>
+        <Text style={{ textAlign: 'center', color: '#666', padding: 20 }}>No products available</Text>
+      </View>
+    );
   }
 
   return (
