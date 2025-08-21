@@ -30,24 +30,27 @@ const BestSellerSection = ({ navigation }) => {
     }
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
-    >
-      <Image
-        source={{ uri: item.images && item.images[0] }}
-        style={styles.image}
-        defaultSource={require('../assets/Placeholder_01.png')}
-      />
-      <View style={styles.cardFooter}>
-        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        {sectionConfig?.settings?.showPrice && (
-          <Text style={styles.price}>₹{item.price}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+  const renderItem = ({ item }) => {
+    const price = (item.specialPrice ?? item.regularPrice ?? item.price);
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
+      >
+        <Image
+          source={{ uri: item.images && item.images[0] }}
+          style={styles.image}
+          defaultSource={require('../assets/Placeholder_01.png')}
+        />
+        <View style={styles.cardFooter}>
+          <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+          {sectionConfig?.settings?.showPrice && price != null && (
+            <Text style={styles.price}>₹{price}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (

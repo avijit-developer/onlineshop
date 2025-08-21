@@ -39,7 +39,9 @@ const MostPopularSection = ({ navigation }) => {
     }
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }) => {
+    const price = (item.specialPrice ?? item.regularPrice ?? item.price);
+    return (
     <View style={{ marginBottom: 5 }}>
       <TouchableOpacity 
         style={styles.card}
@@ -57,13 +59,14 @@ const MostPopularSection = ({ navigation }) => {
           <View style={styles.likes}>
             <Text style={styles.likesText}>{item.rating || 0}</Text>
           </View>
-          {sectionConfig?.settings?.showTags && (
-            <Text style={styles.tag}>Hot</Text>
+          {price != null && sectionConfig?.settings?.showPrice && (
+            <Text style={styles.tag}>₹{price}</Text>
           )}
         </View>
       </TouchableOpacity>
     </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
