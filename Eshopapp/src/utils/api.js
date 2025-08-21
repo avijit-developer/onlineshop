@@ -11,12 +11,14 @@ const api = {
   async request(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
     
+    // Ensure headers are merged correctly and not overwritten by spreading options
+    const { headers: optionHeaders, ...restOptions } = options || {};
     const config = {
+      ...restOptions,
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(optionHeaders || {}),
       },
-      ...options,
     };
 
     try {
