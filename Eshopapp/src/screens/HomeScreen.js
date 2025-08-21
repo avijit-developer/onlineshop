@@ -18,6 +18,7 @@ import AllCategories from '../components/AllCategories';
 import CategoriesGrid from '../components/CategoriesGrid';
 import MostPopularSection from '../components/MostPopularSection';
 import JustForYou from '../components/JustForYou';
+import BestSellerSection from '../components/BestSellerSection';
 
 
 const HomeScreen = ({ navigation }) => {
@@ -60,6 +61,7 @@ const HomeScreen = ({ navigation }) => {
         <AllCategories />
         <RecentView />
         <MostPopularSection navigation={navigation} />
+        <BestSellerSection navigation={navigation} />
         <CategoriesGrid />
         <JustForYou navigation={navigation} />
       </ScrollView>
