@@ -13,7 +13,9 @@ const Customers = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
   const [customerOrders, setCustomerOrders] = useState([]);
+  const [customerAddresses, setCustomerAddresses] = useState([]);
   const [orders, setOrders] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [products, setProducts] = useState([]);
@@ -139,6 +141,29 @@ const Customers = () => {
     }
   };
 
+  const viewAddresses = async (customer) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+      
+      const res = await fetch(`${API_BASE}/api/v1/users/${customer.id}/addresses`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.message || 'Failed to load addresses');
+      }
+      
+      setCustomerAddresses(Array.isArray(json?.data) ? json.data : []);
+      setSelectedCustomer(customer);
+      setShowAddressModal(true);
+    } catch (error) {
+      toast.error('Failed to load addresses');
+    }
+  };
+
   const getVendorName = (vendorId) => {
     const vendor = vendors.find(v => v.id === vendorId);
     return vendor ? vendor.companyName : 'Unknown Vendor';
@@ -251,6 +276,12 @@ const Customers = () => {
                         Orders
                       </button>
                       <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => viewAddresses(customer)}
+                      >
+                        Addresses
+                      </button>
+                      <button
                         className={`btn btn-sm ${customer.status === 'active' ? 'btn-warning' : 'btn-success'}`}
                         onClick={() => handleStatusChange(customer.id, customer.status === 'active' ? 'inactive' : 'active')}
                       >
@@ -311,10 +342,10 @@ const Customers = () => {
                   <strong>Email:</strong> {selectedCustomer.email}
                 </div>
                 <div className="detail-row">
-                  <strong>Phone:</strong> {selectedCustomer.phone}
+                  <strong>Phone:</strong> {selectedCustomer.phone || '-'}
                 </div>
                 <div className="detail-row">
-                  <strong>Address:</strong> {selectedCustomer.address}
+                  <strong>Address:</strong> {selectedCustomer.address || '-'}
                 </div>
                 <div className="detail-row">
                   <strong>Status:</strong> 
@@ -323,16 +354,16 @@ const Customers = () => {
                   </span>
                 </div>
                 <div className="detail-row">
-                  <strong>Total Orders:</strong> {selectedCustomer.totalOrders}
+                  <strong>Total Orders:</strong> {Number(selectedCustomer.totalOrders || 0)}
                 </div>
                 <div className="detail-row">
-                  <strong>Total Spent:</strong> ${selectedCustomer.totalSpent.toLocaleString()}
+                  <strong>Total Spent:</strong> ${Number(selectedCustomer.totalSpent || 0).toLocaleString()}
                 </div>
                 <div className="detail-row">
-                  <strong>Joined:</strong> {new Date(selectedCustomer.createdAt).toLocaleDateString()}
+                  <strong>Joined:</strong> {selectedCustomer.createdAt ? new Date(selectedCustomer.createdAt).toLocaleDateString() : '-'}
                 </div>
                 <div className="detail-row">
-                  <strong>Last Login:</strong> {new Date(selectedCustomer.lastLogin).toLocaleDateString()}
+                  <strong>Last Login:</strong> {selectedCustomer.lastLogin ? new Date(selectedCustomer.lastLogin).toLocaleDateString() : '-'}
                 </div>
               </div>
             </div>
@@ -378,6 +409,46 @@ const Customers = () => {
                 </div>
               ) : (
                 <p>No orders found for this customer.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Addresses Modal */}
+      {showAddressModal && selectedCustomer && (
+        <div className="modal-overlay" onClick={() => setShowAddressModal(false)}>
+          <div className="modal modal-large" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Addresses - {selectedCustomer.name}</h3>
+              <button className="modal-close" onClick={() => setShowAddressModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {customerAddresses.length > 0 ? (
+                <div className="address-list">
+                  {customerAddresses.map((address, index) => (
+                    <div key={index} className="address-item">
+                      <div className="address-header">
+                        <strong>{address.label}</strong>
+                        {address.isDefault && (
+                          <span className="badge badge-success">Default</span>
+                        )}
+                      </div>
+                      <div className="address-details">
+                        <div><strong>{address.name}</strong></div>
+                        <div>{address.address}</div>
+                        <div>{address.city}, {address.state} {address.zipCode}</div>
+                        <div>{address.country}</div>
+                        {address.phone && <div>Phone: {address.phone}</div>}
+                        {address.location?.coordinates && (
+                          <div>Location: {address.location.coordinates[1].toFixed(6)}, {address.location.coordinates[0].toFixed(6)}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No addresses found for this customer.</p>
               )}
             </div>
           </div>

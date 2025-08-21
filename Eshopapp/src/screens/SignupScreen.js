@@ -11,6 +11,8 @@ import {
   Platform,
 } from 'react-native';
 import { useUser } from '../contexts/UserContext';
+import api from '../utils/api';
+import { requestLocationAndGetAddress } from '../utils/locationUtils';
 
 const SignupScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -89,16 +91,35 @@ const SignupScreen = ({ navigation }) => {
       const result = await register(userData);
       
       if (result.success) {
-        Alert.alert(
-          'Success',
-          'Account created successfully! Welcome to our app.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.replace('Home'),
-            },
-          ]
-        );
+        // Ask location and save default address
+        try {
+          const location = await requestLocationAndGetAddress();
+          const authToken = await AsyncStorage.getItem('authToken');
+          if (location && authToken) {
+            const addressPayload = {
+              label: 'Home',
+              name: `${String(formData.firstName || '').trim()} ${String(formData.lastName || '').trim()}`.trim().replace(/\s+/g, ' '),
+              address: location.address,
+              city: '',
+              state: '',
+              zipCode: '',
+              country: 'United States',
+              isDefault: true,
+              location: {
+                type: 'Point',
+                coordinates: [
+                  Number(location.longitude),
+                  Number(location.latitude)
+                ]
+              }
+            };
+            await api.addMyAddress(authToken, addressPayload);
+          }
+        } catch (e) {
+          // Non-blocking if address save fails
+          console.log('Address save after signup failed:', e?.message);
+        }
+        navigation.replace('Home');
       } else {
         Alert.alert('Registration Failed', result.error || 'Please try again');
       }

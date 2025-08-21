@@ -54,6 +54,17 @@ const api = {
     });
   },
 
+  // Customer self addresses
+  async addMyAddress(token, address) {
+    return this.request('/api/v1/users/me/addresses', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(address),
+    });
+  },
+
   async forgotPassword(email) {
     return this.request('/api/v1/auth/forgot-password', {
       method: 'POST',
