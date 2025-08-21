@@ -7,9 +7,13 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -22,28 +26,33 @@ const Customers = () => {
   const [vendors, setVendors] = useState([]);
   const [products, setProducts] = useState([]);
   
-  const itemsPerPage = 10;
   const { register, handleSubmit, watch, reset } = useForm();
-  
-  const searchTerm = watch('search', '');
-  const statusFilter = watch('status', '');
 
   useEffect(() => {
-    loadData();
+    fetchData();
   }, []);
 
   useEffect(() => {
-    filterCustomers();
-  }, [customers, searchTerm, statusFilter]);
+    fetchData();
+  }, [currentPage, itemsPerPage, statusFilter, appliedSearchTerm]);
 
-  const loadData = async () => {
+  const fetchData = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('adminToken');
       if (!token) {
         setLoading(false);
         return;
       }
-      const url = new URL(`${API_BASE}/api/v1/users`);
+
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (appliedSearchTerm) params.append('q', appliedSearchTerm);
+      if (statusFilter) params.append('status', statusFilter);
+      params.append('page', String(currentPage));
+      params.append('limit', String(itemsPerPage));
+
+      const url = new URL(`${API_BASE}/api/v1/users?${params.toString()}`);
       const res = await fetch(url.toString(), {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -53,7 +62,10 @@ const Customers = () => {
       if (!res.ok) {
         throw new Error(json?.message || 'Failed to load customers');
       }
+
       const list = Array.isArray(json?.data) ? json.data : [];
+      const total = json?.meta?.total || 0;
+      
       // Map backend users to UI fields
       const mapped = list.map(u => ({
         id: u._id || u.id,
@@ -67,7 +79,9 @@ const Customers = () => {
         lastLogin: u.updatedAt || u.createdAt || new Date().toISOString(),
         address: u.address || '-'
       }));
+
       setCustomers(mapped);
+      setTotalCount(total);
       setOrders([]);
       setVendors([]);
       setProducts([]);
@@ -77,27 +91,6 @@ const Customers = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterCustomers = () => {
-    let filtered = [...customers];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(customer =>
-        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone.includes(searchTerm)
-      );
-    }
-
-    // Status filter
-    if (statusFilter) {
-      filtered = filtered.filter(customer => customer.status === statusFilter);
-    }
-
-    setFilteredCustomers(filtered);
-    setCurrentPage(1);
   };
 
   const handleStatusChange = async (customerId, newStatus) => {
@@ -117,9 +110,8 @@ const Customers = () => {
         throw new Error(json?.message || 'Failed to update status');
       }
       
-      setCustomers(prev => prev.map(customer =>
-        customer.id === customerId ? { ...customer, status: newStatus } : customer
-      ));
+      // Refresh the data after status change
+      await fetchData();
       
       toast.success(`Customer ${newStatus === 'active' ? 'enabled' : 'disabled'} successfully`);
     } catch (error) {
@@ -208,8 +200,8 @@ const Customers = () => {
         throw new Error(json?.message || 'Failed to delete customer');
       }
 
-      // Remove customer from the list
-      setCustomers(prev => prev.filter(customer => customer.id !== customerId));
+      // Refresh the data after deletion
+      await fetchData();
       setCustomerToDelete(null);
       toast.success(`Customer "${customerName}" deleted successfully`);
     } catch (error) {
@@ -228,10 +220,8 @@ const Customers = () => {
   };
 
   // Pagination
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentCustomers = filteredCustomers.slice(startIndex, endIndex);
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+  const currentCustomers = customers; // Customers are already paginated by API
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -255,25 +245,58 @@ const Customers = () => {
             type="text"
             className="form-control"
             placeholder="Search by name, email, or phone..."
-            {...register('search')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="form-group">
-          <select className="form-control" {...register('status')}>
+          <select 
+            className="form-control" 
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+          >
             <option value="">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
         </div>
         <button 
-          className="btn btn-secondary"
-          onClick={() => {
-            reset();
-            setFilteredCustomers(customers);
-          }}
+          className="btn btn-primary"
+          onClick={() => { setAppliedSearchTerm(searchTerm); setCurrentPage(1); }}
         >
-          Clear Filters
+          Search
         </button>
+        {(searchTerm || statusFilter) && (
+          <button 
+            className="btn btn-secondary"
+            onClick={() => {
+              setSearchTerm('');
+              setAppliedSearchTerm('');
+              setStatusFilter('');
+              setCurrentPage(1);
+            }}
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="stats-cards">
+        <div className="stat-card">
+          <h3>Total Customers</h3>
+          <p>{totalCount}</p>
+        </div>
+        <div className="stat-card">
+          <h3>Showing</h3>
+          <p>{customers.length} of {totalCount}</p>
+        </div>
+        {appliedSearchTerm && (
+          <div className="stat-card">
+            <h3>Search Results</h3>
+            <p>Showing filtered results for: "{appliedSearchTerm}"</p>
+          </div>
+        )}
       </div>
 
       {/* Customers Table */}
@@ -357,34 +380,52 @@ const Customers = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </button>
-            
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={currentPage === page ? 'active' : ''}
-              >
-                {page}
-              </button>
-            ))}
-            
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </button>
-          </div>
-        )}
+        {/* Pagination (API-based) */}
+        <div className="pagination">
+          <button 
+            onClick={() => { setCurrentPage(1); }}  
+            disabled={currentPage === 1} 
+            className="btn btn-secondary"
+          >
+            First
+          </button>
+          <button 
+            onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); }}  
+            disabled={currentPage === 1} 
+            className="btn btn-secondary"
+          >
+            Prev
+          </button>
+          <span className="page-info">Page {currentPage} of {totalPages}</span>
+          <button 
+            onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); }}  
+            disabled={currentPage >= totalPages} 
+            className="btn btn-secondary"
+          >
+            Next
+          </button>
+          <button 
+            onClick={() => { setCurrentPage(totalPages); }}  
+            disabled={currentPage >= totalPages} 
+            className="btn btn-secondary"
+          >
+            Last
+          </button>
+          <select 
+            value={itemsPerPage} 
+            onChange={(e) => { 
+              const newLimit = Number(e.target.value) || 10;
+              setItemsPerPage(newLimit);
+              setCurrentPage(1);
+            }} 
+            className="page-size-select" 
+            style={{ marginLeft: 8 }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
       </div>
 
       {/* Customer Details Modal */}
