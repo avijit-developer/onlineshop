@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import './Customers.css';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
@@ -32,12 +34,39 @@ const Customers = () => {
 
   const loadData = async () => {
     try {
-      const response = await fetch('/data.json');
-      const data = await response.json();
-      setCustomers(data.users.customers);
-      setOrders(data.orders);
-      setVendors(data.vendors);
-      setProducts(data.products);
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      const url = new URL(`${API_BASE}/api/v1/users`);
+      const res = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.message || 'Failed to load customers');
+      }
+      const list = Array.isArray(json?.data) ? json.data : [];
+      // Map backend users to UI fields
+      const mapped = list.map(u => ({
+        id: u._id || u.id,
+        name: u.name,
+        email: u.email,
+        phone: u.phone || '-',
+        status: u.isActive === false ? 'inactive' : 'active',
+        totalOrders: u.totalOrders || 0,
+        totalSpent: u.totalSpent || 0,
+        createdAt: u.createdAt || new Date().toISOString(),
+        lastLogin: u.updatedAt || u.createdAt || new Date().toISOString(),
+        address: u.address || '-'
+      }));
+      setCustomers(mapped);
+      setOrders([]);
+      setVendors([]);
+      setProducts([]);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load customers data');
@@ -69,8 +98,20 @@ const Customers = () => {
 
   const handleStatusChange = async (customerId, newStatus) => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+      const res = await fetch(`${API_BASE}/api/v1/users/${customerId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ isActive: newStatus === 'active' })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.message || 'Failed to update status');
+      }
       
       setCustomers(prev => prev.map(customer =>
         customer.id === customerId ? { ...customer, status: newStatus } : customer
