@@ -49,6 +49,23 @@
   flex-wrap: wrap;
 }
 
+.action-buttons .btn {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
 /* Customer details modal */
 .customer-details {
   display: flex;
@@ -163,9 +180,13 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 20px;
+}
+
+.modal-footer .btn {
+  min-width: 80px;
 }
 
 /* Responsive */

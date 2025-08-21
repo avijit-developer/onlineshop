@@ -14,6 +14,8 @@ const Customers = () => {
   const [showModal, setShowModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
   const [customerAddresses, setCustomerAddresses] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -189,6 +191,32 @@ const Customers = () => {
     }
   };
 
+  const deleteCustomer = async (customerId, customerName) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE}/api/v1/users/${customerId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.message || 'Failed to delete customer');
+      }
+
+      // Remove customer from the list
+      setCustomers(prev => prev.filter(customer => customer.id !== customerId));
+      setCustomerToDelete(null);
+      toast.success(`Customer "${customerName}" deleted successfully`);
+    } catch (error) {
+      toast.error('Failed to delete customer');
+    }
+  };
+
   const getVendorName = (vendorId) => {
     const vendor = vendors.find(v => v.id === vendorId);
     return vendor ? vendor.companyName : 'Unknown Vendor';
@@ -311,6 +339,15 @@ const Customers = () => {
                         onClick={() => handleStatusChange(customer.id, customer.status === 'active' ? 'inactive' : 'active')}
                       >
                         {customer.status === 'active' ? 'Disable' : 'Enable'}
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => {
+                          setCustomerToDelete(customer);
+                          setShowDeleteModal(true);
+                        }}
+                      >
+                        Delete
                       </button>
                     </div>
                   </td>
@@ -488,6 +525,28 @@ const Customers = () => {
               ) : (
                 <p>No addresses found for this customer.</p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && customerToDelete && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Confirm Deletion</h3>
+              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete customer "{customerToDelete.name}"? This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={() => {
+                deleteCustomer(customerToDelete.id, customerToDelete.name);
+                setShowDeleteModal(false);
+              }}>Delete</button>
             </div>
           </div>
         </div>

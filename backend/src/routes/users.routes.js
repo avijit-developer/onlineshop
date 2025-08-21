@@ -76,6 +76,24 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
   res.json({ success: true, data: updated });
 });
 
+// Admin: delete customer
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  
+  const user = await User.findById(id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  // Check if user has any orders or other dependencies before deletion
+  // For now, we'll allow deletion but you might want to add checks here
+  // such as checking for orders, reviews, etc.
+
+  await User.findByIdAndDelete(id);
+  res.json({ success: true, message: 'Customer deleted successfully' });
+});
+
 // Customer (self): get my addresses
 router.get('/me/addresses', authenticate, requireRole(['customer']), async (req, res) => {
   const user = await User.findById(req.user.id).select('addresses').lean();
