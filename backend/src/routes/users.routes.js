@@ -76,6 +76,49 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
   res.json({ success: true, data: updated });
 });
 
+// Customer (self): get my addresses
+router.get('/me/addresses', authenticate, requireRole(['customer']), async (req, res) => {
+  const user = await User.findById(req.user.id).select('addresses').lean();
+  if (!user) { res.status(404); throw new Error('User not found'); }
+  res.json({ success: true, data: user.addresses || [] });
+});
+
+// Customer (self): add address
+router.post('/me/addresses', authenticate, requireRole(['customer']), async (req, res) => {
+  console.log('Customer add address - user:', req.user);
+  console.log('Customer add address - body:', req.body);
+  
+  const addressData = req.body || {};
+  if (!addressData.label || !addressData.address) {
+    res.status(400);
+    throw new Error('label and address are required');
+  }
+  const user = await User.findById(req.user.id);
+  if (!user) { res.status(404); throw new Error('User not found'); }
+  if (!user.addresses || user.addresses.length === 0) {
+    addressData.isDefault = true;
+  }
+  if (addressData.isDefault) {
+    user.addresses.forEach(addr => addr.isDefault = false);
+  }
+  user.addresses.push(addressData);
+  await user.save();
+  res.status(201).json({ success: true, data: user.addresses });
+});
+
+// Customer (self): set default address
+router.patch('/me/addresses/:addressId/default', authenticate, requireRole(['customer']), async (req, res) => {
+  const { addressId } = req.params;
+  const user = await User.findById(req.user.id);
+  if (!user) { res.status(404); throw new Error('User not found'); }
+  const idx = user.addresses.findIndex(a => a._id.toString() === addressId);
+  if (idx === -1) { res.status(404); throw new Error('Address not found'); }
+  user.addresses.forEach(addr => addr.isDefault = false);
+  user.addresses[idx].isDefault = true;
+  await user.save();
+  res.json({ success: true, data: user.addresses });
+});
+
 // Admin: get customer addresses
 router.get('/:id/addresses', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
