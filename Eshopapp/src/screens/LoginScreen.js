@@ -12,12 +12,14 @@ import {
   Platform,
 } from 'react-native';
 import { useLocation } from '../contexts/LocationContext';
+import { useUser } from '../contexts/UserContext';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { requestLocation, isLoading: locationLoading } = useLocation();
+  const { login } = useUser();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -28,28 +30,31 @@ const LoginScreen = ({ navigation }) => {
     setIsLoggingIn(true);
     
     try {
-      // Simulate login API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await login(email, password);
       
-      // After successful login, request location
-      Alert.alert(
-        'Location Access',
-        'To provide you with better shopping experience, we need access to your location to show nearby stores and delivery options.',
-        [
-          {
-            text: 'Skip',
-            style: 'cancel',
-            onPress: () => navigation.replace('Home'),
-          },
-          {
-            text: 'Allow Location',
-            onPress: async () => {
-              await requestLocation();
-              navigation.replace('Home');
+      if (result.success) {
+        // After successful login, request location
+        Alert.alert(
+          'Location Access',
+          'To provide you with better shopping experience, we need access to your location to show nearby stores and delivery options.',
+          [
+            {
+              text: 'Skip',
+              style: 'cancel',
+              onPress: () => navigation.replace('Home'),
             },
-          },
-        ]
-      );
+            {
+              text: 'Allow Location',
+              onPress: async () => {
+                await requestLocation();
+                navigation.replace('Home');
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Login Failed', result.error || 'Please check your credentials and try again');
+      }
     } catch (error) {
       Alert.alert('Login Failed', 'Please check your credentials and try again');
     } finally {

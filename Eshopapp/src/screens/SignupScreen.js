@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useUser } from '../contexts/UserContext';
 
 const SignupScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -21,6 +22,7 @@ const SignupScreen = ({ navigation }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const { register } = useUser();
 
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -77,20 +79,35 @@ const SignupScreen = ({ navigation }) => {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const userData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+      };
+
+      const result = await register(userData);
+      
+      if (result.success) {
+        Alert.alert(
+          'Success',
+          'Account created successfully! Welcome to our app.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.replace('Home'),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Registration Failed', result.error || 'Please try again');
+      }
+    } catch (error) {
+      Alert.alert('Registration Failed', 'Please try again');
+    } finally {
       setIsLoading(false);
-      Alert.alert(
-        'Success',
-        'Account created successfully! Please sign in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Login'),
-          },
-        ]
-      );
-    }, 2000);
+    }
   };
 
   return (
@@ -203,26 +220,6 @@ const SignupScreen = ({ navigation }) => {
             <Text style={styles.signupButtonText}>
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </Text>
-          </TouchableOpacity>
-
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity
-            style={styles.socialButton}
-            onPress={() => Alert.alert('Info', 'Google Sign Up not implemented yet')}
-          >
-            <Text style={styles.socialButtonText}>Sign up with Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.socialButton}
-            onPress={() => Alert.alert('Info', 'Facebook Sign Up not implemented yet')}
-          >
-            <Text style={styles.socialButtonText}>Sign up with Facebook</Text>
           </TouchableOpacity>
         </View>
 
@@ -345,36 +342,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#ddd',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#999',
-    fontSize: 14,
-  },
-  socialButton: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: '#fff',
-  },
-  socialButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '500',
   },
   loginContainer: {
     flexDirection: 'row',

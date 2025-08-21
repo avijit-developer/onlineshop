@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../utils/api';
 
 const UserContext = createContext();
 
@@ -11,13 +13,9 @@ export const useUser = () => {
 };
 
 export const UserProvider = ({ children }) => {
-  const [user, setUser] = useState({
-    id: '1',
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 234 567 8900',
-    avatar: 'https://i.pravatar.cc/100',
-  });
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [orders, setOrders] = useState([
     {
@@ -96,6 +94,83 @@ export const UserProvider = ({ children }) => {
     }
   ]);
 
+  // Load stored token and user data on app start
+  useEffect(() => {
+    loadStoredAuth();
+  }, []);
+
+  const loadStoredAuth = async () => {
+    try {
+      const storedToken = await AsyncStorage.getItem('authToken');
+      const storedUser = await AsyncStorage.getItem('userData');
+      
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error('Error loading stored auth:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (email, password) => {
+    try {
+      const response = await api.login(email, password);
+      
+      const { token: authToken, user: userData } = response;
+      
+      // Store token and user data
+      await AsyncStorage.setItem('authToken', authToken);
+      await AsyncStorage.setItem('userData', JSON.stringify(userData));
+      
+      setToken(authToken);
+      setUser(userData);
+      
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message || 'Login failed' 
+      };
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await api.register(userData);
+      
+      const { token: authToken, user: newUser } = response;
+      
+      // Store token and user data
+      await AsyncStorage.setItem('authToken', authToken);
+      await AsyncStorage.setItem('userData', JSON.stringify(newUser));
+      
+      setToken(authToken);
+      setUser(newUser);
+      
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message || 'Registration failed' 
+      };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('userData');
+      
+      setToken(null);
+      setUser(null);
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+
   const updateUser = (userData) => {
     setUser(prevUser => ({ ...prevUser, ...userData }));
   };
@@ -144,8 +219,13 @@ export const UserProvider = ({ children }) => {
 
   const value = {
     user,
+    token,
+    isLoading,
     orders,
     addresses,
+    login,
+    register,
+    logout,
     updateUser,
     addOrder,
     addAddress,
