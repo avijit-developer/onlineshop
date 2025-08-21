@@ -51,10 +51,16 @@ const requireAdmin = (req, res, next) => {
 };
 
 const requireRole = (roles) => (req, res, next) => {
+  console.log('requireRole - checking roles:', roles);
+  console.log('requireRole - user:', req.user);
+  console.log('requireRole - user role:', req.user?.role);
+  
   if (!req.user || !roles.includes(req.user.role)) {
+    console.log('requireRole - access denied');
     res.status(403);
     return next(new Error('Insufficient permissions'));
   }
+  console.log('requireRole - access granted');
   return next();
 };
 

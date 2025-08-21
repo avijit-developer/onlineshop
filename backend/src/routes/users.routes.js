@@ -185,6 +185,9 @@ router.get('/me/addresses', authenticate, requireRole(['customer']), async (req,
 
 // Customer (self): add address
 router.post('/me/addresses', authenticate, requireRole(['customer']), async (req, res) => {
+  console.log('Customer add address - user:', req.user);
+  console.log('Customer add address - body:', req.body);
+  
   const addressData = req.body || {};
   if (!addressData.label || !addressData.address) {
     res.status(400);
