@@ -81,8 +81,7 @@ const SignupScreen = ({ navigation }) => {
 
     try {
       const userData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        name: `${String(formData.firstName || '').trim()} ${String(formData.lastName || '').trim()}`.trim().replace(/\s+/g, ' '),
         email: formData.email,
         password: formData.password,
       };

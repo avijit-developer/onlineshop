@@ -69,22 +69,14 @@ const api = {
   },
 
   async getProfile(token) {
-    return this.request('/api/v1/auth/profile', {
+    return this.request('/api/v1/auth/me', {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
     });
   },
 
-  async updateProfile(token, userData) {
-    return this.request('/api/v1/auth/profile', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(userData),
-    });
-  },
+  // Note: update profile endpoint is not implemented for customers in backend
 };
 
 export default api;
