@@ -234,8 +234,10 @@ async function getAutoProducts(section) {
   
   switch (section.type) {
     case 'auto-popular':
-      query.salesCount = { $gte: section.autoSettings.minSales || 0 };
-      return await Product.find(query).sort({ salesCount: -1 }).limit(section.settings.maxProducts);
+      // Fallback: many schemas don't track salesCount. Prefer featured then recency.
+      return await Product.find(query)
+        .sort({ featured: -1, createdAt: -1 })
+        .limit(section.settings.maxProducts);
     
     case 'auto-recent':
       const daysBack = section.autoSettings.daysBack || 30;
@@ -250,8 +252,10 @@ async function getAutoProducts(section) {
       return await Product.find(query).sort({ createdAt: -1 }).limit(section.settings.maxProducts);
     
     case 'auto-rating':
-      query.rating = { $gte: section.autoSettings.minRating || 0 };
-      return await Product.find(query).sort({ rating: -1 }).limit(section.settings.maxProducts);
+      // If rating not tracked, fallback to featured and recency as best proxy
+      return await Product.find(query)
+        .sort({ featured: -1, createdAt: -1 })
+        .limit(section.settings.maxProducts);
     
     default:
       return [];
