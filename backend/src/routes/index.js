@@ -1,29 +1,30 @@
 const express = require('express');
-const users = require('./users.routes');
-const auth = require('./auth.routes');
-const admins = require('./admins.routes');
-const categories = require('./categories.routes');
-const uploads = require('./uploads.routes');
-const vendors = require('./vendors.routes');
-const brands = require('./brands.routes');
-const products = require('./products.routes');
-const vendorUsers = require('./vendorUsers.routes');
-const roles = require('./roles.routes');
-const banners = require('./banners.routes');
- 
+const authRoutes = require('./auth.routes');
+const usersRoutes = require('./users.routes');
+const productsRoutes = require('./products.routes');
+const categoriesRoutes = require('./categories.routes');
+const brandsRoutes = require('./brands.routes');
+const vendorsRoutes = require('./vendors.routes');
+const vendorUsersRoutes = require('./vendorUsers.routes');
+const adminsRoutes = require('./admins.routes');
+const bannersRoutes = require('./banners.routes');
+const rolesRoutes = require('./roles.routes');
+const uploadsRoutes = require('./uploads.routes');
+const homepageRoutes = require('./homepage.routes');
+
 const router = express.Router();
- 
-router.get('/', (req, res) => res.json({ message: 'API v1' }));
-router.use('/auth', auth);
-router.use('/users', users);
-router.use('/admins', admins);
-router.use('/categories', categories);
-router.use('/uploads', uploads);
-router.use('/vendors', vendors);
-router.use('/brands', brands);
-router.use('/products', products);
-router.use('/vendor-users', vendorUsers);
-router.use('/roles', roles);
-router.use('/banners', banners);
- 
+
+router.use('/auth', authRoutes);
+router.use('/users', usersRoutes);
+router.use('/products', productsRoutes);
+router.use('/categories', categoriesRoutes);
+router.use('/brands', brandsRoutes);
+router.use('/vendors', vendorsRoutes);
+router.use('/vendor-users', vendorUsersRoutes);
+router.use('/admins', adminsRoutes);
+router.use('/banners', bannersRoutes);
+router.use('/roles', rolesRoutes);
+router.use('/uploads', uploadsRoutes);
+router.use('/homepage', homepageRoutes);
+
 module.exports = router;

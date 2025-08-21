@@ -1,70 +1,91 @@
-import React from 'react';
-import { View, Text, FlatList, Image, StyleSheet, Dimensions } from 'react-native';
-
-const data = [
-  {
-    id: '1',
-    title: 'Lorem ipsum dolor sit amet consectetur',
-    price: '$17.00',
-    image: require('../assets/product1.png'), 
-  },
-  {
-    id: '2',
-    title: 'Lorem ipsum dolor sit amet consectetur',
-    price: '$17.00',
-    image: require('../assets/product2.png'),
-  },
-  {
-    id: '3',
-    title: 'Lorem ipsum dolor sit amet consectetur',
-    price: '$17.00',
-    image: require('../assets/product3.png'),
-  },
-  {
-    id: '4',
-    title: 'Lorem ipsum dolor sit amet consectetur',
-    price: '$17.00',
-    image: require('../assets/product4.png'),
-  },
-  {
-    id: '5',
-    title: 'Lorem ipsum dolor sit amet consectetur',
-    price: '$17.00',
-    image: require('../assets/product5.png'),
-  },
-  {
-    id: '6',
-    title: 'Lorem ipsum dolor sit amet consectetur',
-    price: '$17.00',
-    image: require('../assets/product6.png'),
-  }
-  // ...more items
-];
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
+import api from '../utils/api';
 
 const numColumns = 2;
 const screenWidth = Dimensions.get('window').width;
 const cardWidth = (screenWidth - 45) / 2; // 16px padding + 4px gap * 2
 
-const JustForYou = () => {
+const JustForYou = ({ navigation }) => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sectionConfig, setSectionConfig] = useState(null);
+
+  useEffect(() => {
+    fetchSectionData();
+  }, []);
+
+  const fetchSectionData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getHomePageSections();
+      if (response.success) {
+        const justForYouSection = response.data.find(section => section.name === 'just-for-you');
+        if (justForYouSection && justForYouSection.isActive) {
+          setSectionConfig(justForYouSection);
+          setProducts(justForYouSection.products || []);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch just for you products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderItem = ({ item }) => (
+    <TouchableOpacity 
+      style={[styles.card, { width: cardWidth }]}
+      onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
+    >
+      <Image 
+        source={{ uri: item.images && item.images[0] }} 
+        style={styles.image}
+        defaultSource={require('../assets/Placeholder_01.png')}
+      />
+      <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
+      {sectionConfig?.settings?.showPrice && (
+        <Text style={styles.price}>₹{item.price}</Text>
+      )}
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Just For You</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FFA726" />
+        </View>
+      </View>
+    );
+  }
+
+  if (!sectionConfig || !sectionConfig.isActive || products.length === 0) {
+    return null;
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Just For You</Text>
-        
+        <Text style={styles.title}>{sectionConfig.title}</Text>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('ProductList', { 
+            title: sectionConfig.title,
+            filter: 'recommended'
+          })}
+        >
+          <Text style={styles.seeAll}>See All</Text>
+        </TouchableOpacity>
       </View>
       <FlatList
-        data={data}
+        data={products}
         numColumns={numColumns}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         columnWrapperStyle={styles.row}
-        
-        renderItem={({ item }) => (
-          <View style={[styles.card, { width: cardWidth }]}>
-            <Image source={item.image} style={styles.image} />
-            <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.price}>{item.price.replace('$', '₹')}</Text>
-          </View>
-        )}
+        renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         scrollEnabled={false}
       />
@@ -82,12 +103,23 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
     flex: 1,
+  },
+  seeAll: {
+    fontSize: 14,
+    color: '#FFA726',
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   star: {
     fontSize: 16,
@@ -106,9 +138,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
-    
-    marginBottom:10,
-    
+    marginBottom: 10,
   },
   image: {
     width: '100%',
@@ -126,7 +156,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     paddingHorizontal: 8,
     paddingBottom: 12,
-    color: '#000',
-    color:'#FFA726'
+    color: '#FFA726'
   },
 });

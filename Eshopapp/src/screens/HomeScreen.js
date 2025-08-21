@@ -20,7 +20,7 @@ import MostPopularSection from '../components/MostPopularSection';
 import JustForYou from '../components/JustForYou';
 
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
   const translateY = useRef(new Animated.Value(0)).current;
   const [prevScrollY, setPrevScrollY] = useState(0);
 
@@ -59,9 +59,9 @@ const HomeScreen = () => {
         <SliderBanner />
         <AllCategories />
         <RecentView />
-        <MostPopularSection />
+        <MostPopularSection navigation={navigation} />
         <CategoriesGrid />
-        <JustForYou />
+        <JustForYou navigation={navigation} />
       </ScrollView>
 
       <Animated.View

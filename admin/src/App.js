@@ -17,6 +17,7 @@ import Inventory from './components/inventory/Inventory';
 import Payments from './components/payments/Payments';
 import Coupons from './components/marketing/Coupons';
 import Banners from './components/marketing/Banners';
+import HomePageManager from './components/homepage/HomePageManager';
 import Reviews from './components/reviews/Reviews';
 import Settings from './components/settings/Settings';
 import './App.css';
@@ -229,6 +230,18 @@ function App() {
               isAuthenticated ? (
                 <Layout user={user} onLogout={logout}>
                   <Banners />
+                </Layout>
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } 
+          />
+          <Route 
+            path="/homepage" 
+            element={
+              isAuthenticated ? (
+                <Layout user={user} onLogout={logout}>
+                  <HomePageManager />
                 </Layout>
               ) : (
                 <Navigate to="/login" replace />

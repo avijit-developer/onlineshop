@@ -58,6 +58,7 @@ const Layout = ({ children, user, onLogout }) => {
     !isVendor && { path: '/payments', label: 'Payments', icon: '💰' },
     !isVendor && { path: '/coupons', label: 'Coupons', icon: '🎁' },
     !isVendor && { path: '/banners', label: 'Banners', icon: '🖼️' },
+    !isVendor && { path: '/homepage', label: 'Homepage', icon: '🏠' },
     !isVendor && { path: '/reviews', label: 'Reviews', icon: '⭐' },
     !isVendor && { path: '/settings', label: 'Settings', icon: '⚙️' },
   ].filter(Boolean);

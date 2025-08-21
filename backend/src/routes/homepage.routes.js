@@ -1,0 +1,203 @@
+const express = require('express');
+const HomePageSection = require('../models/HomePageSection');
+const Product = require('../models/Product');
+const { authenticate, requireAdmin } = require('../middleware/auth');
+
+const router = express.Router();
+
+// Get all homepage sections (Admin)
+router.get('/sections', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const sections = await HomePageSection.find()
+      .populate('products.productId', 'name price images rating salesCount')
+      .sort({ order: 1 });
+    
+    res.json({ success: true, data: sections });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get homepage sections (Public - for mobile app)
+router.get('/sections/public', async (req, res) => {
+  try {
+    const sections = await HomePageSection.find({ isActive: true })
+      .populate('products.productId', 'name price images rating salesCount status enabled')
+      .sort({ order: 1 });
+
+    // Filter out inactive products and populate auto-generated products
+    const processedSections = await Promise.all(sections.map(async (section) => {
+      let products = section.products
+        .filter(p => p.productId && p.productId.status === 'approved' && p.productId.enabled)
+        .sort((a, b) => a.order - b.order)
+        .slice(0, section.settings.maxProducts);
+
+      // If auto-type and not enough products, fetch more
+      if (section.type !== 'manual' && products.length < section.settings.maxProducts) {
+        const autoProducts = await getAutoProducts(section);
+        const existingIds = products.map(p => p.productId._id.toString());
+        const newProducts = autoProducts
+          .filter(p => !existingIds.includes(p._id.toString()))
+          .slice(0, section.settings.maxProducts - products.length);
+        
+        products = [...products, ...newProducts.map(p => ({ productId: p, order: 999 }))];
+      }
+
+      return {
+        ...section.toObject(),
+        products: products.map(p => ({
+          ...p.productId.toObject(),
+          order: p.order
+        }))
+      };
+    }));
+
+    res.json({ success: true, data: processedSections });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Create new section
+router.post('/sections', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const section = new HomePageSection(req.body);
+    await section.save();
+    res.status(201).json({ success: true, data: section });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Update section
+router.put('/sections/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const section = await HomePageSection.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true }
+    );
+    if (!section) {
+      return res.status(404).json({ success: false, message: 'Section not found' });
+    }
+    res.json({ success: true, data: section });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Delete section
+router.delete('/sections/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const section = await HomePageSection.findByIdAndDelete(req.params.id);
+    if (!section) {
+      return res.status(404).json({ success: false, message: 'Section not found' });
+    }
+    res.json({ success: true, message: 'Section deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Add product to section
+router.post('/sections/:id/products', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { productId, order } = req.body;
+    const section = await HomePageSection.findById(req.params.id);
+    
+    if (!section) {
+      return res.status(404).json({ success: false, message: 'Section not found' });
+    }
+
+    // Check if product already exists
+    const exists = section.products.find(p => p.productId.toString() === productId);
+    if (exists) {
+      return res.status(400).json({ success: false, message: 'Product already in section' });
+    }
+
+    section.products.push({ productId, order: order || section.products.length });
+    await section.save();
+    
+    const populatedSection = await HomePageSection.findById(req.params.id)
+      .populate('products.productId', 'name price images rating salesCount');
+    
+    res.json({ success: true, data: populatedSection });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Remove product from section
+router.delete('/sections/:id/products/:productId', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const section = await HomePageSection.findById(req.params.id);
+    if (!section) {
+      return res.status(404).json({ success: false, message: 'Section not found' });
+    }
+
+    section.products = section.products.filter(
+      p => p.productId.toString() !== req.params.productId
+    );
+    await section.save();
+    
+    res.json({ success: true, message: 'Product removed from section' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Reorder products in section
+router.patch('/sections/:id/products/reorder', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { productOrders } = req.body; // [{ productId, order }]
+    const section = await HomePageSection.findById(req.params.id);
+    
+    if (!section) {
+      return res.status(404).json({ success: false, message: 'Section not found' });
+    }
+
+    productOrders.forEach(({ productId, order }) => {
+      const product = section.products.find(p => p.productId.toString() === productId);
+      if (product) {
+        product.order = order;
+      }
+    });
+
+    await section.save();
+    res.json({ success: true, message: 'Products reordered successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Helper function to get auto-generated products
+async function getAutoProducts(section) {
+  const query = { status: 'approved', enabled: true };
+  
+  switch (section.type) {
+    case 'auto-popular':
+      query.salesCount = { $gte: section.autoSettings.minSales || 0 };
+      return await Product.find(query).sort({ salesCount: -1 }).limit(section.settings.maxProducts);
+    
+    case 'auto-recent':
+      const daysBack = section.autoSettings.daysBack || 30;
+      const dateLimit = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+      query.createdAt = { $gte: dateLimit };
+      return await Product.find(query).sort({ createdAt: -1 }).limit(section.settings.maxProducts);
+    
+    case 'auto-category':
+      if (section.autoSettings.categoryId) {
+        query.category = section.autoSettings.categoryId;
+      }
+      return await Product.find(query).sort({ createdAt: -1 }).limit(section.settings.maxProducts);
+    
+    case 'auto-rating':
+      query.rating = { $gte: section.autoSettings.minRating || 0 };
+      return await Product.find(query).sort({ rating: -1 }).limit(section.settings.maxProducts);
+    
+    default:
+      return [];
+  }
+}
+
+module.exports = router;

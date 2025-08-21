@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,61 +6,94 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AntDesign from 'react-native-vector-icons/AntDesign';
+import api from '../utils/api';
 
+const MostPopularSection = ({ navigation }) => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sectionConfig, setSectionConfig] = useState(null);
 
-const mostPopular = [
-  {
-    id: '1',
-    image: require('../assets/popular1.png'),
-    likes: 1780,
-    tag: 'New',
-  },
-  {
-    id: '2',
-    image: require('../assets/popular2.png'),
-    likes: 1780,
-    tag: 'Sale',
-  },
-  {
-    id: '3',
-    image: require('../assets/popular3.png'),
-    likes: 1780,
-    tag: 'Hot',
-  },
-  {
-    id: '4',
-    image: require('../assets/popular4.png'),
-    likes: 1780,
-  },
-];
+  useEffect(() => {
+    fetchSectionData();
+  }, []);
 
-const MostPopularSection = () => {
+  const fetchSectionData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getHomePageSections();
+      if (response.success) {
+        const mostPopularSection = response.data.find(section => section.name === 'most-popular');
+        if (mostPopularSection && mostPopularSection.isActive) {
+          setSectionConfig(mostPopularSection);
+          setProducts(mostPopularSection.products || []);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch most popular products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderItem = ({ item }) => (
     <View style={{ marginBottom: 5 }}>
-    <View style={styles.card}>
-      <Image source={item.image} style={styles.image} />
-      <View style={styles.favicon}>
-        <AntDesign name="heart" size={14} color="#FFA726" />
-      </View>
-      <View style={styles.cardFooter}>
-        <View style={styles.likes}>
-          <Text style={styles.likesText}>{item.likes}</Text>
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
+      >
+        <Image 
+          source={{ uri: item.images && item.images[0] }} 
+          style={styles.image}
+          defaultSource={require('../assets/Placeholder_01.png')}
+        />
+        <View style={styles.favicon}>
+          <AntDesign name="heart" size={14} color="#FFA726" />
         </View>
-        {item.tag && <Text style={styles.tag}>{item.tag}</Text>}
-      </View>
-    </View>
+        <View style={styles.cardFooter}>
+          <View style={styles.likes}>
+            <Text style={styles.likesText}>{item.rating || 0}</Text>
+          </View>
+          {sectionConfig?.settings?.showTags && (
+            <Text style={styles.tag}>Hot</Text>
+          )}
+        </View>
+      </TouchableOpacity>
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Most Popular</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#FFA726" />
+        </View>
+      </View>
+    );
+  }
+
+  if (!sectionConfig || !sectionConfig.isActive || products.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Most Popular</Text>
-        <TouchableOpacity style={styles.seeAll}>
+        <Text style={styles.title}>{sectionConfig.title}</Text>
+        <TouchableOpacity 
+          style={styles.seeAll}
+          onPress={() => navigation.navigate('ProductList', { 
+            title: sectionConfig.title,
+            filter: 'popular'
+          })}
+        >
           <Text style={styles.seeAllText}>See All</Text>
           <Ionicons name="arrow-forward-circle" size={18} color="#FFA726" />
         </TouchableOpacity>
@@ -69,9 +102,9 @@ const MostPopularSection = () => {
       {/* Horizontal List */}
       <FlatList
         horizontal
-        data={mostPopular}
+        data={products}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ gap: 12 }}
       />
@@ -105,6 +138,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFA726',
     fontWeight: '500',
+  },
+  loadingContainer: {
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   card: {
     width: 140,
@@ -154,6 +192,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(250, 250, 250, .9)',
     borderRadius:20,
     paddingTop:2,
-    
-    },
+  },
 });

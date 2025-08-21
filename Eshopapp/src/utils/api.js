@@ -103,6 +103,15 @@ const api = {
     });
   },
 
+  // Homepage sections
+  async getHomePageSections() {
+    return this.request('/api/v1/homepage/sections/public');
+  },
+
+  async getHomePageSection(sectionName) {
+    return this.request(`/api/v1/homepage/sections/${sectionName}`);
+  },
+
   async forgotPassword(email) {
     return this.request('/api/v1/auth/forgot-password', {
       method: 'POST',
