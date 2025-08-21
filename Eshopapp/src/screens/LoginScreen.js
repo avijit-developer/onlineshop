@@ -107,9 +107,9 @@ const LoginScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.skipButton} onPress={() => navigation.replace('Home')}>
+          {/* <TouchableOpacity style={styles.skipButton} onPress={() => navigation.replace('Home')}>
             <Text style={styles.skipButtonText}>Skip for now</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
