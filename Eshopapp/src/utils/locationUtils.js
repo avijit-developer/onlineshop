@@ -68,16 +68,41 @@ export const getCurrentLocation = () => {
 // Reverse geocoding function (you might want to use a service like Google Maps API)
 export const reverseGeocode = async (latitude, longitude) => {
   try {
-    // Using a free geocoding service for better address display
-    const response = await fetch(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-    );
-    const data = await response.json();
-    
-    if (data && data.locality && data.principalSubdivision) {
-      return `${data.locality}, ${data.principalSubdivision}`;
-    } else if (data && data.city) {
-      return `${data.city}, ${data.countryName}`;
+    // For Android emulator, use a more reliable approach
+    // The emulator often has network restrictions, so we'll use a simpler fallback
+    if (Platform.OS === 'android') {
+      // Try a simple geocoding service that works better in emulators
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`,
+        {
+          headers: {
+            'User-Agent': 'EshopApp/1.0'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.display_name) {
+          const parts = data.display_name.split(', ');
+          if (parts.length >= 2) {
+            return `${parts[0]}, ${parts[1]}`;
+          }
+          return data.display_name;
+        }
+      }
+    } else {
+      // For iOS, try the original service
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+      );
+      const data = await response.json();
+      
+      if (data && data.locality && data.principalSubdivision) {
+        return `${data.locality}, ${data.principalSubdivision}`;
+      } else if (data && data.city) {
+        return `${data.city}, ${data.countryName}`;
+      }
     }
     
     // Fallback to mock address if API fails
