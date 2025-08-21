@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 
 const router = express.Router();
 
@@ -25,7 +26,8 @@ router.post('/', async (req, res) => {
     throw new Error('Email already in use');
   }
 
-  const user = await User.create({ name, email });
+  const passwordHash = await bcrypt.hash('Temp#1234', 10);
+  const user = await User.create({ name, email, passwordHash, role: 'customer' });
   res.status(201).json({ success: true, data: user });
 });
 

@@ -43,7 +43,7 @@ const User = require('../models/User');
         console.log('Linked user exists:', { id: existingUser._id.toString(), email: existingUser.email });
       }
     } else {
-      const user = await User.create({ name, email });
+      const user = await User.create({ name, email, passwordHash, role: 'customer' });
       console.log('Linked user created:', { id: user._id.toString(), email: user.email });
     }
 

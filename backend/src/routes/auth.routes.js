@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const VendorUser = require('../models/VendorUser');
 const Vendor = require('../models/Vendor');
+const User = require('../models/User');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -53,7 +54,21 @@ router.post('/login', async (req, res) => {
 
   // Try Vendor User login
   const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').populate('vendors', '_id companyName enabled status').lean();
-  if (!vendorUser) { res.status(401); throw new Error('Invalid credentials'); }
+  if (!vendorUser) {
+    // Try Customer login as fallback
+    const customer = await User.findOne({ email: normalizedEmail }).lean();
+    if (!customer) { res.status(401); throw new Error('Invalid credentials'); }
+    const customerDoc = await User.findById(customer._id);
+    const ok = await bcrypt.compare(password, customerDoc.passwordHash);
+    if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+
+    const token = jwt.sign(
+      { id: customerDoc._id.toString(), role: 'customer', email: customerDoc.email },
+      getJwtSecret(),
+      { expiresIn: getJwtExpiry() }
+    );
+    return res.json({ success: true, token, user: { id: customerDoc._id, name: customerDoc.name, email: customerDoc.email, role: 'customer' } });
+  }
   const vendorUserDoc = await VendorUser.findOne({ email: normalizedEmail, isActive: true });
   const ok = await bcrypt.compare(password, vendorUserDoc.passwordHash);
   if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
@@ -105,6 +120,46 @@ router.post('/login', async (req, res) => {
       vendors: vendorUserDoc.vendors,
       permissions: mergedPermissions 
     } 
+  });
+});
+
+// Customer registration
+router.post('/register', async (req, res) => {
+  const { name, email, password } = req.body || {};
+
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error('Name, email and password are required');
+  }
+  if (!isValidEmail(email)) {
+    res.status(400);
+    throw new Error('Invalid email format');
+  }
+  if (String(password).length < 6) {
+    res.status(400);
+    throw new Error('Password must be at least 6 characters long');
+  }
+
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const exists = await User.findOne({ email: normalizedEmail }).lean();
+  if (exists) {
+    res.status(409);
+    throw new Error('Email already in use');
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = await User.create({ name, email: normalizedEmail, passwordHash, role: 'customer' });
+
+  const token = jwt.sign(
+    { id: user._id.toString(), role: 'customer', email: user.email },
+    getJwtSecret(),
+    { expiresIn: getJwtExpiry() }
+  );
+
+  return res.status(201).json({
+    success: true,
+    token,
+    user: { id: user._id, name: user.name, email: user.email, role: 'customer' }
   });
 });
 
