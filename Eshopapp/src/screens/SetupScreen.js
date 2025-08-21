@@ -1,17 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, Image, Easing, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Easing, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestLocationAndGetAddress } from '../utils/locationUtils';
 import api from '../utils/api';
 import { useLocation } from '../contexts/LocationContext';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
-const icons = [
-  require('../assets/animations/Cart.png'),
-  require('../assets/Shop.png'),
-  require('../assets/Vouchers.png'),
+// Use Ionicons names instead of image assets
+const iconNames = [
+  'cart-outline',
+  'bag-handle-outline',
+  'pricetags-outline',
+  'storefront-outline',
+  'gift-outline',
+  'shirt-outline',
+  'cube-outline',
+  'heart-outline',
 ];
+const iconColors = ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f43f5e'];
 
 const generateRandom = (min, max) => Math.random() * (max - min) + min;
 
@@ -24,7 +32,8 @@ const SetupScreen = ({ navigation, route }) => {
       y: new Animated.Value(generateRandom(0, height * 0.4)),
       rotate: new Animated.Value(0),
       scale: new Animated.Value(generateRandom(0.8, 1.2)),
-      icon: icons[Math.floor(Math.random() * icons.length)],
+      iconName: iconNames[Math.floor(Math.random() * iconNames.length)],
+      color: iconColors[Math.floor(Math.random() * iconColors.length)],
     }))
   );
 
@@ -127,7 +136,7 @@ const SetupScreen = ({ navigation, route }) => {
             ],
           }}
         >
-          <Image source={a.icon} style={styles.icon} resizeMode="contain" />
+          <Icon name={a.iconName} size={56} color={a.color} />
         </Animated.View>
       );
     })
