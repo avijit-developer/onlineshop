@@ -164,6 +164,31 @@ const Customers = () => {
     }
   };
 
+  const deleteAddress = async (customerId, addressId) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE}/api/v1/users/${customerId}/addresses/${addressId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.message || 'Failed to delete address');
+      }
+
+      // Update the addresses list
+      setCustomerAddresses(prev => prev.filter(addr => addr._id !== addressId));
+      toast.success('Address deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete address');
+    }
+  };
+
   const getVendorName = (vendorId) => {
     const vendor = vendors.find(v => v.id === vendorId);
     return vendor ? vendor.companyName : 'Unknown Vendor';
@@ -430,9 +455,22 @@ const Customers = () => {
                     <div key={index} className="address-item">
                       <div className="address-header">
                         <strong>{address.label}</strong>
-                        {address.isDefault && (
-                          <span className="badge badge-success">Default</span>
-                        )}
+                        <div className="address-actions">
+                          {address.isDefault && (
+                            <span className="badge badge-success">Default</span>
+                          )}
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this address?')) {
+                                deleteAddress(selectedCustomer.id, address._id);
+                              }
+                            }}
+                            style={{ marginLeft: '10px' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                       <div className="address-details">
                         <div><strong>{address.name}</strong></div>

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
+import { useLocation } from '../contexts/LocationContext';
 import api from '../utils/api';
 import { requestLocationAndGetAddress } from '../utils/locationUtils';
 
@@ -26,6 +27,7 @@ const SignupScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const { register } = useUser();
+  const { loadUserDefaultAddress } = useLocation();
 
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -115,6 +117,9 @@ const SignupScreen = ({ navigation }) => {
               }
             };
             await api.addMyAddress(authToken, addressPayload);
+            
+            // Refresh location context to show the saved address
+            await loadUserDefaultAddress();
           }
         } catch (e) {
           // Non-blocking if address save fails

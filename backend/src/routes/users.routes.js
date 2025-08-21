@@ -126,6 +126,51 @@ router.patch('/me/addresses/:addressId/default', authenticate, requireRole(['cus
   res.json({ success: true, data: user.addresses });
 });
 
+// Customer (self): update address
+router.put('/me/addresses/:addressId', authenticate, requireRole(['customer']), async (req, res) => {
+  const { addressId } = req.params;
+  const addressData = req.body || {};
+
+  const user = await User.findById(req.user.id);
+  if (!user) { res.status(404); throw new Error('User not found'); }
+
+  const addressIndex = user.addresses.findIndex(addr => addr._id.toString() === addressId);
+  if (addressIndex === -1) { res.status(404); throw new Error('Address not found'); }
+
+  // If this address is set as default, unset others
+  if (addressData.isDefault) {
+    user.addresses.forEach(addr => addr.isDefault = false);
+  }
+
+  user.addresses[addressIndex] = { ...user.addresses[addressIndex].toObject(), ...addressData };
+  await user.save();
+
+  res.json({ success: true, data: user.addresses });
+});
+
+// Customer (self): delete address
+router.delete('/me/addresses/:addressId', authenticate, requireRole(['customer']), async (req, res) => {
+  const { addressId } = req.params;
+
+  const user = await User.findById(req.user.id);
+  if (!user) { res.status(404); throw new Error('User not found'); }
+
+  const addressIndex = user.addresses.findIndex(addr => addr._id.toString() === addressId);
+  if (addressIndex === -1) { res.status(404); throw new Error('Address not found'); }
+
+  const deletedAddress = user.addresses[addressIndex];
+  user.addresses.splice(addressIndex, 1);
+
+  // If we deleted the default address and there are other addresses, make the first one default
+  if (deletedAddress.isDefault && user.addresses.length > 0) {
+    user.addresses[0].isDefault = true;
+  }
+
+  await user.save();
+
+  res.json({ success: true, data: user.addresses });
+});
+
 // Admin: get customer addresses
 router.get('/:id/addresses', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;

@@ -67,6 +67,42 @@ const api = {
     });
   },
 
+  async getMyAddresses(token) {
+    return this.request('/api/v1/users/me/addresses', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
+  async updateMyAddress(token, addressId, address) {
+    return this.request(`/api/v1/users/me/addresses/${addressId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(address),
+    });
+  },
+
+  async deleteMyAddress(token, addressId) {
+    return this.request(`/api/v1/users/me/addresses/${addressId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
+  async setDefaultAddress(token, addressId) {
+    return this.request(`/api/v1/users/me/addresses/${addressId}/default`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
   async forgotPassword(email) {
     return this.request('/api/v1/auth/forgot-password', {
       method: 'POST',
