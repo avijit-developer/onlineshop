@@ -125,7 +125,8 @@ const SignupScreen = ({ navigation }) => {
           // Non-blocking if address save fails
           console.log('Address save after signup failed:', e?.message);
         }
-        navigation.replace('Home');
+        // Go to setup screen where animation runs while address is saved
+        navigation.replace('Setup');
       } else {
         Alert.alert('Registration Failed', result.error || 'Please try again');
       }

@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,9 +30,18 @@ const SplashScreen = ({ navigation }) => {
       }),
     ]).start();
 
-    const timer = setTimeout(() => {
+    const decide = async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (token) {
+          navigation.replace('Home');
+          return;
+        }
+      } catch (e) {}
       navigation.replace('Login');
-    }, 3000);
+    };
+
+    const timer = setTimeout(decide, 1200);
 
     return () => clearTimeout(timer);
   }, [navigation]);

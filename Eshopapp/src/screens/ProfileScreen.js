@@ -15,7 +15,7 @@ import { useCart } from '../contexts/CartContext';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
-  const { user, orders } = useUser();
+  const { user, orders, logout } = useUser();
   const { getCartItemsCount } = useCart();
 
   const profileOptions = [
@@ -83,7 +83,12 @@ const ProfileScreen = () => {
         { 
           text: 'Logout', 
           style: 'destructive', 
-          onPress: () => navigation.navigate('Login') 
+          onPress: async () => {
+            try {
+              await logout();
+            } catch {}
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          }
         }
       ]
     );
