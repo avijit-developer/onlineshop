@@ -168,12 +168,38 @@ const HomePageManager = () => {
     return <div className="loading">Loading homepage sections...</div>;
   }
 
+  const initSections = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_BASE}/api/v1/homepage/sections/init`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || 'Sections initialized');
+        fetchSections();
+      } else {
+        toast.error(data.message || 'Failed to initialize');
+      }
+    } catch (e) {
+      toast.error('Failed to initialize sections');
+    }
+  };
+
   return (
     <div className="homepage-manager">
       <div className="page-header">
         <h2>Homepage Management</h2>
         <p>Manage sections and products displayed on the mobile app homepage</p>
       </div>
+
+      {sections.length === 0 && (
+        <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+          <p>No homepage sections found.</p>
+          <button className="btn btn-primary" onClick={initSections}>Create default sections</button>
+        </div>
+      )}
 
       <div className="sections-grid">
         {sections.map(section => (

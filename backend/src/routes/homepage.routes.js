@@ -5,6 +5,64 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Seed default sections (Admin)
+router.post('/sections/init', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const count = await HomePageSection.countDocuments();
+    if (count > 0) {
+      return res.json({ success: true, message: 'Sections already initialized' });
+    }
+
+    const defaultSections = [
+      {
+        name: 'most-popular',
+        title: 'Most Popular',
+        subtitle: 'Trending products everyone loves',
+        isActive: true,
+        order: 1,
+        type: 'auto-popular',
+        settings: { maxProducts: 10, showPrice: true, showRating: true, layout: 'horizontal', showTags: true },
+        autoSettings: { minSales: 5, minRating: 0, daysBack: 30 }
+      },
+      {
+        name: 'best-seller',
+        title: 'Best Sellers',
+        subtitle: 'Top performing products',
+        isActive: true,
+        order: 2,
+        type: 'auto-popular',
+        settings: { maxProducts: 8, showPrice: true, showRating: true, layout: 'horizontal', showTags: true },
+        autoSettings: { minSales: 10, minRating: 0, daysBack: 60 }
+      },
+      {
+        name: 'just-for-you',
+        title: 'Just For You',
+        subtitle: 'Personalized recommendations',
+        isActive: true,
+        order: 3,
+        type: 'auto-recent',
+        settings: { maxProducts: 12, showPrice: true, showRating: true, layout: 'grid', showTags: true },
+        autoSettings: { minRating: 0, daysBack: 7 }
+      },
+      {
+        name: 'new-arrivals',
+        title: 'New Arrivals',
+        subtitle: 'Fresh products just added',
+        isActive: true,
+        order: 4,
+        type: 'auto-recent',
+        settings: { maxProducts: 6, showPrice: true, showRating: false, layout: 'horizontal', showTags: true },
+        autoSettings: { minRating: 0, daysBack: 14 }
+      }
+    ];
+
+    await HomePageSection.insertMany(defaultSections);
+    res.status(201).json({ success: true, message: 'Default sections created' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get all homepage sections (Admin)
 router.get('/sections', authenticate, requireAdmin, async (req, res) => {
   try {
