@@ -134,6 +134,27 @@ const Products = () => {
     return val;
   };
 
+  const updateExistingVariantField = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      variants: prev.variants.map((v, i) => i === index ? { ...v, [field]: value } : v)
+    }));
+  };
+
+  const addExistingVariantRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      variants: [...prev.variants, { attributes: {}, sku: '', price: '', specialPrice: '', stock: 0, images: [] }]
+    }));
+  };
+
+  const removeExistingVariantRow = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      variants: prev.variants.filter((_, i) => i !== index)
+    }));
+  };
+
   const adminUser = (() => {
     try { return JSON.parse(localStorage.getItem('adminUser')); } catch { return null; }
   })();
@@ -373,6 +394,15 @@ const Products = () => {
           specialPrice: v.specialPrice !== '' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
           images: (v.images || []).map(img => typeof img === 'string' ? img : img.imageUrl)
+        }));
+      } else if (formData.variants && formData.variants.length > 0) {
+        payload.variants = formData.variants.map(v => ({
+          attributes: v.attributes || {},
+          sku: (v.sku || '').trim(),
+          price: v.price !== '' && v.price !== undefined ? Number(v.price) : undefined,
+          specialPrice: v.specialPrice !== '' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+          stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
+          images: Array.isArray(v.images) ? v.images : []
         }));
       }
 
@@ -1172,6 +1202,48 @@ const Products = () => {
                     )}
                   </div>
                   {/* End Matrix Variant UI */}
+                  {/* Existing Variants UI */}
+                  {formData.variants && formData.variants.length > 0 && (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <label>Current Variants</label>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={addExistingVariantRow}>Add Variant</button>
+                      </div>
+                      <table className="matrix-table">
+                        <thead>
+                          <tr>
+                            <th>SKU</th>
+                            <th>Price</th>
+                            <th>Special Price</th>
+                            <th>Stock</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {formData.variants.map((v, i) => (
+                            <tr key={i}>
+                              <td>
+                                <input type="text" value={v.sku || ''} onChange={e => updateExistingVariantField(i, 'sku', e.target.value)} />
+                              </td>
+                              <td>
+                                <input type="number" min="0" step="0.01" value={v.price ?? ''} onChange={e => updateExistingVariantField(i, 'price', e.target.value)} />
+                              </td>
+                              <td>
+                                <input type="number" min="0" step="0.01" value={v.specialPrice ?? ''} onChange={e => updateExistingVariantField(i, 'specialPrice', e.target.value)} />
+                              </td>
+                              <td>
+                                <input type="number" min="0" value={v.stock ?? 0} onChange={e => updateExistingVariantField(i, 'stock', e.target.value)} />
+                              </td>
+                              <td>
+                                <button type="button" className="btn btn-danger btn-sm" onClick={() => removeExistingVariantRow(i)}>Remove</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {/* End Existing Variants UI */}
                 </div>
               </div>
             </form>
