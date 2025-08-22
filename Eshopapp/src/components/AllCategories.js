@@ -15,7 +15,8 @@ const AllCategories = () => {
                 try {
                   const res = await api.getCategoriesPublic({ parent: 'root', limit: 50 });
                   if (res?.success && mounted) {
-                    const mapped = (res.data || []).map(c => ({ id: c._id, name: c.name, image: c.image }));
+                    const roots = (res.data || []).filter(c => !c.parent);
+                    const mapped = roots.map(c => ({ id: c._id, name: c.name, image: c.image }));
                     setCategories(mapped);
                   }
                 } catch (_) {
