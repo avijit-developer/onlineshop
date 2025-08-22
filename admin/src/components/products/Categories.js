@@ -262,7 +262,7 @@ const Categories = () => {
       const fd = new FormData();
       fd.append('name', formData.name);
       fd.append('description', formData.description || '');
-      if (formData.parentId) fd.append('parent', formData.parentId);
+      fd.append('parent', formData.parentId || '');
       fd.append('featured', String(!!formData.featured));
       fd.append('sortOrder', String(sortNorm));
 
@@ -376,7 +376,7 @@ const Categories = () => {
   };
 
   const getCategoryPath = (categoryId) => {
-    const category = categories.find(cat => cat.id === parseInt(categoryId));
+    const category = categories.find(cat => cat.id === categoryId);
     if (!category) return '';
     const path = [];
     let current = category;
