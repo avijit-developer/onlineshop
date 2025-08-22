@@ -36,7 +36,7 @@ const AllCategories = () => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.imageWrapper} onPress={()=>navigation.navigate('ProductList', { categoryId: item.id, title: item.name })}>
+          <TouchableOpacity style={styles.imageWrapper} onPress={()=>navigation.navigate('Category', { categoryId: item.id, title: item.name })}>
             <Image source={ item.image ? { uri: item.image } : placeholder } style={styles.image} />
           </TouchableOpacity>
         )}

@@ -147,6 +147,17 @@ const api = {
     const qs = parts.length ? '?' + parts.join('&') : '';
     return this.request(`/api/v1/categories/public${qs}`);
   },
+
+  // Products (public)
+  async getProductsPublic(params = {}) {
+    const parts = [];
+    if (params.q) parts.push('q=' + encodeURIComponent(String(params.q)));
+    if (params.category) parts.push('category=' + encodeURIComponent(String(params.category)));
+    if (params.page != null) parts.push('page=' + encodeURIComponent(String(params.page)));
+    if (params.limit != null) parts.push('limit=' + encodeURIComponent(String(params.limit)));
+    const qs = parts.length ? '?' + parts.join('&') : '';
+    return this.request(`/api/v1/products/public${qs}`);
+  },
 };
 
 export default api;

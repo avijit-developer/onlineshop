@@ -278,4 +278,36 @@ router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), requ
   res.json({ success: true, data: updated });
 });
 
+// Public: GET /products/public?category=&q=&page=&limit=
+router.get('/public', async (req, res) => {
+  try {
+    const { q = '', category, page = 1, limit = 20 } = req.query;
+    const filters = { status: 'approved', enabled: true };
+    if (q) {
+      filters.$or = [
+        { name: { $regex: String(q), $options: 'i' } },
+        { description: { $regex: String(q), $options: 'i' } }
+      ];
+    }
+    if (category) filters.category = category;
+
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+
+    const [items, total] = await Promise.all([
+      Product.find(filters)
+        .select('name images regularPrice specialPrice rating')
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * perPage)
+        .limit(perPage)
+        .lean(),
+      Product.countDocuments(filters)
+    ]);
+
+    res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to fetch products' });
+  }
+});
+
 module.exports = router;

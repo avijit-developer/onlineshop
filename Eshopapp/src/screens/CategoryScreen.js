@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,89 +9,48 @@ import {
   Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import api from '../utils/api';
 import ViewCartFooter from '../components/ViewCartFooter';
 
-const categories = [
-  {
-    id: '1',
-    name: 'Dresses',
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/92265483-9E7E-4FC3-A355-16CCA677C11C_zbsxfe.png',
-    itemCount: 152,
-    color: '#FFE4E1'
-  },
-  {
-    id: '2',
-    name: 'Tops',
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410272/Placeholder_01-1_maxcyi.png',
-    itemCount: 89,
-    color: '#E6F3FF'
-  },
-  {
-    id: '3',
-    name: 'Bottoms',
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/Placeholder_01_zfhxws.png',
-    itemCount: 76,
-    color: '#F0FFF0'
-  },
-  {
-    id: '4',
-    name: 'Shoes',
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410274/32EB245A-E30D-4D15-B57A-23A577C43459_f3x5xd.png',
-    itemCount: 134,
-    color: '#FFF8DC'
-  },
-  {
-    id: '5',
-    name: 'Accessories',
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/aaa_qer6ir.png',
-    itemCount: 67,
-    color: '#F5F0FF'
-  },
-  {
-    id: '6',
-    name: 'Bags',
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/A70864C8-1B1F-4014-84A4-450CD75C9CEF_vedkuw.png',
-    itemCount: 45,
-    color: '#FFE4E6'
-  },
-  {
-    id: '7',
-    name: 'Jewelry',
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/Placeholder_101_mdvn5x.png',
-    itemCount: 98,
-    color: '#E8F4FD'
-  },
-  {
-    id: '8',
-    name: 'Beauty',
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410395/Placeholder_01_1_y1m8t0.png',
-    itemCount: 156,
-    color: '#FFF0F5'
-  }
-];
+const placeholder = 'https://via.placeholder.com/80x80.png?text=Cat';
 
 const CategoryScreen = () => {
   const navigation = useNavigation();
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const route = useRoute();
+  const { categoryId, title } = route.params || {};
+  const [children, setChildren] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.getCategoriesPublic({ parent: categoryId, limit: 100 });
+        if (res?.success) {
+          const mapped = (res.data || []).map(c => ({ id: c._id, name: c.name, image: c.image }));
+          setChildren(mapped);
+          if (mapped.length === 0) {
+            navigation.replace('ProductList', { categoryId, title });
+          }
+        }
+      } catch (_) {
+        navigation.replace('ProductList', { categoryId, title });
+      }
+    })();
+  }, [categoryId]);
 
   const handleCategoryPress = (category) => {
-    setSelectedCategory(category.id);
-    navigation.navigate('ProductList', { 
-      category: category.name,
-      categoryId: category.id 
-    });
+    navigation.navigate('ProductList', { title: category.name, categoryId: category.id });
   };
 
   const renderCategoryItem = ({ item, index }) => (
     <TouchableOpacity
-      style={[styles.categoryCard, { backgroundColor: item.color }]}
+      style={[styles.categoryCard, { backgroundColor: '#F8F8F8' }]}
       onPress={() => handleCategoryPress(item)}
     >
-      <Image source={{ uri: item.image }} style={styles.categoryImage} />
+      <Image source={{ uri: item.image || placeholder }} style={styles.categoryImage} />
       <View style={styles.categoryInfo}>
         <Text style={styles.categoryName}>{item.name}</Text>
-        <Text style={styles.itemCount}>{item.itemCount} items</Text>
+        <Text style={styles.itemCount}>View products</Text>
       </View>
       <Icon name="chevron-forward-outline" size={20} color="#666" />
     </TouchableOpacity>
@@ -104,7 +63,7 @@ const CategoryScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-back-outline" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.title}>Categories</Text>
+        <Text style={styles.title}>{title || 'Categories'}</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Search')}>
           <Icon name="search-outline" size={24} color="#333" />
         </TouchableOpacity>
@@ -112,10 +71,10 @@ const CategoryScreen = () => {
 
       {/* Categories Grid */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.subtitle}>Browse by Category</Text>
+        <Text style={styles.subtitle}>Subcategories</Text>
         
         <FlatList
-          data={categories}
+          data={children}
           renderItem={renderCategoryItem}
           keyExtractor={(item) => item.id}
           numColumns={2}
@@ -128,13 +87,13 @@ const CategoryScreen = () => {
         <View style={styles.featuredSection}>
           <Text style={styles.sectionTitle}>Featured Categories</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {categories.slice(0, 4).map((item) => (
+            {children.slice(0, 4).map((item) => (
               <TouchableOpacity
                 key={`featured-${item.id}`}
                 style={styles.featuredCard}
                 onPress={() => handleCategoryPress(item)}
               >
-                <Image source={{ uri: item.image }} style={styles.featuredImage} />
+                <Image source={{ uri: item.image || placeholder }} style={styles.featuredImage} />
                 <Text style={styles.featuredName}>{item.name}</Text>
               </TouchableOpacity>
             ))}

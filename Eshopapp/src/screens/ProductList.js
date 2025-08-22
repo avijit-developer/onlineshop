@@ -11,94 +11,45 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ProductCard from '../components/ProductCard';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import api from '../utils/api';
 import ViewCartFooter from '../components/ViewCartFooter';
 
-const dresses = [
-  {
-    id: '1',
-    name: 'Linen Dress',
-    price: '$52.00',
-    oldPrice: '$90.00',
-    rating: 4.5,
-    reviews: 64,
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/92265483-9E7E-4FC3-A355-16CCA677C11C_zbsxfe.png',
-    liked: true,
-  },
-  {
-    id: '2',
-    name: 'Filted Waist Dress',
-    price: '$47.99',
-    oldPrice: '$82.00',
-    rating: 4.3,
-    reviews: 53,
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410272/Placeholder_01-1_maxcyi.png',
-    liked: false,
-  },
-  {
-    id: '3',
-    name: 'Maxi Dress',
-    price: '$68.00',
-    rating: 4.0,
-    reviews: 46,
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/Placeholder_01_zfhxws.png',
-    liked: false,
-  },
-  {
-    id: '4',
-    name: 'Front Tie Mini Dress',
-    price: '$59.00',
-    rating: 4.4,
-    reviews: 38,
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410274/32EB245A-E30D-4D15-B57A-23A577C43459_f3x5xd.png',
-    liked: true,
-  },
-  {
-    id: '5',
-    name: 'Ohara Dress',
-    price: '$85.00',
-    rating: 4.0,
-    reviews: 50,
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/aaa_qer6ir.png',
-    liked: true,
-  },
-  {
-    id: '6',
-    name: 'Tie Back Mini Dress',
-    price: '$67.00',
-    rating: 4.2,
-    reviews: 39,
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/A70864C8-1B1F-4014-84A4-450CD75C9CEF_vedkuw.png',
-    liked: true,
-  },
-  {
-    id: '7',
-    name: 'Leaves Green Dress',
-    price: '$64.00',
-    rating: 4.6,
-    reviews: 83,
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/Placeholder_101_mdvn5x.png',
-    liked: false,
-  },
-  {
-    id: '8',
-    name: 'Off Shoulder Dress',
-    price: '$78.99',
-    rating: 4.1,
-    reviews: 25,
-    image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410395/Placeholder_01_1_y1m8t0.png',
-    liked: false,
-  },
-];
+const placeholder = 'https://via.placeholder.com/300x300.png?text=Product';
 
 const ProductList = () => {
   const navigation = useNavigation();
-  const [filteredProducts, setFilteredProducts] = useState(dresses);
+  const route = useRoute();
+  const { categoryId, title } = route.params || {};
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [appliedFilters, setAppliedFilters] = useState({});
-  const [resultCount, setResultCount] = useState(dresses.length);
+  const [resultCount, setResultCount] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.getProductsPublic({ category: categoryId, limit: 40 });
+        const items = (res?.data || []).map(p => ({
+          id: p._id || p.id,
+          name: p.name,
+          price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
+          oldPrice: null,
+          rating: p.rating || 0,
+          reviews: 0,
+          image: (Array.isArray(p.images) && p.images[0]) || placeholder,
+          liked: false,
+        }));
+        setFilteredProducts(items);
+        setResultCount(items.length);
+      } catch (_) {
+        setFilteredProducts([]);
+        setResultCount(0);
+      }
+    })();
+  }, [categoryId]);
 
   const applyFilters = (filters) => {
-    let filtered = [...dresses];
+    let filtered = [...filteredProducts];
 
     // Apply category filter
     if (filters.categories && filters.categories.length > 0) {
@@ -109,7 +60,7 @@ const ProductList = () => {
     // Apply price filter
     if (filters.priceRange) {
       filtered = filtered.filter(item => {
-        const price = parseFloat(item.price.replace('$', ''));
+        const price = parseFloat(String(item.price).replace('₹', ''));
         return price >= filters.priceRange[0] && price <= filters.priceRange[1];
       });
     }
@@ -145,8 +96,8 @@ const ProductList = () => {
         <TouchableOpacity onPress={()=>navigation.goBack()}>
           <Icon name="arrow-back-outline" size={22} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.title}>Dresses</Text>
-        <View style={{ width: 22 }} /> 
+        <Text style={styles.title}>{title || 'Products'}</Text>
+        <View style={{ width: 22 }} />
       </View>
 
       {/* Filter & Count */}
@@ -163,12 +114,12 @@ const ProductList = () => {
         data={filteredProducts}
         numColumns={2}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         columnWrapperStyle={styles.column}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
-          
+
       </ScrollView>
       <ViewCartFooter />
     </View>
