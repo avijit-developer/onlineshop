@@ -1,17 +1,28 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { View, Text, Image, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { useEffect, useState } from 'react';
+import api from '../utils/api';
 
-const categories = [
-    { id: '1', image: require('../assets/cat1.png') },
-    { id: '2', image: require('../assets/cat2.png') },
-    { id: '3', image: require('../assets/cat3.png') },
-    { id: '4', image: require('../assets/cat4.png') },
-    { id: '5', image: require('../assets/cat5.png') },
-];
+const placeholder = require('../assets/cat1.png');
 
 const AllCategories = () => {
             const navigation  = useNavigation();
+            const [categories, setCategories] = useState([]);
+            useEffect(() => {
+              let mounted = true;
+              (async () => {
+                try {
+                  const res = await api.getCategoriesPublic({ parent: 'root', limit: 50 });
+                  if (res?.success && mounted) {
+                    setCategories((res.data || []).map(c => ({ id: c._id, name: c.name, image: c.image })));
+                  }
+                } catch (_) {
+                  // ignore
+                }
+              })();
+              return () => { mounted = false; };
+            }, []);
   
     return (
         <View style={styles.container}>
@@ -23,8 +34,8 @@ const AllCategories = () => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.imageWrapper} onPress={()=>navigation.navigate('ProductList')}>
-            <Image source={item.image} style={styles.image} />
+          <TouchableOpacity style={styles.imageWrapper} onPress={()=>navigation.navigate('ProductList', { categoryId: item.id, title: item.name })}>
+            <Image source={ item.image ? { uri: item.image } : placeholder } style={styles.image} />
           </TouchableOpacity>
         )}
       />

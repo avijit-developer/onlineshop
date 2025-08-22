@@ -49,6 +49,36 @@ router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) 
   res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
 });
 
+// Public: List categories without auth (supports same parent filter and pagination)
+router.get('/public', async (req, res) => {
+  const { parent = 'root', q = '', page = 1, limit = 50 } = req.query;
+  const filters = {};
+  if (parent === 'root') {
+    filters.parent = null;
+  } else if (parent === 'all') {
+    // no parent filter
+  } else if (parent) {
+    filters.parent = parent;
+  }
+  if (q) {
+    filters.name = { $regex: String(q), $options: 'i' };
+  }
+
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const perPage = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+
+  const [items, total] = await Promise.all([
+    Category.find(filters)
+      .sort({ sortOrder: 1, name: 1 })
+      .skip((pageNum - 1) * perPage)
+      .limit(perPage)
+      .lean(),
+    Category.countDocuments(filters)
+  ]);
+
+  res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+});
+
 // Create a category
 router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (req, res) => {
   const { name, description, parent, featured = 'false', sortOrder = '0' } = req.body || {};

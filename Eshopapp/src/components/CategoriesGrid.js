@@ -1,63 +1,52 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, FlatList, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import api from '../utils/api';
 
 const screenWidth = Dimensions.get('window').width;
 const cardWidth = (screenWidth - 48) / 2; // Adjusted for 2 columns with spacing
 
-const categories = [
-    {
-        id: '1',
-        title: 'Clothing',
-        count: 109,
-        images: [
-            require('../assets/cat_clothing.png'),
-            require('../assets/cat_clothing2.png'),
-            require('../assets/cat_clothing3.png'),
-            require('../assets/cat_clothing4.png'),
-        ],
-    },
-    {
-        id: '2',
-        title: 'Shoes',
-        count: 530,
-        images: [
-            require('../assets/shoe1.png'),
-            require('../assets/shoe2.png'),
-            require('../assets/shoe3.png'),
-            require('../assets/shoe4.png'),
-        ],
-    },
-    {
-        id: '3',
-        title: 'Bags',
-        count: 87,
-        images: [
-            require('../assets/bag1.png'),
-            require('../assets/bag2.png'),
-            require('../assets/bag3.png'),
-            require('../assets/bag4.png'),
-        ],
-    },
-    {
-        id: '4',
-        title: 'Lingerie',
-        count: 218,
-        images: [
-            require('../assets/ling1.png'),
-            require('../assets/ling2.png'),
-            require('../assets/ling3.png'),
-            require('../assets/ling4.png'),
-        ],
-    },
-];
+const placeholder = require('../assets/cat_clothing.png');
 
 const CategoryBlockGrid = () => {
+    const [blocks, setBlocks] = useState([]);
+
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const res = await api.getCategoriesPublic({ parent: 'all', limit: 1000 });
+                if (!res?.success) return;
+                const all = res.data || [];
+                const parents = all.filter(c => !c.parent);
+                const byParent = new Map();
+                all.forEach(c => {
+                  const pid = c.parent;
+                  if (!pid) return;
+                  const key = typeof pid === 'string' ? pid : (pid?._id || String(pid));
+                  if (!byParent.has(key)) byParent.set(key, []);
+                  byParent.get(key).push(c);
+                });
+                const built = parents.map(p => {
+                    const pid = p._id;
+                    const children = (byParent.get(pid) || []);
+                    const childImages = children.slice(0,4).map(ch => ch.image).filter(Boolean);
+                    const images = childImages.length > 0 ? childImages : [p.image, p.image, p.image, p.image].slice(0,4);
+                    return { id: pid, title: p.name, images };
+                });
+                if (mounted) setBlocks(built);
+            } catch (_) {
+                // ignore
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
+
     const renderItem = ({ item }) => (
         <View style={styles.card}>
             <View style={styles.imageGrid}>
                 {item.images.map((img, idx) => (
-                    <Image key={idx} source={img} style={styles.gridImage} />
+                    <Image key={idx} source={ img ? { uri: img } : placeholder } style={styles.gridImage} />
                 ))}
             </View>
             <View style={styles.footer}>
@@ -79,7 +68,7 @@ const CategoryBlockGrid = () => {
 
             {/* Category Grid */}
             <FlatList
-                data={categories}
+                data={blocks}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
                 numColumns={2}

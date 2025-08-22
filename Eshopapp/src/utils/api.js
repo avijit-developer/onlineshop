@@ -135,6 +135,17 @@ const api = {
   },
 
   // Note: update profile endpoint is not implemented for customers in backend
+
+  // Categories (public)
+  async getCategoriesPublic(params = {}) {
+    const search = new URLSearchParams();
+    if (params.parent) search.set('parent', params.parent);
+    if (params.q) search.set('q', params.q);
+    if (params.page) search.set('page', String(params.page));
+    if (params.limit) search.set('limit', String(params.limit));
+    const qs = search.toString();
+    return this.request(`/api/v1/categories/public${qs ? `?${qs}` : ''}`);
+  },
 };
 
 export default api;
