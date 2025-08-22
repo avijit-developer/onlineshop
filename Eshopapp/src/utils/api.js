@@ -143,13 +143,13 @@ const api = {
 
   // Categories (public)
   async getCategoriesPublic(params = {}) {
-    const search = new URLSearchParams();
-    if (params.parent) search.set('parent', params.parent);
-    if (params.q) search.set('q', params.q);
-    if (params.page) search.set('page', String(params.page));
-    if (params.limit) search.set('limit', String(params.limit));
-    const qs = search.toString();
-    return this.request(`/api/v1/categories/public${qs ? `?${qs}` : ''}`);
+    const parts = [];
+    if (params.parent) parts.push('parent=' + encodeURIComponent(String(params.parent)));
+    if (params.q) parts.push('q=' + encodeURIComponent(String(params.q)));
+    if (params.page != null) parts.push('page=' + encodeURIComponent(String(params.page)));
+    if (params.limit != null) parts.push('limit=' + encodeURIComponent(String(params.limit)));
+    const qs = parts.length ? '?' + parts.join('&') : '';
+    return this.request(`/api/v1/categories/public${qs}`);
   },
 };
 
