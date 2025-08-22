@@ -128,6 +128,12 @@ const Products = () => {
     variants: []
   });
 
+  const normalizeId = (val) => {
+    if (!val) return '';
+    if (typeof val === 'object') return val._id || val.id || '';
+    return val;
+  };
+
   const adminUser = (() => {
     try { return JSON.parse(localStorage.getItem('adminUser')); } catch { return null; }
   })();
@@ -277,9 +283,9 @@ const Products = () => {
       name: product.name || '',
       description: product.description || '',
       shortDescription: product.shortDescription || '',
-      categoryId: product.category || '',
-      brandId: product.brand || '',
-      vendorId: isVendorUser ? currentVendorId : (product.vendor || ''),
+      categoryId: normalizeId(product.category),
+      brandId: normalizeId(product.brand),
+      vendorId: isVendorUser ? currentVendorId : normalizeId(product.vendor),
       regularPrice: product.regularPrice ?? '',
       specialPrice: product.specialPrice ?? '',
       tax: product.tax ?? '',
@@ -345,9 +351,9 @@ const Products = () => {
         name: formData.name.trim(),
         description: formData.description?.trim() || '',
         shortDescription: formData.shortDescription?.trim() || undefined,
-        category: formData.categoryId,
-        brand: formData.brandId,
-        vendor: isVendorUser ? currentVendorId : formData.vendorId,
+        category: normalizeId(formData.categoryId),
+        brand: normalizeId(formData.brandId),
+        vendor: isVendorUser ? currentVendorId : normalizeId(formData.vendorId),
         regularPrice: Number(formData.regularPrice) || 0,
         specialPrice: formData.specialPrice !== '' ? Number(formData.specialPrice) : undefined,
         tax: formData.tax !== '' ? Number(formData.tax) : undefined,
@@ -356,15 +362,19 @@ const Products = () => {
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         images: formData.images || [],
         imagePublicIds: [],
-        variants: matrixVariants.map(v => ({
+        // variants will be conditionally added below
+      };
+
+      if (matrixVariants.length > 0) {
+        payload.variants = matrixVariants.map(v => ({
           attributes: Object.fromEntries(Object.entries(v).filter(([k]) => variantAttributes.includes(k))),
           sku: (v.sku || '').trim(),
           price: v.price !== '' && v.price !== undefined ? Number(v.price) : undefined,
           specialPrice: v.specialPrice !== '' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
-          images: (v.images || []).map(img => typeof img === 'string' ? img : img.imageUrl) // Convert File objects to URLs
-        }))
-      };
+          images: (v.images || []).map(img => typeof img === 'string' ? img : img.imageUrl)
+        }));
+      }
 
       if (payload.variants.length > 0) {
         for (const v of payload.variants) {
