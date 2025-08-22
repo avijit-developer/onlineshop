@@ -67,7 +67,7 @@ router.post('/sections/init', authenticate, requireAdmin, async (req, res) => {
 router.get('/sections', authenticate, requireAdmin, async (req, res) => {
   try {
     const sections = await HomePageSection.find()
-      .populate('products.productId', 'name price images rating salesCount')
+      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled')
       .sort({ order: 1 });
     
     res.json({ success: true, data: sections });
@@ -81,7 +81,7 @@ router.get('/sections/public', async (req, res) => {
   try {
     console.log('Homepage: Fetching public sections...');
     const sections = await HomePageSection.find({ isActive: true })
-      .populate('products.productId', 'name price images rating salesCount status enabled')
+      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled')
       .sort({ order: 1 });
 
     console.log('Homepage: Found sections:', sections.length);

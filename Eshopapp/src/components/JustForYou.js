@@ -45,7 +45,7 @@ const JustForYou = ({ navigation }) => {
       />
       <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
       {sectionConfig?.settings?.showPrice && (
-        <Text style={styles.price}>₹{item.price}</Text>
+        <Text style={styles.price}>₹{item.specialPrice ?? item.regularPrice ?? item.price}</Text>
       )}
     </TouchableOpacity>
   );

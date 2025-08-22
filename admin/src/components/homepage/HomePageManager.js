@@ -270,7 +270,7 @@ const HomePageManager = () => {
                     />
                     <div className="product-info">
                       <span className="product-name">{product.productId.name}</span>
-                      <span className="product-price">${product.productId.price}</span>
+                      <span className="product-price">${product.productId.specialPrice ?? product.productId.regularPrice ?? product.productId.price}</span>
                     </div>
                     <button
                       className="btn btn-sm btn-danger"
