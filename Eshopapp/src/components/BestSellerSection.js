@@ -44,8 +44,15 @@ const BestSellerSection = ({ navigation }) => {
         />
         <View style={styles.cardFooter}>
           <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-          {sectionConfig?.settings?.showPrice && price != null && (
-            <Text style={styles.price}>₹{price}</Text>
+          {sectionConfig?.settings?.showPrice && (
+            item.specialPrice != null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#e53935' }}>₹{item.specialPrice}</Text>
+                <Text style={{ fontSize: 13, color: '#888', textDecorationLine: 'line-through' }}>₹{item.regularPrice}</Text>
+              </View>
+            ) : (
+              price != null && <Text style={styles.price}>₹{price}</Text>
+            )
           )}
         </View>
       </TouchableOpacity>

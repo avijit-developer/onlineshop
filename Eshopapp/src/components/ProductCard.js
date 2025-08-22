@@ -41,9 +41,13 @@ const ProductCard = ({ item }) => {
         <TouchableOpacity onPress={handleProductPress}>
           <Text style={styles.name}>{item.name}</Text>
           <View style={styles.priceWrapper}>
-            <Text style={styles.price}>{String(item.price).replace('$', '₹')}</Text>
-            {item.oldPrice && (
-              <Text style={styles.oldPrice}>{item.oldPrice}</Text>
+            {item.oldPrice ? (
+              <>
+                <Text style={[styles.price, { color: '#e53935' }]}>{String(item.price).replace('$', '₹')}</Text>
+                <Text style={styles.oldPrice}>{item.oldPrice}</Text>
+              </>
+            ) : (
+              <Text style={styles.price}>{String(item.price).replace('$', '₹')}</Text>
             )}
           </View>
           <View style={styles.ratingWrapper}>

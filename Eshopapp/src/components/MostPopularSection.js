@@ -63,8 +63,15 @@ const MostPopularSection = ({ navigation }) => {
           <View style={styles.likes}>
             <Text style={styles.likesText}>{item.rating || 0}</Text>
           </View>
-          {price != null && sectionConfig?.settings?.showPrice && (
-            <Text style={styles.tag}>₹{price}</Text>
+          {sectionConfig?.settings?.showPrice && (
+            item.specialPrice != null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.tag, { color: '#e53935', fontWeight: '700' }]}>₹{item.specialPrice}</Text>
+                <Text style={[styles.tag, { textDecorationLine: 'line-through', color: '#888' }]}>₹{item.regularPrice}</Text>
+              </View>
+            ) : (
+              price != null && <Text style={styles.tag}>₹{price}</Text>
+            )
           )}
         </View>
       </TouchableOpacity>

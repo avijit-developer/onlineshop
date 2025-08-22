@@ -45,7 +45,7 @@ const ProductList = () => {
           id: p._id || p.id,
           name: p.name,
           price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
-          oldPrice: null,
+          oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
           rating: p.rating || 0,
           reviews: 0,
           image: (Array.isArray(p.images) && p.images[0]) || placeholder,
