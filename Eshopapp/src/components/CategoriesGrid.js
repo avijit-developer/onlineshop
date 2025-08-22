@@ -15,28 +15,33 @@ const CategoryBlockGrid = () => {
         let mounted = true;
         (async () => {
             try {
+                console.log('CategoriesGrid: fetching all categories...');
                 const res = await api.getCategoriesPublic({ parent: 'all', limit: 1000 });
+                console.log('CategoriesGrid: response', res);
                 if (!res?.success) return;
                 const all = res.data || [];
+                console.log('CategoriesGrid: total categories', all.length);
                 const parents = all.filter(c => !c.parent);
+                console.log('CategoriesGrid: parents', parents.length);
                 const byParent = new Map();
                 all.forEach(c => {
                   const pid = c.parent;
                   if (!pid) return;
-                  const key = typeof pid === 'string' ? pid : (pid?._id || String(pid));
+                  const key = (typeof pid === 'object' && pid !== null) ? (pid._id || String(pid)) : String(pid);
                   if (!byParent.has(key)) byParent.set(key, []);
                   byParent.get(key).push(c);
                 });
                 const built = parents.map(p => {
-                    const pid = p._id;
+                    const pid = String(p._id);
                     const children = (byParent.get(pid) || []);
+                    console.log('CategoriesGrid: parent', p.name, 'children', children.length);
                     const childImages = children.slice(0,4).map(ch => ch.image).filter(Boolean);
                     const images = childImages.length > 0 ? childImages : [p.image, p.image, p.image, p.image].slice(0,4);
                     return { id: pid, title: p.name, images };
                 });
                 if (mounted) setBlocks(built);
             } catch (_) {
-                // ignore
+                console.log('CategoriesGrid: fetch error', _);
             }
         })();
         return () => { mounted = false; };

@@ -52,6 +52,7 @@ router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) 
 // Public: List categories without auth (supports same parent filter and pagination)
 router.get('/public', async (req, res) => {
   const { parent = 'root', q = '', page = 1, limit = 50 } = req.query;
+  console.log('Categories public: query', { parent, q, page, limit });
   const filters = {};
   if (parent === 'root') {
     filters.parent = null;
@@ -76,6 +77,7 @@ router.get('/public', async (req, res) => {
     Category.countDocuments(filters)
   ]);
 
+  console.log('Categories public: results', { count: items.length, total });
   res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
 });
 

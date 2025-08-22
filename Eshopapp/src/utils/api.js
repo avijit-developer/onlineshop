@@ -10,6 +10,7 @@ class ApiError extends Error {
 const api = {
   async request(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
+    try { console.log('api.request ->', url); } catch (_) {}
     
     // Ensure headers are merged correctly and not overwritten by spreading options
     const { headers: optionHeaders, ...restOptions } = options || {};
@@ -26,14 +27,18 @@ const api = {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        try { console.log('api.request error', url, response.status, errorData); } catch (_) {}
         throw new ApiError(
           errorData.message || `HTTP error! status: ${response.status}`,
           response.status
         );
       }
       
-      return await response.json();
+      const json = await response.json();
+      try { console.log('api.request <-', url, 'ok'); } catch (_) {}
+      return json;
     } catch (error) {
+      try { console.log('api.request catch', url, error?.message); } catch (_) {}
       if (error instanceof ApiError) {
         throw error;
       }
