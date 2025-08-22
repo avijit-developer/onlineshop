@@ -43,7 +43,8 @@ const productSchema = new mongoose.Schema(
 
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
     featured: { type: Boolean, default: false, index: true },
-    enabled: { type: Boolean, default: true, index: true }
+    enabled: { type: Boolean, default: true, index: true },
+    relatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }]
   },
   { timestamps: true }
 );

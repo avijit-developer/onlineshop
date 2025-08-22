@@ -158,6 +158,10 @@ const api = {
     const qs = parts.length ? '?' + parts.join('&') : '';
     return this.request(`/api/v1/products/public${qs}`);
   },
+
+  async getRelatedProductsPublic(productId) {
+    return this.request(`/api/v1/products/${productId}/related/public`);
+  },
 };
 
 export default api;

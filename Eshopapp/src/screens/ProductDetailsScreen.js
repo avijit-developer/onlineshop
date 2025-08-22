@@ -152,7 +152,13 @@ export default function ProductDetailsScreen() {
                         </View>
                     </View>
                 </View>
-                <RelatedProducts />
+                <RelatedProducts 
+                  productId={currentProductId}
+                  onPressProduct={(p) => {
+                    // Navigate to details for selected related product
+                    // navigation.navigate('ProductDetails', { productId: p.id });
+                  }}
+                />
             </ScrollView>
 
 

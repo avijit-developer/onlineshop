@@ -360,4 +360,50 @@ router.get('/public', async (req, res) => {
   }
 });
 
+// Public: Get related products for a given product
+router.get('/:id/related/public', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id).select('relatedProducts category').lean();
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    let items = [];
+    if (product.relatedProducts && product.relatedProducts.length > 0) {
+      items = await Product.find({ _id: { $in: product.relatedProducts }, enabled: true, status: { $ne: 'rejected' } })
+        .select('name images regularPrice specialPrice rating')
+        .limit(12)
+        .lean();
+    } else if (product.category) {
+      items = await Product.find({ category: product.category, _id: { $ne: id }, enabled: true, status: { $ne: 'rejected' } })
+        .select('name images regularPrice specialPrice rating')
+        .sort({ createdAt: -1 })
+        .limit(12)
+        .lean();
+    }
+
+    res.json({ success: true, data: items });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to fetch related products' });
+  }
+});
+
+// Admin: Set related products for a product
+router.put('/:id/related', authenticate, requireRole(['admin','vendor']), requirePermission('products.edit'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { relatedProductIds } = req.body || {};
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    product.relatedProducts = Array.isArray(relatedProductIds) ? relatedProductIds : [];
+    await product.save();
+    res.json({ success: true, data: product });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to update related products' });
+  }
+});
+
 module.exports = router;
