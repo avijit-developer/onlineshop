@@ -108,6 +108,7 @@ const Products = () => {
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [relatedPicker, setRelatedPicker] = useState({ query: '', results: [], selected: [] });
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -291,6 +292,45 @@ const Products = () => {
       variants: product.variants || []
     });
     setShowEditModal(true);
+    // Prefill related products
+    prefillRelated(product);
+  };
+
+  const prefillRelated = async (product) => {
+    try {
+      const id = product?._id || product?.id;
+      if (!id) return;
+      const res = await fetch(`${API_BASE}/api/v1/products/${id}/related/public`);
+      const json = await res.json();
+      if (json?.success) {
+        setRelatedPicker(prev => ({ ...prev, selected: (json.data || []).map(p => ({ id: p._id || p.id, name: p.name, image: (p.images && p.images[0]) })) }));
+      }
+    } catch (_) {}
+  };
+
+  const searchRelated = async () => {
+    try {
+      const q = relatedPicker.query.trim();
+      if (!q) { setRelatedPicker(prev => ({ ...prev, results: [] })); return; }
+      const params = new URLSearchParams({ q, page: '1', limit: '10' });
+      const res = await fetch(`${API_BASE}/api/v1/products?${params.toString()}`, { headers: getAuthHeaders() });
+      const json = await res.json();
+      if (json?.success) {
+        const items = (json.data || []).map(p => ({ id: p._id || p.id, name: p.name, image: (p.images && p.images[0]) }));
+        setRelatedPicker(prev => ({ ...prev, results: items }));
+      }
+    } catch (e) {}
+  };
+
+  const addRelated = (item) => {
+    setRelatedPicker(prev => {
+      if (prev.selected.find(s => String(s.id) === String(item.id))) return prev;
+      return { ...prev, selected: [...prev.selected, item] };
+    });
+  };
+
+  const removeRelated = (id) => {
+    setRelatedPicker(prev => ({ ...prev, selected: prev.selected.filter(s => String(s.id) !== String(id)) }));
   };
 
   const handleViewDetails = (product) => {
@@ -354,6 +394,13 @@ const Products = () => {
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.message || 'Failed to update product');
         toast.success('Product updated successfully');
+        // Save related products
+        const relatedIds = relatedPicker.selected.map(s => s.id);
+        await fetch(`${API_BASE}/api/v1/products/${id}/related`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ relatedProductIds: relatedIds })
+        });
       }
 
       setShowAddModal(false);
@@ -878,6 +925,42 @@ const Products = () => {
                   />
                 </div>
 
+                <div className="form-group full-width">
+                  <label>Related Products</label>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Search products..."
+                      value={relatedPicker.query}
+                      onChange={(e) => setRelatedPicker(prev => ({ ...prev, query: e.target.value }))}
+                      style={{ flex: 1 }}
+                    />
+                    <button type="button" className="btn btn-secondary" onClick={searchRelated}>Search</button>
+                  </div>
+                  {relatedPicker.results.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginBottom: 10 }}>
+                      {relatedPicker.results.map(item => (
+                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #eee', padding: 8, borderRadius: 6 }}>
+                          <img src={item.image || '/default-product.png'} alt={item.name} style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }} />
+                          <div style={{ flex: 1, fontSize: 12 }}>{item.name}</div>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => addRelated(item)}>Add</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {relatedPicker.selected.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {relatedPicker.selected.map(item => (
+                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #eee', padding: '4px 8px', borderRadius: 20 }}>
+                          <img src={item.image || '/default-product.png'} alt={item.name} style={{ width: 22, height: 22, borderRadius: 11, objectFit: 'cover' }} />
+                          <span style={{ fontSize: 12 }}>{item.name}</span>
+                          <button type="button" className="btn btn-danger btn-sm" onClick={() => removeRelated(item.id)}>Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="form-group">
                   <label>Tags</label>
                   <input
@@ -1225,4 +1308,4 @@ const Products = () => {
   );
 };
 
-export default Products; 
+export default Products;
