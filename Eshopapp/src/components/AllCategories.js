@@ -13,16 +13,13 @@ const AllCategories = () => {
               let mounted = true;
               (async () => {
                 try {
-                  console.log('AllCategories: fetching parent categories...');
                   const res = await api.getCategoriesPublic({ parent: 'root', limit: 50 });
-                  console.log('AllCategories: response', res);
                   if (res?.success && mounted) {
                     const mapped = (res.data || []).map(c => ({ id: c._id, name: c.name, image: c.image }));
-                    console.log('AllCategories: mapped count', mapped.length);
                     setCategories(mapped);
                   }
                 } catch (_) {
-                  console.log('AllCategories: fetch error', _);
+                  // ignore
                 }
               })();
               return () => { mounted = false; };
