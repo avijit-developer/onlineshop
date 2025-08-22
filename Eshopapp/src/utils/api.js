@@ -162,6 +162,10 @@ const api = {
   async getRelatedProductsPublic(productId) {
     return this.request(`/api/v1/products/${productId}/related/public`);
   },
+
+  async getProductPublic(productId) {
+    return this.request(`/api/v1/products/${productId}/public`);
+  },
 };
 
 export default api;

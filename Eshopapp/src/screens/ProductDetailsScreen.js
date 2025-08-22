@@ -1,56 +1,113 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, Modal } from 'react-native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import RelatedProducts from '../components/RelatedProducts';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import LottieView from 'lottie-react-native';
 import { useCart } from '../contexts/CartContext';
 import ViewCartFooter from '../components/ViewCartFooter';
-
-const mockProduct = {
-    title: 'Arla DANO Full Cream Milk Powder Instant',
-    description:
-        'Et quidem faciunt, ut summum bonum sit extremum et rationibus conquisitis de voluptate. Sed ut summum bonum sit id,',
-    images: [
-        { uri: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/Placeholder_101_mdvn5x.png' },
-        { uri: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/Placeholder_101_mdvn5x.png' },
-        { uri: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/Placeholder_101_mdvn5x.png' },
-    ],
-    colorimages: [
-            'https://example.com/images/dano1.png',
-            'https://example.com/images/dano2.png',
-            'https://example.com/images/dano3.png',
-        ],
-    specialPrice: 499,
-    originalPrice: 599,
-    colors: ['#f5a623', '#4a90e2', '#50e3c2'],
-    sizes: ['S', 'M', 'L', 'XL'],
-};
+import api from '../utils/api';
 
 export default function ProductDetailsScreen() {
-    const [selectedColor, setSelectedColor] = React.useState(0);
-    const [selectedSize, setSelectedSize] = React.useState('M');
-    const [disabledSizes] = React.useState(['XXL', 'XXXL']);
-    const [quantity, setQuantity] = React.useState(1);
-          const navigation  = useNavigation();
+    const navigation  = useNavigation();
+    const route = useRoute();
+    const { productId } = route.params || {};
+
     const { addToCart } = useCart();
 
+    const [product, setProduct] = useState(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [quantity, setQuantity] = useState(1);
     const [showAddAnimation, setShowAddAnimation] = useState(false);
 
+    // Variant handling
+    const [attributeOptions, setAttributeOptions] = useState({}); // { Color: ['Red','Blue'], Size: ['M','L'] }
+    const [selectedAttributes, setSelectedAttributes] = useState({});
+
+    useEffect(() => {
+        (async () => {
+            if (!productId) return;
+            try {
+                const res = await api.getProductPublic(productId);
+                if (res?.success) {
+                    const p = res.data;
+                    setProduct(p);
+                    // Build attribute options if configurable
+                    if (p.productType === 'configurable' && Array.isArray(p.variants)) {
+                        const opts = {};
+                        for (const v of p.variants) {
+                            const attrs = v.attributes || {};
+                            Object.keys(attrs).forEach(key => {
+                                opts[key] = opts[key] || [];
+                                if (!opts[key].includes(attrs[key])) opts[key].push(attrs[key]);
+                            });
+                        }
+                        setAttributeOptions(opts);
+                        // Preselect first available options
+                        const defaults = {};
+                        Object.keys(opts).forEach(key => { defaults[key] = opts[key][0]; });
+                        setSelectedAttributes(defaults);
+                    } else {
+                        setAttributeOptions({});
+                        setSelectedAttributes({});
+                    }
+                }
+            } catch (_) {
+                // ignore
+            }
+        })();
+    }, [productId]);
+
+    const findMatchingVariant = () => {
+        if (!product || product.productType !== 'configurable') return null;
+        const attrs = selectedAttributes || {};
+        const match = (product.variants || []).find(v => {
+            const vattrs = v.attributes || {};
+            return Object.keys(attributeOptions).every(k => String(vattrs[k]) === String(attrs[k]));
+        });
+        return match || null;
+    };
+
+    const currentImages = () => {
+        return Array.isArray(product?.images) && product.images.length > 0 ? product.images : [];
+    };
+
+    const currentPriceBlock = () => {
+        let regular = product?.regularPrice ?? null;
+        let special = product?.specialPrice ?? null;
+        if (product?.productType === 'configurable') {
+            const v = findMatchingVariant();
+            if (v) {
+                regular = v.price ?? regular;
+                special = v.specialPrice ?? special;
+            }
+        }
+        return { regular, special };
+    };
+
+    const handleSelectAttribute = (name, value) => {
+        setSelectedAttributes(prev => ({ ...prev, [name]: value }));
+    };
+
     const handleAddToCart = () => {
-        const product = {
-            id: 'demo-1',
-            name: mockProduct.title,
-            image: mockProduct.images[0].uri,
-            price: `₹${mockProduct.specialPrice}`,
-            selectedSize,
-            selectedColor: selectedColor.toString(),
+        if (!product) return;
+        const { regular, special } = currentPriceBlock();
+        const cartItem = {
+            id: productId,
+            name: product.name,
+            image: currentImages()[0] || '',
+            price: `₹${special ?? regular ?? 0}`,
         };
-        addToCart(product, quantity, selectedSize, selectedColor.toString());
+        // Pass variant info if configurable
+        if (product.productType === 'configurable') {
+            cartItem.selectedAttributes = selectedAttributes;
+        }
+        addToCart(cartItem, quantity);
         setShowAddAnimation(true);
         setTimeout(() => setShowAddAnimation(false), 1500);
     };
+
+    const { regular, special } = currentPriceBlock();
 
     return (
         <>
@@ -62,105 +119,98 @@ export default function ProductDetailsScreen() {
                 </TouchableOpacity>
 
                 {/* Product Image */}
-                <Image source={mockProduct.images[1]} style={styles.mainImage} resizeMode="cover" />
+                {currentImages()[activeImageIndex] && (
+                    <Image source={{ uri: currentImages()[activeImageIndex] }} style={styles.mainImage} resizeMode="cover" />
+                )}
 
                 {/* Image Thumbnails */}
                 <View style={styles.thumbnailContainer}>
-                    {mockProduct.images.map((img, index) => (
+                    {currentImages().map((img, index) => (
                         <TouchableOpacity key={index} onPress={() => setActiveImageIndex(index)}>
-                            <Image source={img} style={[styles.thumbnail, activeImageIndex === index && styles.activeThumb]} />
+                            <Image source={{ uri: img }} style={[styles.thumbnail, activeImageIndex === index && styles.activeThumb]} />
                         </TouchableOpacity>
                     ))}
                 </View>
 
                 {/* Title */}
-                <Text style={styles.title}>{mockProduct.title}</Text>
+                <Text style={styles.title}>{product?.name || ''}</Text>
 
                 {/* Price */}
                 <View style={styles.priceContainer}>
-                    <Text style={styles.specialPrice}>₹{mockProduct.specialPrice}</Text>
-                    <Text style={styles.originalPrice}>₹{mockProduct.originalPrice}</Text>
-                    <Text style={styles.discount}>
-                        ({Math.round(((mockProduct.originalPrice - mockProduct.specialPrice) / mockProduct.originalPrice) * 100)}% OFF)
-                    </Text>
+                    {special != null ? (
+                        <>
+                            <Text style={styles.specialPrice}>₹{special}</Text>
+                            {regular != null && (
+                                <Text style={styles.originalPrice}>₹{regular}</Text>
+                            )}
+                            {regular != null && special < regular && (
+                                <Text style={styles.discount}>
+                                    ({Math.round(((regular - special) / regular) * 100)}% OFF)
+                                </Text>
+                            )}
+                        </>
+                    ) : (
+                        regular != null && <Text style={styles.specialPrice}>₹{regular}</Text>
+                    )}
                 </View>
 
-                <Text style={styles.description}>{mockProduct.description}</Text>
-
+                <Text style={styles.description}>{product?.description || ''}</Text>
 
                 {/* Variants */}
-                <View style={styles.variantsSection}>
-                    <Text style={styles.sectionTitle}>Color Options</Text>
-                    <View style={styles.colorOptions}>
-                        {mockProduct.colorimages.map((img, idx) => (
-                        <TouchableOpacity
-                            key={idx}
-                            style={[
-                                styles.colorThumb,
-                                selectedColor === idx && styles.colorSelected,
-                            ]}
-                            onPress={() => setSelectedColor(idx)}
-                        >
-                            <Image source={{ uri: img }} style={styles.colorImage} />
-                        </TouchableOpacity>
-                    ))}
-                    </View>
-
-                    <Text style={styles.sectionTitle}>Size</Text>
-                    <View style={styles.sizeRow}>
-                        {['S', 'M', 'L', 'XL', 'XXL', 'XXXL'].map((size) => (
-                            <TouchableOpacity
-                                key={size}
-                                style={[
-                                    styles.sizeButton,
-                                    selectedSize === size && styles.sizeSelected,
-                                    disabledSizes.includes(size) && styles.sizeDisabled,
-                                ]}
-                                disabled={disabledSizes.includes(size)}
-                                onPress={() => setSelectedSize(size)}
-                            >
-                                <Text
-                                    style={[
-                                        styles.sizeText,
-                                        disabledSizes.includes(size) && { color: '#aaa' },
-                                    ]}
-                                >
-                                    {size}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    <View style={styles.quantityWrapper}>
-                        <Text style={styles.sectionTitle}>Quantity</Text>
-                        <View style={styles.quantityControls}>
-                            <TouchableOpacity
-                                style={styles.qtyCircleBtn}
-                                onPress={() => setQuantity(Math.max(1, quantity - 1))}
-                            >
-                                <Text style={styles.qtyBtnText}>−</Text>
-                            </TouchableOpacity>
-                            <View style={styles.qtyBox}>
-                                <Text style={styles.qtyNumber}>{quantity}</Text>
+                {product?.productType === 'configurable' && Object.keys(attributeOptions).length > 0 && (
+                    <View style={styles.variantsSection}>
+                        {Object.keys(attributeOptions).map(attrName => (
+                            <View key={attrName} style={{ marginBottom: 10 }}>
+                                <Text style={styles.sectionTitle}>{attrName}</Text>
+                                <View style={styles.sizeRow}>
+                                    {attributeOptions[attrName].map(val => (
+                                        <TouchableOpacity
+                                            key={val}
+                                            style={[
+                                                styles.sizeButton,
+                                                selectedAttributes[attrName] === val && styles.sizeSelected,
+                                            ]}
+                                            onPress={() => handleSelectAttribute(attrName, val)}
+                                        >
+                                            <Text style={styles.sizeText}>{val}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                             </View>
-                            <TouchableOpacity
-                                style={styles.qtyCircleBtn}
-                                onPress={() => setQuantity(quantity + 1)}
-                            >
-                                <Text style={styles.qtyBtnText}>+</Text>
-                            </TouchableOpacity>
+                        ))}
+                        <View style={styles.quantityWrapper}>
+                            <Text style={styles.sectionTitle}>Quantity</Text>
+                            <View style={styles.quantityControls}>
+                                <TouchableOpacity
+                                    style={styles.qtyCircleBtn}
+                                    onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                                >
+                                    <Text style={styles.qtyBtnText}>−</Text>
+                                </TouchableOpacity>
+                                <View style={styles.qtyBox}>
+                                    <Text style={styles.qtyNumber}>{quantity}</Text>
+                                </View>
+                                <TouchableOpacity
+                                    style={styles.qtyCircleBtn}
+                                    onPress={() => setQuantity(quantity + 1)}
+                                >
+                                    <Text style={styles.qtyBtnText}>+</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
-                </View>
-                <RelatedProducts 
-                  productId={currentProductId}
-                  onPressProduct={(p) => {
-                    // Navigate to details for selected related product
-                    // navigation.navigate('ProductDetails', { productId: p.id });
-                  }}
-                />
-            </ScrollView>
+                )}
 
+                {/* Related Products */}
+                {productId && (
+                    <RelatedProducts 
+                        productId={productId}
+                        onPressProduct={(p) => {
+                            navigation.push('ProductDetails', { productId: p.id });
+                        }}
+                    />
+                )}
+            </ScrollView>
 
             <View style={styles.actionsContainer}>
                 <TouchableOpacity style={styles.heartButton}>
@@ -221,25 +271,6 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         marginTop: 20,
     },
-    colorOptions: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    colorThumb: {
-        width: 50,
-        height: 50,
-        borderRadius: 8,
-        borderWidth: 2,
-        borderColor: 'transparent',
-    },
-    colorSelected: {
-        borderColor: '#2196F3',
-    },
-    colorImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 6,
-    },
     sizeRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -255,10 +286,6 @@ const styles = StyleSheet.create({
     sizeSelected: {
         backgroundColor: '#2196F3',
         borderColor: '#2196F3',
-    },
-    sizeDisabled: {
-        backgroundColor: '#eee',
-        borderColor: '#eee',
     },
     sizeText: {
         fontSize: 14,
@@ -305,59 +332,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#000',
     },
-    relatedTitle: {
-        fontSize: 17,
-        fontWeight: '600',
-        marginTop: 10,
-        marginBottom: 10,
-        paddingHorizontal: 16,
-    },
-    relatedItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        backgroundColor: '#f9f9f9',
-        marginBottom: 8,
-        borderRadius: 10,
-        marginHorizontal: 16,
-    },
-    relatedImage: {
-        width: 70,
-        height: 90,
-        marginRight: 10,
-        borderRadius: 6,
-    },
-    relatedName: {
-        fontSize: 15,
-        fontWeight: '600',
-        marginBottom: 4,
-    },
-    oldPrice: {
-        textDecorationLine: 'line-through',
-        color: '#888',
-        fontSize: 14,
-    },
-    newPrice: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#F57C00',
-    },
-    actionsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingBottom: 20,
-        marginTop: 10,
-    },
-    iconBtn: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 50,
-        padding: 10,
-    },
-
     actionsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -423,42 +397,4 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: 16,
     },
-    priceContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 10,
-        gap: 12,
-    },
-    specialPrice: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#F57C00',
-    },
-    originalPrice: {
-        fontSize: 16,
-        textDecorationLine: 'line-through',
-        color: '#888',
-    },
-
-    successOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.35)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    successCard: {
-        width: 220,
-        paddingVertical: 20,
-        paddingHorizontal: 16,
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        alignItems: 'center',
-    },
-    successText: {
-        marginTop: 8,
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#222',
-    },
-
 });

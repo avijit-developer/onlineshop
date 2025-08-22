@@ -406,4 +406,36 @@ router.put('/:id/related', authenticate, requireRole(['admin','vendor']), requir
   }
 });
 
+// Public: Get single product details
+router.get('/:id/public', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id)
+      .select('name description shortDescription images regularPrice specialPrice tax stock productType variants category brand vendor enabled status')
+      .lean();
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    if (product.status === 'rejected' || !product.enabled) {
+      return res.status(403).json({ success: false, message: 'Product not available' });
+    }
+
+    // Normalize variant attributes to plain object
+    if (Array.isArray(product.variants)) {
+      product.variants = product.variants.map(v => ({
+        attributes: v.attributes && typeof v.attributes === 'object' && !(v.attributes instanceof Array) ? v.attributes : (v.attributes || {}),
+        sku: v.sku,
+        price: v.price,
+        specialPrice: v.specialPrice,
+        stock: v.stock,
+        images: v.images || []
+      }));
+    }
+
+    res.json({ success: true, data: product });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to fetch product' });
+  }
+});
+
 module.exports = router;
