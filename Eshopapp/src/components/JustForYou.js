@@ -63,8 +63,19 @@ const JustForYou = ({ navigation }) => {
     );
   }
 
-  if (!sectionConfig || !sectionConfig.isActive || products.length === 0) {
+  if (!sectionConfig || !sectionConfig.isActive) {
     return null;
+  }
+
+  if (products.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>{sectionConfig.title || 'Just For You'}</Text>
+        </View>
+        <Text style={{ textAlign: 'center', color: '#666', padding: 20 }}>No products available</Text>
+      </View>
+    );
   }
 
   return (

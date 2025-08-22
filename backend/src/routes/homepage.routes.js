@@ -90,10 +90,19 @@ router.get('/sections/public', async (req, res) => {
     const processedSections = await Promise.all(sections.map(async (section) => {
       console.log(`Homepage: Processing section "${section.name}" (type: ${section.type})`);
       
+      // Try strict filter first (approved + enabled)
       let products = section.products
         .filter(p => p.productId && p.productId.status === 'approved' && p.productId.enabled)
         .sort((a, b) => a.order - b.order)
         .slice(0, section.settings.maxProducts);
+
+      // Relax filter if none found: allow any enabled and not rejected
+      if (products.length === 0) {
+        products = section.products
+          .filter(p => p.productId && p.productId.enabled && p.productId.status !== 'rejected')
+          .sort((a, b) => a.order - b.order)
+          .slice(0, section.settings.maxProducts);
+      }
 
       console.log(`Homepage: Section "${section.name}" has ${products.length} manual products`);
 
@@ -110,6 +119,15 @@ router.get('/sections/public', async (req, res) => {
         
         console.log(`Homepage: Section "${section.name}" adding ${newProducts.length} new auto-products`);
         products = [...products, ...newProducts.map(p => ({ productId: p, order: 999 }))];
+      }
+
+      // Final fallback: if still empty, show any enabled non-rejected products
+      if (products.length === 0) {
+        const fallbackAuto = await Product.find({ enabled: true, status: { $ne: 'rejected' } })
+          .sort({ createdAt: -1 })
+          .limit(section.settings.maxProducts);
+        console.log(`Homepage: Section "${section.name}" using fallback products: ${fallbackAuto.length}`);
+        products = fallbackAuto.map(p => ({ productId: p, order: 999 }));
       }
 
       console.log(`Homepage: Section "${section.name}" final product count: ${products.length}`);
