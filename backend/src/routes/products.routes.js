@@ -282,7 +282,8 @@ router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), requ
 router.get('/public', async (req, res) => {
   try {
     const { q = '', category, page = 1, limit = 20 } = req.query;
-    const filters = { status: 'approved', enabled: true };
+    const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
+    let filters = { ...baseFilters };
 
     if (q) {
       filters.$or = [
@@ -310,7 +311,7 @@ router.get('/public', async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
-    const [items, total] = await Promise.all([
+    let [items, total] = await Promise.all([
       Product.find(filters)
         .select('name images regularPrice specialPrice rating')
         .sort({ createdAt: -1 })
@@ -319,6 +320,39 @@ router.get('/public', async (req, res) => {
         .lean(),
       Product.countDocuments(filters)
     ]);
+
+    // Fallback: if no results and a category was specified, try relaxing filters further
+    if ((items?.length || 0) === 0 && category) {
+      filters = { enabled: true };
+      if (q) {
+        filters.$or = [
+          { name: { $regex: String(q), $options: 'i' } },
+          { description: { $regex: String(q), $options: 'i' } }
+        ];
+      }
+      const allIds = new Set([String(category)]);
+      let frontier = [String(category)];
+      while (frontier.length > 0) {
+        const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
+        const newIds = children
+          .map(c => String(c._id))
+          .filter(id => !allIds.has(id));
+        if (newIds.length === 0) break;
+        newIds.forEach(id => allIds.add(id));
+        frontier = newIds;
+      }
+      filters.category = { $in: Array.from(allIds) };
+
+      ;[items, total] = await Promise.all([
+        Product.find(filters)
+          .select('name images regularPrice specialPrice rating')
+          .sort({ createdAt: -1 })
+          .skip((pageNum - 1) * perPage)
+          .limit(perPage)
+          .lean(),
+        Product.countDocuments(filters)
+      ]);
+    }
 
     res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
   } catch (e) {
