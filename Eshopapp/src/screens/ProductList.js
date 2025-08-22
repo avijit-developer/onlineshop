@@ -24,11 +24,23 @@ const ProductList = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [appliedFilters, setAppliedFilters] = useState({});
   const [resultCount, setResultCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    // reset when category changes
+    setFilteredProducts([]);
+    setPage(1);
+    setHasMore(true);
+  }, [categoryId]);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.getProductsPublic({ category: categoryId, limit: 40 });
+        if (!hasMore && page !== 1) return;
+        setLoadingMore(true);
+        const res = await api.getProductsPublic({ category: categoryId, page, limit: 20 });
         const items = (res?.data || []).map(p => ({
           id: p._id || p.id,
           name: p.name,
@@ -39,14 +51,26 @@ const ProductList = () => {
           image: (Array.isArray(p.images) && p.images[0]) || placeholder,
           liked: false,
         }));
-        setFilteredProducts(items);
-        setResultCount(items.length);
+        setFilteredProducts(prev => page === 1 ? items : [...prev, ...items]);
+        setResultCount(prev => (page === 1 ? items.length : prev + items.length));
+        const total = res?.meta?.total || 0;
+        const fetchedSoFar = (page === 1 ? items.length : (filteredProducts.length + items.length));
+        if (fetchedSoFar >= total || items.length === 0) {
+          setHasMore(false);
+        }
       } catch (_) {
-        setFilteredProducts([]);
-        setResultCount(0);
+        setHasMore(false);
+      } finally {
+        setLoadingMore(false);
       }
     })();
-  }, [categoryId]);
+  }, [page, categoryId]);
+
+  const handleEndReached = () => {
+    if (hasMore && !loadingMore) {
+      setPage(prev => prev + 1);
+    }
+  };
 
   const applyFilters = (filters) => {
     let filtered = [...filteredProducts];
@@ -118,6 +142,8 @@ const ProductList = () => {
         columnWrapperStyle={styles.column}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
       />
 
       </ScrollView>
