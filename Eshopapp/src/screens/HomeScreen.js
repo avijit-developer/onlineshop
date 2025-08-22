@@ -10,7 +10,7 @@ import {
 
 import Header from '../components/Header';
 
-import RecentView from '../components/RecentView';
+// Removed static Best Seller (RecentView)
 
 import BottomNavigation from '../components/BottomNavigation';
 import SliderBanner from '../components/SliderBanner';
@@ -59,7 +59,6 @@ const HomeScreen = ({ navigation }) => {
         <Header />
         <SliderBanner />
         <AllCategories />
-        <RecentView />
         <MostPopularSection navigation={navigation} />
         <BestSellerSection navigation={navigation} />
         <CategoriesGrid />

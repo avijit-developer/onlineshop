@@ -261,7 +261,7 @@ const HomePageManager = () => {
               </div>
               
               <div className="products-list">
-                {section.products.slice(0, 3).map(product => (
+                {section.products.map(product => (
                   <div key={product.productId._id} className="product-item">
                     <img 
                       src={product.productId.images[0]} 
@@ -280,11 +280,6 @@ const HomePageManager = () => {
                     </button>
                   </div>
                 ))}
-                {section.products.length > 3 && (
-                  <div className="more-products">
-                    +{section.products.length - 3} more products
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -321,15 +316,12 @@ const HomePageManager = () => {
 const SectionEditModal = ({ section, categories, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     title: section.title,
-    subtitle: section.subtitle || '',
-    type: section.type,
-    settings: { ...section.settings },
-    autoSettings: { ...section.autoSettings }
+    settings: { maxProducts: section.settings?.maxProducts ?? 10 },
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(section._id, formData);
+    onSave(section._id, { title: formData.title, settings: { maxProducts: formData.settings.maxProducts } });
   };
 
   return (
@@ -349,44 +341,6 @@ const SectionEditModal = ({ section, categories, onClose, onSave }) => {
               required
             />
           </div>
-          
-          <div className="form-group">
-            <label>Subtitle (Optional)</label>
-            <input
-              type="text"
-              value={formData.subtitle}
-              onChange={(e) => setFormData({...formData, subtitle: e.target.value})}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Section Type</label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({...formData, type: e.target.value})}
-            >
-              <option value="manual">Manual Selection</option>
-              <option value="auto-popular">Auto - Most Popular</option>
-              <option value="auto-recent">Auto - Recent Products</option>
-              <option value="auto-category">Auto - By Category</option>
-              <option value="auto-rating">Auto - By Rating</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Layout</label>
-            <select
-              value={formData.settings.layout}
-              onChange={(e) => setFormData({
-                ...formData, 
-                settings: {...formData.settings, layout: e.target.value}
-              })}
-            >
-              <option value="horizontal">Horizontal Scroll</option>
-              <option value="grid">Grid Layout</option>
-              <option value="list">List Layout</option>
-            </select>
-          </div>
 
           <div className="form-group">
             <label>Max Products</label>
@@ -397,55 +351,9 @@ const SectionEditModal = ({ section, categories, onClose, onSave }) => {
               value={formData.settings.maxProducts}
               onChange={(e) => setFormData({
                 ...formData, 
-                settings: {...formData.settings, maxProducts: parseInt(e.target.value)}
+                settings: { maxProducts: parseInt(e.target.value) }
               })}
             />
-          </div>
-
-          {formData.type === 'auto-category' && (
-            <div className="form-group">
-              <label>Category</label>
-              <select
-                value={formData.autoSettings.categoryId || ''}
-                onChange={(e) => setFormData({
-                  ...formData, 
-                  autoSettings: {...formData.autoSettings, categoryId: e.target.value}
-                })}
-              >
-                <option value="">Select Category</option>
-                {categories.map(cat => (
-                  <option key={cat._id} value={cat._id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={formData.settings.showPrice}
-                onChange={(e) => setFormData({
-                  ...formData, 
-                  settings: {...formData.settings, showPrice: e.target.checked}
-                })}
-              />
-              Show Price
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={formData.settings.showRating}
-                onChange={(e) => setFormData({
-                  ...formData, 
-                  settings: {...formData.settings, showRating: e.target.checked}
-                })}
-              />
-              Show Rating
-            </label>
           </div>
 
           <div className="modal-footer">
