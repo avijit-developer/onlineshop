@@ -124,11 +124,37 @@ export default function ProductDetailsScreen() {
     };
 
     const createMockProduct = (id) => {
+        // Create a simple product for testing
+        if (id === 'simple-test') {
+            return {
+                id: id,
+                name: 'Simple Test Product',
+                description: 'This is a simple product without variants. It demonstrates the basic product display functionality.',
+                shortDescription: 'Simple product for testing',
+                images: [
+                    'https://via.placeholder.com/400x400/9C27B0/FFFFFF?text=Simple+Product',
+                    'https://via.placeholder.com/400x400/E91E63/FFFFFF?text=Simple+Product+2'
+                ],
+                regularPrice: 599,
+                specialPrice: 499,
+                productType: 'simple',
+                variants: [],
+                stock: 50,
+                sku: 'SIMPLE-001',
+                brand: { name: 'Simple Brand' },
+                category: { name: 'Basic Items' },
+                vendor: { companyName: 'Simple Vendor' },
+                tags: ['simple', 'basic', 'test'],
+                tax: 3
+            };
+        }
+        
+        // Default configurable product
         return {
             id: id,
             name: `Sample Product ${id}`,
-            description: 'This is a sample product description for testing purposes. It demonstrates how the product details screen will look with real data.',
-            shortDescription: 'Sample product for testing',
+            description: 'This is a sample product description for testing purposes. It demonstrates how the product details screen will look with real data. This product features high-quality materials and excellent craftsmanship.',
+            shortDescription: 'Sample product for testing with full features',
             images: [
                 'https://via.placeholder.com/400x400/FF6B6B/FFFFFF?text=Product+1',
                 'https://via.placeholder.com/400x400/4ECDC4/FFFFFF?text=Product+2',
@@ -176,7 +202,7 @@ export default function ProductDetailsScreen() {
             brand: { name: 'Sample Brand' },
             category: { name: 'Electronics' },
             vendor: { companyName: 'Sample Vendor' },
-            tags: ['electronics', 'sample', 'test'],
+            tags: ['electronics', 'sample', 'test', 'high-quality'],
             tax: 5
         };
     };
@@ -211,14 +237,31 @@ export default function ProductDetailsScreen() {
     };
 
     const currentStock = () => {
-        if (product?.productType === 'configurable' && selectedVariant) {
-            return selectedVariant.stock ?? 0;
+        if (product?.productType === 'configurable') {
+            if (selectedVariant) {
+                return selectedVariant.stock ?? 0;
+            }
+            // For configurable products without selected variant, show total stock
+            const totalStock = (product.variants || []).reduce((sum, v) => sum + (v.stock ?? 0), 0);
+            return totalStock;
         }
         return product?.stock ?? 0;
     };
 
     const isOutOfStock = () => {
-        return currentStock() <= 0;
+        const stock = currentStock();
+        return stock <= 0;
+    };
+
+    const getStockStatusText = () => {
+        const stock = currentStock();
+        if (stock <= 0) {
+            return 'Out of Stock';
+        }
+        if (product?.productType === 'configurable' && selectedVariant) {
+            return `In Stock (${stock} available)`;
+        }
+        return `In Stock (${stock} available)`;
     };
 
     const handleSelectAttribute = (name, value) => {
@@ -311,7 +354,17 @@ export default function ProductDetailsScreen() {
                     style={[styles.retryButton, { marginTop: 10, backgroundColor: '#666' }]} 
                     onPress={() => {
                         console.log('Current state:', { productId, productData, product, loading, error });
-                        Alert.alert('Debug Info', `productId: ${productId}\nproductData: ${productData ? 'provided' : 'not provided'}\nError: ${error}`);
+                        const stock = currentStock();
+                        const outOfStock = isOutOfStock();
+                        Alert.alert('Debug Info', 
+                            `productId: ${productId}\n` +
+                            `productData: ${productData ? 'provided' : 'not provided'}\n` +
+                            `Product Type: ${product?.productType || 'N/A'}\n` +
+                            `Current Stock: ${stock}\n` +
+                            `Out of Stock: ${outOfStock}\n` +
+                            `Selected Variant: ${selectedVariant ? 'Yes' : 'No'}\n` +
+                            `Error: ${error || 'None'}`
+                        );
                     }}
                 >
                     <Text style={styles.retryButtonText}>Show Debug Info</Text>
@@ -328,6 +381,19 @@ export default function ProductDetailsScreen() {
                     }}
                 >
                     <Text style={styles.retryButtonText}>Load Mock Data (Test)</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                    style={[styles.retryButton, { marginTop: 10, backgroundColor: '#FF9800' }]} 
+                    onPress={() => {
+                        console.log('Loading simple product for testing');
+                        const simpleProduct = createMockProduct('simple-test');
+                        setProduct(simpleProduct);
+                        setupProductData(simpleProduct);
+                        setError(null);
+                    }}
+                >
+                    <Text style={styles.retryButtonText}>Load Simple Product (Test)</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -384,7 +450,7 @@ export default function ProductDetailsScreen() {
                 {/* Stock Status */}
                 <View style={styles.stockContainer}>
                     <Text style={[styles.stockText, isOutOfStock() && styles.outOfStockText]}>
-                        {isOutOfStock() ? 'Out of Stock' : `In Stock (${stock} available)`}
+                        {getStockStatusText()}
                     </Text>
                 </View>
 
