@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, Modal, ActivityIndicator, Alert } from 'react-native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import RelatedProducts from '../components/RelatedProducts';
@@ -23,6 +23,7 @@ export default function ProductDetailsScreen() {
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [showAddAnimation, setShowAddAnimation] = useState(false);
+    const lastFetchedProductIdRef = useRef(null);
 
     // Variant handling
     const [attributeOptions, setAttributeOptions] = useState({}); // { Color: ['Red','Blue'], Size: ['M','L'] }
@@ -40,8 +41,12 @@ export default function ProductDetailsScreen() {
             return;
         }
         
-        // Otherwise fetch by productId
+        // Otherwise fetch by productId, but only once per id
         if (productId) {
+            if (lastFetchedProductIdRef.current === productId) {
+                return;
+            }
+            lastFetchedProductIdRef.current = productId;
             fetchProductDetails();
         } else {
             setError('No product information provided');

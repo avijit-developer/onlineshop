@@ -18,7 +18,9 @@ const CartScreen = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      refreshCart();
+      if (isAuthenticated) {
+        refreshCart();
+      }
     }, [refreshCart])
   );
 

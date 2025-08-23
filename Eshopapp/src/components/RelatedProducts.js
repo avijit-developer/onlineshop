@@ -55,6 +55,7 @@ const RelatedProducts = ({ productId, onPressProduct }) => {
                 numColumns={2}
                 columnWrapperStyle={styles.row}
                 contentContainerStyle={{ paddingBottom: 40 }}
+                scrollEnabled={false}
             />
         </View>
     );
