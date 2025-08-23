@@ -34,11 +34,22 @@ const Orders = () => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/data.json');
-      const data = await response.json();
-      setOrders(data.orders || []);
-      setCustomers(data.users?.filter(user => user.role === 'customer') || []);
-      setVendors(data.vendors || []);
+      try {
+        const resp = await fetch(process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/v1/orders` : '/api/v1/orders', { credentials: 'include' });
+        if (resp.ok) {
+          const json = await resp.json();
+          if (json?.success) {
+            setOrders(json.data || []);
+          }
+        }
+      } catch (e) {}
+      if (orders.length === 0) {
+        const response = await fetch('/data.json');
+        const data = await response.json();
+        setOrders(data.orders || []);
+        setCustomers(data.users?.filter(user => user.role === 'customer') || []);
+        setVendors(data.vendors || []);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);

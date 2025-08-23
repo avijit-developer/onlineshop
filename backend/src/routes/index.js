@@ -12,6 +12,8 @@ const rolesRoutes = require('./roles.routes');
 const uploadsRoutes = require('./uploads.routes');
 const homepageRoutes = require('./homepage.routes');
 const cartRoutes = require('./cart.routes');
+const ordersRoutes = require('./orders.routes');
+const adminDashboardRoutes = require('./dashboard.routes');
 
 const router = express.Router();
 
@@ -28,5 +30,7 @@ router.use('/roles', rolesRoutes);
 router.use('/uploads', uploadsRoutes);
 router.use('/homepage', homepageRoutes);
 router.use('/cart', cartRoutes);
+router.use('/orders', ordersRoutes);
+router.use('/admin/dashboard', adminDashboardRoutes);
 
 module.exports = router;

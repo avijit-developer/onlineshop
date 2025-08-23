@@ -124,25 +124,30 @@ const CheckoutScreen = () => {
     setIsProcessing(true);
 
     try {
-      // Simulate order processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Create local order and navigate to success screen
-      const order = addOrder({
-        total: Number(total.toFixed(2)),
-        paymentMethod,
-        shippingAddress: `${selectedAddress.firstName} ${selectedAddress.lastName}, ${selectedAddress.address}, ${selectedAddress.city}, ${selectedAddress.state} ${selectedAddress.zipCode}, ${selectedAddress.country}`,
+      // Create order via API
+      const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
+      const response = await api.createOrder({
         items: cartItems.map(ci => ({
-          id: ci.id,
+          product: ci.id,
           name: ci.name,
-          quantity: ci.quantity,
+          sku: ci.variantInfo?.sku || ci.sku || '',
           price: (ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.regularPrice ?? 0),
-          image: (ci.variantInfo?.images?.[0] || ci.images?.[0] || null)
+          quantity: ci.quantity,
+          image: (ci.variantInfo?.images?.[0] || ci.images?.[0] || null),
+          selectedAttributes: ci.selectedAttributes || {},
         })),
+        shippingAddress: shippingAddressStr,
+        paymentMethod,
+        tax: 8,
+        shippingCost: shipping,
       });
 
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to place order');
+      }
+
       await clearCart();
-      navigation.replace('OrderSuccess', { orderId: order.id });
+      navigation.replace('OrderSuccess', { orderId: response.data._id });
     } catch (error) {
       Alert.alert('Error', 'Failed to place order. Please try again.');
     } finally {

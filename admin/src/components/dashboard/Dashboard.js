@@ -37,6 +37,16 @@ const Dashboard = () => {
 
   const loadDashboardData = async () => {
     try {
+      try {
+        const resp = await fetch(process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/v1/admin/dashboard` : '/api/v1/admin/dashboard', { credentials: 'include' });
+        if (resp.ok) {
+          const json = await resp.json();
+          if (json?.success) {
+            setData({ dashboard: json.data, orders: json.data.recentOrders, products: json.data.topProducts, vendors: [], users: [] });
+            return;
+          }
+        }
+      } catch (e) {}
       const response = await fetch('/data.json');
       const jsonData = await response.json();
       setData(jsonData);

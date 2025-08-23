@@ -303,6 +303,33 @@ const api = {
     });
   },
 
+  // Orders (customer)
+  async createOrder(orderData) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/orders/me', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(orderData),
+    });
+  },
+
+  async getMyOrders() {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/orders/me', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
+  async getMyOrderById(orderId) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request(`/api/v1/orders/me/${orderId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
   // Helper function to get stored token
   async getStoredToken() {
     try {

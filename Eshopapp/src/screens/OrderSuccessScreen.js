@@ -10,13 +10,24 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
+import api from '../utils/api';
 
 const OrderSuccessScreen = ({ route }) => {
   const navigation = useNavigation();
   const { orders } = useUser();
   const { orderId } = route.params;
   
-  const order = orders.find(o => o.id === orderId);
+  const [order, setOrder] = React.useState(null);
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await api.getMyOrderById(orderId);
+        if (mounted && res?.success) setOrder(res.data);
+      } catch (_) {}
+    })();
+    return () => { mounted = false; };
+  }, [orderId]);
 
   const handleContinueShopping = () => {
     navigation.navigate('Home');
