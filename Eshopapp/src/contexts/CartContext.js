@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
 
@@ -18,6 +18,10 @@ export const CartProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoadingCart, setIsLoadingCart] = useState(false);
+  const isLoadingCartRef = useRef(false);
+  const lastCartLoadTime = useRef(0);
+  const CART_LOAD_THROTTLE = 5000; // 5 seconds
 
   // Check authentication status and load cart
   useEffect(() => {
@@ -69,12 +73,30 @@ export const CartProvider = ({ children }) => {
   };
 
   const loadCart = async () => {
+    // Prevent multiple simultaneous cart loads using ref
+    if (isLoadingCartRef.current) {
+      console.log('Cart load already in progress (ref), skipping...');
+      return;
+    }
+    
+    // Throttle cart loads to prevent excessive API calls
+    const now = Date.now();
+    if (now - lastCartLoadTime.current < CART_LOAD_THROTTLE) {
+      console.log('Cart load throttled, last load was', Math.round((now - lastCartLoadTime.current) / 1000), 'seconds ago');
+      return;
+    }
+    
+    console.log('🛒 loadCart called at:', new Date().toISOString(), 'from:', new Error().stack?.split('\n')[2]?.trim());
+    
     try {
       if (!isAuthenticated) {
         console.log('User not authenticated, cannot load cart');
         return;
       }
 
+      isLoadingCartRef.current = true;
+      setIsLoadingCart(true);
+      lastCartLoadTime.current = now;
       const response = await api.getUserCart();
       if (response && response.success && response.data) {
         // Transform API cart data to match frontend format
@@ -107,6 +129,9 @@ export const CartProvider = ({ children }) => {
     } catch (error) {
       console.log('Error loading cart from database:', error);
       setCartItems([]);
+    } finally {
+      setIsLoadingCart(false);
+      isLoadingCartRef.current = false;
     }
   };
 
