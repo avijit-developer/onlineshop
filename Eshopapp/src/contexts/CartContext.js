@@ -33,7 +33,17 @@ export const CartProvider = ({ children }) => {
         // Update existing item quantity - replace with new quantity instead of adding
         const updated = prevItems.map(item =>
           item.cartId === cartId
-            ? { ...item, quantity: quantity } // Replace quantity, don't add
+            ? { 
+                ...item, 
+                quantity: quantity, // Replace quantity, don't add
+                // Ensure images are still accessible
+                images: item.images || item.image ? [item.image] : [],
+                // Update variant info if needed
+                variantInfo: item.variantInfo ? {
+                  ...item.variantInfo,
+                  images: item.variantInfo.images || []
+                } : null
+              }
             : item
         );
         console.log('Updated cart items:', updated.length);
@@ -46,13 +56,16 @@ export const CartProvider = ({ children }) => {
         quantity, 
         selectedAttributes,
         cartId,
+        // Ensure images are accessible
+        images: product.images || product.image ? [product.image] : [],
         // Store variant-specific information
         variantInfo: selectedAttributes ? {
           attributes: selectedAttributes,
           price: product.selectedVariant?.price || product.regularPrice,
           specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
           stock: product.selectedVariant?.stock || product.stock,
-          sku: product.selectedVariant?.sku || product.sku
+          sku: product.selectedVariant?.sku || product.sku,
+          images: product.selectedVariant?.images || []
         } : null
       };
       
@@ -126,6 +139,26 @@ export const CartProvider = ({ children }) => {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
 
+  const getItemImage = (item) => {
+    // Try multiple image sources in order of preference
+    if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+      return item.images[0];
+    }
+    if (item.image && typeof item.image === 'string') {
+      return item.image;
+    }
+    if (item.selectedVariant?.images && Array.isArray(item.selectedVariant.images) && item.selectedVariant.images.length > 0) {
+      return item.selectedVariant.images[0];
+    }
+    if (item.variantInfo?.images && Array.isArray(item.variantInfo.images) && item.variantInfo.images.length > 0) {
+      return item.variantInfo.images[0];
+    }
+    if (item.currentImages && Array.isArray(item.currentImages) && item.currentImages.length > 0) {
+      return item.currentImages[0];
+    }
+    return null;
+  };
+
   const value = {
     cartItems,
     addToCart,
@@ -136,6 +169,7 @@ export const CartProvider = ({ children }) => {
     getCartItemsCount,
     getItemPrice,
     getItemTotal,
+    getItemImage,
   };
 
   return (

@@ -13,7 +13,7 @@ import { useCart } from '../contexts/CartContext';
 
 const ViewCartFooter = () => {
   const navigation = useNavigation();
-  const { cartItems, getCartTotal, getCartItemsCount } = useCart();
+  const { cartItems, getCartTotal, getCartItemsCount, getItemImage } = useCart();
 
   if (cartItems.length === 0) {
     return null;
@@ -35,25 +35,20 @@ const ViewCartFooter = () => {
           style={styles.itemsScroll}
         >
           {cartItems.slice(0, 5).map((item, index) => {
-            // Debug logging to see what's in the item
-            console.log('Footer item:', {
-              name: item.name,
-              images: item.images,
-              image: item.image,
-              cartId: item.cartId
-            });
+            // Get the best available image for this item
+            const imageUri = getItemImage(item);
             
-            // Try multiple image sources
-            let imageUri = null;
-            if (item.images && item.images.length > 0) {
-              imageUri = item.images[0];
-            } else if (item.image) {
-              imageUri = item.image;
-            } else if (item.selectedVariant?.images && item.selectedVariant.images.length > 0) {
-              imageUri = item.selectedVariant.images[0];
+            console.log('Footer item image for', item.name, ':', imageUri);
+            
+            // If no image found, show a placeholder
+            if (!imageUri) {
+              console.log('No image found for item:', item.name);
+              return (
+                <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -8 }]}>
+                  <Icon name="image-outline" size={16} color="#ccc" />
+                </View>
+              );
             }
-            
-            console.log('Final imageUri:', imageUri);
             
             return (
               <Image
@@ -118,6 +113,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#fff',
+  },
+  placeholderImage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
   },
   moreItemsIndicator: {
     width: 32,

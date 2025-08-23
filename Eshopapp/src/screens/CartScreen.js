@@ -14,7 +14,7 @@ import { useCart } from '../contexts/CartContext';
 
 const CartScreen = () => {
   const navigation = useNavigation();
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage } = useCart();
 
   const handleQuantityChange = (cartId, change) => {
     const item = cartItems.find(item => item.cartId === cartId);
@@ -58,7 +58,7 @@ const CartScreen = () => {
     <View style={styles.cartItem}>
       <View style={styles.itemImageContainer}>
         <Image 
-          source={{ uri: item.images?.[0] || item.image }} 
+          source={{ uri: getItemImage(item) }} 
           style={styles.itemImage}
           onError={() => console.log('Cart image failed to load for:', item.name)}
         />
