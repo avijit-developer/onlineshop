@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,12 @@ import { useCart } from '../contexts/CartContext';
 
 const ViewCartFooter = () => {
   const navigation = useNavigation();
-  const { cartItems, getCartTotal, getCartItemsCount, getItemImage } = useCart();
+  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart } = useCart();
+
+  // Refresh cart data when component mounts
+  useEffect(() => {
+    refreshCart();
+  }, [refreshCart]);
 
   // Memoize calculations to prevent unnecessary re-renders
   const { total, itemsCount, displayItems } = useMemo(() => {
