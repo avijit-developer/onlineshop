@@ -14,7 +14,7 @@ import { useCart } from '../contexts/CartContext';
 
 const CartScreen = () => {
   const navigation = useNavigation();
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading } = useCart();
 
   const handleQuantityChange = (cartId, change) => {
     const item = cartItems.find(item => item.cartId === cartId);
@@ -53,6 +53,15 @@ const CartScreen = () => {
     }
     navigation.navigate('Checkout');
   };
+
+  // Show loading state while cart is being loaded
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading your cart...</Text>
+      </View>
+    );
+  }
 
   const renderCartItem = ({ item }) => (
     <View style={styles.cartItem}>
@@ -537,6 +546,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#333',
   },
 });
 

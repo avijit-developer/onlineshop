@@ -13,7 +13,16 @@ import { useCart } from '../contexts/CartContext';
 
 const ViewCartFooter = () => {
   const navigation = useNavigation();
-  const { cartItems, getCartTotal, getCartItemsCount, getItemImage } = useCart();
+  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart } = useCart();
+
+  const handleViewCart = () => {
+    navigation.navigate('Cart');
+  };
+
+  // Refresh cart data when component mounts
+  React.useEffect(() => {
+    refreshCart();
+  }, [refreshCart]);
 
   if (cartItems.length === 0) {
     return null;
@@ -21,10 +30,6 @@ const ViewCartFooter = () => {
 
   const total = getCartTotal();
   const itemsCount = getCartItemsCount();
-
-  const handleViewCart = () => {
-    navigation.navigate('Cart');
-  };
 
   return (
     <View style={styles.container}>
