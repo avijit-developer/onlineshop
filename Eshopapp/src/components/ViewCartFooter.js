@@ -17,11 +17,8 @@ const ViewCartFooter = () => {
 
   // Refresh cart data when component mounts (only once)
   useEffect(() => {
-    // Only refresh if cart is empty and user is authenticated
-    if (isAuthenticated && cartItems.length === 0) {
-      refreshCart();
-    }
-  }, [isAuthenticated]); // Remove refreshCart dependency to prevent infinite loop
+    refreshCart();
+  }, []); // run once on mount
 
 
 

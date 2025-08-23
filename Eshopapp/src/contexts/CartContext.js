@@ -85,7 +85,8 @@ export const CartProvider = ({ children }) => {
     }
     
     try {
-      if (!isAuthenticated) {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
         setCartItems([]);
         return;
       }
@@ -300,10 +301,9 @@ export const CartProvider = ({ children }) => {
     return null;
   };
 
-  const refreshCart = useCallback(() => {
+  const refreshCart = useCallback(async () => {
     console.log('🔄 refreshCart called');
-    setIsInitialized(false);
-    checkAuthAndLoadCart();
+    await loadCart();
   }, []);
 
   // Memoize the context value to prevent unnecessary re-renders
