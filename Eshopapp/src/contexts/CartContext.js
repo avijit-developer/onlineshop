@@ -22,6 +22,7 @@ export const CartProvider = ({ children }) => {
   const isLoadingCartRef = useRef(false);
   const lastCartLoadTime = useRef(0);
   const CART_LOAD_THROTTLE = 5000; // 5 seconds
+  const LOCAL_CART_KEY = 'localCartItems';
 
   // Check authentication status and load cart
   useEffect(() => {
@@ -56,15 +57,14 @@ export const CartProvider = ({ children }) => {
         await loadCart();
       } else {
         setIsAuthenticated(false);
-        setCartItems([]);
-        console.log('User not authenticated, cart is empty');
+        await loadLocalCart();
       }
       
       setIsInitialized(true);
     } catch (error) {
       console.log('Error checking authentication:', error);
       setIsAuthenticated(false);
-      setCartItems([]);
+      await loadLocalCart();
       setIsInitialized(true);
     } finally {
       setIsLoading(false);
@@ -86,7 +86,7 @@ export const CartProvider = ({ children }) => {
     
     try {
       if (!isAuthenticated) {
-        console.log('User not authenticated, cannot load cart');
+        await loadLocalCart();
         return;
       }
 
@@ -131,20 +131,73 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  const loadLocalCart = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(LOCAL_CART_KEY);
+      const items = stored ? JSON.parse(stored) : [];
+      setCartItems(items);
+      console.log('Loaded cart from local storage:', items.length, 'items');
+    } catch (error) {
+      console.log('Error loading local cart:', error);
+      setCartItems([]);
+    }
+  };
+
+  const saveLocalCart = async (items) => {
+    try {
+      await AsyncStorage.setItem(LOCAL_CART_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.log('Error saving local cart:', error);
+    }
+  };
+
   const addToCart = async (product, quantity = 1, selectedAttributes = null) => {
     try {
       if (!isAuthenticated) {
-        console.log('User not authenticated, cannot add to cart');
+        // Local cart path
+        const attributesKey = selectedAttributes ? JSON.stringify(selectedAttributes) : '';
+        const existingIndex = cartItems.findIndex(ci => ci.id === (product._id || product.id) && JSON.stringify(ci.selectedAttributes || {}) === attributesKey);
+        let newItems;
+        if (existingIndex !== -1) {
+          newItems = cartItems.slice();
+          newItems[existingIndex] = {
+            ...newItems[existingIndex],
+            quantity: newItems[existingIndex].quantity + quantity
+          };
+        } else {
+          const cartId = `local-${Date.now()}`;
+          newItems = [
+            ...cartItems,
+            {
+              cartId,
+              id: product._id || product.id,
+              name: product.name,
+              quantity,
+              selectedAttributes: selectedAttributes || {},
+              variantInfo: product.selectedVariant ? {
+                attributes: product.selectedVariant.attributes || {},
+                price: product.selectedVariant.price,
+                specialPrice: product.selectedVariant.specialPrice,
+                stock: product.selectedVariant.stock,
+                sku: product.selectedVariant.sku,
+                images: product.selectedVariant.images || []
+              } : null,
+              images: product.currentImages || product.images || [],
+              regularPrice: product.regularPrice,
+              specialPrice: product.specialPrice,
+              stock: product.stock,
+              sku: product.sku
+            }
+          ];
+        }
+        setCartItems(newItems);
+        await saveLocalCart(newItems);
         return;
       }
 
       console.log('Adding to cart via database:', product.name, quantity, selectedAttributes);
-      
-      // Call API to add item to database
       const response = await api.addToUserCart(product, quantity, selectedAttributes);
-      
       if (response && response.success) {
-        // Reload cart from database to get updated data
         await loadCart();
       } else {
         console.log('Failed to add item to cart in database');
@@ -158,17 +211,15 @@ export const CartProvider = ({ children }) => {
   const removeFromCart = async (cartId) => {
     try {
       if (!isAuthenticated) {
-        console.log('User not authenticated, cannot remove from cart');
+        const newItems = cartItems.filter(ci => ci.cartId !== cartId);
+        setCartItems(newItems);
+        await saveLocalCart(newItems);
         return;
       }
 
       console.log('Removing item from cart via database:', cartId);
-      
-      // Call API to remove item from database
       const response = await api.removeFromUserCart(cartId);
-      
       if (response && response.success) {
-        // Reload cart from database to get updated data
         await loadCart();
       } else {
         console.log('Failed to remove item from cart in database');
@@ -182,7 +233,13 @@ export const CartProvider = ({ children }) => {
   const updateQuantity = async (cartId, quantity) => {
     try {
       if (!isAuthenticated) {
-        console.log('User not authenticated, cannot update cart');
+        if (quantity <= 0) {
+          await removeFromCart(cartId);
+          return;
+        }
+        const newItems = cartItems.map(ci => ci.cartId === cartId ? { ...ci, quantity } : ci);
+        setCartItems(newItems);
+        await saveLocalCart(newItems);
         return;
       }
 
@@ -192,12 +249,8 @@ export const CartProvider = ({ children }) => {
       }
 
       console.log('Updating quantity via database:', cartId, quantity);
-      
-      // Call API to update quantity in database
       const response = await api.updateUserCartItem(cartId, quantity);
-      
       if (response && response.success) {
-        // Reload cart from database to get updated data
         await loadCart();
       } else {
         console.log('Failed to update quantity in database');
@@ -211,17 +264,14 @@ export const CartProvider = ({ children }) => {
   const clearCart = async () => {
     try {
       if (!isAuthenticated) {
-        console.log('User not authenticated, cannot clear cart');
+        setCartItems([]);
+        await saveLocalCart([]);
         return;
       }
 
       console.log('Clearing cart via database');
-      
-      // Call API to clear cart in database
       const response = await api.clearUserCart();
-      
       if (response && response.success) {
-        // Reload cart from database to get updated data
         await loadCart();
       } else {
         console.log('Failed to clear cart in database');
