@@ -384,13 +384,9 @@ export default function ProductDetailsScreen() {
 
     // Ensure we have product data before rendering
     if (!product || !product.name) {
-        console.log('Product data incomplete, loading fallback');
-        const fallbackProduct = createMockProduct('fallback-123');
-        setProduct(fallbackProduct);
-        setupProductData(fallbackProduct);
         return (
             <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading fallback product...</Text>
+                <Text style={styles.loadingText}>Loading product...</Text>
             </View>
         );
     }
