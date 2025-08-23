@@ -59,12 +59,12 @@ const OrderSuccessScreen = ({ route }) => {
           
           <View style={styles.orderRow}>
             <Text style={styles.orderLabel}>Total Amount</Text>
-            <Text style={styles.orderValueBold}>₹{order?.total?.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.orderValueBold}>₹{(order?.total != null ? Number(order.total).toFixed(2) : '0.00')}</Text>
           </View>
           
           <View style={styles.orderRow}>
             <Text style={styles.orderLabel}>Payment Method</Text>
-            <Text style={styles.orderValue}>{order?.paymentMethod || 'Credit Card'}</Text>
+            <Text style={styles.orderValue}>{order?.paymentMethod || 'Cash on Delivery'}</Text>
           </View>
           
           <View style={styles.orderRow}>

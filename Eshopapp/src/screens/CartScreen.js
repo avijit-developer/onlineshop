@@ -9,12 +9,18 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 
 const CartScreen = () => {
   const navigation = useNavigation();
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading, isAuthenticated } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading, isAuthenticated, refreshCart } = useCart();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshCart();
+    }, [refreshCart])
+  );
 
   const handleQuantityChange = (cartId, change) => {
     const item = cartItems.find(item => item.cartId === cartId);

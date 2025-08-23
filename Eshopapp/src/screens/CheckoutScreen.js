@@ -14,12 +14,14 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import { useAddress } from '../contexts/AddressContext';
+import { useUser } from '../contexts/UserContext';
 
 const CheckoutScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { cartItems, getCartTotal, clearCart } = useCart();
   const { addresses, getDefaultAddress, addAddress, refreshAddresses, isLoading } = useAddress();
+  const { addOrder } = useUser();
 
   // Get selected address from navigation params or use default
   const selectedAddressFromParams = route.params?.selectedAddress;
@@ -122,27 +124,22 @@ const CheckoutScreen = () => {
       // Simulate order processing
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Show success message
-      Alert.alert(
-        'Order Placed Successfully!',
-        `Your order has been placed. Order total: ₹${total.toFixed(2)}\n\nYou will receive a confirmation email shortly.`,
-        [
-          {
-            text: 'View Orders',
-            onPress: () => {
-              clearCart();
-              navigation.navigate('Orders'); // You'll need to create this screen
-            }
-          },
-          {
-            text: 'Continue Shopping',
-            onPress: () => {
-              clearCart();
-              navigation.navigate('Home');
-            }
-          }
-        ]
-      );
+      // Create local order and navigate to success screen
+      const order = addOrder({
+        total: Number(total.toFixed(2)),
+        paymentMethod,
+        shippingAddress: `${selectedAddress.firstName} ${selectedAddress.lastName}, ${selectedAddress.address}, ${selectedAddress.city}, ${selectedAddress.state} ${selectedAddress.zipCode}, ${selectedAddress.country}`,
+        items: cartItems.map(ci => ({
+          id: ci.id,
+          name: ci.name,
+          quantity: ci.quantity,
+          price: (ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.regularPrice ?? 0),
+          image: (ci.variantInfo?.images?.[0] || ci.images?.[0] || null)
+        })),
+      });
+
+      await clearCart();
+      navigation.replace('OrderSuccess', { orderId: order.id });
     } catch (error) {
       Alert.alert('Error', 'Failed to place order. Please try again.');
     } finally {
