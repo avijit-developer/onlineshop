@@ -23,15 +23,7 @@ const ViewCartFooter = () => {
     }
   }, [isAuthenticated]); // Remove refreshCart dependency to prevent infinite loop
 
-  // Don't show footer if user is not authenticated
-  if (!isAuthenticated) {
-    return null;
-  }
 
-  // Don't show footer if cart is empty
-  if (cartItems.length === 0) {
-    return null;
-  }
 
   // Memoize calculations to prevent unnecessary re-renders
   const { total, itemsCount, displayItems } = useMemo(() => {
@@ -45,6 +37,10 @@ const ViewCartFooter = () => {
 
     return { total, itemsCount, displayItems };
   }, [cartItems, getCartTotal, getCartItemsCount]);
+
+  if (!isAuthenticated || cartItems.length === 0) {
+    return null;
+  }
 
   const handleViewCart = () => {
     navigation.navigate('Cart');
