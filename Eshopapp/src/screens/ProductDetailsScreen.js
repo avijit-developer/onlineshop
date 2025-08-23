@@ -317,6 +317,27 @@ export default function ProductDetailsScreen() {
 
     console.log('Render state:', { loading, error, product, productId, productData, stock });
 
+    // Simple test render to ensure component is working
+    if (!product) {
+        return (
+            <View style={styles.container}>
+                <Text style={styles.title}>ProductDetailsScreen Test</Text>
+                <Text>Loading product data...</Text>
+                <TouchableOpacity 
+                    style={styles.retryButton} 
+                    onPress={() => {
+                        const mockProduct = createMockProduct('test-123');
+                        setProduct(mockProduct);
+                        setupProductData(mockProduct);
+                        setLoading(false);
+                    }}
+                >
+                    <Text style={styles.retryButtonText}>Load Test Product</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
