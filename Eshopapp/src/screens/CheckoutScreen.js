@@ -55,10 +55,19 @@ const CheckoutScreen = () => {
   useEffect(() => {
     if (selectedAddressFromParams) {
       setSelectedAddress(selectedAddressFromParams);
-    } else if (addresses.length > 0) {
-      setSelectedAddress(getDefaultAddress());
+      return;
     }
-  }, [selectedAddressFromParams, addresses]);
+    if (!isLoading) {
+      if (addresses.length > 0) {
+        const def = getDefaultAddress();
+        if (!selectedAddress || (def && selectedAddress.id !== def.id)) {
+          setSelectedAddress(def || addresses[0]);
+        }
+      } else if (selectedAddress) {
+        setSelectedAddress(null);
+      }
+    }
+  }, [selectedAddressFromParams, isLoading, addresses]);
 
   // Calculate totals
   const subtotal = getCartTotal();
