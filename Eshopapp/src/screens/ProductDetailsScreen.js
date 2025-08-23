@@ -32,32 +32,14 @@ export default function ProductDetailsScreen() {
     useEffect(() => {
         console.log('ProductDetailsScreen useEffect - productId:', productId, 'productData:', productData);
         
-        // Debug alert to confirm component is mounting
-        Alert.alert('Debug', `ProductDetailsScreen mounted\nproductId: ${productId || 'none'}\nproductData: ${productData ? 'provided' : 'none'}`);
+        // Always load mock data for testing
+        console.log('Loading mock data for testing');
+        const mockProduct = createMockProduct('test-123');
+        setProduct(mockProduct);
+        setupProductData(mockProduct);
+        setLoading(false);
+        setError(null);
         
-        // If we have product data directly, use it
-        if (productData) {
-            console.log('Using provided product data');
-            setProduct(productData);
-            setLoading(false);
-            setupProductData(productData);
-            return;
-        }
-        
-        // Otherwise fetch by productId
-        if (productId) {
-            console.log('Fetching product by ID:', productId);
-            fetchProductDetails();
-        } else {
-            console.log('No productId or productData provided');
-            // For testing purposes, always load mock data if no parameters
-            console.log('Loading mock data for testing (no parameters)');
-            const mockProduct = createMockProduct('test-123');
-            setProduct(mockProduct);
-            setupProductData(mockProduct);
-            setLoading(false);
-            setError(null);
-        }
     }, [productId, productData]);
 
     const setupProductData = (productData) => {
