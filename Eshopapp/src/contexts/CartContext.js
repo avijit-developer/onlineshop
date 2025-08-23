@@ -13,13 +13,24 @@ export const useCart = () => {
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
 
-  const addToCart = (product, quantity = 1, selectedSize = 'M', selectedColor = 'Black') => {
-    console.log('Adding to cart:', product.name, quantity);
+  const addToCart = (product, quantity = 1, selectedAttributes = null) => {
+    console.log('Adding to cart:', product.name, quantity, selectedAttributes);
+    
     setCartItems(prevItems => {
-      const cartId = `${product.id}-${selectedSize}-${selectedColor}`;
+      // Create unique cart ID based on product and variant
+      let cartId = product.id;
+      if (selectedAttributes && Object.keys(selectedAttributes).length > 0) {
+        const variantKey = Object.entries(selectedAttributes)
+          .map(([key, value]) => `${key}:${value}`)
+          .sort()
+          .join('|');
+        cartId = `${product.id}-${variantKey}`;
+      }
+
       const existingItem = prevItems.find(item => item.cartId === cartId);
 
       if (existingItem) {
+        // Update existing item quantity
         const updated = prevItems.map(item =>
           item.cartId === cartId
             ? { ...item, quantity: item.quantity + quantity }
@@ -29,13 +40,22 @@ export const CartProvider = ({ children }) => {
         return updated;
       }
 
+      // Create new cart item
       const newItem = { 
         ...product, 
         quantity, 
-        selectedSize, 
-        selectedColor,
-        cartId
+        selectedAttributes,
+        cartId,
+        // Store variant-specific information
+        variantInfo: selectedAttributes ? {
+          attributes: selectedAttributes,
+          price: product.selectedVariant?.price || product.regularPrice,
+          specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
+          stock: product.selectedVariant?.stock || product.stock,
+          sku: product.selectedVariant?.sku || product.sku
+        } : null
       };
+      
       const newItems = [...prevItems, newItem];
       console.log('New cart items:', newItems.length);
       return newItems;
@@ -73,9 +93,31 @@ export const CartProvider = ({ children }) => {
     return 0;
   };
 
+  const getItemPrice = (item) => {
+    // Use variant price if available, otherwise fall back to regular price
+    if (item.variantInfo?.price) {
+      return item.variantInfo.price;
+    }
+    if (item.variantInfo?.specialPrice && item.variantInfo.specialPrice < item.variantInfo.price) {
+      return item.variantInfo.specialPrice;
+    }
+    if (item.regularPrice) {
+      return item.regularPrice;
+    }
+    if (item.specialPrice && item.specialPrice < item.regularPrice) {
+      return item.specialPrice;
+    }
+    return parsePrice(item.price);
+  };
+
+  const getItemTotal = (item) => {
+    const price = getItemPrice(item);
+    return price * item.quantity;
+  };
+
   const getCartTotal = () => {
     return cartItems.reduce((total, item) => {
-      const price = parsePrice(item.price);
+      const price = getItemPrice(item);
       return total + (price * item.quantity);
     }, 0);
   };
@@ -92,6 +134,8 @@ export const CartProvider = ({ children }) => {
     clearCart,
     getCartTotal,
     getCartItemsCount,
+    getItemPrice,
+    getItemTotal,
   };
 
   return (

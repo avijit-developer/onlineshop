@@ -312,25 +312,30 @@ export default function ProductDetailsScreen() {
             return;
         }
         
-        const { regular, special } = currentPriceBlock();
-        const cartItem = {
-            id: productId,
-            name: product.name,
-            image: currentImages()[0] || '',
-            price: `₹${special ?? regular ?? 0}`,
-            sku: selectedVariant?.sku || product.sku,
-            stock: currentStock(),
+        // Prepare product data for cart
+        const cartProduct = {
+            ...product,
+            selectedVariant: selectedVariant,
+            currentPrice: currentPriceBlock(),
+            currentStock: currentStock()
         };
         
-        // Pass variant info if configurable
-        if (product.productType === 'configurable') {
-            cartItem.selectedAttributes = selectedAttributes;
-            cartItem.variantId = selectedVariant?._id;
-        }
+        // Add to cart with proper parameters
+        addToCart(cartProduct, quantity, selectedAttributes);
         
-        addToCart(cartItem, quantity);
+        // Show success animation
         setShowAddAnimation(true);
         setTimeout(() => setShowAddAnimation(false), 1500);
+        
+        // Show success message
+        Alert.alert(
+            'Added to Cart', 
+            `${product.name} has been added to your cart${selectedAttributes && Object.keys(selectedAttributes).length > 0 ? ` with selected options` : ''}`,
+            [
+                { text: 'Continue Shopping', style: 'default' },
+                { text: 'View Cart', style: 'default', onPress: () => navigation.navigate('Cart') }
+            ]
+        );
     };
 
     const handleBuyNow = () => {
@@ -551,6 +556,9 @@ export default function ProductDetailsScreen() {
                                     <Text style={[styles.qtyBtnText, quantity >= stock && styles.qtyBtnTextDisabled]}>+</Text>
                                 </TouchableOpacity>
                             </View>
+                            <Text style={styles.stockInfo}>
+                                {stock > 0 ? `${stock} available` : 'Out of stock'}
+                            </Text>
                         </View>
                     </View>
                 )}
@@ -578,6 +586,9 @@ export default function ProductDetailsScreen() {
                                 <Text style={[styles.qtyBtnText, quantity >= stock && styles.qtyBtnTextDisabled]}>+</Text>
                             </TouchableOpacity>
                         </View>
+                        <Text style={styles.stockInfo}>
+                            {stock > 0 ? `${stock} available` : 'Out of stock'}
+                        </Text>
                     </View>
                 )}
 
@@ -807,6 +818,12 @@ const styles = StyleSheet.create({
     },
     qtyBtnTextDisabled: {
         color: '#ccc',
+    },
+    stockInfo: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 5,
+        textAlign: 'center',
     },
     actionsContainer: {
         flexDirection: 'row',

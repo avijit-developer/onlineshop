@@ -14,7 +14,7 @@ import { useCart } from '../contexts/CartContext';
 
 const CartScreen = () => {
   const navigation = useNavigation();
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal } = useCart();
 
   const handleQuantityChange = (cartId, change) => {
     const item = cartItems.find(item => item.cartId === cartId);
@@ -56,30 +56,62 @@ const CartScreen = () => {
 
   const renderCartItem = ({ item }) => (
     <View style={styles.cartItem}>
-      <Image source={{ uri: item.image }} style={styles.itemImage} />
+      <Image source={{ uri: item.images?.[0] || item.image }} style={styles.itemImage} />
       
       <View style={styles.itemDetails}>
         <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.itemVariant}>Size: {item.selectedSize} | Color: {item.selectedColor}</Text>
-        <Text style={styles.itemPrice}>{item.price}</Text>
+        
+        {/* Display variant information if available */}
+        {item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0 && (
+          <Text style={styles.itemVariant}>
+            {Object.entries(item.selectedAttributes)
+              .map(([key, value]) => `${key}: ${value}`)
+              .join(' | ')}
+          </Text>
+        )}
+        
+        {/* Display price with proper formatting */}
+        <Text style={styles.itemPrice}>
+          ₹{item.variantInfo?.price || item.regularPrice || item.price}
+          {item.variantInfo?.specialPrice && item.variantInfo.specialPrice < item.variantInfo.price && (
+            <Text style={styles.originalPrice}> ₹{item.variantInfo.price}</Text>
+          )}
+        </Text>
+        
+        {/* Display SKU if available */}
+        {item.variantInfo?.sku && (
+          <Text style={styles.itemSku}>SKU: {item.variantInfo.sku}</Text>
+        )}
         
         <View style={styles.quantityContainer}>
           <TouchableOpacity
-            style={styles.quantityButton}
+            style={[styles.quantityButton, item.quantity <= 1 && styles.quantityButtonDisabled]}
             onPress={() => handleQuantityChange(item.cartId, -1)}
+            disabled={item.quantity <= 1}
           >
-            <Icon name="remove-outline" size={16} color="#333" />
+            <Icon name="remove-outline" size={16} color={item.quantity <= 1 ? "#ccc" : "#333"} />
           </TouchableOpacity>
           
           <Text style={styles.quantity}>{item.quantity}</Text>
           
           <TouchableOpacity
-            style={styles.quantityButton}
+            style={[styles.quantityButton, item.quantity >= (item.variantInfo?.stock || item.stock) && styles.quantityButtonDisabled]}
             onPress={() => handleQuantityChange(item.cartId, 1)}
+            disabled={item.quantity >= (item.variantInfo?.stock || item.stock)}
           >
-            <Icon name="add-outline" size={16} color="#333" />
+            <Icon name="add-outline" size={16} color={item.quantity >= (item.variantInfo?.stock || item.stock) ? "#ccc" : "#333"} />
           </TouchableOpacity>
         </View>
+        
+        {/* Stock information */}
+        <Text style={styles.stockInfo}>
+          Stock: {item.variantInfo?.stock || item.stock} available
+        </Text>
+        
+        {/* Item total */}
+        <Text style={styles.itemTotal}>
+          Total: ₹{getItemTotal(item)}
+        </Text>
       </View>
 
       <TouchableOpacity
@@ -100,7 +132,7 @@ const CartScreen = () => {
         style={styles.shopButton}
         onPress={() => navigation.navigate('Home')}
       >
-        <Text style={styles.shopButtonText}>Start Shopping</Text>
+        <Text style={styles.shopButtonText}>Continue Shopping</Text>
       </TouchableOpacity>
     </View>
   );
@@ -118,11 +150,21 @@ const CartScreen = () => {
           <Icon name="arrow-back-outline" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Shopping Cart ({cartItems.length})</Text>
-        {cartItems.length > 0 && (
-          <TouchableOpacity onPress={handleClearCart}>
-            <Text style={styles.clearText}>Clear</Text>
+        <View style={styles.cartActions}>
+          <TouchableOpacity
+            style={styles.clearCartButton}
+            onPress={handleClearCart}
+          >
+            <Text style={styles.clearCartText}>Clear Cart</Text>
           </TouchableOpacity>
-        )}
+          
+          <TouchableOpacity
+            style={styles.continueShoppingButton}
+            onPress={() => navigation.navigate('Home')}
+          >
+            <Text style={styles.continueShoppingText}>Continue Shopping</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {cartItems.length === 0 ? (
@@ -245,6 +287,17 @@ const styles = StyleSheet.create({
     color: '#f7ab18',
     marginBottom: 8,
   },
+  originalPrice: {
+    fontSize: 12,
+    color: '#999',
+    textDecorationLine: 'line-through',
+    marginLeft: 5,
+  },
+  itemSku: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+  },
   quantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -257,11 +310,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  quantityButtonDisabled: {
+    backgroundColor: '#e0e0e0',
+    opacity: 0.7,
+  },
   quantity: {
     marginHorizontal: 15,
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  stockInfo: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+  },
+  itemTotal: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#f7ab18',
+    marginTop: 8,
   },
   removeButton: {
     padding: 8,
@@ -354,6 +422,33 @@ const styles = StyleSheet.create({
   checkoutButtonText: {
     color: '#fff',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  cartActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  clearCartButton: {
+    backgroundColor: '#ff4444',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  clearCartText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  continueShoppingButton: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  continueShoppingText: {
+    color: '#333',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });
