@@ -240,8 +240,8 @@
 }
 
 .order-details-modal {
-	max-width: 900px;
-	width: 90%;
+	max-width: 1200px;
+	width: 95%;
 }
 .order-details .order-header { margin-bottom: 16px; }
 .order-details .order-sections .section { margin-bottom: 20px; }
