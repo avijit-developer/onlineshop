@@ -90,10 +90,10 @@ const CartScreen = () => {
         <View style={styles.priceQuantitySection}>
           <View style={styles.priceSection}>
             <Text style={styles.itemPrice}>
-              ₹{item.variantInfo?.price || item.regularPrice || item.price}
+              ₹{String(item.variantInfo?.price || item.regularPrice || item.price || 0)}
             </Text>
             {item.variantInfo?.specialPrice && item.variantInfo.specialPrice < item.variantInfo.price && (
-              <Text style={styles.originalPrice}>₹{item.variantInfo.price}</Text>
+              <Text style={styles.originalPrice}>₹{String(item.variantInfo.price)}</Text>
             )}
           </View>
           
@@ -121,10 +121,10 @@ const CartScreen = () => {
         {/* Additional info section */}
         <View style={styles.additionalInfo}>
           <Text style={styles.stockInfo}>
-            Stock: {item.variantInfo?.stock || item.stock} available
+            Stock: {String(item.variantInfo?.stock || item.stock || 0)} available
           </Text>
           <Text style={styles.itemTotal}>
-            Total: ₹{getItemTotal(item)}
+            Total: ₹{String(getItemTotal(item))}
           </Text>
         </View>
       </View>
