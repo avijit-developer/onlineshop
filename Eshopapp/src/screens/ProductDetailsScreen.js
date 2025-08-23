@@ -13,7 +13,7 @@ import api from '../utils/api';
 export default function ProductDetailsScreen() {
     const navigation = useNavigation();
     const route = useRoute();
-    const { productId } = route.params || {};
+    const { productId, product: productData } = route.params || {};
 
     const { addToCart } = useCart();
 
@@ -30,63 +30,96 @@ export default function ProductDetailsScreen() {
     const [selectedVariant, setSelectedVariant] = useState(null);
 
     useEffect(() => {
-        fetchProductDetails();
-    }, [productId]);
+        console.log('ProductDetailsScreen useEffect - productId:', productId, 'productData:', productData);
+        
+        // If we have product data directly, use it
+        if (productData) {
+            console.log('Using provided product data');
+            setProduct(productData);
+            setLoading(false);
+            setupProductData(productData);
+            return;
+        }
+        
+        // Otherwise fetch by productId
+        if (productId) {
+            console.log('Fetching product by ID:', productId);
+            fetchProductDetails();
+        } else {
+            console.log('No productId or productData provided');
+            setError('No product information provided');
+            setLoading(false);
+        }
+    }, [productId, productData]);
+
+    const setupProductData = (productData) => {
+        if (!productData) return;
+        
+        // Build attribute options if configurable
+        if (productData.productType === 'configurable' && Array.isArray(productData.variants)) {
+            const opts = {};
+            for (const v of productData.variants) {
+                const attrs = v.attributes || {};
+                Object.keys(attrs).forEach(key => {
+                    opts[key] = opts[key] || [];
+                    if (!opts[key].includes(attrs[key])) opts[key].push(attrs[key]);
+                });
+            }
+            setAttributeOptions(opts);
+            
+            // Preselect first available options
+            const defaults = {};
+            Object.keys(opts).forEach(key => { 
+                defaults[key] = opts[key][0]; 
+            });
+            setSelectedAttributes(defaults);
+            
+            // Find and set initial variant
+            const initialVariant = findMatchingVariant(defaults, productData);
+            setSelectedVariant(initialVariant);
+        } else {
+            setAttributeOptions({});
+            setSelectedAttributes({});
+            setSelectedVariant(null);
+        }
+    };
 
     const fetchProductDetails = async () => {
         if (!productId) return;
         
+        console.log('Starting API call for productId:', productId);
         setLoading(true);
         setError(null);
         
         try {
+            // Test the API endpoint first
+            console.log('API Base URL:', process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || 'http://10.0.2.2:5000');
+            console.log('Calling endpoint:', `/api/v1/products/${productId}/public`);
+            
             const res = await api.getProductPublic(productId);
+            console.log('API response:', res);
+            
             if (res?.success) {
                 const p = res.data;
+                console.log('Product data received:', p);
                 setProduct(p);
-                
-                // Build attribute options if configurable
-                if (p.productType === 'configurable' && Array.isArray(p.variants)) {
-                    const opts = {};
-                    for (const v of p.variants) {
-                        const attrs = v.attributes || {};
-                        Object.keys(attrs).forEach(key => {
-                            opts[key] = opts[key] || [];
-                            if (!opts[key].includes(attrs[key])) opts[key].push(attrs[key]);
-                        });
-                    }
-                    setAttributeOptions(opts);
-                    
-                    // Preselect first available options
-                    const defaults = {};
-                    Object.keys(opts).forEach(key => { 
-                        defaults[key] = opts[key][0]; 
-                    });
-                    setSelectedAttributes(defaults);
-                    
-                    // Find and set initial variant
-                    const initialVariant = findMatchingVariant(defaults);
-                    setSelectedVariant(initialVariant);
-                } else {
-                    setAttributeOptions({});
-                    setSelectedAttributes({});
-                    setSelectedVariant(null);
-                }
+                setupProductData(p);
             } else {
-                setError('Failed to fetch product details');
+                console.log('API call failed:', res);
+                setError(`Failed to fetch product details: ${res?.message || 'Unknown error'}`);
             }
         } catch (err) {
             console.error('Error fetching product:', err);
-            setError(err.message || 'Failed to fetch product details');
+            setError(`Network error: ${err.message || 'Failed to fetch product details'}`);
         } finally {
             setLoading(false);
         }
     };
 
-    const findMatchingVariant = (attributes) => {
-        if (!product || product.productType !== 'configurable') return null;
+    const findMatchingVariant = (attributes, productData = product) => {
+        if (!productData || productData.productType !== 'configurable') return null;
         const attrs = attributes || selectedAttributes;
-        const match = (product.variants || []).find(v => {
+        const match = (productData.variants || []).find(v => {
             const vattrs = v.attributes || {};
             return Object.keys(attributeOptions).every(k => String(vattrs[k]) === String(attrs[k]));
         });
@@ -189,6 +222,8 @@ export default function ProductDetailsScreen() {
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#1976d2" />
                 <Text style={styles.loadingText}>Loading product details...</Text>
+                <Text style={styles.debugText}>productId: {productId || 'undefined'}</Text>
+                <Text style={styles.debugText}>productData: {productData ? 'provided' : 'not provided'}</Text>
             </View>
         );
     }
@@ -198,8 +233,23 @@ export default function ProductDetailsScreen() {
             <View style={styles.errorContainer}>
                 <AntDesign name="exclamationcircleo" size={64} color="#f44336" />
                 <Text style={styles.errorText}>{error || 'Product not found'}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={fetchProductDetails}>
-                    <Text style={styles.retryButtonText}>Retry</Text>
+                <Text style={styles.debugText}>productId: {productId || 'undefined'}</Text>
+                <Text style={styles.debugText}>productData: {productData ? 'provided' : 'not provided'}</Text>
+                
+                {productId && (
+                    <TouchableOpacity style={styles.retryButton} onPress={fetchProductDetails}>
+                        <Text style={styles.retryButtonText}>Retry API Call</Text>
+                    </TouchableOpacity>
+                )}
+                
+                <TouchableOpacity 
+                    style={[styles.retryButton, { marginTop: 10, backgroundColor: '#666' }]} 
+                    onPress={() => {
+                        console.log('Current state:', { productId, productData, product, loading, error });
+                        Alert.alert('Debug Info', `productId: ${productId}\nproductData: ${productData ? 'provided' : 'not provided'}\nError: ${error}`);
+                    }}
+                >
+                    <Text style={styles.retryButtonText}>Show Debug Info</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -668,6 +718,12 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 10,
         color: '#1976d2',
+    },
+    debugText: {
+        fontSize: 12,
+        color: '#999',
+        marginTop: 5,
+        textAlign: 'center',
     },
     errorContainer: {
         flex: 1,
