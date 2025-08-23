@@ -21,7 +21,7 @@ const ProductCard = ({ item }) => {
   };
 
   const handleProductPress = () => {
-    navigation.navigate('ProductDetails', { product: item });
+    navigation.navigate('ProductDetails', { productId: item.id || item._id });
   };
 
   return (

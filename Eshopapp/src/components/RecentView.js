@@ -44,7 +44,7 @@ const RecentView = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.card} onPress={()=>navigation.navigate('ProductDetails')}>
+            <TouchableOpacity style={styles.card} onPress={()=>navigation.navigate('ProductDetails', { productId: item.id })}>
               <Image source={item.image} style={styles.image} />
               <Text numberOfLines={2} style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.price}>{item.price.replace('$', '₹')}</Text>

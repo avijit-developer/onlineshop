@@ -32,14 +32,24 @@ export default function ProductDetailsScreen() {
     useEffect(() => {
         console.log('ProductDetailsScreen useEffect - productId:', productId, 'productData:', productData);
         
-        // Always load mock data for testing
-        console.log('Loading mock data for testing');
-        const mockProduct = createMockProduct('test-123');
-        setProduct(mockProduct);
-        setupProductData(mockProduct);
-        setLoading(false);
-        setError(null);
+        // If we have product data directly, use it
+        if (productData) {
+            console.log('Using provided product data');
+            setProduct(productData);
+            setLoading(false);
+            setupProductData(productData);
+            return;
+        }
         
+        // Otherwise fetch by productId
+        if (productId) {
+            console.log('Fetching product by ID:', productId);
+            fetchProductDetails();
+        } else {
+            console.log('No productId or productData provided');
+            setError('No product information provided');
+            setLoading(false);
+        }
     }, [productId, productData]);
 
     const setupProductData = (productData) => {
@@ -101,13 +111,14 @@ export default function ProductDetailsScreen() {
         } catch (err) {
             console.error('Error fetching product:', err);
             
-            // Fallback to mock data for testing
-            console.log('Using mock data as fallback');
-            const mockProduct = createMockProduct(productId);
-            setProduct(mockProduct);
-            setupProductData(mockProduct);
-            setLoading(false);
-            return;
+            // Handle different types of errors
+            if (err.message.includes('Network error')) {
+                setError('Network error: Please check your internet connection and try again.');
+            } else if (err.message.includes('HTTP error')) {
+                setError(`Server error: ${err.message}. Please try again later.`);
+            } else {
+                setError(`Failed to load product: ${err.message}`);
+            }
         } finally {
             setLoading(false);
         }
@@ -317,27 +328,6 @@ export default function ProductDetailsScreen() {
 
     console.log('Render state:', { loading, error, product, productId, productData, stock });
 
-    // Simple test render to ensure component is working
-    if (!product) {
-        return (
-            <View style={styles.container}>
-                <Text style={styles.title}>ProductDetailsScreen Test</Text>
-                <Text>Loading product data...</Text>
-                <TouchableOpacity 
-                    style={styles.retryButton} 
-                    onPress={() => {
-                        const mockProduct = createMockProduct('test-123');
-                        setProduct(mockProduct);
-                        setupProductData(mockProduct);
-                        setLoading(false);
-                    }}
-                >
-                    <Text style={styles.retryButtonText}>Load Test Product</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
-
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -384,29 +374,12 @@ export default function ProductDetailsScreen() {
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                    style={[styles.retryButton, { marginTop: 10, backgroundColor: '#4CAF50' }]} 
+                    style={[styles.retryButton, { marginTop: 10, backgroundColor: '#2196F3' }]} 
                     onPress={() => {
-                        console.log('Loading mock data for testing');
-                        const mockProduct = createMockProduct(productId || 'test-123');
-                        setProduct(mockProduct);
-                        setupProductData(mockProduct);
-                        setError(null);
+                        navigation.goBack();
                     }}
                 >
-                    <Text style={styles.retryButtonText}>Load Mock Data (Test)</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                    style={[styles.retryButton, { marginTop: 10, backgroundColor: '#FF9800' }]} 
-                    onPress={() => {
-                        console.log('Loading simple product for testing');
-                        const simpleProduct = createMockProduct('simple-test');
-                        setProduct(simpleProduct);
-                        setupProductData(simpleProduct);
-                        setError(null);
-                    }}
-                >
-                    <Text style={styles.retryButtonText}>Load Simple Product (Test)</Text>
+                    <Text style={styles.retryButtonText}>Go Back</Text>
                 </TouchableOpacity>
             </View>
         );
