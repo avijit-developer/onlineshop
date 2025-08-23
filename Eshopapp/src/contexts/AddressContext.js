@@ -16,6 +16,9 @@ export const AddressProvider = ({ children }) => {
   const [addresses, setAddresses] = useState([]);
   const [defaultAddressId, setDefaultAddressId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const isLoadingRef = React.useRef(false);
+  const lastLoadTimeRef = React.useRef(0);
+  const ADDRESSES_LOAD_THROTTLE = 5000; // 5 seconds
 
   // Load addresses from storage and API on app start
   useEffect(() => {
@@ -23,6 +26,17 @@ export const AddressProvider = ({ children }) => {
   }, []);
 
   const loadAddresses = async () => {
+    // Prevent concurrent loads
+    if (isLoadingRef.current) {
+      return;
+    }
+    // Throttle frequent loads
+    const now = Date.now();
+    if (now - lastLoadTimeRef.current < ADDRESSES_LOAD_THROTTLE) {
+      return;
+    }
+    isLoadingRef.current = true;
+    lastLoadTimeRef.current = now;
     try {
       setIsLoading(true);
       
@@ -129,6 +143,7 @@ export const AddressProvider = ({ children }) => {
       console.log('Error loading addresses:', error);
     } finally {
       setIsLoading(false);
+      isLoadingRef.current = false;
     }
   };
 
@@ -269,7 +284,7 @@ export const AddressProvider = ({ children }) => {
   };
 
   const refreshAddresses = () => {
-    loadAddresses();
+    return loadAddresses();
   };
 
   const value = {
