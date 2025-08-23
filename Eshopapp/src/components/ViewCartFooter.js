@@ -13,12 +13,22 @@ import { useCart } from '../contexts/CartContext';
 
 const ViewCartFooter = () => {
   const navigation = useNavigation();
-  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart } = useCart();
+  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart, isAuthenticated } = useCart();
 
   // Refresh cart data when component mounts
   useEffect(() => {
     refreshCart();
   }, [refreshCart]);
+
+  // Don't show footer if user is not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // Don't show footer if cart is empty
+  if (cartItems.length === 0) {
+    return null;
+  }
 
   // Memoize calculations to prevent unnecessary re-renders
   const { total, itemsCount, displayItems } = useMemo(() => {
@@ -32,10 +42,6 @@ const ViewCartFooter = () => {
 
     return { total, itemsCount, displayItems };
   }, [cartItems, getCartTotal, getCartItemsCount]);
-
-  if (cartItems.length === 0) {
-    return null;
-  }
 
   const handleViewCart = () => {
     navigation.navigate('Cart');

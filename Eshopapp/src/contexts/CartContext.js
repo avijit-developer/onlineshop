@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
 
 const CartContext = createContext();
@@ -15,15 +16,43 @@ export const useCart = () => {
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Load cart data from database when app starts
+  // Check authentication status and load cart
   useEffect(() => {
-    loadCart();
+    checkAuthAndLoadCart();
   }, []);
+
+  const checkAuthAndLoadCart = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Check if user is authenticated
+      const token = await AsyncStorage.getItem('authToken');
+      if (token) {
+        setIsAuthenticated(true);
+        await loadCart();
+      } else {
+        setIsAuthenticated(false);
+        setCartItems([]);
+        console.log('User not authenticated, cart is empty');
+      }
+    } catch (error) {
+      console.log('Error checking authentication:', error);
+      setIsAuthenticated(false);
+      setCartItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loadCart = async () => {
     try {
-      setIsLoading(true);
+      if (!isAuthenticated) {
+        console.log('User not authenticated, cannot load cart');
+        return;
+      }
+
       const response = await api.getUserCart();
       if (response && response.success && response.data) {
         // Transform API cart data to match frontend format
@@ -56,13 +85,16 @@ export const CartProvider = ({ children }) => {
     } catch (error) {
       console.log('Error loading cart from database:', error);
       setCartItems([]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const addToCart = async (product, quantity = 1, selectedAttributes = null) => {
     try {
+      if (!isAuthenticated) {
+        console.log('User not authenticated, cannot add to cart');
+        return;
+      }
+
       console.log('Adding to cart via database:', product.name, quantity, selectedAttributes);
       
       // Call API to add item to database
@@ -82,6 +114,11 @@ export const CartProvider = ({ children }) => {
 
   const removeFromCart = async (cartId) => {
     try {
+      if (!isAuthenticated) {
+        console.log('User not authenticated, cannot remove from cart');
+        return;
+      }
+
       console.log('Removing item from cart via database:', cartId);
       
       // Call API to remove item from database
@@ -101,6 +138,11 @@ export const CartProvider = ({ children }) => {
 
   const updateQuantity = async (cartId, quantity) => {
     try {
+      if (!isAuthenticated) {
+        console.log('User not authenticated, cannot update cart');
+        return;
+      }
+
       if (quantity <= 0) {
         await removeFromCart(cartId);
         return;
@@ -125,6 +167,11 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     try {
+      if (!isAuthenticated) {
+        console.log('User not authenticated, cannot clear cart');
+        return;
+      }
+
       console.log('Clearing cart via database');
       
       // Call API to clear cart in database
@@ -207,13 +254,14 @@ export const CartProvider = ({ children }) => {
   };
 
   const refreshCart = () => {
-    loadCart();
+    checkAuthAndLoadCart();
   };
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
     cartItems,
     isLoading,
+    isAuthenticated,
     addToCart,
     removeFromCart,
     updateQuantity,
@@ -224,7 +272,7 @@ export const CartProvider = ({ children }) => {
     getItemTotal,
     getItemImage,
     refreshCart,
-  }), [cartItems, isLoading]);
+  }), [cartItems, isLoading, isAuthenticated]);
 
   return (
     <CartContext.Provider value={value}>

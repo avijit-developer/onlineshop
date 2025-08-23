@@ -14,7 +14,7 @@ import { useCart } from '../contexts/CartContext';
 
 const CartScreen = () => {
   const navigation = useNavigation();
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading, isAuthenticated } = useCart();
 
   const handleQuantityChange = (cartId, change) => {
     const item = cartItems.find(item => item.cartId === cartId);
@@ -59,6 +59,40 @@ const CartScreen = () => {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Loading your cart...</Text>
+      </View>
+    );
+  }
+
+  // Show message if user is not authenticated
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.authContainer}>
+        <Icon name="lock-closed-outline" size={64} color="#ccc" />
+        <Text style={styles.authTitle}>Login Required</Text>
+        <Text style={styles.authMessage}>Please log in to view and manage your cart</Text>
+        <TouchableOpacity 
+          style={styles.loginButton}
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Text style={styles.loginButtonText}>Go to Login</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Show empty cart message if authenticated but no items
+  if (cartItems.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Icon name="cart-outline" size={64} color="#ccc" />
+        <Text style={styles.emptyTitle}>Your Cart is Empty</Text>
+        <Text style={styles.emptyMessage}>Add some products to get started</Text>
+        <TouchableOpacity 
+          style={styles.shopButton}
+          onPress={() => navigation.navigate('Home')}
+        >
+          <Text style={styles.shopButtonText}>Start Shopping</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -556,6 +590,37 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     color: '#333',
+  },
+  authContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    backgroundColor: '#fff',
+  },
+  authTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  authMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  loginButton: {
+    backgroundColor: '#f7ab18',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 
 });
