@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import { useAddress } from '../contexts/AddressContext';
+import api from '../utils/api';
 import { useUser } from '../contexts/UserContext';
 
 const CheckoutScreen = () => {
@@ -111,7 +112,8 @@ const CheckoutScreen = () => {
   };
 
   const validateCheckout = () => {
-    if (!selectedAddress) {
+    const addr = selectedAddress || getDefaultAddress();
+    if (!addr) {
       Alert.alert('Validation Error', 'Please select or add a shipping address');
       return false;
     }

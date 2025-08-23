@@ -35,7 +35,8 @@ const Orders = () => {
   const fetchData = async () => {
     try {
       try {
-        const resp = await fetch(process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/v1/orders` : '/api/v1/orders', { credentials: 'include' });
+        const token = localStorage.getItem('adminToken');
+        const resp = await fetch(process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/v1/orders` : '/api/v1/orders', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (resp.ok) {
           const json = await resp.json();
           if (json?.success) {
