@@ -239,9 +239,9 @@
   overflow-y: auto;
 }
 
-.order-details-modal {
-	max-width: 1200px;
-	width: 95%;
+.modal.order-details-modal {
+	max-width: 1200px !important;
+	width: 95% !important;
 }
 .order-details .order-header { margin-bottom: 16px; }
 .order-details .order-sections .section { margin-bottom: 20px; }
