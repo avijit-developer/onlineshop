@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,22 @@ const ViewCartFooter = () => {
   const navigation = useNavigation();
   const { cartItems, getCartTotal, getCartItemsCount, getItemImage } = useCart();
 
+  // Memoize calculations to prevent unnecessary re-renders
+  const { total, itemsCount, displayItems } = useMemo(() => {
+    if (cartItems.length === 0) {
+      return { total: 0, itemsCount: 0, displayItems: [] };
+    }
+
+    const total = getCartTotal();
+    const itemsCount = getCartItemsCount();
+    const displayItems = cartItems.slice(0, 5);
+
+    return { total, itemsCount, displayItems };
+  }, [cartItems, getCartTotal, getCartItemsCount]);
+
   if (cartItems.length === 0) {
     return null;
   }
-
-  const total = getCartTotal();
-  const itemsCount = getCartItemsCount();
 
   const handleViewCart = () => {
     navigation.navigate('Cart');
@@ -34,29 +44,12 @@ const ViewCartFooter = () => {
           showsHorizontalScrollIndicator={false}
           style={styles.itemsScroll}
         >
-          {cartItems.slice(0, 5).map((item, index) => {
-            // Comprehensive debug logging to see what's in the item
-            console.log('=== FOOTER ITEM DEBUG ===');
-            console.log('Item name:', item.name);
-            console.log('Item ID:', item.id || item._id);
-            console.log('Cart ID:', item.cartId);
-            console.log('All item properties:', Object.keys(item));
-            console.log('Images array:', item.images);
-            console.log('Image string:', item.image);
-            console.log('Selected variant:', item.selectedVariant);
-            console.log('Variant info:', item.variantInfo);
-            console.log('Current images:', item.currentImages);
-            console.log('Product type:', item.productType);
-            console.log('========================');
-            
+          {displayItems.map((item, index) => {
             // Get the best available image for this item
             const imageUri = getItemImage(item);
             
-            console.log('Final imageUri for', item.name, ':', imageUri);
-            
             // If no image found, show a placeholder
             if (!imageUri) {
-              console.log('No image found for item:', item.name);
               return (
                 <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -8 }]}>
                   <Icon name="image-outline" size={20} color="#ccc" />
@@ -72,7 +65,7 @@ const ViewCartFooter = () => {
                   styles.itemImage,
                   index > 0 && { marginLeft: -8 }
                 ]}
-                onError={() => console.log('Image failed to load for item:', item.name, 'URI:', imageUri)}
+                onError={() => console.log('Image failed to load for item:', item.name)}
                 onLoad={() => console.log('Image loaded successfully for:', item.name)}
               />
             );
