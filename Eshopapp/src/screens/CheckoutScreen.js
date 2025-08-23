@@ -173,13 +173,13 @@ const CheckoutScreen = () => {
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading addresses...</Text>
         </View>
-      ) : selectedAddress ? (
+      ) : (selectedAddress || (addresses.length > 0 ? getDefaultAddress() : null)) ? (
         <View style={styles.addressCard}>
           <View style={styles.addressHeader}>
             <Text style={styles.addressLabel}>
-              {selectedAddress.label || `${selectedAddress.firstName} ${selectedAddress.lastName}`}
+              {(selectedAddress || getDefaultAddress()).label || `${(selectedAddress || getDefaultAddress()).firstName} ${(selectedAddress || getDefaultAddress()).lastName}`}
             </Text>
-            {selectedAddress.isDefault && (
+            {(selectedAddress || getDefaultAddress()).isDefault && (
               <View style={styles.defaultBadge}>
                 <Text style={styles.defaultText}>Default</Text>
               </View>
@@ -188,19 +188,19 @@ const CheckoutScreen = () => {
           
           <View style={styles.addressContent}>
             <Text style={styles.addressText}>
-              {selectedAddress.firstName} {selectedAddress.lastName}
+              {(selectedAddress || getDefaultAddress()).firstName} {(selectedAddress || getDefaultAddress()).lastName}
             </Text>
             <Text style={styles.addressText}>
-              {selectedAddress.address}
+              {(selectedAddress || getDefaultAddress()).address}
             </Text>
             <Text style={styles.addressText}>
-              {selectedAddress.city}, {selectedAddress.state} {selectedAddress.zipCode}
+              {(selectedAddress || getDefaultAddress()).city}, {(selectedAddress || getDefaultAddress()).state} {(selectedAddress || getDefaultAddress()).zipCode}
             </Text>
             <Text style={styles.addressText}>
-              {selectedAddress.country}
+              {(selectedAddress || getDefaultAddress()).country}
             </Text>
             <Text style={styles.contactText}>
-              📧 {selectedAddress.email} | 📱 {selectedAddress.phone}
+              📧 {(selectedAddress || getDefaultAddress()).email} | 📱 {(selectedAddress || getDefaultAddress()).phone}
             </Text>
           </View>
         </View>
