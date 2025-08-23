@@ -90,7 +90,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 		const p = Math.max(parseInt(page, 10) || 1, 1);
 		const l = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 		const [items, total] = await Promise.all([
-			Order.find({}).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
+			Order.find({}).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email').lean(),
 			Order.countDocuments({})
 		]);
 		res.json({ success: true, data: items, meta: { total, page: p, limit: l } });
@@ -112,6 +112,17 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 		res.json({ success: true, data: order });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to update status' });
+	}
+});
+
+// Admin: delete order
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+	try {
+		const deleted = await Order.findByIdAndDelete(req.params.id).lean();
+		if (!deleted) return res.status(404).json({ success: false, message: 'Order not found' });
+		res.json({ success: true, message: 'Order deleted' });
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Failed to delete order' });
 	}
 });
 

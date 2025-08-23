@@ -69,6 +69,25 @@ const Orders = () => {
     }
   };
 
+  const deleteOrder = async (orderId) => {
+    try {
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (resp.ok) {
+        setOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+        toast.success('Order deleted');
+      } else {
+        toast.error('Failed to delete order');
+      }
+    } catch (e) {
+      toast.error('Failed to delete order');
+    }
+  };
+
   const filterOrders = () => {
     let filtered = orders;
 
@@ -117,26 +136,23 @@ const Orders = () => {
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
-      const updatedOrders = orders.map(order =>
-        order.id === orderId 
-          ? { 
-              ...order, 
-              status: newStatus, 
-              updatedAt: new Date().toISOString(),
-              statusHistory: [
-                ...(order.statusHistory || []),
-                {
-                  status: newStatus,
-                  timestamp: new Date().toISOString(),
-                  updatedBy: 'Admin'
-                }
-              ]
-            }
-          : order
-      );
-      setOrders(updatedOrders);
-      setShowStatusModal(false);
-      toast.success(`Order status updated to ${newStatus}`);
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (!resp.ok) throw new Error('Failed');
+      const json = await resp.json();
+      if (json?.success) {
+        setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? json.data : o));
+        setSelectedOrder(json.data);
+        setShowStatusModal(false);
+        toast.success(`Order status updated to ${newStatus}`);
+      } else {
+        throw new Error('Failed');
+      }
     } catch (error) {
       toast.error('Failed to update order status');
     }
@@ -175,8 +191,11 @@ const Orders = () => {
     }
   };
 
-  const getCustomerName = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
+  const getCustomerName = (order) => {
+    if (order.user && (order.user.name || order.user.email)) {
+      return order.user.name || order.user.email;
+    }
+    const customer = customers.find(c => c.id === order.customerId);
     return customer ? customer.name : 'Unknown Customer';
   };
 
@@ -320,8 +339,8 @@ const Orders = () => {
                 </td>
                 <td>
                   <div className="customer-info">
-                    <strong>{getCustomerName(order.customerId)}</strong>
-                    <small>{order.customerEmail}</small>
+                    <strong>{getCustomerName(order)}</strong>
+                    <small>{order.user?.email || order.customerEmail || ''}</small>
                   </div>
                 </td>
                 <td>{getVendorName(order.vendorId)}</td>
@@ -372,6 +391,12 @@ const Orders = () => {
                       className="btn btn-warning btn-sm"
                     >
                       Status
+                    </button>
+                    <button
+                      onClick={() => deleteOrder(order._id || order.id)}
+                      className="btn btn-danger btn-sm"
+                    >
+                      Delete
                     </button>
                   </div>
                 </td>
@@ -431,11 +456,11 @@ const Orders = () => {
                     <div className="info-grid">
                       <div className="info-item">
                         <label>Name:</label>
-                        <span>{getCustomerName(selectedOrder.customerId)}</span>
+                        <span>{getCustomerName(selectedOrder)}</span>
                       </div>
                       <div className="info-item">
                         <label>Email:</label>
-                        <span>{selectedOrder.customerEmail}</span>
+                        <span>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</span>
                       </div>
                       <div className="info-item">
                         <label>Phone:</label>
@@ -533,8 +558,8 @@ const Orders = () => {
                 <div className="invoice-sections">
                   <div className="invoice-section">
                     <h4>Bill To:</h4>
-                    <p>{getCustomerName(selectedOrder.customerId)}</p>
-                    <p>{selectedOrder.customerEmail}</p>
+                    <p>{getCustomerName(selectedOrder)}</p>
+                    <p>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</p>
                     <p>{selectedOrder.shippingAddress}</p>
                   </div>
 
@@ -610,16 +635,15 @@ const Orders = () => {
               <div className="status-update-form">
                 <p>Current Status: <span className={`status-badge ${getStatusBadgeClass(selectedOrder.status)}`}>{selectedOrder.status}</span></p>
                 <div className="status-options">
-                  {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'].map(status => (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusUpdate(selectedOrder.id, status)}
-                      className={`btn ${status === selectedOrder.status ? 'btn-secondary' : 'btn-primary'}`}
-                      disabled={status === selectedOrder.status}
-                    >
-                      {status}
-                    </button>
-                  ))}
+                  <select
+                    value={selectedOrder.status}
+                    onChange={(e) => handleStatusUpdate(selectedOrder._id || selectedOrder.id, e.target.value)}
+                    className="filter-select"
+                  >
+                    {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
