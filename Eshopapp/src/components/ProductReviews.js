@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
-import api from '../utils/api';
 
 const ProductReviews = ({ productId, onReviewPress }) => {
   const [reviews, setReviews] = useState([]);
@@ -11,36 +10,52 @@ const ProductReviews = ({ productId, onReviewPress }) => {
 
   useEffect(() => {
     if (productId) {
-      fetchReviews();
+      loadMockReviews();
     }
   }, [productId]);
 
-  const fetchReviews = async () => {
+  const loadMockReviews = () => {
     setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await api.getProductReviewsPublic(productId, { limit: 5 });
-      if (response?.success) {
-        setReviews(response.data || []);
-      } else {
-        setError('Failed to fetch reviews');
-      }
-    } catch (err) {
-      console.error('Error fetching reviews:', err);
-      setError(err.message || 'Failed to fetch reviews');
-    } finally {
+    // Simulate API call delay
+    setTimeout(() => {
+      const mockReviews = [
+        {
+          id: '1',
+          reviewerName: 'John Doe',
+          rating: 5,
+          title: 'Excellent Product!',
+          comment: 'This product exceeded my expectations. Great quality and fast delivery. Highly recommended!',
+          createdAt: new Date('2024-08-20')
+        },
+        {
+          id: '2',
+          reviewerName: 'Sarah Smith',
+          rating: 4,
+          title: 'Very Good Quality',
+          comment: 'Good product with nice features. The only minor issue is the packaging could be better.',
+          createdAt: new Date('2024-08-18')
+        },
+        {
+          id: '3',
+          reviewerName: 'Mike Johnson',
+          rating: 5,
+          title: 'Perfect for my needs',
+          comment: 'Exactly what I was looking for. Great value for money and excellent customer service.',
+          createdAt: new Date('2024-08-15')
+        }
+      ];
+      setReviews(mockReviews);
       setLoading(false);
-    }
+    }, 1000);
   };
 
   const renderReviewItem = ({ item }) => (
     <View style={styles.reviewItem}>
       <View style={styles.reviewHeader}>
         <View style={styles.reviewerInfo}>
-          <Text style={styles.reviewerName}>{item.reviewerName || 'Anonymous'}</Text>
+          <Text style={styles.reviewerName}>{item.reviewerName}</Text>
           <Text style={styles.reviewDate}>
-            {new Date(item.createdAt).toLocaleDateString()}
+            {item.createdAt.toLocaleDateString()}
           </Text>
         </View>
         <View style={styles.ratingContainer}>
@@ -83,22 +98,6 @@ const ProductReviews = ({ productId, onReviewPress }) => {
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.sectionTitle}>Customer Reviews</Text>
-        </View>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchReviews}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
   const displayReviews = showAllReviews ? reviews : reviews.slice(0, 3);
   const hasMoreReviews = reviews.length > 3;
 
@@ -109,7 +108,7 @@ const ProductReviews = ({ productId, onReviewPress }) => {
         {reviews.length > 0 && (
           <View style={styles.ratingSummary}>
             <Text style={styles.ratingText}>
-              {reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length}
+              {(reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)}
             </Text>
             <Text style={styles.ratingCount}>({reviews.length} reviews)</Text>
           </View>

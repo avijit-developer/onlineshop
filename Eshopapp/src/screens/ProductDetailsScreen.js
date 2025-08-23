@@ -259,10 +259,20 @@ export default function ProductDetailsScreen() {
         if (stock <= 0) {
             return 'Out of Stock';
         }
+        if (stock <= 5) {
+            return `Low Stock (${stock} left)`;
+        }
         if (product?.productType === 'configurable' && selectedVariant) {
             return `In Stock (${stock} available)`;
         }
         return `In Stock (${stock} available)`;
+    };
+
+    const getStockStatusColor = () => {
+        const stock = currentStock();
+        if (stock <= 0) return '#f44336'; // Red for out of stock
+        if (stock <= 5) return '#ff9800'; // Orange for low stock
+        return '#4caf50'; // Green for in stock
     };
 
     const handleSelectAttribute = (name, value) => {
@@ -447,8 +457,8 @@ export default function ProductDetailsScreen() {
                 </View>
 
                 {/* Stock Status */}
-                <View style={styles.stockContainer}>
-                    <Text style={[styles.stockText, isOutOfStock() && styles.outOfStockText]}>
+                <View style={[styles.stockContainer, { borderLeftColor: getStockStatusColor() }]}>
+                    <Text style={[styles.stockText, { color: getStockStatusColor() }]}>
                         {getStockStatusText()}
                     </Text>
                 </View>
@@ -606,7 +616,7 @@ export default function ProductDetailsScreen() {
                     disabled={isOutOfStock()}
                 >
                     <Text style={[styles.buyNowText, isOutOfStock() && styles.buttonTextDisabled]}>
-                        {isOutOfStock() ? 'Unavailable' : 'Buy Now'}
+                        {isOutOfStock() ? 'Out of Stock' : 'Buy Now'}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -647,17 +657,19 @@ const styles = StyleSheet.create({
     discount: { fontSize: 14, color: '#43a047' },
 
     stockContainer: {
-        backgroundColor: '#f0f0f0',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        backgroundColor: '#f8f9fa',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
         borderRadius: 8,
         marginTop: 10,
         marginBottom: 10,
+        borderLeftWidth: 4,
+        borderLeftColor: '#4caf50',
     },
     stockText: {
         fontSize: 14,
-        fontWeight: '500',
-        color: '#000',
+        fontWeight: '600',
+        textAlign: 'center',
     },
     outOfStockText: {
         color: '#f44336',

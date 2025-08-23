@@ -5,7 +5,7 @@ import AntDesign from 'react-native-vector-icons/AntDesign';
 const ProductSpecifications = ({ product, onBrandPress }) => {
   if (!product) return null;
 
-  const hasSpecifications = product.brand || product.category || product.tags?.length > 0;
+  const hasSpecifications = product.brand || product.category || product.vendor || product.tags?.length > 0;
 
   if (!hasSpecifications) return null;
 
@@ -18,7 +18,9 @@ const ProductSpecifications = ({ product, onBrandPress }) => {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Brand:</Text>
           <TouchableOpacity onPress={() => onBrandPress?.(product.brand)}>
-            <Text style={styles.infoValue}>{product.brand.name || product.brand}</Text>
+            <Text style={styles.infoValue}>
+              {typeof product.brand === 'object' ? product.brand.name : product.brand}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -27,17 +29,11 @@ const ProductSpecifications = ({ product, onBrandPress }) => {
       {product.category && (
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Category:</Text>
-          <Text style={styles.infoValue}>{product.category.name || product.category}</Text>
+          <Text style={styles.infoValue}>
+            {typeof product.category === 'object' ? product.category.name : product.category}
+          </Text>
         </View>
       )}
-
-      {/* Product Type */}
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Type:</Text>
-        <Text style={styles.infoValue}>
-          {product.productType === 'configurable' ? 'Configurable Product' : 'Simple Product'}
-        </Text>
-      </View>
 
       {/* SKU */}
       {product.sku && (
@@ -73,7 +69,9 @@ const ProductSpecifications = ({ product, onBrandPress }) => {
       {product.vendor && (
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Sold by:</Text>
-          <Text style={styles.infoValue}>{product.vendor.companyName || product.vendor}</Text>
+          <Text style={styles.infoValue}>
+            {typeof product.vendor === 'object' ? product.vendor.companyName : product.vendor}
+          </Text>
         </View>
       )}
     </View>
