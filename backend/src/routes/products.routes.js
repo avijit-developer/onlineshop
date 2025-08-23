@@ -314,6 +314,7 @@ router.get('/public', async (req, res) => {
     let [items, total] = await Promise.all([
       Product.find(filters)
         .select('name images regularPrice specialPrice rating')
+        .populate('category', 'name')
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
@@ -346,6 +347,7 @@ router.get('/public', async (req, res) => {
       ;[items, total] = await Promise.all([
         Product.find(filters)
           .select('name images regularPrice specialPrice rating')
+          .populate('category', 'name')
           .sort({ createdAt: -1 })
           .skip((pageNum - 1) * perPage)
           .limit(perPage)
@@ -373,11 +375,13 @@ router.get('/:id/related/public', async (req, res) => {
     if (product.relatedProducts && product.relatedProducts.length > 0) {
       items = await Product.find({ _id: { $in: product.relatedProducts }, enabled: true, status: { $ne: 'rejected' } })
         .select('name images regularPrice specialPrice rating')
+        .populate('category', 'name')
         .limit(12)
         .lean();
     } else if (product.category) {
       items = await Product.find({ category: product.category, _id: { $ne: id }, enabled: true, status: { $ne: 'rejected' } })
         .select('name images regularPrice specialPrice rating')
+        .populate('category', 'name')
         .sort({ createdAt: -1 })
         .limit(12)
         .lean();
@@ -412,6 +416,9 @@ router.get('/:id/public', async (req, res) => {
     const { id } = req.params;
     const product = await Product.findById(id)
       .select('name description shortDescription images regularPrice specialPrice tax stock productType variants category brand vendor enabled status')
+      .populate('brand', 'name')
+      .populate('category', 'name')
+      .populate('vendor', 'companyName')
       .lean();
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });

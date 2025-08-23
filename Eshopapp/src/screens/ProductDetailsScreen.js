@@ -102,6 +102,19 @@ export default function ProductDetailsScreen() {
             if (res?.success) {
                 const p = res.data;
                 console.log('Product data received:', p);
+                console.log('Product structure:', {
+                    brand: p.brand,
+                    category: p.category,
+                    vendor: p.vendor,
+                    productType: p.productType,
+                    stock: p.stock,
+                    variants: p.variants
+                });
+                console.log('Populated fields:', {
+                    brandName: p.brand?.name,
+                    categoryName: p.category?.name,
+                    vendorName: p.vendor?.companyName
+                });
                 setProduct(p);
                 setupProductData(p);
             } else {
@@ -244,13 +257,15 @@ export default function ProductDetailsScreen() {
             }
             // For configurable products without selected variant, show total stock
             const totalStock = (product.variants || []).reduce((sum, v) => sum + (v.stock ?? 0), 0);
-            return totalStock;
+            // If no variants have stock, fall back to main product stock
+            return totalStock > 0 ? totalStock : (product.stock ?? 0);
         }
         return product?.stock ?? 0;
     };
 
     const isOutOfStock = () => {
         const stock = currentStock();
+        console.log('Stock check:', { stock, productStock: product?.stock, productType: product?.productType });
         return stock <= 0;
     };
 
