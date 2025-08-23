@@ -51,29 +51,23 @@ const CheckoutScreen = () => {
     }, [refreshAddresses])
   );
 
-  // Initialize selected address
+  // Only set selectedAddress when explicit param provided; otherwise derive from default
   useEffect(() => {
     if (selectedAddressFromParams) {
       setSelectedAddress(selectedAddressFromParams);
-      return;
+    } else {
+      setSelectedAddress(null);
     }
-    if (!isLoading) {
-      if (addresses.length > 0) {
-        const def = getDefaultAddress();
-        if (!selectedAddress || (def && selectedAddress.id !== def.id)) {
-          setSelectedAddress(def || addresses[0]);
-        }
-      } else if (selectedAddress) {
-        setSelectedAddress(null);
-      }
-    }
-  }, [selectedAddressFromParams, isLoading, addresses]);
+  }, [selectedAddressFromParams]);
 
   // Calculate totals
   const subtotal = getCartTotal();
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08;
   const total = subtotal + shipping + tax;
+
+  // Derive effective address: prefer selected (from params), else default
+  const effectiveAddress = selectedAddress || getDefaultAddress();
 
   const handleInputChange = (field, value) => {
     setShippingInfo(prev => ({
@@ -173,13 +167,13 @@ const CheckoutScreen = () => {
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading addresses...</Text>
         </View>
-      ) : (selectedAddress || (addresses.length > 0 ? getDefaultAddress() : null)) ? (
+      ) : effectiveAddress ? (
         <View style={styles.addressCard}>
           <View style={styles.addressHeader}>
             <Text style={styles.addressLabel}>
-              {(selectedAddress || getDefaultAddress()).label || `${(selectedAddress || getDefaultAddress()).firstName} ${(selectedAddress || getDefaultAddress()).lastName}`}
+              {effectiveAddress.label || `${effectiveAddress.firstName} ${effectiveAddress.lastName}`}
             </Text>
-            {(selectedAddress || getDefaultAddress()).isDefault && (
+            {effectiveAddress.isDefault && (
               <View style={styles.defaultBadge}>
                 <Text style={styles.defaultText}>Default</Text>
               </View>
@@ -188,19 +182,19 @@ const CheckoutScreen = () => {
           
           <View style={styles.addressContent}>
             <Text style={styles.addressText}>
-              {(selectedAddress || getDefaultAddress()).firstName} {(selectedAddress || getDefaultAddress()).lastName}
+              {effectiveAddress.firstName} {effectiveAddress.lastName}
             </Text>
             <Text style={styles.addressText}>
-              {(selectedAddress || getDefaultAddress()).address}
+              {effectiveAddress.address}
             </Text>
             <Text style={styles.addressText}>
-              {(selectedAddress || getDefaultAddress()).city}, {(selectedAddress || getDefaultAddress()).state} {(selectedAddress || getDefaultAddress()).zipCode}
+              {effectiveAddress.city}, {effectiveAddress.state} {effectiveAddress.zipCode}
             </Text>
             <Text style={styles.addressText}>
-              {(selectedAddress || getDefaultAddress()).country}
+              {effectiveAddress.country}
             </Text>
             <Text style={styles.contactText}>
-              📧 {(selectedAddress || getDefaultAddress()).email} | 📱 {(selectedAddress || getDefaultAddress()).phone}
+              📧 {effectiveAddress.email} | 📱 {effectiveAddress.phone}
             </Text>
           </View>
         </View>
