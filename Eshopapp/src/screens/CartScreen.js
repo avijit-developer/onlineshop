@@ -120,9 +120,6 @@ const CartScreen = () => {
         
         {/* Additional info section */}
         <View style={styles.additionalInfo}>
-          {item.variantInfo?.sku && (
-            <Text style={styles.itemSku}>SKU: {item.variantInfo.sku}</Text>
-          )}
           <Text style={styles.stockInfo}>
             Stock: {item.variantInfo?.stock || item.stock} available
           </Text>

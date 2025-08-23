@@ -56,8 +56,23 @@ export const CartProvider = ({ children }) => {
         quantity, 
         selectedAttributes,
         cartId,
-        // Ensure images are accessible
-        images: product.images || product.image ? [product.image] : [],
+        // Ensure images are accessible - handle both arrays and strings
+        images: (() => {
+          if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+            return product.images;
+          }
+          if (product.image && typeof product.image === 'string') {
+            return [product.image];
+          }
+          if (product.selectedVariant?.images && Array.isArray(product.selectedVariant.images) && product.selectedVariant.images.length > 0) {
+            return product.selectedVariant.images;
+          }
+          // For simple products, try to get images from currentImages if it's a function result
+          if (product.currentImages && Array.isArray(product.currentImages) && product.currentImages.length > 0) {
+            return product.currentImages;
+          }
+          return [];
+        })(),
         // Store variant-specific information
         variantInfo: selectedAttributes ? {
           attributes: selectedAttributes,
@@ -140,22 +155,33 @@ export const CartProvider = ({ children }) => {
   };
 
   const getItemImage = (item) => {
+    console.log('=== getItemImage DEBUG ===');
+    console.log('Item:', item.name);
+    console.log('Available properties:', Object.keys(item));
+    
     // Try multiple image sources in order of preference
     if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+      console.log('Using item.images[0]:', item.images[0]);
       return item.images[0];
     }
     if (item.image && typeof item.image === 'string') {
+      console.log('Using item.image:', item.image);
       return item.image;
     }
     if (item.selectedVariant?.images && Array.isArray(item.selectedVariant.images) && item.selectedVariant.images.length > 0) {
+      console.log('Using selectedVariant.images[0]:', item.selectedVariant.images[0]);
       return item.selectedVariant.images[0];
     }
     if (item.variantInfo?.images && Array.isArray(item.variantInfo.images) && item.variantInfo.images.length > 0) {
+      console.log('Using variantInfo.images[0]:', item.variantInfo.images[0]);
       return item.variantInfo.images[0];
     }
     if (item.currentImages && Array.isArray(item.currentImages) && item.currentImages.length > 0) {
+      console.log('Using currentImages[0]:', item.currentImages[0]);
       return item.currentImages[0];
     }
+    
+    console.log('No image found in any source');
     return null;
   };
 

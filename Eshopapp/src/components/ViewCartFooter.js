@@ -35,17 +35,31 @@ const ViewCartFooter = () => {
           style={styles.itemsScroll}
         >
           {cartItems.slice(0, 5).map((item, index) => {
+            // Comprehensive debug logging to see what's in the item
+            console.log('=== FOOTER ITEM DEBUG ===');
+            console.log('Item name:', item.name);
+            console.log('Item ID:', item.id || item._id);
+            console.log('Cart ID:', item.cartId);
+            console.log('All item properties:', Object.keys(item));
+            console.log('Images array:', item.images);
+            console.log('Image string:', item.image);
+            console.log('Selected variant:', item.selectedVariant);
+            console.log('Variant info:', item.variantInfo);
+            console.log('Current images:', item.currentImages);
+            console.log('Product type:', item.productType);
+            console.log('========================');
+            
             // Get the best available image for this item
             const imageUri = getItemImage(item);
             
-            console.log('Footer item image for', item.name, ':', imageUri);
+            console.log('Final imageUri for', item.name, ':', imageUri);
             
             // If no image found, show a placeholder
             if (!imageUri) {
               console.log('No image found for item:', item.name);
               return (
                 <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -8 }]}>
-                  <Icon name="image-outline" size={16} color="#ccc" />
+                  <Icon name="image-outline" size={20} color="#ccc" />
                 </View>
               );
             }
@@ -105,12 +119,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemsScroll: {
-    maxWidth: 120,
+    maxWidth: 180, // Increased from 120 to accommodate larger images
   },
   itemImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 48, // Increased from 32 to 48
+    height: 48, // Increased from 32 to 48
+    borderRadius: 24, // Increased from 16 to 24
     borderWidth: 2,
     borderColor: '#fff',
   },
@@ -120,9 +134,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   moreItemsIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 48, // Increased from 32 to 48
+    height: 48, // Increased from 32 to 48
+    borderRadius: 24, // Increased from 16 to 24
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',

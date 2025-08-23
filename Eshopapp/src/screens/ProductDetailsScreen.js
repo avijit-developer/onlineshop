@@ -317,7 +317,8 @@ export default function ProductDetailsScreen() {
             ...product,
             selectedVariant: selectedVariant,
             currentPrice: currentPriceBlock(),
-            currentStock: currentStock()
+            currentStock: currentStock(),
+            currentImages: currentImages() // Include the current images
         };
         
         // Add to cart with proper parameters
