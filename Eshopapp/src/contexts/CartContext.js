@@ -101,9 +101,9 @@ export const CartProvider = ({ children }) => {
           name: item.product.name,
           cartId: item.cartId,
           quantity: item.quantity,
-          selectedAttributes: item.selectedAttributes ? Object.fromEntries(item.selectedAttributes) : {},
+          selectedAttributes: item.selectedAttributes ? (typeof item.selectedAttributes.toJSON === 'function' ? item.selectedAttributes.toJSON() : (typeof item.selectedAttributes === 'object' ? item.selectedAttributes : {})) : {},
           variantInfo: item.variantInfo ? {
-            attributes: item.variantInfo.attributes ? Object.fromEntries(item.variantInfo.attributes) : {},
+            attributes: item.variantInfo.attributes ? (typeof item.variantInfo.attributes.toJSON === 'function' ? item.variantInfo.attributes.toJSON() : (typeof item.variantInfo.attributes === 'object' ? item.variantInfo.attributes : {})) : {},
             price: item.variantInfo.price,
             specialPrice: item.variantInfo.specialPrice,
             stock: item.variantInfo.stock,
