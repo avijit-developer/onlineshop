@@ -1,0 +1,368 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useAddress } from '../contexts/AddressContext';
+
+const AddressForm = ({ address, onSave, onCancel }) => {
+  const { addAddress, updateAddress } = useAddress();
+  const isEditing = !!address;
+
+  const [formData, setFormData] = useState({
+    label: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'India',
+  });
+
+  useEffect(() => {
+    if (address) {
+      setFormData({
+        label: address.label || '',
+        firstName: address.firstName || '',
+        lastName: address.lastName || '',
+        email: address.email || '',
+        phone: address.phone || '',
+        address: address.address || '',
+        city: address.city || '',
+        state: address.state || '',
+        zipCode: address.zipCode || '',
+        country: address.country || 'India',
+      });
+    }
+  }, [address]);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const validateForm = () => {
+    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'state', 'zipCode'];
+    
+    for (const field of requiredFields) {
+      if (!formData[field] || formData[field].trim() === '') {
+        Alert.alert('Validation Error', `Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+        return false;
+      }
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Validation Error', 'Please enter a valid email address');
+      return false;
+    }
+
+    // Phone validation (10 digits)
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      Alert.alert('Validation Error', 'Please enter a valid 10-digit phone number');
+      return false;
+    }
+
+    // ZIP code validation (6 digits)
+    const zipRegex = /^[0-9]{6}$/;
+    if (!zipRegex.test(formData.zipCode)) {
+      Alert.alert('Validation Error', 'Please enter a valid 6-digit ZIP code');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) return;
+
+    try {
+      if (isEditing) {
+        await updateAddress(address.id, formData);
+        Alert.alert('Success', 'Address updated successfully!');
+      } else {
+        await addAddress(formData);
+        Alert.alert('Success', 'Address added successfully!');
+      }
+      onSave(formData);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save address. Please try again.');
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>
+          {isEditing ? 'Edit Address' : 'Add New Address'}
+        </Text>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.saveText}>Save</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Address Label */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Address Label (Optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={formData.label}
+            onChangeText={(value) => handleInputChange('label', value)}
+            placeholder="e.g., Home, Office, Mom's House"
+            autoCapitalize="words"
+          />
+        </View>
+
+        {/* Personal Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
+          
+          <View style={styles.formRow}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>First Name *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.firstName}
+                onChangeText={(value) => handleInputChange('firstName', value)}
+                placeholder="Enter first name"
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Last Name *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.lastName}
+                onChangeText={(value) => handleInputChange('lastName', value)}
+                placeholder="Enter last name"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Email *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.email}
+                onChangeText={(value) => handleInputChange('email', value)}
+                placeholder="Enter email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Phone *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.phone}
+                onChangeText={(value) => handleInputChange('phone', value)}
+                placeholder="Enter phone number"
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Address Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Address Information</Text>
+          
+          <Text style={styles.inputLabel}>Full Address *</Text>
+          <TextInput
+            style={[styles.textInput, styles.fullWidthInput]}
+            value={formData.address}
+            onChangeText={(value) => handleInputChange('address', value)}
+            placeholder="Enter your complete address"
+            multiline
+            numberOfLines={3}
+          />
+
+          <View style={styles.formRow}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>City *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.city}
+                onChangeText={(value) => handleInputChange('city', value)}
+                placeholder="Enter city"
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>State *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.state}
+                onChangeText={(value) => handleInputChange('state', value)}
+                placeholder="Enter state"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>ZIP Code *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.zipCode}
+                onChangeText={(value) => handleInputChange('zipCode', value)}
+                placeholder="Enter ZIP code"
+                keyboardType="numeric"
+                maxLength={6}
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Country</Text>
+              <TextInput
+                style={[styles.textInput, styles.disabledInput]}
+                value={formData.country}
+                editable={false}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Save Button */}
+        <TouchableOpacity style={styles.saveAddressButton} onPress={handleSave}>
+          <Icon name="checkmark-circle-outline" size={20} color="#fff" />
+          <Text style={styles.saveAddressButtonText}>
+            {isEditing ? 'Update Address' : 'Save Address'}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  cancelButton: {
+    padding: 8,
+  },
+  cancelText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  saveButton: {
+    padding: 8,
+  },
+  saveText: {
+    fontSize: 16,
+    color: '#f7ab18',
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  section: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  formRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  halfInput: {
+    flex: 0.48,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  fullWidthInput: {
+    marginBottom: 16,
+  },
+  disabledInput: {
+    backgroundColor: '#f5f5f5',
+    color: '#666',
+  },
+  saveAddressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f7ab18',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  saveAddressButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+});
+
+export default AddressForm;

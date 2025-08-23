@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,21 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
+import { useAddress } from '../contexts/AddressContext';
 
 const CheckoutScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const { cartItems, getCartTotal, clearCart } = useCart();
+  const { addresses, getDefaultAddress, addAddress } = useAddress();
 
-  // Form state
+  // Get selected address from navigation params or use default
+  const selectedAddressFromParams = route.params?.selectedAddress;
+  const [selectedAddress, setSelectedAddress] = useState(null);
+
+  // Form state for new address (when no addresses exist)
   const [shippingInfo, setShippingInfo] = useState({
     firstName: '',
     lastName: '',
@@ -31,8 +38,18 @@ const CheckoutScreen = () => {
     country: 'India',
   });
 
-  const [paymentMethod, setPaymentMethod] = useState('cod'); // cod, card, upi
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+
+  // Initialize selected address
+  useEffect(() => {
+    if (selectedAddressFromParams) {
+      setSelectedAddress(selectedAddressFromParams);
+    } else if (addresses.length > 0) {
+      setSelectedAddress(getDefaultAddress());
+    }
+  }, [selectedAddressFromParams, addresses]);
 
   // Calculate totals
   const subtotal = getCartTotal();
@@ -47,12 +64,13 @@ const CheckoutScreen = () => {
     }));
   };
 
-  const validateForm = () => {
+  const handleAddNewAddress = async () => {
+    // Validate form
     const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'state', 'zipCode'];
     for (const field of requiredFields) {
       if (!shippingInfo[field] || shippingInfo[field].trim() === '') {
         Alert.alert('Validation Error', `Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
-        return false;
+        return;
       }
     }
     
@@ -60,21 +78,36 @@ const CheckoutScreen = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(shippingInfo.email)) {
       Alert.alert('Validation Error', 'Please enter a valid email address');
-      return false;
+      return;
     }
 
     // Basic phone validation
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(shippingInfo.phone)) {
       Alert.alert('Validation Error', 'Please enter a valid 10-digit phone number');
-      return false;
+      return;
     }
 
+    try {
+      const newAddress = await addAddress(shippingInfo);
+      setSelectedAddress(newAddress);
+      setShowAddressForm(false);
+      Alert.alert('Success', 'Address added successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add address. Please try again.');
+    }
+  };
+
+  const validateCheckout = () => {
+    if (!selectedAddress) {
+      Alert.alert('Validation Error', 'Please select or add a shipping address');
+      return false;
+    }
     return true;
   };
 
   const handlePlaceOrder = async () => {
-    if (!validateForm()) return;
+    if (!validateCheckout()) return;
 
     setIsProcessing(true);
 
@@ -110,115 +143,198 @@ const CheckoutScreen = () => {
     }
   };
 
-  const renderShippingForm = () => (
+  const renderAddressSection = () => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Icon name="location-outline" size={20} color="#f7ab18" />
-        <Text style={styles.sectionTitle}>Shipping Information</Text>
+        <Text style={styles.sectionTitle}>Shipping Address</Text>
+        <TouchableOpacity 
+          style={styles.changeButton}
+          onPress={() => navigation.navigate('AddressList', { isSelecting: true })}
+        >
+          <Text style={styles.changeButtonText}>Change</Text>
+        </TouchableOpacity>
       </View>
       
-      <View style={styles.formRow}>
-        <View style={styles.halfInput}>
-          <Text style={styles.inputLabel}>First Name *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={shippingInfo.firstName}
-            onChangeText={(value) => handleInputChange('firstName', value)}
-            placeholder="Enter first name"
-            autoCapitalize="words"
-          />
+      {selectedAddress ? (
+        <View style={styles.addressCard}>
+          <View style={styles.addressHeader}>
+            <Text style={styles.addressLabel}>
+              {selectedAddress.label || `${selectedAddress.firstName} ${selectedAddress.lastName}`}
+            </Text>
+            {selectedAddress.isDefault && (
+              <View style={styles.defaultBadge}>
+                <Text style={styles.defaultText}>Default</Text>
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.addressContent}>
+            <Text style={styles.addressText}>
+              {selectedAddress.firstName} {selectedAddress.lastName}
+            </Text>
+            <Text style={styles.addressText}>
+              {selectedAddress.address}
+            </Text>
+            <Text style={styles.addressText}>
+              {selectedAddress.city}, {selectedAddress.state} {selectedAddress.zipCode}
+            </Text>
+            <Text style={styles.addressText}>
+              {selectedAddress.country}
+            </Text>
+            <Text style={styles.contactText}>
+              📧 {selectedAddress.email} | 📱 {selectedAddress.phone}
+            </Text>
+          </View>
         </View>
-        <View style={styles.halfInput}>
-          <Text style={styles.inputLabel}>Last Name *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={shippingInfo.lastName}
-            onChangeText={(value) => handleInputChange('lastName', value)}
-            placeholder="Enter last name"
-            autoCapitalize="words"
-          />
+      ) : addresses.length === 0 ? (
+        <View style={styles.noAddressContainer}>
+          <Text style={styles.noAddressText}>No addresses found</Text>
+          <TouchableOpacity 
+            style={styles.addAddressButton}
+            onPress={() => setShowAddressForm(true)}
+          >
+            <Icon name="add-circle-outline" size={16} color="#f7ab18" />
+            <Text style={styles.addAddressButtonText}>Add New Address</Text>
+          </TouchableOpacity>
         </View>
-      </View>
+      ) : (
+        <View style={styles.noAddressContainer}>
+          <Text style={styles.noAddressText}>Please select an address</Text>
+          <TouchableOpacity 
+            style={styles.selectAddressButton}
+            onPress={() => navigation.navigate('AddressList', { isSelecting: true })}
+          >
+            <Icon name="location-outline" size={16} color="#f7ab18" />
+            <Text style={styles.selectAddressButtonText}>Select Address</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      <View style={styles.formRow}>
-        <View style={styles.halfInput}>
-          <Text style={styles.inputLabel}>Email *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={shippingInfo.email}
-            onChangeText={(value) => handleInputChange('email', value)}
-            placeholder="Enter email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-        <View style={styles.halfInput}>
-          <Text style={styles.inputLabel}>Phone *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={shippingInfo.phone}
-            onChangeText={(value) => handleInputChange('phone', value)}
-            placeholder="Enter phone number"
-            keyboardType="phone-pad"
-            maxLength={10}
-          />
-        </View>
-      </View>
+      {/* New Address Form (shown when no addresses exist) */}
+      {showAddressForm && (
+        <View style={styles.addressFormContainer}>
+          <Text style={styles.formTitle}>Add New Address</Text>
+          
+          <View style={styles.formRow}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>First Name *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={shippingInfo.firstName}
+                onChangeText={(value) => handleInputChange('firstName', value)}
+                placeholder="Enter first name"
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Last Name *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={shippingInfo.lastName}
+                onChangeText={(value) => handleInputChange('lastName', value)}
+                placeholder="Enter last name"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
 
-      <Text style={styles.inputLabel}>Address *</Text>
-      <TextInput
-        style={[styles.textInput, styles.fullWidthInput]}
-        value={shippingInfo.address}
-        onChangeText={(value) => handleInputChange('address', value)}
-        placeholder="Enter full address"
-        multiline
-        numberOfLines={3}
-      />
+          <View style={styles.formRow}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Email *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={shippingInfo.email}
+                onChangeText={(value) => handleInputChange('email', value)}
+                placeholder="Enter email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Phone *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={shippingInfo.phone}
+                onChangeText={(value) => handleInputChange('phone', value)}
+                placeholder="Enter phone number"
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+            </View>
+          </View>
 
-      <View style={styles.formRow}>
-        <View style={styles.halfInput}>
-          <Text style={styles.inputLabel}>City *</Text>
+          <Text style={styles.inputLabel}>Address *</Text>
           <TextInput
-            style={styles.textInput}
-            value={shippingInfo.city}
-            onChangeText={(value) => handleInputChange('city', value)}
-            placeholder="Enter city"
-            autoCapitalize="words"
+            style={[styles.textInput, styles.fullWidthInput]}
+            value={shippingInfo.address}
+            onChangeText={(value) => handleInputChange('address', value)}
+            placeholder="Enter full address"
+            multiline
+            numberOfLines={3}
           />
-        </View>
-        <View style={styles.halfInput}>
-          <Text style={styles.inputLabel}>State *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={shippingInfo.state}
-            onChangeText={(value) => handleInputChange('state', value)}
-            placeholder="Enter state"
-            autoCapitalize="words"
-          />
-        </View>
-      </View>
 
-      <View style={styles.formRow}>
-        <View style={styles.halfInput}>
-          <Text style={styles.inputLabel}>ZIP Code *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={shippingInfo.zipCode}
-            onChangeText={(value) => handleInputChange('zipCode', value)}
-            placeholder="Enter ZIP code"
-            keyboardType="numeric"
-            maxLength={6}
-          />
+          <View style={styles.formRow}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>City *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={shippingInfo.city}
+                onChangeText={(value) => handleInputChange('city', value)}
+                placeholder="Enter city"
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>State *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={shippingInfo.state}
+                onChangeText={(value) => handleInputChange('state', value)}
+                placeholder="Enter state"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>ZIP Code *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={shippingInfo.zipCode}
+                onChangeText={(value) => handleInputChange('zipCode', value)}
+                placeholder="Enter ZIP code"
+                keyboardType="numeric"
+                maxLength={6}
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Country</Text>
+              <TextInput
+                style={[styles.textInput, styles.disabledInput]}
+                value={shippingInfo.country}
+                editable={false}
+              />
+            </View>
+          </View>
+
+          <View style={styles.formActions}>
+            <TouchableOpacity 
+              style={styles.cancelFormButton}
+              onPress={() => setShowAddressForm(false)}
+            >
+              <Text style={styles.cancelFormButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.saveFormButton}
+              onPress={handleAddNewAddress}
+            >
+              <Text style={styles.saveFormButtonText}>Save Address</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.halfInput}>
-          <Text style={styles.inputLabel}>Country</Text>
-          <TextInput
-            style={[styles.textInput, styles.disabledInput]}
-            value={shippingInfo.country}
-            editable={false}
-          />
-        </View>
-      </View>
+      )}
     </View>
   );
 
@@ -336,7 +452,7 @@ const CheckoutScreen = () => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {renderShippingForm()}
+        {renderAddressSection()}
         {renderPaymentMethods()}
         {renderOrderSummary()}
       </ScrollView>
@@ -417,6 +533,122 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginLeft: 8,
+  },
+  changeButton: {
+    marginLeft: 'auto',
+  },
+  changeButtonText: {
+    fontSize: 14,
+    color: '#f7ab18',
+    textDecorationLine: 'underline',
+  },
+  addressCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addressLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  defaultBadge: {
+    backgroundColor: '#f7ab18',
+    borderRadius: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  defaultText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  addressContent: {
+    marginTop: 8,
+  },
+  addressText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  contactText: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 8,
+  },
+  noAddressContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  noAddressText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 15,
+  },
+  addAddressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f7ab18',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  addAddressButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  selectAddressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f7ab18',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  selectAddressButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  addressFormContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  formTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   formRow: {
     flexDirection: 'row',
@@ -549,6 +781,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  formActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
+  cancelFormButton: {
+    backgroundColor: '#e0e0e0',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  cancelFormButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  saveFormButton: {
+    backgroundColor: '#f7ab18',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  saveFormButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
