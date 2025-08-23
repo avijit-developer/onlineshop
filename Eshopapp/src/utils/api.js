@@ -155,6 +155,10 @@ const api = {
     if (params.category) parts.push('category=' + encodeURIComponent(String(params.category)));
     if (params.page != null) parts.push('page=' + encodeURIComponent(String(params.page)));
     if (params.limit != null) parts.push('limit=' + encodeURIComponent(String(params.limit)));
+    if (params.brand) parts.push('brand=' + encodeURIComponent(String(params.brand)));
+    if (params.minPrice != null) parts.push('minPrice=' + encodeURIComponent(String(params.minPrice)));
+    if (params.maxPrice != null) parts.push('maxPrice=' + encodeURIComponent(String(params.maxPrice)));
+    if (params.sort) parts.push('sort=' + encodeURIComponent(String(params.sort)));
     const qs = parts.length ? '?' + parts.join('&') : '';
     return this.request(`/api/v1/products/public${qs}`);
   },
@@ -165,6 +169,38 @@ const api = {
 
   async getProductPublic(productId) {
     return this.request(`/api/v1/products/${productId}/public`);
+  },
+
+  // Product search with filters
+  async searchProductsPublic(params = {}) {
+    const parts = [];
+    if (params.q) parts.push('q=' + encodeURIComponent(String(params.q)));
+    if (params.category) parts.push('category=' + encodeURIComponent(String(params.category)));
+    if (params.brand) parts.push('brand=' + encodeURIComponent(String(params.brand)));
+    if (params.minPrice != null) parts.push('minPrice=' + encodeURIComponent(String(params.minPrice)));
+    if (params.maxPrice != null) parts.push('maxPrice=' + encodeURIComponent(String(params.maxPrice)));
+    if (params.inStock !== undefined) parts.push('inStock=' + encodeURIComponent(String(params.inStock)));
+    if (params.productType) parts.push('productType=' + encodeURIComponent(String(params.productType)));
+    if (params.page != null) parts.push('page=' + encodeURIComponent(String(params.page)));
+    if (params.limit != null) parts.push('limit=' + encodeURIComponent(String(params.limit)));
+    if (params.sort) parts.push('sort=' + encodeURIComponent(String(params.sort)));
+    const qs = parts.length ? '?' + parts.join('&') : '';
+    return this.request(`/api/v1/products/search/public${qs}`);
+  },
+
+  // Get product variants for configurable products
+  async getProductVariantsPublic(productId) {
+    return this.request(`/api/v1/products/${productId}/variants/public`);
+  },
+
+  // Get product reviews (if implemented)
+  async getProductReviewsPublic(productId, params = {}) {
+    const parts = [];
+    if (params.page != null) parts.push('page=' + encodeURIComponent(String(params.page)));
+    if (params.limit != null) parts.push('limit=' + encodeURIComponent(String(params.limit)));
+    if (params.rating) parts.push('rating=' + encodeURIComponent(String(params.rating)));
+    const qs = parts.length ? '?' + parts.join('&') : '';
+    return this.request(`/api/v1/products/${productId}/reviews/public${qs}`);
   },
 };
 
