@@ -1,6 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useState, useMemo } from 'react';
 
 
 const CartContext = createContext();
@@ -15,45 +14,6 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load cart data from storage when app starts
-  useEffect(() => {
-    loadCart();
-  }, []);
-
-  // Save cart data whenever it changes
-  useEffect(() => {
-    if (!isLoading) {
-      saveCart();
-    }
-  }, [cartItems, isLoading]);
-
-  const loadCart = async () => {
-    try {
-      const storedCart = await AsyncStorage.getItem('cartData');
-      if (storedCart) {
-        const parsedCart = JSON.parse(storedCart);
-        console.log('Loaded cart from storage:', parsedCart.length, 'items');
-        setCartItems(parsedCart);
-      } else {
-        console.log('No stored cart data found');
-      }
-    } catch (error) {
-      console.log('Error loading cart:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const saveCart = async () => {
-    try {
-      await AsyncStorage.setItem('cartData', JSON.stringify(cartItems));
-      console.log('Cart saved to storage:', cartItems.length, 'items');
-    } catch (error) {
-      console.log('Error saving cart:', error);
-    }
-  };
 
   const addToCart = (product, quantity = 1, selectedAttributes = null) => {
     console.log('Adding to cart:', product.name, quantity, selectedAttributes);
@@ -217,11 +177,9 @@ export const CartProvider = ({ children }) => {
     return null;
   };
 
-
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
     cartItems,
-    isLoading,
     addToCart,
     removeFromCart,
     updateQuantity,
@@ -231,9 +189,7 @@ export const CartProvider = ({ children }) => {
     getItemPrice,
     getItemTotal,
     getItemImage,
-    refreshCart,
   }), [cartItems]);
-
 
   return (
     <CartContext.Provider value={value}>

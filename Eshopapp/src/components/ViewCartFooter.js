@@ -13,16 +13,7 @@ import { useCart } from '../contexts/CartContext';
 
 const ViewCartFooter = () => {
   const navigation = useNavigation();
-  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart } = useCart();
-
-  const handleViewCart = () => {
-    navigation.navigate('Cart');
-  };
-
-  // Refresh cart data when component mounts
-  React.useEffect(() => {
-    refreshCart();
-  }, [refreshCart]);
+  const { cartItems, getCartTotal, getCartItemsCount, getItemImage } = useCart();
 
   // Memoize calculations to prevent unnecessary re-renders
   const { total, itemsCount, displayItems } = useMemo(() => {
@@ -41,10 +32,9 @@ const ViewCartFooter = () => {
     return null;
   }
 
-
-
-
-
+  const handleViewCart = () => {
+    navigation.navigate('Cart');
+  };
 
   return (
     <View style={styles.container}>
