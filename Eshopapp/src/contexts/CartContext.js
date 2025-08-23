@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
 
 const CartContext = createContext();
@@ -16,7 +17,7 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load cart data from API when app starts
+  // Load cart data from local storage first, then try API sync
   useEffect(() => {
     loadCart();
   }, []);
@@ -24,56 +25,80 @@ export const CartProvider = ({ children }) => {
   const loadCart = async () => {
     try {
       setIsLoading(true);
-      const response = await api.getUserCart();
-      if (response && response.success && response.data) {
-        // Transform API cart data to match frontend format
-        const transformedItems = response.data.items.map(item => ({
-          id: item.product._id || item.product.id,
-          name: item.product.name,
-          cartId: item.cartId,
-          quantity: item.quantity,
-          selectedAttributes: item.selectedAttributes ? Object.fromEntries(item.selectedAttributes) : {},
-          variantInfo: item.variantInfo ? {
-            attributes: item.variantInfo.attributes ? Object.fromEntries(item.variantInfo.attributes) : {},
-            price: item.variantInfo.price,
-            specialPrice: item.variantInfo.specialPrice,
-            stock: item.variantInfo.stock,
-            sku: item.variantInfo.sku,
-            images: item.variantInfo.images || []
-          } : null,
-          images: item.images || [],
-          regularPrice: item.product.regularPrice,
-          specialPrice: item.product.specialPrice,
-          stock: item.product.stock,
-          sku: item.product.sku
-        }));
-        setCartItems(transformedItems);
-        console.log('Loaded cart from API:', transformedItems.length, 'items');
+      
+      // First, try to load from local storage for immediate access
+      const storedCart = await AsyncStorage.getItem('cartData');
+      if (storedCart) {
+        const parsedCart = JSON.parse(storedCart);
+        setCartItems(parsedCart);
+        console.log('Loaded cart from local storage:', parsedCart.length, 'items');
       }
-    } catch (error) {
-      console.log('Error loading cart from API:', error);
-      // If API fails, try to load from local storage as fallback
+
+      // Then try to sync with API if user is logged in
       try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage');
-        const storedCart = await AsyncStorage.getItem('cartData');
-        if (storedCart) {
-          const parsedCart = JSON.parse(storedCart);
-          setCartItems(parsedCart);
-          console.log('Loaded cart from local storage fallback:', parsedCart.length, 'items');
+        const token = await AsyncStorage.getItem('authToken');
+        if (token) {
+          console.log('User is logged in, syncing with API...');
+          const response = await api.getUserCart();
+          if (response && response.success && response.data) {
+            // Transform API cart data to match frontend format
+            const transformedItems = response.data.items.map(item => ({
+              id: item.product._id || item.product.id,
+              name: item.product.name,
+              cartId: item.cartId,
+              quantity: item.quantity,
+              selectedAttributes: item.selectedAttributes ? Object.fromEntries(item.selectedAttributes) : {},
+              variantInfo: item.variantInfo ? {
+                attributes: item.variantInfo.attributes ? Object.fromEntries(item.variantInfo.attributes) : {},
+                price: item.variantInfo.price,
+                specialPrice: item.variantInfo.specialPrice,
+                stock: item.variantInfo.stock,
+                sku: item.variantInfo.sku,
+                images: item.variantInfo.images || []
+              } : null,
+              images: item.images || [],
+              regularPrice: item.product.regularPrice,
+              specialPrice: item.product.specialPrice,
+              stock: item.product.stock,
+              sku: item.product.sku
+            }));
+            
+            // Update state with API data
+            setCartItems(transformedItems);
+            
+            // Save API data to local storage
+            await AsyncStorage.setItem('cartData', JSON.stringify(transformedItems));
+            console.log('Synced cart with API and saved to local storage:', transformedItems.length, 'items');
+          }
+        } else {
+          console.log('No auth token found, using local storage only');
         }
-      } catch (localError) {
-        console.log('Error loading from local storage:', localError);
+      } catch (apiError) {
+        console.log('API sync failed, using local storage:', apiError);
+        // API failed, but we already have local data loaded
       }
+      
+    } catch (error) {
+      console.log('Error loading cart:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const saveToLocalStorage = async (items) => {
+    try {
+      await AsyncStorage.setItem('cartData', JSON.stringify(items));
+      console.log('Cart saved to local storage:', items.length, 'items');
+    } catch (error) {
+      console.log('Error saving to local storage:', error);
+    }
+  };
+
   const addToCart = async (product, quantity = 1, selectedAttributes = null) => {
     try {
-      console.log('Adding to cart via API:', product.name, quantity, selectedAttributes);
+      console.log('Adding to cart:', product.name, quantity, selectedAttributes);
       
-      // First update local state for immediate UI response
+      // Update local state immediately
       setCartItems(prevItems => {
         // Create unique cart ID based on product and variant
         let cartId = product.id;
@@ -89,7 +114,7 @@ export const CartProvider = ({ children }) => {
 
         if (existingItem) {
           // Update existing item quantity
-          return prevItems.map(item =>
+          const updated = prevItems.map(item =>
             item.cartId === cartId
               ? { 
                   ...item, 
@@ -102,6 +127,10 @@ export const CartProvider = ({ children }) => {
                 }
               : item
           );
+          
+          // Save to local storage immediately
+          saveToLocalStorage(updated);
+          return updated;
         }
 
         // Create new cart item
@@ -135,42 +164,53 @@ export const CartProvider = ({ children }) => {
           } : null
         };
         
-        return [...prevItems, newItem];
+        const newItems = [...prevItems, newItem];
+        
+        // Save to local storage immediately
+        saveToLocalStorage(newItems);
+        return newItems;
       });
 
-      // Then sync with API
-      await api.addToUserCart(product, quantity, selectedAttributes);
-      
-      // Reload cart from API to ensure consistency
-      await loadCart();
+      // Try to sync with API in background (don't wait for it)
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (token) {
+          api.addToUserCart(product, quantity, selectedAttributes).catch(error => {
+            console.log('Background API sync failed:', error);
+          });
+        }
+      } catch (error) {
+        console.log('Error in background API sync:', error);
+      }
       
     } catch (error) {
-      console.log('Error adding to cart via API:', error);
-      // If API fails, save to local storage as fallback
-      try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage');
-        await AsyncStorage.setItem('cartData', JSON.stringify(cartItems));
-      } catch (localError) {
-        console.log('Error saving to local storage:', localError);
-      }
+      console.log('Error adding to cart:', error);
     }
   };
 
   const removeFromCart = async (cartId) => {
     try {
-      // First update local state for immediate UI response
-      setCartItems(prevItems => prevItems.filter(item => item.cartId !== cartId));
-      
-      // Then sync with API
-      await api.removeFromUserCart(cartId);
-      
-      // Reload cart from API to ensure consistency
-      await loadCart();
+      // Update local state immediately
+      setCartItems(prevItems => {
+        const newItems = prevItems.filter(item => item.cartId !== cartId);
+        saveToLocalStorage(newItems);
+        return newItems;
+      });
+
+      // Try to sync with API in background
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (token) {
+          api.removeFromUserCart(cartId).catch(error => {
+            console.log('Background API sync failed:', error);
+          });
+        }
+      } catch (error) {
+        console.log('Error in background API sync:', error);
+      }
       
     } catch (error) {
-      console.log('Error removing from cart via API:', error);
-      // If API fails, reload from local storage
-      await loadCart();
+      console.log('Error removing from cart:', error);
     }
   };
 
@@ -181,41 +221,52 @@ export const CartProvider = ({ children }) => {
         return;
       }
 
-      // First update local state for immediate UI response
-      setCartItems(prevItems =>
-        prevItems.map(item =>
+      // Update local state immediately
+      setCartItems(prevItems => {
+        const newItems = prevItems.map(item =>
           item.cartId === cartId ? { ...item, quantity } : item
-        )
-      );
-      
-      // Then sync with API
-      await api.updateUserCartItem(cartId, quantity);
-      
-      // Reload cart from API to ensure consistency
-      await loadCart();
+        );
+        saveToLocalStorage(newItems);
+        return newItems;
+      });
+
+      // Try to sync with API in background
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (token) {
+          api.updateUserCartItem(cartId, quantity).catch(error => {
+            console.log('Background API sync failed:', error);
+          });
+        }
+      } catch (error) {
+        console.log('Error in background API sync:', error);
+      }
       
     } catch (error) {
-      console.log('Error updating quantity via API:', error);
-      // If API fails, reload from local storage
-      await loadCart();
+      console.log('Error updating quantity:', error);
     }
   };
 
   const clearCart = async () => {
     try {
-      // First update local state for immediate UI response
+      // Update local state immediately
       setCartItems([]);
-      
-      // Then sync with API
-      await api.clearUserCart();
-      
-      // Reload cart from API to ensure consistency
-      await loadCart();
+      await saveToLocalStorage([]);
+
+      // Try to sync with API in background
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (token) {
+          api.clearUserCart().catch(error => {
+            console.log('Background API sync failed:', error);
+          });
+        }
+      } catch (error) {
+        console.log('Error in background API sync:', error);
+      }
       
     } catch (error) {
-      console.log('Error clearing cart via API:', error);
-      // If API fails, reload from local storage
-      await loadCart();
+      console.log('Error clearing cart:', error);
     }
   };
 
