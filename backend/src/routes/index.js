@@ -11,6 +11,7 @@ const bannersRoutes = require('./banners.routes');
 const rolesRoutes = require('./roles.routes');
 const uploadsRoutes = require('./uploads.routes');
 const homepageRoutes = require('./homepage.routes');
+const cartRoutes = require('./cart.routes');
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.use('/banners', bannersRoutes);
 router.use('/roles', rolesRoutes);
 router.use('/uploads', uploadsRoutes);
 router.use('/homepage', homepageRoutes);
+router.use('/cart', cartRoutes);
 
 module.exports = router;

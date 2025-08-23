@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../utils/api';
 
 const CartContext = createContext();
 
@@ -16,140 +16,207 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load cart data from storage when app starts
+  // Load cart data from API when app starts
   useEffect(() => {
     loadCart();
   }, []);
 
-  // Save cart data whenever it changes
-  useEffect(() => {
-    if (!isLoading) {
-      saveCart();
-    }
-  }, [cartItems, isLoading]);
-
   const loadCart = async () => {
     try {
-      const storedCart = await AsyncStorage.getItem('cartData');
-      if (storedCart) {
-        const parsedCart = JSON.parse(storedCart);
-        console.log('Loaded cart from storage:', parsedCart.length, 'items');
-        setCartItems(parsedCart);
-      } else {
-        console.log('No stored cart data found');
+      setIsLoading(true);
+      const response = await api.getUserCart();
+      if (response && response.success && response.data) {
+        // Transform API cart data to match frontend format
+        const transformedItems = response.data.items.map(item => ({
+          id: item.product._id || item.product.id,
+          name: item.product.name,
+          cartId: item.cartId,
+          quantity: item.quantity,
+          selectedAttributes: item.selectedAttributes ? Object.fromEntries(item.selectedAttributes) : {},
+          variantInfo: item.variantInfo ? {
+            attributes: item.variantInfo.attributes ? Object.fromEntries(item.variantInfo.attributes) : {},
+            price: item.variantInfo.price,
+            specialPrice: item.variantInfo.specialPrice,
+            stock: item.variantInfo.stock,
+            sku: item.variantInfo.sku,
+            images: item.variantInfo.images || []
+          } : null,
+          images: item.images || [],
+          regularPrice: item.product.regularPrice,
+          specialPrice: item.product.specialPrice,
+          stock: item.product.stock,
+          sku: item.product.sku
+        }));
+        setCartItems(transformedItems);
+        console.log('Loaded cart from API:', transformedItems.length, 'items');
       }
     } catch (error) {
-      console.log('Error loading cart:', error);
+      console.log('Error loading cart from API:', error);
+      // If API fails, try to load from local storage as fallback
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage');
+        const storedCart = await AsyncStorage.getItem('cartData');
+        if (storedCart) {
+          const parsedCart = JSON.parse(storedCart);
+          setCartItems(parsedCart);
+          console.log('Loaded cart from local storage fallback:', parsedCart.length, 'items');
+        }
+      } catch (localError) {
+        console.log('Error loading from local storage:', localError);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const saveCart = async () => {
+  const addToCart = async (product, quantity = 1, selectedAttributes = null) => {
     try {
-      await AsyncStorage.setItem('cartData', JSON.stringify(cartItems));
-      console.log('Cart saved to storage:', cartItems.length, 'items');
-    } catch (error) {
-      console.log('Error saving cart:', error);
-    }
-  };
-
-  const addToCart = (product, quantity = 1, selectedAttributes = null) => {
-    console.log('Adding to cart:', product.name, quantity, selectedAttributes);
-    
-    setCartItems(prevItems => {
-      // Create unique cart ID based on product and variant
-      let cartId = product.id;
-      if (selectedAttributes && Object.keys(selectedAttributes).length > 0) {
-        const variantKey = Object.entries(selectedAttributes)
-          .map(([key, value]) => `${key}:${value}`)
-          .sort()
-          .join('|');
-        cartId = `${product.id}-${variantKey}`;
-      }
-
-      const existingItem = prevItems.find(item => item.cartId === cartId);
-
-      if (existingItem) {
-        // Update existing item quantity - replace with new quantity instead of adding
-        const updated = prevItems.map(item =>
-          item.cartId === cartId
-            ? { 
-                ...item, 
-                quantity: quantity, // Replace quantity, don't add
-                // Ensure images are still accessible
-                images: item.images || item.image ? [item.image] : [],
-                // Update variant info if needed
-                variantInfo: item.variantInfo ? {
-                  ...item.variantInfo,
-                  images: item.variantInfo.images || []
-                } : null
-              }
-            : item
-        );
-        console.log('Updated cart items:', updated.length);
-        return updated;
-      }
-
-      // Create new cart item
-      const newItem = { 
-        ...product, 
-        quantity, 
-        selectedAttributes,
-        cartId,
-        // Ensure images are accessible - handle both arrays and strings
-        images: (() => {
-          if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-            return product.images;
-          }
-          if (product.image && typeof product.image === 'string') {
-            return [product.image];
-          }
-          if (product.selectedVariant?.images && Array.isArray(product.selectedVariant.images) && product.selectedVariant.images.length > 0) {
-            return product.selectedVariant.images;
-          }
-          // For simple products, try to get images from currentImages if it's a function result
-          if (product.currentImages && Array.isArray(product.currentImages) && product.currentImages.length > 0) {
-            return product.currentImages;
-          }
-          return [];
-        })(),
-        // Store variant-specific information
-        variantInfo: selectedAttributes ? {
-          attributes: selectedAttributes,
-          price: product.selectedVariant?.price || product.regularPrice,
-          specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
-          stock: product.selectedVariant?.stock || product.stock,
-          sku: product.selectedVariant?.sku || product.sku,
-          images: product.selectedVariant?.images || []
-        } : null
-      };
+      console.log('Adding to cart via API:', product.name, quantity, selectedAttributes);
       
-      const newItems = [...prevItems, newItem];
-      console.log('New cart items:', newItems.length);
-      return newItems;
-    });
-  };
+      // First update local state for immediate UI response
+      setCartItems(prevItems => {
+        // Create unique cart ID based on product and variant
+        let cartId = product.id;
+        if (selectedAttributes && Object.keys(selectedAttributes).length > 0) {
+          const variantKey = Object.entries(selectedAttributes)
+            .map(([key, value]) => `${key}:${value}`)
+            .sort()
+            .join('|');
+          cartId = `${product.id}-${variantKey}`;
+        }
 
-  const removeFromCart = (cartId) => {
-    setCartItems(prevItems => prevItems.filter(item => item.cartId !== cartId));
-  };
+        const existingItem = prevItems.find(item => item.cartId === cartId);
 
-  const updateQuantity = (cartId, quantity) => {
-    if (quantity <= 0) {
-      removeFromCart(cartId);
-      return;
+        if (existingItem) {
+          // Update existing item quantity
+          return prevItems.map(item =>
+            item.cartId === cartId
+              ? { 
+                  ...item, 
+                  quantity: quantity,
+                  images: item.images || item.image ? [item.image] : [],
+                  variantInfo: item.variantInfo ? {
+                    ...item.variantInfo,
+                    images: item.variantInfo.images || []
+                  } : null
+                }
+              : item
+          );
+        }
+
+        // Create new cart item
+        const newItem = { 
+          ...product, 
+          quantity, 
+          selectedAttributes,
+          cartId,
+          images: (() => {
+            if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+              return product.images;
+            }
+            if (product.image && typeof product.image === 'string') {
+              return [product.image];
+            }
+            if (product.selectedVariant?.images && Array.isArray(product.selectedVariant.images) && product.selectedVariant.images.length > 0) {
+              return product.selectedVariant.images;
+            }
+            if (product.currentImages && Array.isArray(product.currentImages) && product.currentImages.length > 0) {
+              return product.currentImages;
+            }
+            return [];
+          })(),
+          variantInfo: selectedAttributes ? {
+            attributes: selectedAttributes,
+            price: product.selectedVariant?.price || product.regularPrice,
+            specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
+            stock: product.selectedVariant?.stock || product.stock,
+            sku: product.selectedVariant?.sku || product.sku,
+            images: product.selectedVariant?.images || []
+          } : null
+        };
+        
+        return [...prevItems, newItem];
+      });
+
+      // Then sync with API
+      await api.addToUserCart(product, quantity, selectedAttributes);
+      
+      // Reload cart from API to ensure consistency
+      await loadCart();
+      
+    } catch (error) {
+      console.log('Error adding to cart via API:', error);
+      // If API fails, save to local storage as fallback
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage');
+        await AsyncStorage.setItem('cartData', JSON.stringify(cartItems));
+      } catch (localError) {
+        console.log('Error saving to local storage:', localError);
+      }
     }
-
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.cartId === cartId ? { ...item, quantity } : item
-      )
-    );
   };
 
-  const clearCart = () => {
-    setCartItems([]);
+  const removeFromCart = async (cartId) => {
+    try {
+      // First update local state for immediate UI response
+      setCartItems(prevItems => prevItems.filter(item => item.cartId !== cartId));
+      
+      // Then sync with API
+      await api.removeFromUserCart(cartId);
+      
+      // Reload cart from API to ensure consistency
+      await loadCart();
+      
+    } catch (error) {
+      console.log('Error removing from cart via API:', error);
+      // If API fails, reload from local storage
+      await loadCart();
+    }
+  };
+
+  const updateQuantity = async (cartId, quantity) => {
+    try {
+      if (quantity <= 0) {
+        await removeFromCart(cartId);
+        return;
+      }
+
+      // First update local state for immediate UI response
+      setCartItems(prevItems =>
+        prevItems.map(item =>
+          item.cartId === cartId ? { ...item, quantity } : item
+        )
+      );
+      
+      // Then sync with API
+      await api.updateUserCartItem(cartId, quantity);
+      
+      // Reload cart from API to ensure consistency
+      await loadCart();
+      
+    } catch (error) {
+      console.log('Error updating quantity via API:', error);
+      // If API fails, reload from local storage
+      await loadCart();
+    }
+  };
+
+  const clearCart = async () => {
+    try {
+      // First update local state for immediate UI response
+      setCartItems([]);
+      
+      // Then sync with API
+      await api.clearUserCart();
+      
+      // Reload cart from API to ensure consistency
+      await loadCart();
+      
+    } catch (error) {
+      console.log('Error clearing cart via API:', error);
+      // If API fails, reload from local storage
+      await loadCart();
+    }
   };
 
   const parsePrice = (p) => {
