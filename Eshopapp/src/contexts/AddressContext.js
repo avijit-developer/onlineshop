@@ -56,9 +56,9 @@ export const AddressProvider = ({ children }) => {
       if (token) {
         try {
           const response = await api.getUserAddresses();
-          if (response && response.addresses) {
+          if (response && Array.isArray(response.data)) {
             // Transform API addresses to match our format
-            const apiAddresses = response.addresses.map(addr => ({
+            const apiAddresses = response.data.map(addr => ({
               id: addr._id || addr.id,
               label: addr.label || 'Home',
               firstName: addr.firstName || addr.name?.split(' ')[0] || '',
