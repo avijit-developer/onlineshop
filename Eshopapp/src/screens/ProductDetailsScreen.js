@@ -30,6 +30,8 @@ export default function ProductDetailsScreen() {
     const [selectedVariant, setSelectedVariant] = useState(null);
 
     useEffect(() => {
+        console.log('ProductDetailsScreen useEffect triggered:', { productId, productData });
+        
         // If we have product data directly, use it
         if (productData) {
             setProduct(productData);

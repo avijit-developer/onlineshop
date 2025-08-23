@@ -17,13 +17,32 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Check authentication status and load cart
   useEffect(() => {
-    checkAuthAndLoadCart();
+    let isMounted = true;
+    
+    const initCart = async () => {
+      if (isMounted) {
+        await checkAuthAndLoadCart();
+      }
+    };
+    
+    initCart();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const checkAuthAndLoadCart = async () => {
+    // Prevent multiple initializations
+    if (isInitialized) {
+      console.log('Cart already initialized, skipping...');
+      return;
+    }
+    
     try {
       setIsLoading(true);
       
@@ -37,10 +56,13 @@ export const CartProvider = ({ children }) => {
         setCartItems([]);
         console.log('User not authenticated, cart is empty');
       }
+      
+      setIsInitialized(true);
     } catch (error) {
       console.log('Error checking authentication:', error);
       setIsAuthenticated(false);
       setCartItems([]);
+      setIsInitialized(true);
     } finally {
       setIsLoading(false);
     }
@@ -254,6 +276,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const refreshCart = () => {
+    setIsInitialized(false);
     checkAuthAndLoadCart();
   };
 
@@ -272,7 +295,7 @@ export const CartProvider = ({ children }) => {
     getItemTotal,
     getItemImage,
     refreshCart,
-  }), [cartItems, isLoading, isAuthenticated]);
+  }), [cartItems, isLoading, isAuthenticated, isInitialized]);
 
   return (
     <CartContext.Provider value={value}>
