@@ -35,7 +35,26 @@ const ViewCartFooter = () => {
           style={styles.itemsScroll}
         >
           {cartItems.slice(0, 5).map((item, index) => {
-            const imageUri = item.images?.[0] || item.image;
+            // Debug logging to see what's in the item
+            console.log('Footer item:', {
+              name: item.name,
+              images: item.images,
+              image: item.image,
+              cartId: item.cartId
+            });
+            
+            // Try multiple image sources
+            let imageUri = null;
+            if (item.images && item.images.length > 0) {
+              imageUri = item.images[0];
+            } else if (item.image) {
+              imageUri = item.image;
+            } else if (item.selectedVariant?.images && item.selectedVariant.images.length > 0) {
+              imageUri = item.selectedVariant.images[0];
+            }
+            
+            console.log('Final imageUri:', imageUri);
+            
             return (
               <Image
                 key={item.cartId}
@@ -44,7 +63,8 @@ const ViewCartFooter = () => {
                   styles.itemImage,
                   index > 0 && { marginLeft: -8 }
                 ]}
-                onError={() => console.log('Image failed to load for item:', item.name)}
+                onError={() => console.log('Image failed to load for item:', item.name, 'URI:', imageUri)}
+                onLoad={() => console.log('Image loaded successfully for:', item.name)}
               />
             );
           })}
