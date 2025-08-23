@@ -30,10 +30,10 @@ export const CartProvider = ({ children }) => {
       const existingItem = prevItems.find(item => item.cartId === cartId);
 
       if (existingItem) {
-        // Update existing item quantity
+        // Update existing item quantity - replace with new quantity instead of adding
         const updated = prevItems.map(item =>
           item.cartId === cartId
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: quantity } // Replace quantity, don't add
             : item
         );
         console.log('Updated cart items:', updated.length);

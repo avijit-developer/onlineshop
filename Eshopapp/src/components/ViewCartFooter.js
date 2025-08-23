@@ -34,16 +34,20 @@ const ViewCartFooter = () => {
           showsHorizontalScrollIndicator={false}
           style={styles.itemsScroll}
         >
-          {cartItems.slice(0, 5).map((item, index) => (
-            <Image
-              key={item.cartId}
-              source={{ uri: item.image }}
-              style={[
-                styles.itemImage,
-                index > 0 && { marginLeft: -8 }
-              ]}
-            />
-          ))}
+          {cartItems.slice(0, 5).map((item, index) => {
+            const imageUri = item.images?.[0] || item.image;
+            return (
+              <Image
+                key={item.cartId}
+                source={{ uri: imageUri }}
+                style={[
+                  styles.itemImage,
+                  index > 0 && { marginLeft: -8 }
+                ]}
+                onError={() => console.log('Image failed to load for item:', item.name)}
+              />
+            );
+          })}
           {cartItems.length > 5 && (
             <View style={styles.moreItemsIndicator}>
               <Text style={styles.moreItemsText}>+{cartItems.length - 5}</Text>

@@ -323,19 +323,9 @@ export default function ProductDetailsScreen() {
         // Add to cart with proper parameters
         addToCart(cartProduct, quantity, selectedAttributes);
         
-        // Show success animation
+        // Show success animation only
         setShowAddAnimation(true);
         setTimeout(() => setShowAddAnimation(false), 1500);
-        
-        // Show success message
-        Alert.alert(
-            'Added to Cart', 
-            `${product.name} has been added to your cart${selectedAttributes && Object.keys(selectedAttributes).length > 0 ? ` with selected options` : ''}`,
-            [
-                { text: 'Continue Shopping', style: 'default' },
-                { text: 'View Cart', style: 'default', onPress: () => navigation.navigate('Cart') }
-            ]
-        );
     };
 
     const handleBuyNow = () => {
