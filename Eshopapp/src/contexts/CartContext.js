@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
 
@@ -43,7 +43,6 @@ export const CartProvider = ({ children }) => {
   const checkAuthAndLoadCart = async () => {
     // Prevent multiple initializations
     if (isInitialized) {
-      console.log('Cart already initialized, skipping...');
       return;
     }
     
@@ -82,11 +81,8 @@ export const CartProvider = ({ children }) => {
     // Throttle cart loads to prevent excessive API calls
     const now = Date.now();
     if (now - lastCartLoadTime.current < CART_LOAD_THROTTLE) {
-      console.log('Cart load throttled, last load was', Math.round((now - lastCartLoadTime.current) / 1000), 'seconds ago');
       return;
     }
-    
-    console.log('🛒 loadCart called at:', new Date().toISOString(), 'from:', new Error().stack?.split('\n')[2]?.trim());
     
     try {
       if (!isAuthenticated) {
@@ -300,10 +296,11 @@ export const CartProvider = ({ children }) => {
     return null;
   };
 
-  const refreshCart = () => {
+  const refreshCart = useCallback(() => {
+    console.log('🔄 refreshCart called');
     setIsInitialized(false);
     checkAuthAndLoadCart();
-  };
+  }, []);
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({

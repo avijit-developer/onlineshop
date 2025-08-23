@@ -15,10 +15,13 @@ const ViewCartFooter = () => {
   const navigation = useNavigation();
   const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart, isAuthenticated } = useCart();
 
-  // Refresh cart data when component mounts
+  // Refresh cart data when component mounts (only once)
   useEffect(() => {
-    refreshCart();
-  }, [refreshCart]);
+    // Only refresh if cart is empty and user is authenticated
+    if (isAuthenticated && cartItems.length === 0) {
+      refreshCart();
+    }
+  }, [isAuthenticated]); // Remove refreshCart dependency to prevent infinite loop
 
   // Don't show footer if user is not authenticated
   if (!isAuthenticated) {
