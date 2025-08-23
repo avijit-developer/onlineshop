@@ -57,14 +57,14 @@ export const CartProvider = ({ children }) => {
         await loadCart();
       } else {
         setIsAuthenticated(false);
-        await loadLocalCart();
+        setCartItems([]);
       }
       
       setIsInitialized(true);
     } catch (error) {
       console.log('Error checking authentication:', error);
       setIsAuthenticated(false);
-      await loadLocalCart();
+      setCartItems([]);
       setIsInitialized(true);
     } finally {
       setIsLoading(false);
@@ -86,7 +86,7 @@ export const CartProvider = ({ children }) => {
     
     try {
       if (!isAuthenticated) {
-        await loadLocalCart();
+        setCartItems([]);
         return;
       }
 
@@ -154,44 +154,7 @@ export const CartProvider = ({ children }) => {
   const addToCart = async (product, quantity = 1, selectedAttributes = null) => {
     try {
       if (!isAuthenticated) {
-        // Local cart path
-        const attributesKey = selectedAttributes ? JSON.stringify(selectedAttributes) : '';
-        const existingIndex = cartItems.findIndex(ci => ci.id === (product._id || product.id) && JSON.stringify(ci.selectedAttributes || {}) === attributesKey);
-        let newItems;
-        if (existingIndex !== -1) {
-          newItems = cartItems.slice();
-          newItems[existingIndex] = {
-            ...newItems[existingIndex],
-            quantity: newItems[existingIndex].quantity + quantity
-          };
-        } else {
-          const cartId = `local-${Date.now()}`;
-          newItems = [
-            ...cartItems,
-            {
-              cartId,
-              id: product._id || product.id,
-              name: product.name,
-              quantity,
-              selectedAttributes: selectedAttributes || {},
-              variantInfo: product.selectedVariant ? {
-                attributes: product.selectedVariant.attributes || {},
-                price: product.selectedVariant.price,
-                specialPrice: product.selectedVariant.specialPrice,
-                stock: product.selectedVariant.stock,
-                sku: product.selectedVariant.sku,
-                images: product.selectedVariant.images || []
-              } : null,
-              images: product.currentImages || product.images || [],
-              regularPrice: product.regularPrice,
-              specialPrice: product.specialPrice,
-              stock: product.stock,
-              sku: product.sku
-            }
-          ];
-        }
-        setCartItems(newItems);
-        await saveLocalCart(newItems);
+        console.log('User not authenticated, cannot add to cart');
         return;
       }
 
@@ -211,9 +174,7 @@ export const CartProvider = ({ children }) => {
   const removeFromCart = async (cartId) => {
     try {
       if (!isAuthenticated) {
-        const newItems = cartItems.filter(ci => ci.cartId !== cartId);
-        setCartItems(newItems);
-        await saveLocalCart(newItems);
+        console.log('User not authenticated, cannot remove from cart');
         return;
       }
 
@@ -233,13 +194,7 @@ export const CartProvider = ({ children }) => {
   const updateQuantity = async (cartId, quantity) => {
     try {
       if (!isAuthenticated) {
-        if (quantity <= 0) {
-          await removeFromCart(cartId);
-          return;
-        }
-        const newItems = cartItems.map(ci => ci.cartId === cartId ? { ...ci, quantity } : ci);
-        setCartItems(newItems);
-        await saveLocalCart(newItems);
+        console.log('User not authenticated, cannot update cart');
         return;
       }
 
@@ -264,8 +219,7 @@ export const CartProvider = ({ children }) => {
   const clearCart = async () => {
     try {
       if (!isAuthenticated) {
-        setCartItems([]);
-        await saveLocalCart([]);
+        console.log('User not authenticated, cannot clear cart');
         return;
       }
 
