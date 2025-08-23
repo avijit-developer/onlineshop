@@ -67,12 +67,19 @@ const Dashboard = () => {
       monthly: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']
     };
 
+    const defaultSeries = {
+      daily: Array(7).fill(0),
+      weekly: Array(7).fill(0),
+      monthly: Array(7).fill(0),
+    };
+    const salesData = (data.dashboard && data.dashboard.salesData) ? data.dashboard.salesData : defaultSeries;
+
     return {
       labels: labels[chartPeriod],
       datasets: [
         {
           label: 'Sales',
-          data: data.dashboard.salesData[chartPeriod],
+          data: salesData[chartPeriod] || defaultSeries[chartPeriod],
           borderColor: '#667eea',
           backgroundColor: 'rgba(102, 126, 234, 0.1)',
           tension: 0.4,
@@ -179,24 +186,19 @@ const Dashboard = () => {
           <div className="card">
             <h3>Recent Orders</h3>
             <div className="recent-orders">
-              {recentOrders.map((orderId) => {
-                const order = data.orders.find(o => o.id === orderId);
-                if (!order) return null;
-                
-                return (
-                  <div key={order.id} className="order-item">
-                    <div className="order-info">
-                      <strong>{order.orderNumber}</strong>
-                      <span className="order-amount">${order.total}</span>
-                    </div>
-                    <div className="order-status">
-                      <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}`}>
-                        {order.status}
-                      </span>
-                    </div>
+              {(Array.isArray(recentOrders) ? recentOrders : (Array.isArray(data.orders) ? data.orders : [])).map((order) => (
+                <div key={order._id || order.id} className="order-item">
+                  <div className="order-info">
+                    <strong>{order.orderNumber || order.id}</strong>
+                    <span className="order-amount">${Number(order.total || 0).toFixed(2)}</span>
                   </div>
-                );
-              })}
+                  <div className="order-status">
+                    <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}`}>
+                      {order.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -208,23 +210,18 @@ const Dashboard = () => {
           <div className="card">
             <h3>Top Selling Products</h3>
             <div className="top-products">
-              {topProducts.map((productId) => {
-                const product = data.products.find(p => p.id === productId);
-                if (!product) return null;
-                
-                return (
-                  <div key={product.id} className="product-item">
-                    <img src={product.images[0]} alt={product.name} className="product-image" />
-                    <div className="product-info">
-                      <strong>{product.name}</strong>
-                      <span>${product.specialPrice}</span>
-                    </div>
-                    <div className="product-stats">
-                      <span>Stock: {product.stock}</span>
-                    </div>
+              {(Array.isArray(topProducts) ? topProducts : (Array.isArray(data.products) ? data.products : [])).map((product) => (
+                <div key={product.id || product._id} className="product-item">
+                  <img src={(product.images && product.images[0]) || '/default-product.png'} alt={product.name} className="product-image" />
+                  <div className="product-info">
+                    <strong>{product.name}</strong>
+                    <span>${product.specialPrice}</span>
                   </div>
-                );
-              })}
+                  <div className="product-stats">
+                    <span>Stock: {product.stock}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
