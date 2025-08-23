@@ -202,6 +202,48 @@ const api = {
     const qs = parts.length ? '?' + parts.join('&') : '';
     return this.request(`/api/v1/products/${productId}/reviews/public${qs}`);
   },
+
+  // Address management functions (auto-token)
+  async getUserAddresses() {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.getMyAddresses(token);
+  },
+
+  async addUserAddress(address) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.addMyAddress(token, address);
+  },
+
+  async updateUserAddress(addressId, address) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.updateMyAddress(token, addressId, address);
+  },
+
+  async deleteUserAddress(addressId) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.deleteMyAddress(token, addressId);
+  },
+
+  async setDefaultUserAddress(addressId) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.setDefaultAddress(token, addressId);
+  },
+
+  // Helper function to get stored token
+  async getStoredToken() {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      return await AsyncStorage.getItem('authToken');
+    } catch (error) {
+      console.log('Error getting stored token:', error);
+      return null;
+    }
+  },
 };
 
 export default api;

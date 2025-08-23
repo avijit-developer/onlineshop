@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import { useAddress } from '../contexts/AddressContext';
 
@@ -19,7 +19,7 @@ const CheckoutScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { cartItems, getCartTotal, clearCart } = useCart();
-  const { addresses, getDefaultAddress, addAddress } = useAddress();
+  const { addresses, getDefaultAddress, addAddress, refreshAddresses, isLoading } = useAddress();
 
   // Get selected address from navigation params or use default
   const selectedAddressFromParams = route.params?.selectedAddress;
@@ -41,6 +41,13 @@ const CheckoutScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
+
+  // Refresh addresses when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshAddresses();
+    }, [refreshAddresses])
+  );
 
   // Initialize selected address
   useEffect(() => {
@@ -156,7 +163,11 @@ const CheckoutScreen = () => {
         </TouchableOpacity>
       </View>
       
-      {selectedAddress ? (
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading addresses...</Text>
+        </View>
+      ) : selectedAddress ? (
         <View style={styles.addressCard}>
           <View style={styles.addressHeader}>
             <Text style={styles.addressLabel}>
@@ -808,6 +819,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
   },
 });
 
