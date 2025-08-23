@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || 'http://10.0.2.2:5000';
 
 class ApiError extends Error {
@@ -304,7 +306,6 @@ const api = {
   // Helper function to get stored token
   async getStoredToken() {
     try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage');
       return await AsyncStorage.getItem('authToken');
     } catch (error) {
       console.log('Error getting stored token:', error);
