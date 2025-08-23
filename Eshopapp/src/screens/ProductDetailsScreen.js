@@ -30,11 +30,8 @@ export default function ProductDetailsScreen() {
     const [selectedVariant, setSelectedVariant] = useState(null);
 
     useEffect(() => {
-        console.log('ProductDetailsScreen useEffect - productId:', productId, 'productData:', productData);
-        
         // If we have product data directly, use it
         if (productData) {
-            console.log('Using provided product data');
             setProduct(productData);
             setLoading(false);
             setupProductData(productData);
@@ -43,10 +40,8 @@ export default function ProductDetailsScreen() {
         
         // Otherwise fetch by productId
         if (productId) {
-            console.log('Fetching product by ID:', productId);
             fetchProductDetails();
         } else {
-            console.log('No productId or productData provided');
             setError('No product information provided');
             setLoading(false);
         }
@@ -87,38 +82,17 @@ export default function ProductDetailsScreen() {
     const fetchProductDetails = async () => {
         if (!productId) return;
         
-        console.log('Starting API call for productId:', productId);
         setLoading(true);
         setError(null);
         
         try {
-            // Test the API endpoint first
-            console.log('API Base URL:', process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || 'http://10.0.2.2:5000');
-            console.log('Calling endpoint:', `/api/v1/products/${productId}/public`);
-            
             const res = await api.getProductPublic(productId);
-            console.log('API response:', res);
             
             if (res?.success) {
                 const p = res.data;
-                console.log('Product data received:', p);
-                console.log('Product structure:', {
-                    brand: p.brand,
-                    category: p.category,
-                    vendor: p.vendor,
-                    productType: p.productType,
-                    stock: p.stock,
-                    variants: p.variants
-                });
-                console.log('Populated fields:', {
-                    brandName: p.brand?.name,
-                    categoryName: p.category?.name,
-                    vendorName: p.vendor?.companyName
-                });
                 setProduct(p);
                 setupProductData(p);
             } else {
-                console.log('API call failed:', res);
                 setError(`Failed to fetch product details: ${res?.message || 'Unknown error'}`);
             }
         } catch (err) {
@@ -265,7 +239,6 @@ export default function ProductDetailsScreen() {
 
     const isOutOfStock = () => {
         const stock = currentStock();
-        console.log('Stock check:', { stock, productStock: product?.stock, productType: product?.productType });
         return stock <= 0;
     };
 
@@ -346,8 +319,9 @@ export default function ProductDetailsScreen() {
 
     const { regular, special } = currentPriceBlock();
     const stock = currentStock();
+    const outOfStock = isOutOfStock();
 
-    console.log('Render state:', { loading, error, product, productId, productData, stock });
+
 
     if (loading) {
         return (
@@ -618,22 +592,22 @@ export default function ProductDetailsScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    style={[styles.addToCartButton, isOutOfStock() && styles.buttonDisabled]} 
+                    style={[styles.addToCartButton, outOfStock && styles.buttonDisabled]} 
                     onPress={handleAddToCart}
-                    disabled={isOutOfStock()}
+                    disabled={outOfStock}
                 >
-                    <Text style={[styles.addToCartText, isOutOfStock() && styles.buttonTextDisabled]}>
-                        {isOutOfStock() ? 'Out of Stock' : 'Add to Cart'}
+                    <Text style={[styles.addToCartText, outOfStock && styles.buttonTextDisabled]}>
+                        {outOfStock ? 'Out of Stock' : 'Add to Cart'}
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    style={[styles.buyNowButton, isOutOfStock() && styles.buttonDisabled]} 
+                    style={[styles.buyNowButton, outOfStock && styles.buttonDisabled]} 
                     onPress={handleBuyNow}
-                    disabled={isOutOfStock()}
+                    disabled={outOfStock}
                 >
-                    <Text style={[styles.buyNowText, isOutOfStock() && styles.buttonTextDisabled]}>
-                        {isOutOfStock() ? 'Out of Stock' : 'Buy Now'}
+                    <Text style={[styles.buyNowText, outOfStock && styles.buttonTextDisabled]}>
+                        {outOfStock ? 'Out of Stock' : 'Buy Now'}
                     </Text>
                 </TouchableOpacity>
             </View>
