@@ -34,22 +34,32 @@ const Orders = () => {
 
   const fetchData = async () => {
     try {
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('adminToken');
+      let loadedFromBackend = false;
       try {
-        const token = localStorage.getItem('adminToken');
-        const resp = await fetch(process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/v1/orders` : '/api/v1/orders', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const resp = await fetch(`${baseUrl}/api/v1/orders`, {
+          headers: { Authorization: token ? `Bearer ${token}` : '' },
+        });
         if (resp.ok) {
           const json = await resp.json();
           if (json?.success) {
             setOrders(json.data || []);
+            loadedFromBackend = true;
           }
         }
-      } catch (e) {}
-      if (orders.length === 0) {
-        const response = await fetch('/data.json');
-        const data = await response.json();
-        setOrders(data.orders || []);
-        setCustomers(data.users?.filter(user => user.role === 'customer') || []);
-        setVendors(data.vendors || []);
+      } catch (_) {}
+
+      if (!loadedFromBackend) {
+        try {
+          const response = await fetch('/data.json');
+          const data = await response.json();
+          setOrders(data.orders || []);
+          setCustomers(data.users?.filter(user => user.role === 'customer') || []);
+          setVendors(data.vendors || []);
+        } catch (e) {
+          toast.error('Failed to load data');
+        }
       }
       setLoading(false);
     } catch (error) {
