@@ -79,20 +79,27 @@ const AddressListScreen = ({ route }) => {
     }
   };
 
-  const handleSelectAddress = (address) => {
+  const handleSelectAddress = async (address) => {
     if (isSelecting) {
-      if (setDefaultOnSelect) {
-        setDefaultAddress(address.id);
-      }
-      // Update header location immediately
-      const line = `${address.address}, ${address.city}`;
-      updateHeaderAddress(line);
-      // Also refresh default from server in case
-      loadUserDefaultAddress();
-      if (returnTo) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Checkout', { selectedAddress: address });
+      try {
+        // Always set the selected address as default when delivering
+        if (!address.isDefault) {
+          await setDefaultAddress(address.id);
+        }
+        
+        // Update header location immediately
+        const line = `${address.address}, ${address.city}`;
+        updateHeaderAddress(line);
+        // Also refresh default from server in case
+        loadUserDefaultAddress();
+        
+        if (returnTo) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('Checkout', { selectedAddress: address });
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to set address as default. Please try again.');
       }
     }
   };
@@ -147,26 +154,21 @@ const AddressListScreen = ({ route }) => {
       </View>
 
       {/* Primary action */}
-      <TouchableOpacity
-        style={styles.primaryButton}
-        onPress={() => handleSelectAddress(item)}
-      >
-        <Text style={styles.primaryButtonText}>{isSelecting ? 'Deliver to this address' : (item.isDefault ? 'Default Address' : 'Deliver to this address')}</Text>
-      </TouchableOpacity>
+      {item.isDefault ? (
+        <View style={[styles.primaryButton, styles.defaultButton]}>
+          <Text style={[styles.primaryButtonText, styles.defaultButtonText]}>Default Address</Text>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => handleSelectAddress(item)}
+        >
+          <Text style={styles.primaryButtonText}>Deliver to this address</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Inline actions */}
       <View style={styles.inlineActions}>
-        {!item.isDefault && (
-          <TouchableOpacity 
-            style={[styles.inlineButton, !item._originalId && styles.disabledButton]} 
-            onPress={() => handleSetDefault(item)}
-            disabled={!item._originalId}
-          >
-            <Text style={[styles.inlineButtonText, !item._originalId && styles.disabledButtonText]}>
-              {item._originalId ? 'Set as Default' : 'Sync First'}
-            </Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity style={styles.inlineButton} onPress={() => handleEditAddress(item)}>
           <Text style={styles.inlineButtonText}>Edit</Text>
         </TouchableOpacity>
@@ -468,6 +470,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  defaultButton: {
+    backgroundColor: '#e0e0e0',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+    opacity: 0.7,
+  },
+  defaultButtonText: {
+    color: '#999', // Changed color for disabled default button
   },
 });
 
