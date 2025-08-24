@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { requestLocationAndGetAddress } from '../utils/locationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
+import { useAddress } from './AddressContext';
 
 const LocationContext = createContext();
 
@@ -17,11 +18,36 @@ export const LocationProvider = ({ children }) => {
   const [location, setLocation] = useState(null);
   const [address, setAddress] = useState('Select your location');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Get the address context to listen for changes
+  const { onDefaultAddressChange } = useAddress();
 
   // Load user's default address on app start
   useEffect(() => {
     loadUserDefaultAddress();
   }, []);
+
+  // Listen for default address changes from AddressContext
+  useEffect(() => {
+    const unsubscribe = onDefaultAddressChange((newDefaultAddress) => {
+      console.log('LocationContext: Default address changed to:', newDefaultAddress);
+      // Update the home page header with the new default address
+      if (newDefaultAddress && newDefaultAddress.address) {
+        const addressLine = `${newDefaultAddress.address}, ${newDefaultAddress.city || ''}`;
+        setAddress(addressLine.trim());
+        
+        // Update location if coordinates are available
+        if (newDefaultAddress.location?.coordinates) {
+          setLocation({
+            latitude: newDefaultAddress.location.coordinates[1],
+            longitude: newDefaultAddress.location.coordinates[0],
+          });
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [onDefaultAddressChange]);
 
   const loadUserDefaultAddress = async () => {
     try {
