@@ -17,7 +17,7 @@ import AddressForm from '../components/AddressForm';
 const AddressListScreen = ({ route }) => {
   const navigation = useNavigation();
   const { addresses, deleteAddress, setDefaultAddress } = useAddress();
-  const { updateAddress: updateHeaderAddress } = useLocation();
+  const { updateAddress: updateHeaderAddress, loadUserDefaultAddress } = useLocation();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -63,8 +63,10 @@ const AddressListScreen = ({ route }) => {
       // Update header location immediately
       const line = `${address.address}, ${address.city}`;
       updateHeaderAddress(line);
+      // Also refresh default from server in case
+      loadUserDefaultAddress();
       if (returnTo) {
-        navigation.navigate(returnTo, { selectedAddress: address });
+        navigation.goBack();
       } else {
         navigation.navigate('Checkout', { selectedAddress: address });
       }
