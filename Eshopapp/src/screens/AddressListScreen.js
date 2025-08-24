@@ -82,9 +82,54 @@ const AddressListScreen = ({ route }) => {
   const handleSelectAddress = async (address) => {
     if (isSelecting) {
       try {
-        // Always set the selected address as default when delivering
+        // Check if this address can be set as default (must have _originalId from API)
+        if (!address.isDefault && !address._originalId) {
+          Alert.alert(
+            'Local Address',
+            'This address is stored locally and cannot be set as default. Please refresh your addresses from the server first.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Refresh Now', onPress: async () => {
+                try {
+                  await forceRefreshFromAPI();
+                  Alert.alert('Success', 'Addresses refreshed from server. You can now try delivering to this address again.');
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to refresh addresses. Please try again.');
+                }
+              }}
+            ]
+          );
+          return;
+        }
+        
+        // Set the selected address as default when delivering (only if not already default)
         if (!address.isDefault) {
-          await setDefaultAddress(address.id);
+          try {
+            await setDefaultAddress(address.id);
+          } catch (defaultError) {
+            console.log('Failed to set address as default:', defaultError);
+            // Ask user if they want to proceed without setting as default
+            Alert.alert(
+              'Set Default Failed',
+              'Failed to set this address as default. Would you like to proceed with delivery anyway?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Proceed Anyway', onPress: () => {
+                  // Continue with delivery without setting as default
+                  const line = `${address.address}, ${address.city}`;
+                  updateHeaderAddress(line);
+                  loadUserDefaultAddress();
+                  
+                  if (returnTo) {
+                    navigation.goBack();
+                  } else {
+                    navigation.navigate('Checkout', { selectedAddress: address });
+                  }
+                }}
+              ]
+            );
+            return;
+          }
         }
         
         // Update header location immediately
@@ -99,7 +144,8 @@ const AddressListScreen = ({ route }) => {
           navigation.navigate('Checkout', { selectedAddress: address });
         }
       } catch (error) {
-        Alert.alert('Error', 'Failed to set address as default. Please try again.');
+        console.log('Error in handleSelectAddress:', error);
+        Alert.alert('Error', error.message || 'Failed to set address as default. Please try again.');
       }
     }
   };
