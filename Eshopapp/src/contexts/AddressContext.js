@@ -20,6 +20,41 @@ export const AddressProvider = ({ children }) => {
   const lastLoadTimeRef = React.useRef(0);
   const ADDRESSES_LOAD_THROTTLE = 5000; // 5 seconds
 
+  const transformApiAddresses = (apiList) => (apiList || []).map(addr => ({
+    id: addr._id || addr.id,
+    label: addr.label || 'Home',
+    firstName: addr.firstName || addr.name?.split(' ')[0] || '',
+    lastName: addr.lastName || addr.name?.split(' ').slice(1).join(' ') || '',
+    email: addr.email || '',
+    phone: addr.phone || '',
+    address: addr.address || '',
+    city: addr.city || '',
+    state: addr.state || '',
+    zipCode: addr.zipCode || addr.postalCode || '',
+    country: addr.country || 'India',
+    isDefault: addr.isDefault || false,
+    createdAt: addr.createdAt || new Date().toISOString(),
+    updatedAt: addr.updatedAt || new Date().toISOString()
+  }));
+
+  const refreshFromAPI = async () => {
+    try {
+      const resp = await api.getUserAddresses();
+      if (resp && Array.isArray(resp.data)) {
+        const apiAddresses = transformApiAddresses(resp.data);
+        setAddresses(apiAddresses);
+        const def = apiAddresses.find(a => a.isDefault);
+        if (def) {
+          setDefaultAddressId(def.id);
+          await AsyncStorage.setItem('defaultAddressId', def.id);
+        }
+        await saveAddresses(apiAddresses);
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
   // Load addresses from storage and API on app start
   useEffect(() => {
     loadAddresses();
@@ -58,22 +93,7 @@ export const AddressProvider = ({ children }) => {
           const response = await api.getUserAddresses();
           if (response && Array.isArray(response.data)) {
             // Transform API addresses to match our format
-            const apiAddresses = response.data.map(addr => ({
-              id: addr._id || addr.id,
-              label: addr.label || 'Home',
-              firstName: addr.firstName || addr.name?.split(' ')[0] || '',
-              lastName: addr.lastName || addr.name?.split(' ').slice(1).join(' ') || '',
-              email: addr.email || '',
-              phone: addr.phone || '',
-              address: addr.address || '',
-              city: addr.city || '',
-              state: addr.state || '',
-              zipCode: addr.zipCode || addr.postalCode || '',
-              country: addr.country || 'India',
-              isDefault: addr.isDefault || false,
-              createdAt: addr.createdAt || new Date().toISOString(),
-              updatedAt: addr.updatedAt || new Date().toISOString()
-            }));
+            const apiAddresses = transformApiAddresses(response.data);
 
             // Merge with local addresses, prioritizing API data
             const mergedAddresses = [...apiAddresses];
@@ -157,34 +177,44 @@ export const AddressProvider = ({ children }) => {
 
   const addAddress = async (address) => {
     try {
-      const newAddress = {
-        id: Date.now().toString(),
-        ...address,
-        isDefault: addresses.length === 0, // First address becomes default
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const newAddresses = [...addresses, newAddress];
-      setAddresses(newAddresses);
-      
-      if (newAddress.isDefault) {
-        setDefaultAddressId(newAddress.id);
-        await AsyncStorage.setItem('defaultAddressId', newAddress.id);
-      }
-      
-      await saveAddresses(newAddresses);
-
-      // Try to save to API if user is logged in
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
         try {
-          await api.addUserAddress(newAddress);
+          // Send only fields; backend will assign _id and default as needed
+          await api.addUserAddress({
+            label: address.label,
+            firstName: address.firstName,
+            lastName: address.lastName,
+            email: address.email,
+            phone: address.phone,
+            address: address.address,
+            city: address.city,
+            state: address.state,
+            zipCode: address.zipCode,
+            country: address.country || 'India',
+            isDefault: !!address.isDefault,
+          });
+          await refreshFromAPI();
+          return null;
         } catch (apiError) {
           console.log('Failed to save address to API:', apiError);
         }
       }
-
+      // Fallback local add
+      const newAddress = {
+        id: Date.now().toString(),
+        ...address,
+        isDefault: addresses.length === 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      const newAddresses = [...addresses, newAddress];
+      setAddresses(newAddresses);
+      if (newAddress.isDefault) {
+        setDefaultAddressId(newAddress.id);
+        await AsyncStorage.setItem('defaultAddressId', newAddress.id);
+      }
+      await saveAddresses(newAddresses);
       return newAddress;
     } catch (error) {
       console.log('Error adding address:', error);
@@ -206,6 +236,7 @@ export const AddressProvider = ({ children }) => {
       if (token) {
         try {
           await api.updateUserAddress(id, updates);
+          await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to update address in API:', apiError);
         }
@@ -238,6 +269,7 @@ export const AddressProvider = ({ children }) => {
       if (token) {
         try {
           await api.deleteUserAddress(id);
+          await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to delete address from API:', apiError);
         }
@@ -265,6 +297,7 @@ export const AddressProvider = ({ children }) => {
       if (token) {
         try {
           await api.setDefaultUserAddress(id);
+          await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to set default address in API:', apiError);
         }
