@@ -21,6 +21,8 @@ const AddressListScreen = ({ route }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   
   const isSelecting = route.params?.isSelecting || false;
+  const setDefaultOnSelect = route.params?.setDefaultOnSelect || false;
+  const returnTo = route.params?.returnTo || null;
 
   const handleAddAddress = () => {
     setShowAddModal(true);
@@ -53,7 +55,14 @@ const AddressListScreen = ({ route }) => {
 
   const handleSelectAddress = (address) => {
     if (isSelecting) {
-      navigation.navigate('Checkout', { selectedAddress: address });
+      if (setDefaultOnSelect) {
+        setDefaultAddress(address.id);
+      }
+      if (returnTo) {
+        navigation.navigate(returnTo, { selectedAddress: address });
+      } else {
+        navigation.navigate('Checkout', { selectedAddress: address });
+      }
     }
   };
 

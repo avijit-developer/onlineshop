@@ -9,7 +9,7 @@ export default function Header() {
   const { address } = useLocation();
 
   const handleAddressPress = () => {
-    navigation.navigate('AddressSelection');
+    navigation.navigate('AddressList', { isSelecting: true, setDefaultOnSelect: true, returnTo: 'Home' });
   };
 
   return (
