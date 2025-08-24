@@ -1,0 +1,360 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Alert,
+  TextInput,
+  Platform,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../contexts/UserContext';
+
+const ProfileEditScreen = () => {
+  const navigation = useNavigation();
+  const { user, updateUser } = useUser();
+  
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    avatar: null,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  // Initialize form data when component mounts
+  useEffect(() => {
+    if (user) {
+      const names = (user.name || '').split(' ');
+      setFormData({
+        firstName: names[0] || '',
+        lastName: names.slice(1).join(' ') || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        avatar: user.avatar || null,
+      });
+    }
+  }, [user]);
+
+  // Get user avatar or use default
+  const getUserAvatar = () => {
+    if (formData.avatar) {
+      return { uri: formData.avatar };
+    }
+    if (user?.avatar) {
+      return { uri: user.avatar };
+    }
+    return { uri: 'https://i.pravatar.cc/100' };
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+
+    if (formData.phone && !/^[\+]?[1-9][\d]{0,15}$/.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Phone number is invalid';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleImagePick = () => {
+    Alert.alert(
+      'Profile Picture',
+      'Image picking functionality will be available in a future update. For now, you can edit your profile information.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const updatedUserData = {
+        name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        avatar: formData.avatar,
+      };
+
+      // Call updateUser function from UserContext
+      const result = await updateUser(updatedUserData);
+      
+      if (result.success) {
+        Alert.alert('Success', 'Profile updated successfully!', [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        throw new Error(result.error || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.log('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    Alert.alert(
+      'Discard Changes',
+      'Are you sure you want to discard your changes?',
+      [
+        { text: 'Keep Editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() }
+      ]
+    );
+  };
+
+  const updateField = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
+          <Icon name="arrow-back-outline" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Edit Profile</Text>
+        <TouchableOpacity 
+          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]} 
+          onPress={handleSave}
+          disabled={isLoading}
+        >
+          <Text style={styles.saveButtonText}>
+            {isLoading ? 'Saving...' : 'Save'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Profile Picture Section */}
+        <View style={styles.avatarSection}>
+          <TouchableOpacity style={styles.avatarContainer} onPress={handleImagePick}>
+            <Image source={getUserAvatar()} style={styles.avatar} />
+            <View style={styles.avatarOverlay}>
+              <Icon name="camera" size={24} color="#fff" />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.avatarText}>Tap to change photo</Text>
+        </View>
+
+        {/* Form Fields */}
+        <View style={styles.formContainer}>
+          {/* First Name */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>First Name *</Text>
+            <TextInput
+              style={[styles.input, errors.firstName && styles.inputError]}
+              value={formData.firstName}
+              onChangeText={(value) => updateField('firstName', value)}
+              placeholder="Enter first name"
+              placeholderTextColor="#999"
+            />
+            {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
+          </View>
+
+          {/* Last Name */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.lastName}
+              onChangeText={(value) => updateField('lastName', value)}
+              placeholder="Enter last name"
+              placeholderTextColor="#999"
+            />
+          </View>
+
+          {/* Email */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email *</Text>
+            <TextInput
+              style={[styles.input, errors.email && styles.inputError]}
+              value={formData.email}
+              onChangeText={(value) => updateField('email', value)}
+              placeholder="Enter email address"
+              placeholderTextColor="#999"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+          </View>
+
+          {/* Phone */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <TextInput
+              style={[styles.input, errors.phone && styles.inputError]}
+              value={formData.phone}
+              onChangeText={(value) => updateField('phone', value)}
+              placeholder="Enter phone number"
+              placeholderTextColor="#999"
+              keyboardType="phone-pad"
+            />
+            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+          </View>
+        </View>
+
+        {/* Save Button */}
+        <TouchableOpacity 
+          style={[styles.saveButtonLarge, isLoading && styles.saveButtonDisabled]} 
+          onPress={handleSave}
+          disabled={isLoading}
+        >
+          <Text style={styles.saveButtonLargeText}>
+            {isLoading ? 'Saving...' : 'Save Changes'}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  backButton: {
+    padding: 8,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  saveButton: {
+    backgroundColor: '#f7ab18',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: '#f7ab18',
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#f7ab18',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  avatarText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  formContainer: {
+    marginBottom: 30,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#333',
+  },
+  inputError: {
+    borderColor: '#ff4444',
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  saveButtonLarge: {
+    backgroundColor: '#f7ab18',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  saveButtonLargeText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+});
+
+export default ProfileEditScreen;

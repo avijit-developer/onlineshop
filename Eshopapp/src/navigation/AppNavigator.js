@@ -7,6 +7,7 @@ import ProductDetailsScreen from '../screens/ProductDetailsScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import CartScreen from '../screens/CartScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import ProfileEditScreen from '../screens/ProfileEditScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import PaymentScreen from '../screens/PaymentScreen';
 import OrderSuccessScreen from '../screens/OrderSuccessScreen';
@@ -26,6 +27,7 @@ const AppNavigator = () => {
       <Stack.Screen name="Category" component={CategoryScreen} />
       <Stack.Screen name="Cart" component={CartScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
       <Stack.Screen name="ProductList" component={ProductList} />
       <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} />

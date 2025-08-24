@@ -98,7 +98,7 @@ const ProfileScreen = () => {
   ];
 
   const handleEditProfile = () => {
-    Alert.alert('Coming Soon', 'Profile editing will be available soon');
+    navigation.navigate('ProfileEdit');
   };
 
   const handleLogout = () => {

@@ -13,6 +13,7 @@ import CheckoutScreen from '../screens/CheckoutScreen';
 import PaymentScreen from '../screens/PaymentScreen';
 import OrderSuccessScreen from '../screens/OrderSuccessScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import ProfileEditScreen from '../screens/ProfileEditScreen';
 import OrderListScreen from '../screens/OrderListScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import AddressListScreen from '../screens/AddressListScreen';
@@ -42,6 +43,7 @@ const RootNavigator = () => {
       <Stack.Screen name="Payment" component={PaymentScreen} />
       <Stack.Screen name="OrderSuccess" component={OrderSuccessScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
       <Stack.Screen name="OrderList" component={OrderListScreen} />
       <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
       <Stack.Screen name="AddressList" component={AddressListScreen} />

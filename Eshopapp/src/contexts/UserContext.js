@@ -171,8 +171,23 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const updateUser = (userData) => {
-    setUser(prevUser => ({ ...prevUser, ...userData }));
+  const updateUser = async (userData) => {
+    try {
+      // Update local state
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      
+      // Update stored user data
+      await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+      
+      // TODO: In the future, you can add API call here to sync with backend
+      // await api.updateUserProfile(userData);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return { success: false, error: error.message };
+    }
   };
 
   const addOrder = (orderData) => {
