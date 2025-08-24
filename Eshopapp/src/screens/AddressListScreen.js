@@ -11,11 +11,13 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useAddress } from '../contexts/AddressContext';
+import { useLocation } from '../contexts/LocationContext';
 import AddressForm from '../components/AddressForm';
 
 const AddressListScreen = ({ route }) => {
   const navigation = useNavigation();
   const { addresses, deleteAddress, setDefaultAddress } = useAddress();
+  const { updateAddress: updateHeaderAddress } = useLocation();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -58,6 +60,9 @@ const AddressListScreen = ({ route }) => {
       if (setDefaultOnSelect) {
         setDefaultAddress(address.id);
       }
+      // Update header location immediately
+      const line = `${address.address}, ${address.city}`;
+      updateHeaderAddress(line);
       if (returnTo) {
         navigation.navigate(returnTo, { selectedAddress: address });
       } else {
