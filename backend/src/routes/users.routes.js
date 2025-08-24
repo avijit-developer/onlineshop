@@ -134,10 +134,22 @@ router.post('/me/addresses', authenticate, requireRole(['customer']), async (req
 // Customer (self): set default address
 router.patch('/me/addresses/:addressId/default', authenticate, requireRole(['customer']), async (req, res) => {
   const { addressId } = req.params;
+  
+  // Validate addressId format
+  if (!addressId || addressId.trim() === '') {
+    res.status(400);
+    throw new Error('Address ID is required');
+  }
+  
   const user = await User.findById(req.user.id);
   if (!user) { res.status(404); throw new Error('User not found'); }
+  
   const idx = user.addresses.findIndex(a => a._id.toString() === addressId);
-  if (idx === -1) { res.status(404); throw new Error('Address not found'); }
+  if (idx === -1) { 
+    res.status(404); 
+    throw new Error(`Address with ID '${addressId}' not found. Please ensure the address exists and try again.`); 
+  }
+  
   user.addresses.forEach(addr => addr.isDefault = false);
   user.addresses[idx].isDefault = true;
   await user.save();
@@ -149,11 +161,20 @@ router.put('/me/addresses/:addressId', authenticate, requireRole(['customer']), 
   const { addressId } = req.params;
   const addressData = req.body || {};
 
+  // Validate addressId format
+  if (!addressId || addressId.trim() === '') {
+    res.status(400);
+    throw new Error('Address ID is required');
+  }
+
   const user = await User.findById(req.user.id);
   if (!user) { res.status(404); throw new Error('User not found'); }
 
   const addressIndex = user.addresses.findIndex(addr => addr._id.toString() === addressId);
-  if (addressIndex === -1) { res.status(404); throw new Error('Address not found'); }
+  if (addressIndex === -1) { 
+    res.status(404); 
+    throw new Error(`Address with ID '${addressId}' not found. Please ensure the address exists and try again.`); 
+  }
 
   // If this address is set as default, unset others
   if (addressData.isDefault) {
@@ -170,11 +191,20 @@ router.put('/me/addresses/:addressId', authenticate, requireRole(['customer']), 
 router.delete('/me/addresses/:addressId', authenticate, requireRole(['customer']), async (req, res) => {
   const { addressId } = req.params;
 
+  // Validate addressId format
+  if (!addressId || addressId.trim() === '') {
+    res.status(400);
+    throw new Error('Address ID is required');
+  }
+
   const user = await User.findById(req.user.id);
   if (!user) { res.status(404); throw new Error('User not found'); }
 
   const addressIndex = user.addresses.findIndex(addr => addr._id.toString() === addressId);
-  if (addressIndex === -1) { res.status(404); throw new Error('Address not found'); }
+  if (addressIndex === -1) { 
+    res.status(404); 
+    throw new Error(`Address with ID '${addressId}' not found. Please ensure the address exists and try again.`); 
+  }
 
   const deletedAddress = user.addresses[addressIndex];
   user.addresses.splice(addressIndex, 1);

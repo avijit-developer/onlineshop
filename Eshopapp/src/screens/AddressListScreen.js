@@ -16,7 +16,7 @@ import AddressForm from '../components/AddressForm';
 
 const AddressListScreen = ({ route }) => {
   const navigation = useNavigation();
-  const { addresses, deleteAddress, setDefaultAddress } = useAddress();
+  const { addresses, deleteAddress, setDefaultAddress, syncLocalAddresses } = useAddress();
   const { updateAddress: updateHeaderAddress, loadUserDefaultAddress } = useLocation();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
@@ -50,9 +50,26 @@ const AddressListScreen = ({ route }) => {
     );
   };
 
-  const handleSetDefault = (address) => {
-    setDefaultAddress(address.id);
-    Alert.alert('Default Address', 'Address set as default successfully!');
+  const handleSetDefault = async (address) => {
+    // Check if this is a local address
+    if (!address._originalId) {
+      Alert.alert(
+        'Local Address',
+        'This address is stored locally and cannot be set as default until it\'s synced with the server. Please use the sync button to upload your addresses.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sync Now', onPress: handleSync }
+        ]
+      );
+      return;
+    }
+
+    try {
+      await setDefaultAddress(address.id);
+      Alert.alert('Default Address', 'Address set as default successfully!');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to set address as default. Please try again.');
+    }
   };
 
   const handleSelectAddress = (address) => {
@@ -73,6 +90,15 @@ const AddressListScreen = ({ route }) => {
     }
   };
 
+  const handleSync = async () => {
+    try {
+      await syncLocalAddresses();
+      Alert.alert('Sync Complete', 'Addresses have been synced with the server.');
+    } catch (error) {
+      Alert.alert('Sync Failed', 'Failed to sync addresses. Please try again.');
+    }
+  };
+
   const renderAddressItem = ({ item }) => (
     <View
       style={[styles.addressCard, item.isDefault && styles.defaultAddressCard]}
@@ -85,6 +111,11 @@ const AddressListScreen = ({ route }) => {
           {item.isDefault && (
             <View style={styles.defaultBadge}>
               <Text style={styles.defaultText}>Default</Text>
+            </View>
+          )}
+          {!item._originalId && (
+            <View style={styles.localBadge}>
+              <Text style={styles.localText}>Local</Text>
             </View>
           )}
         </View>
@@ -119,8 +150,14 @@ const AddressListScreen = ({ route }) => {
       {/* Inline actions */}
       <View style={styles.inlineActions}>
         {!item.isDefault && (
-          <TouchableOpacity style={styles.inlineButton} onPress={() => handleSetDefault(item)}>
-            <Text style={styles.inlineButtonText}>Set as Default</Text>
+          <TouchableOpacity 
+            style={[styles.inlineButton, !item._originalId && styles.disabledButton]} 
+            onPress={() => handleSetDefault(item)}
+            disabled={!item._originalId}
+          >
+            <Text style={[styles.inlineButtonText, !item._originalId && styles.disabledButtonText]}>
+              {item._originalId ? 'Set as Default' : 'Sync First'}
+            </Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.inlineButton} onPress={() => handleEditAddress(item)}>
@@ -154,9 +191,14 @@ const AddressListScreen = ({ route }) => {
         <Text style={styles.title}>
           {isSelecting ? 'Select Address' : 'My Addresses'}
         </Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddAddress}>
-          <Icon name="add-outline" size={24} color="#f7ab18" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.syncButton} onPress={handleSync}>
+            <Icon name="sync-outline" size={24} color="#666" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddAddress}>
+            <Icon name="add-outline" size={24} color="#f7ab18" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Address List */}
@@ -238,6 +280,13 @@ const styles = StyleSheet.create({
   addButton: {
     padding: 8,
   },
+  syncButton: {
+    padding: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   addressList: {
     flex: 1,
   },
@@ -283,6 +332,18 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   defaultText: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  localBadge: {
+    backgroundColor: '#4CAF50', // A green color for local addresses
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  localText: {
     fontSize: 10,
     color: '#fff',
     fontWeight: '500',
@@ -363,6 +424,13 @@ const styles = StyleSheet.create({
     color: '#ff4444',
     fontSize: 13,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.5,
+    backgroundColor: '#e0e0e0',
+  },
+  disabledButtonText: {
+    color: '#999',
   },
   emptyContainer: {
     flex: 1,

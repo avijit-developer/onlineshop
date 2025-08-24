@@ -22,9 +22,10 @@ export const AddressProvider = ({ children }) => {
 
   const transformApiAddresses = (apiList) => (apiList || []).map(addr => ({
     id: addr._id || addr.id,
+    _originalId: addr._id, // Preserve original MongoDB ObjectId for API calls
     label: addr.label || 'Home',
     firstName: addr.firstName || addr.name?.split(' ')[0] || '',
-    lastName: addr.lastName || addr.name?.split(' ').slice(1).join(' ') || '',
+    lastName: addr.lastName || addr.name?.slice(1).join(' ') || '',
     email: addr.email || '',
     phone: addr.phone || '',
     address: addr.address || '',
@@ -118,6 +119,15 @@ export const AddressProvider = ({ children }) => {
             
             // Save merged addresses to local storage
             await saveAddresses(mergedAddresses);
+            
+            // If there are local addresses, try to sync them with the server
+            const hasLocalAddresses = mergedAddresses.some(addr => !addr._originalId);
+            if (hasLocalAddresses) {
+              // Wait a bit for the addresses to be set, then sync
+              setTimeout(() => {
+                syncLocalAddresses();
+              }, 1000);
+            }
           }
         } catch (apiError) {
           console.log('API address fetch failed, using local addresses:', apiError);
@@ -198,9 +208,11 @@ export const AddressProvider = ({ children }) => {
           return null;
         } catch (apiError) {
           console.log('Failed to save address to API:', apiError);
+          // Don't create local address when logged in - throw error instead
+          throw new Error('Failed to save address. Please try again.');
         }
       }
-      // Fallback local add
+      // Only create local address when not logged in
       const newAddress = {
         id: Date.now().toString(),
         ...address,
@@ -235,7 +247,10 @@ export const AddressProvider = ({ children }) => {
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
         try {
-          await api.updateUserAddress(id, updates);
+          // Find the address to get the correct ID for API call
+          const address = addresses.find(addr => addr.id === id);
+          const apiId = address?._originalId || id;
+          await api.updateUserAddress(apiId, updates);
           await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to update address in API:', apiError);
@@ -268,7 +283,10 @@ export const AddressProvider = ({ children }) => {
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
         try {
-          await api.deleteUserAddress(id);
+          // Find the address to get the correct ID for API call
+          const address = addresses.find(addr => addr.id === id);
+          const apiId = address?._originalId || id;
+          await api.deleteUserAddress(apiId);
           await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to delete address from API:', apiError);
@@ -296,10 +314,27 @@ export const AddressProvider = ({ children }) => {
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
         try {
-          await api.setDefaultUserAddress(id);
+          // Find the address to get the correct ID for API call
+          const address = addresses.find(addr => addr.id === id);
+          const apiId = address?._originalId || id;
+          
+          if (!apiId || apiId === id) {
+            // This is a local address that doesn't exist in the API
+            throw new Error('Cannot set local address as default. Please sync with server first.');
+          }
+          
+          await api.setDefaultUserAddress(apiId);
           await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to set default address in API:', apiError);
+          // Revert the local change if API call fails
+          const revertedAddresses = addresses.map(addr => ({
+            ...addr,
+            isDefault: addr.id === defaultAddressId
+          }));
+          setAddresses(revertedAddresses);
+          await saveAddresses(revertedAddresses);
+          throw new Error('Failed to set default address. Please try again.');
         }
       }
     } catch (error) {
@@ -320,6 +355,42 @@ export const AddressProvider = ({ children }) => {
     return loadAddresses();
   };
 
+  const syncLocalAddresses = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) return;
+
+      // Get local addresses that don't have _originalId (meaning they're local-only)
+      const localAddresses = addresses.filter(addr => !addr._originalId);
+      
+      for (const localAddr of localAddresses) {
+        try {
+          // Try to add each local address to the server
+          await api.addUserAddress({
+            label: localAddr.label,
+            firstName: localAddr.firstName,
+            lastName: localAddr.lastName,
+            email: localAddr.email,
+            phone: localAddr.phone,
+            address: localAddr.address,
+            city: localAddr.city,
+            state: localAddr.state,
+            zipCode: localAddr.zipCode,
+            country: localAddr.country,
+            isDefault: localAddr.isDefault,
+          });
+        } catch (apiError) {
+          console.log('Failed to sync local address:', apiError);
+        }
+      }
+      
+      // Refresh from API to get the updated addresses with proper IDs
+      await refreshFromAPI();
+    } catch (error) {
+      console.log('Error syncing local addresses:', error);
+    }
+  };
+
   const value = {
     addresses,
     defaultAddressId,
@@ -331,7 +402,8 @@ export const AddressProvider = ({ children }) => {
     getDefaultAddress,
     getAddressById,
     loadAddresses,
-    refreshAddresses
+    refreshAddresses,
+    syncLocalAddresses
   };
 
   return (
