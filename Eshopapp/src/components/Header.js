@@ -3,25 +3,40 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useLocation } from '../contexts/LocationContext';
 import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../contexts/UserContext';
 
 export default function Header() {
   const navigation = useNavigation();
   const { address } = useLocation();
+  const { user } = useUser();
 
   const handleAddressPress = () => {
     navigation.navigate('AddressList', { isSelecting: true, setDefaultOnSelect: true, returnTo: 'Home' });
+  };
+
+  const handleProfilePress = () => {
+    navigation.navigate('Profile');
+  };
+
+  // Get user avatar or use default
+  const getUserAvatar = () => {
+    if (user?.avatar) {
+      return { uri: user.avatar };
+    }
+    // Return a default avatar or user initials
+    return { uri: 'https://i.pravatar.cc/100' };
   };
 
   return (
     <View style={styles.container}>
       {/* Profile + My Activity */}
       <View style={styles.leftSection}>
-        <View style={styles.profileWrapper}>
+        <TouchableOpacity style={styles.profileWrapper} onPress={handleProfilePress}>
           <Image
-            source={{ uri: 'https://i.pravatar.cc/100' }} // or use a local image
+            source={getUserAvatar()}
             style={styles.avatar}
           />
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.addressWrapper} onPress={handleAddressPress}>
           <Text style={styles.addressText} numberOfLines={1}>
             {address || 'Select your location'}

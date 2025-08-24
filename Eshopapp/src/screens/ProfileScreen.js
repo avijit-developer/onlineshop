@@ -18,11 +18,31 @@ const ProfileScreen = () => {
   const { user, orders, logout } = useUser();
   const { getCartItemsCount } = useCart();
 
+  // Get user avatar or use default
+  const getUserAvatar = () => {
+    if (user?.avatar) {
+      return { uri: user.avatar };
+    }
+    // Return a default avatar
+    return { uri: 'https://i.pravatar.cc/100' };
+  };
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (user?.name) {
+      return user.name;
+    }
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return 'User';
+  };
+
   const profileOptions = [
     {
       id: 'orders',
       title: 'My Orders',
-      subtitle: `${orders.length} orders`,
+      subtitle: `${orders?.length || 0} orders`,
       icon: 'bag-outline',
       onPress: () => navigation.navigate('OrderList'),
     },
@@ -34,18 +54,25 @@ const ProfileScreen = () => {
       onPress: () => navigation.navigate('AddressList'),
     },
     {
+      id: 'wishlist',
+      title: 'Wishlist',
+      subtitle: 'Your saved items',
+      icon: 'heart-outline',
+      onPress: () => navigation.navigate('Wishlist'),
+    },
+    {
+      id: 'cart',
+      title: 'Shopping Cart',
+      subtitle: `${getCartItemsCount()} items`,
+      icon: 'cart-outline',
+      onPress: () => navigation.navigate('Cart'),
+    },
+    {
       id: 'payment',
       title: 'Payment Methods',
       subtitle: 'Manage payment options',
       icon: 'card-outline',
       onPress: () => Alert.alert('Coming Soon', 'Payment methods management will be available soon'),
-    },
-    {
-      id: 'wishlist',
-      title: 'Wishlist',
-      subtitle: 'Your saved items',
-      icon: 'heart-outline',
-      onPress: () => Alert.alert('Coming Soon', 'Wishlist feature will be available soon'),
     },
     {
       id: 'notifications',
@@ -115,11 +142,11 @@ const ProfileScreen = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Icon name="arrow-back-outline" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity onPress={handleEditProfile}>
+        <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
           <Icon name="create-outline" size={24} color="#f7ab18" />
         </TouchableOpacity>
       </View>
@@ -127,21 +154,23 @@ const ProfileScreen = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Info */}
         <View style={styles.profileCard}>
-          <Image source={{ uri: user.avatar }} style={styles.avatar} />
+          <Image source={getUserAvatar()} style={styles.avatar} />
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{user.name}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
-            <Text style={styles.userPhone}>{user.phone}</Text>
+            <Text style={styles.userName}>{getUserDisplayName()}</Text>
+            <Text style={styles.userEmail}>{user?.email || 'No email available'}</Text>
+            <Text style={styles.userPhone}>{user?.phone || 'No phone available'}</Text>
+            {user?.createdAt && (
+              <Text style={styles.userMemberSince}>
+                Member since {new Date(user.createdAt).getFullYear()}
+              </Text>
+            )}
           </View>
-          <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{orders.length}</Text>
+            <Text style={styles.statNumber}>{orders?.length || 0}</Text>
             <Text style={styles.statLabel}>Orders</Text>
           </View>
           <View style={styles.statCard}>
@@ -225,6 +254,11 @@ const styles = StyleSheet.create({
   userPhone: {
     fontSize: 14,
     color: '#666',
+  },
+  userMemberSince: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
   },
   editButton: {
     backgroundColor: '#f7ab18',
@@ -312,6 +346,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ff4444',
     marginLeft: 8,
+  },
+  backButton: {
+    padding: 8,
   },
 });
 
