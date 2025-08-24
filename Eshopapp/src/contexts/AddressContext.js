@@ -20,23 +20,30 @@ export const AddressProvider = ({ children }) => {
   const lastLoadTimeRef = React.useRef(0);
   const ADDRESSES_LOAD_THROTTLE = 5000; // 5 seconds
 
-  const transformApiAddresses = (apiList) => (apiList || []).map(addr => ({
-    id: addr._id || addr.id,
-    _originalId: addr._id, // Preserve original MongoDB ObjectId for API calls
-    label: addr.label || 'Home',
-    firstName: addr.firstName || addr.name?.split(' ')[0] || '',
-    lastName: addr.lastName || addr.name?.slice(1).join(' ') || '',
-    email: addr.email || '',
-    phone: addr.phone || '',
-    address: addr.address || '',
-    city: addr.city || '',
-    state: addr.state || '',
-    zipCode: addr.zipCode || addr.postalCode || '',
-    country: addr.country || 'India',
-    isDefault: addr.isDefault || false,
-    createdAt: addr.createdAt || new Date().toISOString(),
-    updatedAt: addr.updatedAt || new Date().toISOString()
-  }));
+  const transformApiAddresses = (apiList) => (apiList || []).map(addr => {
+    // Split the name field into firstName and lastName
+    const nameParts = (addr.name || '').trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
+    return {
+      id: addr._id || addr.id,
+      _originalId: addr._id, // Preserve original MongoDB ObjectId for API calls
+      label: addr.label || 'Home',
+      firstName: addr.firstName || firstName,
+      lastName: addr.lastName || lastName,
+      email: addr.email || '',
+      phone: addr.phone || '',
+      address: addr.address || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      zipCode: addr.zipCode || addr.postalCode || '',
+      country: addr.country || 'India',
+      isDefault: addr.isDefault || false,
+      createdAt: addr.createdAt || new Date().toISOString(),
+      updatedAt: addr.updatedAt || new Date().toISOString()
+    };
+  });
 
   const refreshFromAPI = async () => {
     try {

@@ -112,6 +112,14 @@ router.post('/me/addresses', authenticate, requireRole(['customer']), async (req
     throw new Error('label and address are required');
   }
   
+  // Handle firstName/lastName combination for the required name field
+  if (addressData.firstName || addressData.lastName) {
+    addressData.name = `${addressData.firstName || ''} ${addressData.lastName || ''}`.trim();
+  } else if (!addressData.name) {
+    res.status(400);
+    throw new Error('name is required (or provide firstName and lastName)');
+  }
+  
   // Set default values for optional fields
   addressData.city = addressData.city || '';
   addressData.state = addressData.state || '';
@@ -165,6 +173,11 @@ router.put('/me/addresses/:addressId', authenticate, requireRole(['customer']), 
   if (!addressId || addressId.trim() === '') {
     res.status(400);
     throw new Error('Address ID is required');
+  }
+
+  // Handle firstName/lastName combination for the name field
+  if (addressData.firstName || addressData.lastName) {
+    addressData.name = `${addressData.firstName || ''} ${addressData.lastName || ''}`.trim();
   }
 
   const user = await User.findById(req.user.id);
@@ -238,6 +251,14 @@ router.post('/:id/addresses', authenticate, requireAdmin, async (req, res) => {
   if (!addressData.label || !addressData.address) {
     res.status(400);
     throw new Error('label and address are required');
+  }
+
+  // Handle firstName/lastName combination for the name field
+  if (addressData.firstName || addressData.lastName) {
+    addressData.name = `${addressData.firstName || ''} ${addressData.lastName || ''}`.trim();
+  } else if (!addressData.name) {
+    res.status(400);
+    throw new Error('name is required (or provide firstName and lastName)');
   }
 
   const user = await User.findById(id);
