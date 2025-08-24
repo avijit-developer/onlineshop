@@ -67,9 +67,8 @@ const AddressListScreen = ({ route }) => {
   };
 
   const renderAddressItem = ({ item }) => (
-    <TouchableOpacity
+    <View
       style={[styles.addressCard, item.isDefault && styles.defaultAddressCard]}
-      onPress={() => handleSelectAddress(item)}
     >
       <View style={styles.addressHeader}>
         <View style={styles.addressInfo}>
@@ -81,22 +80,6 @@ const AddressListScreen = ({ route }) => {
               <Text style={styles.defaultText}>Default</Text>
             </View>
           )}
-        </View>
-        
-        <View style={styles.addressActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleEditAddress(item)}
-          >
-            <Icon name="create-outline" size={20} color="#f7ab18" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleDeleteAddress(item)}
-          >
-            <Icon name="trash-outline" size={20} color="#ff4444" />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -118,15 +101,29 @@ const AddressListScreen = ({ route }) => {
         </Text>
       </View>
 
-      {!item.isDefault && (
-        <TouchableOpacity
-          style={styles.setDefaultButton}
-          onPress={() => handleSetDefault(item)}
-        >
-          <Text style={styles.setDefaultText}>Set as Default</Text>
+      {/* Primary action */}
+      <TouchableOpacity
+        style={styles.primaryButton}
+        onPress={() => handleSelectAddress(item)}
+      >
+        <Text style={styles.primaryButtonText}>{isSelecting ? 'Deliver to this address' : (item.isDefault ? 'Default Address' : 'Deliver to this address')}</Text>
+      </TouchableOpacity>
+
+      {/* Inline actions */}
+      <View style={styles.inlineActions}>
+        {!item.isDefault && (
+          <TouchableOpacity style={styles.inlineButton} onPress={() => handleSetDefault(item)}>
+            <Text style={styles.inlineButtonText}>Set as Default</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={styles.inlineButton} onPress={() => handleEditAddress(item)}>
+          <Text style={styles.inlineButtonText}>Edit</Text>
         </TouchableOpacity>
-      )}
-    </TouchableOpacity>
+        <TouchableOpacity style={styles.inlineButtonDanger} onPress={() => handleDeleteAddress(item)}>
+          <Text style={styles.inlineButtonDangerText}>Remove</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   const renderEmptyState = () => (
@@ -315,6 +312,50 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontWeight: '500',
+  },
+  primaryButton: {
+    backgroundColor: '#f7ab18',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  inlineButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  inlineButtonText: {
+    color: '#333',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  inlineButtonDanger: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ff4444',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  inlineButtonDangerText: {
+    color: '#ff4444',
+    fontSize: 13,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

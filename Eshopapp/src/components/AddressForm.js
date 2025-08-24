@@ -28,6 +28,7 @@ const AddressForm = ({ address, onSave, onCancel }) => {
     state: '',
     zipCode: '',
     country: 'India',
+    isDefault: false,
   });
 
   useEffect(() => {
@@ -43,6 +44,7 @@ const AddressForm = ({ address, onSave, onCancel }) => {
         state: address.state || '',
         zipCode: address.zipCode || '',
         country: address.country || 'India',
+        isDefault: !!address.isDefault,
       });
     }
   }, [address]);
@@ -134,6 +136,17 @@ const AddressForm = ({ address, onSave, onCancel }) => {
             placeholder="e.g., Home, Office, Mom's House"
             autoCapitalize="words"
           />
+          <View style={styles.chipsRow}>
+            {['Home', 'Work', 'Other'].map(type => (
+              <TouchableOpacity
+                key={type}
+                style={[styles.chip, formData.label?.toLowerCase() === type.toLowerCase() && styles.chipActive]}
+                onPress={() => handleInputChange('label', type)}
+              >
+                <Text style={[styles.chipText, formData.label?.toLowerCase() === type.toLowerCase() && styles.chipTextActive]}>{type}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Personal Information */}
@@ -249,6 +262,19 @@ const AddressForm = ({ address, onSave, onCancel }) => {
           </View>
         </View>
 
+        {/* Default Toggle */}
+        <View style={styles.section}>
+          <View style={styles.defaultRow}>
+            <TouchableOpacity
+              onPress={() => handleInputChange('isDefault', !formData.isDefault)}
+              style={[styles.checkbox, formData.isDefault && styles.checkboxChecked]}
+            >
+              {formData.isDefault && <Icon name="checkmark" size={16} color="#fff" />}
+            </TouchableOpacity>
+            <Text style={styles.defaultText}>Set as default address</Text>
+          </View>
+        </View>
+
         {/* Save Button */}
         <TouchableOpacity style={styles.saveAddressButton} onPress={handleSave}>
           <Icon name="checkmark-circle-outline" size={20} color="#fff" />
@@ -318,6 +344,31 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 16,
   },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+  },
+  chipActive: {
+    borderColor: '#f7ab18',
+    backgroundColor: '#fff9e6',
+  },
+  chipText: {
+    color: '#333',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: '#f7ab18',
+  },
   formRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -362,6 +413,30 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  defaultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: '#4caf50',
+    borderColor: '#4caf50',
+  },
+  defaultText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
   },
 });
 
