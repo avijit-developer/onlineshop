@@ -124,16 +124,10 @@ export const AddressProvider = ({ children }) => {
               await AsyncStorage.setItem('defaultAddressId', defaultAddr.id);
             }
             
-            // Save merged addresses to local storage
-            await saveAddresses(mergedAddresses);
-            
-            // If there are local addresses, try to sync them with the server
-            const hasLocalAddresses = mergedAddresses.some(addr => !addr._originalId);
-            if (hasLocalAddresses) {
-              // Wait a bit for the addresses to be set, then sync
-              setTimeout(() => {
-                syncLocalAddresses();
-              }, 1000);
+            // Save only API addresses to local storage (to preserve _originalId)
+            const apiOnlyAddresses = mergedAddresses.filter(addr => addr._originalId);
+            if (apiOnlyAddresses.length > 0) {
+              await saveAddresses(apiOnlyAddresses);
             }
           }
         } catch (apiError) {
@@ -256,8 +250,15 @@ export const AddressProvider = ({ children }) => {
         try {
           // Find the address to get the correct ID for API call
           const address = addresses.find(addr => addr.id === id);
-          const apiId = address?._originalId || id;
-          await api.updateUserAddress(apiId, updates);
+          
+          // Check if this address has an _originalId (meaning it came from the API)
+          if (!address || !address._originalId) {
+            console.log('Cannot update local address in API. Address will remain local only.');
+            return; // Don't throw error, just skip API update
+          }
+          
+          // Use the original MongoDB ObjectId for the API call
+          await api.updateUserAddress(address._originalId, updates);
           await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to update address in API:', apiError);
@@ -292,8 +293,15 @@ export const AddressProvider = ({ children }) => {
         try {
           // Find the address to get the correct ID for API call
           const address = addresses.find(addr => addr.id === id);
-          const apiId = address?._originalId || id;
-          await api.deleteUserAddress(apiId);
+          
+          // Check if this address has an _originalId (meaning it came from the API)
+          if (!address || !address._originalId) {
+            console.log('Cannot delete local address from API. Address will remain in local storage only.');
+            return; // Don't throw error, just skip API delete
+          }
+          
+          // Use the original MongoDB ObjectId for the API call
+          await api.deleteUserAddress(address._originalId);
           await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to delete address from API:', apiError);
@@ -323,14 +331,15 @@ export const AddressProvider = ({ children }) => {
         try {
           // Find the address to get the correct ID for API call
           const address = addresses.find(addr => addr.id === id);
-          const apiId = address?._originalId || id;
           
-          if (!apiId || apiId === id) {
+          // Check if this address has an _originalId (meaning it came from the API)
+          if (!address || !address._originalId) {
             // This is a local address that doesn't exist in the API
             throw new Error('Cannot set local address as default. Please sync with server first.');
           }
           
-          await api.setDefaultUserAddress(apiId);
+          // Use the original MongoDB ObjectId for the API call
+          await api.setDefaultUserAddress(address._originalId);
           await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to set default address in API:', apiError);
@@ -360,6 +369,36 @@ export const AddressProvider = ({ children }) => {
 
   const refreshAddresses = () => {
     return loadAddresses();
+  };
+
+  const forceRefreshFromAPI = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+      
+      const response = await api.getUserAddresses();
+      if (response && Array.isArray(response.data)) {
+        const apiAddresses = transformApiAddresses(response.data);
+        setAddresses(apiAddresses);
+        
+        // Set default address
+        const defaultAddr = apiAddresses.find(addr => addr.isDefault);
+        if (defaultAddr) {
+          setDefaultAddressId(defaultAddr.id);
+          await AsyncStorage.setItem('defaultAddressId', defaultAddr.id);
+        }
+        
+        // Save API addresses to local storage
+        await saveAddresses(apiAddresses);
+        
+        return apiAddresses;
+      }
+    } catch (error) {
+      console.log('Error forcing refresh from API:', error);
+      throw error;
+    }
   };
 
   const syncLocalAddresses = async () => {
@@ -410,7 +449,8 @@ export const AddressProvider = ({ children }) => {
     getAddressById,
     loadAddresses,
     refreshAddresses,
-    syncLocalAddresses
+    syncLocalAddresses,
+    forceRefreshFromAPI
   };
 
   return (

@@ -16,7 +16,7 @@ import AddressForm from '../components/AddressForm';
 
 const AddressListScreen = ({ route }) => {
   const navigation = useNavigation();
-  const { addresses, deleteAddress, setDefaultAddress, syncLocalAddresses } = useAddress();
+  const { addresses, deleteAddress, setDefaultAddress, syncLocalAddresses, forceRefreshFromAPI } = useAddress();
   const { updateAddress: updateHeaderAddress, loadUserDefaultAddress } = useLocation();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
@@ -55,10 +55,17 @@ const AddressListScreen = ({ route }) => {
     if (!address._originalId) {
       Alert.alert(
         'Local Address',
-        'This address is stored locally and cannot be set as default until it\'s synced with the server. Please use the sync button to upload your addresses.',
+        'This address is stored locally and cannot be set as default until it\'s synced with the server. Would you like to refresh your addresses from the server?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Sync Now', onPress: handleSync }
+          { text: 'Refresh Now', onPress: async () => {
+            try {
+              await forceRefreshFromAPI();
+              Alert.alert('Success', 'Addresses refreshed from server. You can now try setting the default address again.');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to refresh addresses. Please try again.');
+            }
+          }}
         ]
       );
       return;
@@ -92,7 +99,7 @@ const AddressListScreen = ({ route }) => {
 
   const handleSync = async () => {
     try {
-      await syncLocalAddresses();
+      await forceRefreshFromAPI();
       Alert.alert('Sync Complete', 'Addresses have been synced with the server.');
     } catch (error) {
       Alert.alert('Sync Failed', 'Failed to sync addresses. Please try again.');
