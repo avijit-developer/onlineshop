@@ -16,30 +16,10 @@ export const AddressProvider = ({ children }) => {
   const [addresses, setAddresses] = useState([]);
   const [defaultAddressId, setDefaultAddressId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [defaultAddressChangeCallbacks, setDefaultAddressChangeCallbacks] = useState([]);
 
   const isLoadingRef = React.useRef(false);
   const lastLoadTimeRef = React.useRef(0);
   const ADDRESSES_LOAD_THROTTLE = 5000; // 5 seconds
-
-  // Function to register callbacks for default address changes
-  const onDefaultAddressChange = (callback) => {
-    setDefaultAddressChangeCallbacks(prev => [...prev, callback]);
-    return () => {
-      setDefaultAddressChangeCallbacks(prev => prev.filter(cb => cb !== callback));
-    };
-  };
-
-  // Function to notify all callbacks when default address changes
-  const notifyDefaultAddressChange = (newDefaultAddress) => {
-    defaultAddressChangeCallbacks.forEach(callback => {
-      try {
-        callback(newDefaultAddress);
-      } catch (error) {
-        console.log('Error in default address change callback:', error);
-      }
-    });
-  };
 
   const transformApiAddresses = (apiList) => (apiList || []).map(addr => {
     // Split the name field into firstName and lastName
@@ -143,8 +123,6 @@ export const AddressProvider = ({ children }) => {
             if (defaultAddr) {
               setDefaultAddressId(defaultAddr.id);
               await AsyncStorage.setItem('defaultAddressId', defaultAddr.id);
-              // Notify other parts of the app about the default address
-              notifyDefaultAddressChange(defaultAddr);
             }
             
             // Save only API addresses to local storage (to preserve _originalId)
@@ -338,12 +316,8 @@ export const AddressProvider = ({ children }) => {
 
   const setDefaultAddress = async (id) => {
     try {
-      console.log('setDefaultAddress called with id:', id);
-      console.log('Current addresses:', addresses);
-      
       // Find the address to get the correct ID for API call
       const address = addresses.find(addr => addr.id === id);
-      console.log('Found address:', address);
       
       // Check if this address has an _originalId (meaning it came from the API)
       if (!address || !address._originalId) {
@@ -353,14 +327,11 @@ export const AddressProvider = ({ children }) => {
 
       // Try to update in API first if user is logged in
       const token = await AsyncStorage.getItem('authToken');
-      console.log('Token available:', !!token);
       
       if (token) {
         try {
-          console.log('Calling API to set default address with _originalId:', address._originalId);
           // Use the original MongoDB ObjectId for the API call
           await api.setDefaultUserAddress(address._originalId);
-          console.log('API call successful');
           
           // If API call succeeds, update local state
           const newAddresses = addresses.map(addr => ({
@@ -368,30 +339,19 @@ export const AddressProvider = ({ children }) => {
             isDefault: addr.id === id
           }));
           
-          console.log('Updating local state with new addresses');
           setAddresses(newAddresses);
           setDefaultAddressId(id);
           await AsyncStorage.setItem('defaultAddressId', id);
           await saveAddresses(newAddresses);
           
-          // Notify other parts of the app about the default address change
-          const newDefaultAddress = newAddresses.find(addr => addr.id === id);
-          if (newDefaultAddress) {
-            console.log('Notifying about default address change:', newDefaultAddress);
-            notifyDefaultAddressChange(newDefaultAddress);
-          }
-          
           // Refresh from API to ensure consistency
-          console.log('Refreshing from API');
           await refreshFromAPI();
-          console.log('Refresh from API completed');
           
         } catch (apiError) {
           console.log('Failed to set default address in API:', apiError);
           throw new Error('Failed to set default address. Please try again.');
         }
       } else {
-        console.log('No token, updating local state only');
         // No token, just update local state
         const newAddresses = addresses.map(addr => ({
           ...addr,
@@ -402,16 +362,7 @@ export const AddressProvider = ({ children }) => {
         setDefaultAddressId(id);
         await AsyncStorage.setItem('defaultAddressId', id);
         await saveAddresses(newAddresses);
-        
-        // Notify other parts of the app about the default address change
-        const newDefaultAddress = newAddresses.find(addr => addr.id === id);
-        if (newDefaultAddress) {
-          console.log('Notifying about default address change (local):', newDefaultAddress);
-          notifyDefaultAddressChange(newDefaultAddress);
-        }
       }
-      
-      console.log('setDefaultAddress completed successfully');
     } catch (error) {
       console.log('Error setting default address:', error);
       throw error;
@@ -447,8 +398,6 @@ export const AddressProvider = ({ children }) => {
         if (defaultAddr) {
           setDefaultAddressId(defaultAddr.id);
           await AsyncStorage.setItem('defaultAddressId', defaultAddr.id);
-          // Notify other parts of the app about the default address
-          notifyDefaultAddressChange(defaultAddr);
         }
         
         // Save API addresses to local storage
@@ -512,8 +461,6 @@ export const AddressProvider = ({ children }) => {
     refreshAddresses,
     syncLocalAddresses,
     forceRefreshFromAPI,
-    onDefaultAddressChange,
-    notifyDefaultAddressChange
   };
 
   return (

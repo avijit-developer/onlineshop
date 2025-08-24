@@ -106,6 +106,11 @@ const AddressListScreen = ({ route }) => {
         if (!address.isDefault) {
           try {
             await setDefaultAddress(address.id);
+            
+            // Update the home page header immediately after setting default
+            const line = `${address.address}, ${address.city}`;
+            updateHeaderAddress(line);
+            
           } catch (defaultError) {
             console.log('Failed to set address as default:', defaultError);
             // Ask user if they want to proceed without setting as default
@@ -130,11 +135,12 @@ const AddressListScreen = ({ route }) => {
             );
             return;
           }
+        } else {
+          // Address is already default, just update header
+          const line = `${address.address}, ${address.city}`;
+          updateHeaderAddress(line);
         }
         
-        // Update header location immediately
-        const line = `${address.address}, ${address.city}`;
-        updateHeaderAddress(line);
         // Also refresh default from server in case
         loadUserDefaultAddress();
         
