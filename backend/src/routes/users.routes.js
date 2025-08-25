@@ -200,6 +200,46 @@ router.put('/me/addresses/:addressId', authenticate, requireRole(['customer']), 
   res.json({ success: true, data: user.addresses });
 });
 
+// Customer (self): update profile
+router.put('/me/profile', authenticate, requireRole(['customer']), async (req, res) => {
+  const { name, email, phone } = req.body || {};
+  
+  const user = await User.findById(req.user.id);
+  if (!user) { 
+    res.status(404); 
+    throw new Error('User not found'); 
+  }
+
+  // Validate email if provided
+  if (email && !isValidEmail(email)) {
+    res.status(400);
+    throw new Error('Invalid email format');
+  }
+
+  // Check if email is already in use by another user
+  if (email && email.toLowerCase() !== user.email.toLowerCase()) {
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      res.status(409);
+      throw new Error('Email already in use');
+    }
+  }
+
+  // Update user fields
+  const updateData = {};
+  if (name !== undefined) updateData.name = String(name).trim();
+  if (email !== undefined) updateData.email = String(email).trim().toLowerCase();
+  if (phone !== undefined) updateData.phone = String(phone).trim();
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user.id, 
+    updateData, 
+    { new: true, runValidators: true }
+  ).select('-passwordHash');
+
+  res.json({ success: true, data: updatedUser });
+});
+
 // Customer (self): delete address
 router.delete('/me/addresses/:addressId', authenticate, requireRole(['customer']), async (req, res) => {
   const { addressId } = req.params;

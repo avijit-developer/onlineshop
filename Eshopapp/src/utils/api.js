@@ -137,7 +137,16 @@ const api = {
     });
   },
 
-  // Note: update profile endpoint is not implemented for customers in backend
+  // Customer profile update
+  async updateUserProfile(token, userData) {
+    return this.request('/api/v1/users/me/profile', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(userData),
+    });
+  },
 
   // Categories (public)
   async getCategoriesPublic(params = {}) {

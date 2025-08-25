@@ -173,15 +173,15 @@ export const UserProvider = ({ children }) => {
 
   const updateUser = async (userData) => {
     try {
-      // Update local state
-      const updatedUser = { ...user, ...userData };
+      // Call API to update user profile
+      const response = await api.updateUserProfile(token, userData);
+      
+      // Update local state with the response from server
+      const updatedUser = { ...user, ...response.data };
       setUser(updatedUser);
       
       // Update stored user data
       await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
-      
-      // TODO: In the future, you can add API call here to sync with backend
-      // await api.updateUserProfile(userData);
       
       return { success: true };
     } catch (error) {
