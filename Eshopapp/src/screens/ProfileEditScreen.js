@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
-import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import ImagePicker from 'react-native-image-crop-picker';
 
 const ProfileEditScreen = () => {
   const navigation = useNavigation();
@@ -145,30 +145,32 @@ const ProfileEditScreen = () => {
                 return;
               }
 
-              const result = await launchCamera({
-                mediaType: 'photo',
+              const result = await ImagePicker.openCamera({
+                width: 800,
+                height: 800,
+                cropping: true,
+                cropperCircleOverlay: true,
+                compressImageMaxWidth: 800,
+                compressImageMaxHeight: 800,
+                compressImageQuality: 0.8,
                 includeBase64: false,
-                maxHeight: 800,
-                maxWidth: 800,
-                quality: 0.8,
                 saveToPhotos: true,
               });
 
-              if (result.assets && result.assets.length > 0) {
-                const selectedImage = result.assets[0];
-                setFormData(prev => ({
-                  ...prev,
-                  avatar: selectedImage.uri,
-                  selectedImageFile: {
-                    uri: selectedImage.uri,
-                    type: selectedImage.type || 'image/jpeg',
-                    name: selectedImage.fileName || 'profile.jpg'
-                  }
-                }));
-              }
+              setFormData(prev => ({
+                ...prev,
+                avatar: result.path,
+                selectedImageFile: {
+                  uri: result.path,
+                  type: result.mime || 'image/jpeg',
+                  name: result.filename || 'profile.jpg'
+                }
+              }));
             } catch (error) {
               console.error('Error taking photo:', error);
-              Alert.alert('Error', 'Failed to take photo. Please try again.');
+              if (error.code !== 'E_PICKER_CANCELLED') {
+                Alert.alert('Error', 'Failed to take photo. Please try again.');
+              }
             }
           }
         },
@@ -176,70 +178,30 @@ const ProfileEditScreen = () => {
           text: 'Gallery',
           onPress: async () => {
             try {
-              // Try to launch image picker without explicit permission check first
-              // The system will handle permissions automatically
-              const result = await launchImageLibrary({
-                mediaType: 'photo',
+              const result = await ImagePicker.openPicker({
+                width: 800,
+                height: 800,
+                cropping: true,
+                cropperCircleOverlay: true,
+                compressImageMaxWidth: 800,
+                compressImageMaxHeight: 800,
+                compressImageQuality: 0.8,
                 includeBase64: false,
-                maxHeight: 800,
-                maxWidth: 800,
-                quality: 0.8,
-                selectionLimit: 1,
-                includeExtra: true,
-                presentationStyle: 'fullScreen',
+                mediaType: 'photo',
               });
 
-              if (result.assets && result.assets.length > 0) {
-                const selectedImage = result.assets[0];
-                setFormData(prev => ({
-                  ...prev,
-                  avatar: selectedImage.uri,
-                  selectedImageFile: {
-                    uri: selectedImage.uri,
-                    type: selectedImage.type || 'image/jpeg',
-                    name: selectedImage.fileName || 'profile.jpg'
-                  }
-                }));
-              }
+              setFormData(prev => ({
+                ...prev,
+                avatar: result.path,
+                selectedImageFile: {
+                  uri: result.path,
+                  type: result.mime || 'image/jpeg',
+                  name: result.filename || 'profile.jpg'
+                }
+              }));
             } catch (error) {
               console.error('Error picking image:', error);
-              // If it fails, try with explicit permission request
-              try {
-                const hasPermission = await requestStoragePermission();
-                if (!hasPermission) {
-                  Alert.alert(
-                    'Permission Required',
-                    'Sorry, we need storage permissions to select profile pictures!',
-                    [{ text: 'OK' }]
-                  );
-                  return;
-                }
-
-                const result = await launchImageLibrary({
-                  mediaType: 'photo',
-                  includeBase64: false,
-                  maxHeight: 800,
-                  maxWidth: 800,
-                  quality: 0.8,
-                  selectionLimit: 1,
-                  includeExtra: true,
-                  presentationStyle: 'fullScreen',
-                });
-
-                if (result.assets && result.assets.length > 0) {
-                  const selectedImage = result.assets[0];
-                  setFormData(prev => ({
-                    ...prev,
-                    avatar: selectedImage.uri,
-                    selectedImageFile: {
-                      uri: selectedImage.uri,
-                      type: selectedImage.type || 'image/jpeg',
-                      name: selectedImage.fileName || 'profile.jpg'
-                    }
-                  }));
-                }
-              } catch (secondError) {
-                console.error('Error picking image with permission:', secondError);
+              if (error.code !== 'E_PICKER_CANCELLED') {
                 Alert.alert('Error', 'Failed to pick image. Please try again.');
               }
             }
