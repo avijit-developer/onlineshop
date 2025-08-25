@@ -13,12 +13,13 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
+import { Image } from 'react-native';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user, orders, logout } = useUser();
   const { getCartItemsCount } = useCart();
-  const { getWishlistCount } = useWishlist();
+  const { getWishlistCount, wishlist } = useWishlist();
 
   // Get user avatar or use default
   const getUserAvatar = () => {
@@ -57,9 +58,9 @@ const ProfileScreen = () => {
     },
     {
       id: 'wishlist',
-      title: 'Wishlist',
+      title: 'My Wishlist',
       subtitle: `${getWishlistCount()} saved items`,
-      icon: 'heart-outline',
+      icon: 'heart',
       onPress: () => navigation.navigate('Wishlist'),
     },
     {
@@ -126,11 +127,21 @@ const ProfileScreen = () => {
   const renderProfileOption = (option) => (
     <TouchableOpacity
       key={option.id}
-      style={styles.optionCard}
+      style={[
+        styles.optionCard,
+        option.id === 'wishlist' && styles.wishlistOptionCard
+      ]}
       onPress={option.onPress}
     >
-      <View style={styles.optionIcon}>
-        <Icon name={option.icon} size={24} color="#f7ab18" />
+      <View style={[
+        styles.optionIcon,
+        option.id === 'wishlist' && styles.wishlistOptionIcon
+      ]}>
+        <Icon 
+          name={option.icon} 
+          size={24} 
+          color={option.id === 'wishlist' ? '#e53935' : '#f7ab18'} 
+        />
       </View>
       <View style={styles.optionContent}>
         <Text style={styles.optionTitle}>{option.title}</Text>
@@ -194,6 +205,43 @@ const ProfileScreen = () => {
             <Text style={styles.statLabel}>Wishlist</Text>
           </View>
         </View>
+
+        {/* Section: Recent Wishlist Items */}
+        {wishlist.length > 0 && (
+          <>
+            <View style={styles.wishlistSectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Wishlist Items</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Wishlist')}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.wishlistScrollView}
+              contentContainerStyle={styles.wishlistScrollContent}
+            >
+              {wishlist.slice(0, 5).map((item, index) => (
+                <TouchableOpacity 
+                  key={item._id || index}
+                  style={styles.wishlistItem}
+                  onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
+                >
+                  <Image 
+                    source={{ uri: item.images?.[0] || 'https://via.placeholder.com/100' }} 
+                    style={styles.wishlistItemImage} 
+                  />
+                  <Text style={styles.wishlistItemName} numberOfLines={2}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.wishlistItemPrice}>
+                    ₹{item.price || 0}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         {/* Section: Account */}
         <Text style={styles.sectionTitle}>Account</Text>
@@ -397,6 +445,62 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+  },
+  wishlistSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 28,
+    marginBottom: 10,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: '#f7ab18',
+    fontWeight: '600',
+  },
+  wishlistScrollView: {
+    marginTop: 10,
+  },
+  wishlistScrollContent: {
+    paddingRight: 16,
+  },
+  wishlistItem: {
+    width: 100,
+    marginRight: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  wishlistItemImage: {
+    width: '100%',
+    height: 80,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  wishlistItemName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+    lineHeight: 14,
+  },
+  wishlistItemPrice: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#f7ab18',
+  },
+  wishlistOptionCard: {
+    borderColor: '#e53935',
+    borderWidth: 1,
+    backgroundColor: '#fff5f5',
+  },
+  wishlistOptionIcon: {
+    backgroundColor: '#ffe6e6',
   },
 });
 
