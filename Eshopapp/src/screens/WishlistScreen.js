@@ -94,7 +94,14 @@ const WishlistScreen = ({ navigation }) => {
         <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
         
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>${item.price?.toFixed(2) || '0.00'}</Text>
+          {item.specialPrice && item.specialPrice < item.regularPrice ? (
+            <>
+              <Text style={styles.price}>₹{item.specialPrice}</Text>
+              <Text style={styles.originalPrice}>₹{item.regularPrice}</Text>
+            </>
+          ) : (
+            <Text style={styles.price}>₹{item.regularPrice || item.price || 0}</Text>
+          )}
         </View>
 
         <TouchableOpacity
@@ -152,7 +159,12 @@ const WishlistScreen = ({ navigation }) => {
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>
-                ${wishlist.reduce((sum, item) => sum + (item.price || 0), 0).toFixed(0)}
+                ₹{wishlist.reduce((sum, item) => {
+                  const price = item.specialPrice && item.specialPrice < item.regularPrice 
+                    ? item.specialPrice 
+                    : (item.regularPrice || item.price || 0);
+                  return sum + price;
+                }, 0).toFixed(0)}
               </Text>
               <Text style={styles.statLabel}>Total Value</Text>
             </View>
