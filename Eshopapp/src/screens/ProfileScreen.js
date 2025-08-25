@@ -146,13 +146,22 @@ const ProfileScreen = () => {
           <Icon name="arrow-back-outline" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-          <Icon name="create-outline" size={24} color="#fff" />
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={handleEditProfile}
+          accessibilityLabel="Edit profile"
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        >
+          <View style={styles.editButtonContent}>
+            <Icon name="create-outline" size={18} color="#fff" />
+            <Text style={styles.editButtonLabel}>Edit</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Profile Info */}
+        {/* Profile Info */
+        }
         <View style={styles.profileCard}>
           <Image source={getUserAvatar()} style={styles.avatar} />
           <View style={styles.userInfo}>
@@ -167,7 +176,8 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* Quick Stats */}
+        {/* Section: Quick Overview */}
+        <Text style={styles.sectionTitle}>Quick Overview</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{orders?.length || 0}</Text>
@@ -183,7 +193,8 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* Profile Options */}
+        {/* Section: Account */}
+        <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.optionsContainer}>
           {profileOptions.map(renderProfileOption)}
         </View>
@@ -230,6 +241,11 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   avatar: {
     width: 60,
@@ -266,6 +282,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
+  editButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editButtonLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
   editButtonText: {
     color: '#fff',
     fontSize: 14,
@@ -282,6 +309,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   statNumber: {
     fontSize: 24,
@@ -306,6 +338,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   optionIcon: {
     width: 40,
@@ -328,6 +365,15 @@ const styles = StyleSheet.create({
   optionSubtitle: {
     fontSize: 12,
     color: '#666',
+  },
+  sectionTitle: {
+    marginTop: 28,
+    marginBottom: 10,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   logoutButton: {
     flexDirection: 'row',
