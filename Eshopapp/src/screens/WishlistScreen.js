@@ -125,6 +125,7 @@ const WishlistScreen = ({ navigation }) => {
         </View>
       </View>
     );
+  };
 
   return (
     <View style={styles.container}>
