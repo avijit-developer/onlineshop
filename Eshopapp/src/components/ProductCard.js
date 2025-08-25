@@ -3,10 +3,12 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Alert } from 'react-na
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
+import { useWishlist } from '../contexts/WishlistContext';
 
 const ProductCard = ({ item }) => {
   const navigation = useNavigation();
   const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
@@ -24,15 +26,39 @@ const ProductCard = ({ item }) => {
     navigation.navigate('ProductDetails', { productId: item.id || item._id });
   };
 
+  const handleWishlistToggle = async (e) => {
+    e.stopPropagation();
+    if (!item.id && !item._id) {
+      Alert.alert('Error', 'Product information not available');
+      return;
+    }
+    
+    try {
+      const productId = item.id || item._id;
+      const result = await toggleWishlist(productId);
+      if (result.success) {
+        console.log('Wishlist updated successfully');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update wishlist');
+      }
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+      Alert.alert('Error', 'Failed to update wishlist');
+    }
+  };
+
   return (
     <View style={styles.card}>
       <TouchableOpacity onPress={handleProductPress}>
         <Image source={{ uri: item.image }} style={styles.image} />
-        <TouchableOpacity style={styles.heartIcon}>
+        <TouchableOpacity 
+          style={[styles.heartIcon, isInWishlist(item.id || item._id) && styles.heartIconActive]} 
+          onPress={handleWishlistToggle}
+        >
           <Icon
-            name={item.liked ? 'heart' : 'heart-outline'}
+            name={isInWishlist(item.id || item._id) ? 'heart' : 'heart-outline'}
             size={20}
-            color={item.liked ? '#FFA726' : '#FFA726'}
+            color={isInWishlist(item.id || item._id) ? '#e53935' : '#333'}
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -102,6 +128,11 @@ const styles = StyleSheet.create({
     padding: 5,
     borderRadius: 100,
     elevation: 3,
+  },
+  heartIconActive: {
+    backgroundColor: 'rgba(255, 255, 255, .95)',
+    borderWidth: 1,
+    borderColor: '#e53935',
   },
   name: {
     marginTop: 8,
