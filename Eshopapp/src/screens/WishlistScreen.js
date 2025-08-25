@@ -77,32 +77,41 @@ const WishlistScreen = ({ navigation }) => {
     );
   };
 
-  const renderWishlistItem = ({ item }) => (
-    <View style={styles.wishlistItem}>
-      <View style={styles.itemImageContainer}>
-        <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }} style={styles.itemImage} />
-        <TouchableOpacity 
-          style={styles.removeButton}
-          onPress={() => handleRemoveFromWishlist(item._id)}
-        >
-          <Icon name="x" size={16} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemBrand}>{item.brand?.name || 'Brand'}</Text>
-        <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
-        
-        <View style={styles.priceContainer}>
-          {item.specialPrice && item.specialPrice < item.regularPrice ? (
-            <>
-              <Text style={styles.price}>₹{item.specialPrice}</Text>
-              <Text style={styles.originalPrice}>₹{item.regularPrice}</Text>
-            </>
-          ) : (
-            <Text style={styles.price}>₹{item.regularPrice || item.price || 0}</Text>
-          )}
+  const renderWishlistItem = ({ item }) => {
+    // Debug: Log the item structure
+    console.log('Wishlist item:', JSON.stringify(item, null, 2));
+    
+    // Get the correct price
+    const regularPrice = item.regularPrice || item.price || 0;
+    const specialPrice = item.specialPrice;
+    const displayPrice = specialPrice && specialPrice < regularPrice ? specialPrice : regularPrice;
+    
+    return (
+      <View style={styles.wishlistItem}>
+        <View style={styles.itemImageContainer}>
+          <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }} style={styles.itemImage} />
+          <TouchableOpacity 
+            style={styles.removeButton}
+            onPress={() => handleRemoveFromWishlist(item._id)}
+          >
+            <Icon name="x" size={16} color="#fff" />
+          </TouchableOpacity>
         </View>
+
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemBrand}>{item.brand?.name || 'Brand'}</Text>
+          <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+          
+          <View style={styles.priceContainer}>
+            {specialPrice && specialPrice < regularPrice ? (
+              <>
+                <Text style={styles.price}>₹{specialPrice}</Text>
+                <Text style={styles.originalPrice}>₹{regularPrice}</Text>
+              </>
+            ) : (
+              <Text style={styles.price}>₹{displayPrice}</Text>
+            )}
+          </View>
 
         <TouchableOpacity
           style={styles.addToCartButton}
@@ -160,9 +169,10 @@ const WishlistScreen = ({ navigation }) => {
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>
                 ₹{wishlist.reduce((sum, item) => {
-                  const price = item.specialPrice && item.specialPrice < item.regularPrice 
-                    ? item.specialPrice 
-                    : (item.regularPrice || item.price || 0);
+                  const regularPrice = item.regularPrice || item.price || 0;
+                  const specialPrice = item.specialPrice;
+                  const price = specialPrice && specialPrice < regularPrice ? specialPrice : regularPrice;
+                  console.log(`Item: ${item.name}, Regular: ${regularPrice}, Special: ${specialPrice}, Final: ${price}`);
                   return sum + price;
                 }, 0).toFixed(0)}
               </Text>

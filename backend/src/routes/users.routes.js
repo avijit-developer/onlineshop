@@ -474,7 +474,7 @@ router.get('/me/wishlist', authenticate, requireRole(['customer']), async (req, 
     const user = await User.findById(req.user.id)
       .populate({
         path: 'wishlist',
-        select: '_id name description price images category brand isActive',
+        select: '_id name description price regularPrice specialPrice images category brand isActive',
         match: { isActive: true }
       })
       .lean();
