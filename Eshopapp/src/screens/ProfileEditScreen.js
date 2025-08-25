@@ -79,11 +79,17 @@ const ProfileEditScreen = () => {
   const requestStoragePermission = async () => {
     if (Platform.OS === 'android') {
       try {
+        // For Android 13+ (API level 33+), use READ_MEDIA_IMAGES
+        // For older versions, use READ_EXTERNAL_STORAGE
+        const permission = Platform.Version >= 33 
+          ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+          : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+
         const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          permission,
           {
             title: 'Storage Permission',
-            message: 'App needs access to your storage to select profile pictures.',
+            message: 'App needs access to your photos to select profile pictures.',
             buttonNeutral: 'Ask Me Later',
             buttonNegative: 'Cancel',
             buttonPositive: 'OK',
@@ -170,16 +176,8 @@ const ProfileEditScreen = () => {
           text: 'Gallery',
           onPress: async () => {
             try {
-              const hasPermission = await requestStoragePermission();
-              if (!hasPermission) {
-                Alert.alert(
-                  'Permission Required',
-                  'Sorry, we need storage permissions to select profile pictures!',
-                  [{ text: 'OK' }]
-                );
-                return;
-              }
-
+              // Try to launch image picker without explicit permission check first
+              // The system will handle permissions automatically
               const result = await launchImageLibrary({
                 mediaType: 'photo',
                 includeBase64: false,
@@ -187,6 +185,8 @@ const ProfileEditScreen = () => {
                 maxWidth: 800,
                 quality: 0.8,
                 selectionLimit: 1,
+                includeExtra: true,
+                presentationStyle: 'fullScreen',
               });
 
               if (result.assets && result.assets.length > 0) {
@@ -203,7 +203,45 @@ const ProfileEditScreen = () => {
               }
             } catch (error) {
               console.error('Error picking image:', error);
-              Alert.alert('Error', 'Failed to pick image. Please try again.');
+              // If it fails, try with explicit permission request
+              try {
+                const hasPermission = await requestStoragePermission();
+                if (!hasPermission) {
+                  Alert.alert(
+                    'Permission Required',
+                    'Sorry, we need storage permissions to select profile pictures!',
+                    [{ text: 'OK' }]
+                  );
+                  return;
+                }
+
+                const result = await launchImageLibrary({
+                  mediaType: 'photo',
+                  includeBase64: false,
+                  maxHeight: 800,
+                  maxWidth: 800,
+                  quality: 0.8,
+                  selectionLimit: 1,
+                  includeExtra: true,
+                  presentationStyle: 'fullScreen',
+                });
+
+                if (result.assets && result.assets.length > 0) {
+                  const selectedImage = result.assets[0];
+                  setFormData(prev => ({
+                    ...prev,
+                    avatar: selectedImage.uri,
+                    selectedImageFile: {
+                      uri: selectedImage.uri,
+                      type: selectedImage.type || 'image/jpeg',
+                      name: selectedImage.fileName || 'profile.jpg'
+                    }
+                  }));
+                }
+              } catch (secondError) {
+                console.error('Error picking image with permission:', secondError);
+                Alert.alert('Error', 'Failed to pick image. Please try again.');
+              }
             }
           }
         },
