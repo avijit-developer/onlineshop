@@ -50,7 +50,7 @@ const ProfileScreen = () => {
       id: 'addresses',
       title: 'Addresses',
       subtitle: 'Manage delivery addresses',
-      icon: 'map-outline',
+      icon: 'home-outline',
       onPress: () => navigation.navigate('AddressList'),
     },
     {
