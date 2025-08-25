@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,72 +10,14 @@ import {
   FlatList,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import { useWishlist } from '../contexts/WishlistContext';
+import { useCart } from '../contexts/CartContext';
 
 const WishlistScreen = ({ navigation }) => {
-  const [wishlistItems, setWishlistItems] = useState([
-    {
-      id: '1',
-      name: 'Wireless Bluetooth Headphones',
-      price: 99.99,
-      originalPrice: 129.99,
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300',
-      rating: 4.5,
-      reviews: 234,
-      discount: '23%',
-      inStock: true,
-      brand: 'TechSound',
-    },
-    {
-      id: '2',
-      name: 'Summer Floral Dress',
-      price: 45.99,
-      originalPrice: 65.99,
-      image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=300',
-      rating: 4.2,
-      reviews: 89,
-      discount: '30%',
-      inStock: true,
-      brand: 'Fashion Co',
-    },
-    {
-      id: '3',
-      name: 'Premium Coffee Maker',
-      price: 79.99,
-      originalPrice: 99.99,
-      image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=300',
-      rating: 4.7,
-      reviews: 156,
-      discount: '20%',
-      inStock: false,
-      brand: 'BrewMaster',
-    },
-    {
-      id: '4',
-      name: 'Running Shoes',
-      price: 89.99,
-      originalPrice: 119.99,
-      image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300',
-      rating: 4.4,
-      reviews: 312,
-      discount: '25%',
-      inStock: true,
-      brand: 'SportFlex',
-    },
-    {
-      id: '5',
-      name: 'Skincare Essentials Set',
-      price: 34.99,
-      originalPrice: 49.99,
-      image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=300',
-      rating: 4.6,
-      reviews: 98,
-      discount: '30%',
-      inStock: true,
-      brand: 'GlowUp',
-    },
-  ]);
+  const { wishlist, isLoading, removeFromWishlist } = useWishlist();
+  const { addToCart } = useCart();
 
-  const removeFromWishlist = (itemId) => {
+  const handleRemoveFromWishlist = async (itemId) => {
     Alert.alert(
       'Remove from Wishlist',
       'Are you sure you want to remove this item from your wishlist?',
@@ -84,20 +26,30 @@ const WishlistScreen = ({ navigation }) => {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            setWishlistItems(prev => prev.filter(item => item.id !== itemId));
+          onPress: async () => {
+            const result = await removeFromWishlist(itemId);
+            if (result.success) {
+              Alert.alert('Success', 'Item removed from wishlist');
+            } else {
+              Alert.alert('Error', result.error || 'Failed to remove item');
+            }
           }
         }
       ]
     );
   };
 
-  const addToCart = (item) => {
-    Alert.alert('Added to Cart', `${item.name} has been added to your cart!`);
+  const handleAddToCart = async (item) => {
+    try {
+      await addToCart(item);
+      Alert.alert('Success', `${item.name} has been added to your cart!`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add item to cart');
+    }
   };
 
-  const moveAllToCart = () => {
-    const inStockItems = wishlistItems.filter(item => item.inStock);
+  const moveAllToCart = async () => {
+    const inStockItems = wishlist.filter(item => item.isActive);
     if (inStockItems.length === 0) {
       Alert.alert('No Items', 'No items available to add to cart');
       return;
@@ -110,8 +62,15 @@ const WishlistScreen = ({ navigation }) => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Move All',
-          onPress: () => {
-            Alert.alert('Success', `${inStockItems.length} items moved to cart!`);
+          onPress: async () => {
+            try {
+              for (const item of inStockItems) {
+                await addToCart(item);
+              }
+              Alert.alert('Success', `${inStockItems.length} items moved to cart!`);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to add some items to cart');
+            }
           }
         }
       ]
@@ -121,56 +80,30 @@ const WishlistScreen = ({ navigation }) => {
   const renderWishlistItem = ({ item }) => (
     <View style={styles.wishlistItem}>
       <View style={styles.itemImageContainer}>
-        <Image source={{ uri: item.image }} style={styles.itemImage} />
-        {item.discount && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>{item.discount}</Text>
-          </View>
-        )}
-        {!item.inStock && (
-          <View style={styles.outOfStockOverlay}>
-            <Text style={styles.outOfStockText}>Out of Stock</Text>
-          </View>
-        )}
+        <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }} style={styles.itemImage} />
         <TouchableOpacity 
           style={styles.removeButton}
-          onPress={() => removeFromWishlist(item.id)}
+          onPress={() => handleRemoveFromWishlist(item._id)}
         >
           <Icon name="x" size={16} color="#fff" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.itemDetails}>
-        <Text style={styles.itemBrand}>{item.brand}</Text>
+        <Text style={styles.itemBrand}>{item.brand?.name || 'Brand'}</Text>
         <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
         
-        <View style={styles.ratingContainer}>
-          <Icon name="star" size={12} color="#FFA726" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
-          <Text style={styles.reviewsText}>({item.reviews})</Text>
-        </View>
-
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>${item.price.toFixed(2)}</Text>
-          {item.originalPrice > item.price && (
-            <Text style={styles.originalPrice}>${item.originalPrice.toFixed(2)}</Text>
-          )}
+          <Text style={styles.price}>${item.price?.toFixed(2) || '0.00'}</Text>
         </View>
 
         <TouchableOpacity
-          style={[
-            styles.addToCartButton,
-            !item.inStock && styles.disabledButton
-          ]}
-          onPress={() => addToCart(item)}
-          disabled={!item.inStock}
+          style={styles.addToCartButton}
+          onPress={() => handleAddToCart(item)}
         >
-          <Icon name="shopping-cart" size={14} color={item.inStock ? "#fff" : "#999"} />
-          <Text style={[
-            styles.addToCartText,
-            !item.inStock && styles.disabledButtonText
-          ]}>
-            {item.inStock ? 'Add to Cart' : 'Out of Stock'}
+          <Icon name="shopping-cart" size={14} color="#fff" />
+          <Text style={styles.addToCartText}>
+            Add to Cart
           </Text>
         </TouchableOpacity>
       </View>
@@ -186,11 +119,15 @@ const WishlistScreen = ({ navigation }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Wishlist</Text>
         <View style={styles.wishlistBadge}>
-          <Text style={styles.wishlistBadgeText}>{wishlistItems.length}</Text>
+          <Text style={styles.wishlistBadgeText}>{wishlist.length}</Text>
         </View>
       </View>
 
-      {wishlistItems.length === 0 ? (
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading wishlist...</Text>
+        </View>
+      ) : wishlist.length === 0 ? (
         <View style={styles.emptyWishlist}>
           <Icon name="heart" size={64} color="#ccc" />
           <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
@@ -209,20 +146,20 @@ const WishlistScreen = ({ navigation }) => {
           {/* Wishlist Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{wishlistItems.length}</Text>
+              <Text style={styles.statNumber}>{wishlist.length}</Text>
               <Text style={styles.statLabel}>Items</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>
-                ${wishlistItems.reduce((sum, item) => sum + item.price, 0).toFixed(0)}
+                ${wishlist.reduce((sum, item) => sum + (item.price || 0), 0).toFixed(0)}
               </Text>
               <Text style={styles.statLabel}>Total Value</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>
-                {wishlistItems.filter(item => item.inStock).length}
+                {wishlist.filter(item => item.isActive).length}
               </Text>
               <Text style={styles.statLabel}>Available</Text>
             </View>
@@ -249,9 +186,9 @@ const WishlistScreen = ({ navigation }) => {
 
           {/* Wishlist Items */}
           <FlatList
-            data={wishlistItems}
+            data={wishlist}
             renderItem={renderWishlistItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item._id}
             numColumns={2}
             contentContainerStyle={styles.wishlistGrid}
             columnWrapperStyle={styles.wishlistRow}
@@ -324,6 +261,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
   },
   statsContainer: {
     flexDirection: 'row',

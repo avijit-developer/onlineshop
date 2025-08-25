@@ -32,7 +32,9 @@ const userSchema = new mongoose.Schema(
           default: undefined
         }
       }
-    }]
+    }],
+    // Wishlist management
+    wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }]
   },
   { timestamps: true }
 );

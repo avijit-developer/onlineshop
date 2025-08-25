@@ -177,6 +177,49 @@ const api = {
     });
   },
 
+  // Wishlist management functions (auto-token)
+  async getWishlist() {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/users/me/wishlist', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
+  async addToWishlist(productId) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request(`/api/v1/users/me/wishlist/${productId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
+  async removeFromWishlist(productId) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request(`/api/v1/users/me/wishlist/${productId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
+  async checkWishlistStatus(productId) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request(`/api/v1/users/me/wishlist/check/${productId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
   // Categories (public)
   async getCategoriesPublic(params = {}) {
     const parts = [];

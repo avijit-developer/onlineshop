@@ -468,4 +468,137 @@ router.delete('/:id/addresses/:addressId', authenticate, requireAdmin, async (re
   res.json({ success: true, data: user.addresses });
 });
 
+// Customer (self): get my wishlist
+router.get('/me/wishlist', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .populate({
+        path: 'wishlist',
+        select: '_id name description price images category brand isActive',
+        match: { isActive: true }
+      })
+      .lean();
+
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    res.json({ success: true, data: user.wishlist || [] });
+  } catch (error) {
+    console.error('Error fetching wishlist:', error);
+    res.status(500);
+    throw new Error('Failed to fetch wishlist');
+  }
+});
+
+// Customer (self): add product to wishlist
+router.post('/me/wishlist/:productId', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    // Validate productId format
+    if (!productId || !require('mongoose').Types.ObjectId.isValid(productId)) {
+      res.status(400);
+      throw new Error('Invalid product ID');
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    // Check if product is already in wishlist
+    if (user.wishlist.includes(productId)) {
+      res.status(409);
+      throw new Error('Product already in wishlist');
+    }
+
+    // Add product to wishlist
+    user.wishlist.push(productId);
+    await user.save();
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Product added to wishlist',
+      data: { productId }
+    });
+  } catch (error) {
+    console.error('Error adding to wishlist:', error);
+    res.status(500);
+    throw new Error(error.message || 'Failed to add product to wishlist');
+  }
+});
+
+// Customer (self): remove product from wishlist
+router.delete('/me/wishlist/:productId', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    // Validate productId format
+    if (!productId || !require('mongoose').Types.ObjectId.isValid(productId)) {
+      res.status(400);
+      throw new Error('Invalid product ID');
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    // Remove product from wishlist
+    const initialLength = user.wishlist.length;
+    user.wishlist = user.wishlist.filter(id => id.toString() !== productId);
+    
+    if (user.wishlist.length === initialLength) {
+      res.status(404);
+      throw new Error('Product not found in wishlist');
+    }
+
+    await user.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Product removed from wishlist',
+      data: { productId }
+    });
+  } catch (error) {
+    console.error('Error removing from wishlist:', error);
+    res.status(500);
+    throw new Error(error.message || 'Failed to remove product from wishlist');
+  }
+});
+
+// Customer (self): check if product is in wishlist
+router.get('/me/wishlist/check/:productId', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    // Validate productId format
+    if (!productId || !require('mongoose').Types.ObjectId.isValid(productId)) {
+      res.status(400);
+      throw new Error('Invalid product ID');
+    }
+
+    const user = await User.findById(req.user.id).select('wishlist').lean();
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    const isInWishlist = user.wishlist.some(id => id.toString() === productId);
+
+    res.json({ 
+      success: true, 
+      data: { isInWishlist }
+    });
+  } catch (error) {
+    console.error('Error checking wishlist:', error);
+    res.status(500);
+    throw new Error(error.message || 'Failed to check wishlist status');
+  }
+});
+
 module.exports = router;

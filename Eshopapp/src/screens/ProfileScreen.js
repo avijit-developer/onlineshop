@@ -12,11 +12,13 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 import { useCart } from '../contexts/CartContext';
+import { useWishlist } from '../contexts/WishlistContext';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user, orders, logout } = useUser();
   const { getCartItemsCount } = useCart();
+  const { getWishlistCount } = useWishlist();
 
   // Get user avatar or use default
   const getUserAvatar = () => {
@@ -56,7 +58,7 @@ const ProfileScreen = () => {
     {
       id: 'wishlist',
       title: 'Wishlist',
-      subtitle: 'Your saved items',
+      subtitle: `${getWishlistCount()} saved items`,
       icon: 'heart-outline',
       onPress: () => navigation.navigate('Wishlist'),
     },
@@ -188,7 +190,7 @@ const ProfileScreen = () => {
             <Text style={styles.statLabel}>Cart Items</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{getWishlistCount()}</Text>
             <Text style={styles.statLabel}>Wishlist</Text>
           </View>
         </View>

@@ -7,6 +7,7 @@ import { LocationProvider } from './src/contexts/LocationContext';
 import { CartProvider } from './src/contexts/CartContext';
 import { UserProvider } from './src/contexts/UserContext';
 import { AddressProvider } from './src/contexts/AddressContext';
+import { WishlistProvider } from './src/contexts/WishlistContext';
 
 const App = () => {
   return ( 
@@ -15,7 +16,8 @@ const App = () => {
       <UserProvider>
         <CartProvider>
           <AddressProvider>
-            <LocationProvider>
+            <WishlistProvider>
+              <LocationProvider>
               <StatusBar
                 barStyle="dark-content" // or "light-content"
                 backgroundColor="#ffffff" // adjust as needed
@@ -26,7 +28,8 @@ const App = () => {
                 <RootNavigator />
               </NavigationContainer>
               </SafeAreaView>
-            </LocationProvider>
+                          </LocationProvider>
+            </WishlistProvider>
           </AddressProvider>
         </CartProvider>
       </UserProvider>
