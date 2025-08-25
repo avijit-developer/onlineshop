@@ -147,7 +147,7 @@ const ProfileScreen = () => {
         </TouchableOpacity>
         <Text style={styles.title}>Profile</Text>
         <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-          <Icon name="create-outline" size={24} color="#f7ab18" />
+          <Icon name="create-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
