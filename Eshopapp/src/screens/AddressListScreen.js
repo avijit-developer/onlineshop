@@ -165,27 +165,48 @@ const AddressListScreen = ({ route }) => {
     }
   };
 
-  const renderAddressItem = ({ item }) => (
-    <View
-      style={[styles.addressCard, item.isDefault && styles.defaultAddressCard]}
-    >
-      <View style={styles.addressHeader}>
-        <View style={styles.addressInfo}>
-          <Text style={styles.addressLabel}>
-            {item.label || `${item.firstName} ${item.lastName}`}
-          </Text>
-          {item.isDefault && (
-            <View style={styles.defaultBadge}>
-              <Text style={styles.defaultText}>Default</Text>
+  // Sort addresses to show default address first, then by creation date
+  const sortedAddresses = React.useMemo(() => {
+    return [...addresses].sort((a, b) => {
+      // Default address should come first
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      // If both are default or both are not default, sort by creation date (newest first)
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      // Fallback to maintaining original order
+      return 0;
+    });
+  }, [addresses]);
+
+  const renderAddressItem = ({ item, index }) => (
+    <View>
+      <View
+        style={[styles.addressCard, item.isDefault && styles.defaultAddressCard]}
+      >
+        <View style={styles.addressHeader}>
+          <View style={styles.addressInfo}>
+            <View style={styles.addressLabelRow}>
+              {item.isDefault && (
+                <Icon name="star" size={16} color="#f7ab18" style={styles.defaultIcon} />
+              )}
+              <Text style={styles.addressLabel}>
+                {item.label || `${item.firstName} ${item.lastName}`}
+              </Text>
             </View>
-          )}
-          {!item._originalId && (
-            <View style={styles.localBadge}>
-              <Text style={styles.localText}>Local</Text>
-            </View>
-          )}
+            {item.isDefault && (
+              <View style={styles.defaultBadge}>
+                <Text style={styles.defaultText}>Default</Text>
+              </View>
+            )}
+            {!item._originalId && (
+              <View style={styles.localBadge}>
+                <Text style={styles.localText}>Local</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
 
       <View style={styles.addressContent}>
         <Text style={styles.addressText}>
@@ -229,6 +250,12 @@ const AddressListScreen = ({ route }) => {
         </TouchableOpacity>
       </View>
     </View>
+      
+      {/* Add separator after default address */}
+      {item.isDefault && index < sortedAddresses.length - 1 && (
+        <View style={styles.separator} />
+      )}
+    </View>
   );
 
   const renderEmptyState = () => (
@@ -266,14 +293,32 @@ const AddressListScreen = ({ route }) => {
       {addresses.length === 0 ? (
         renderEmptyState()
       ) : (
-        <FlatList
-          data={addresses}
-          renderItem={renderAddressItem}
-          keyExtractor={(item) => item.id}
-          style={styles.addressList}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.addressListContent}
-        />
+        <View style={styles.addressListContainer}>
+          {/* Default Address Section */}
+          {sortedAddresses.some(addr => addr.isDefault) && (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Default Address</Text>
+            </View>
+          )}
+          
+          {/* Other Addresses Section */}
+          {sortedAddresses.some(addr => !addr.isDefault) && (
+            <View style={styles.otherAddressesSection}>
+              <View style={styles.otherSectionHeader}>
+                <Text style={styles.otherSectionTitle}>Other Addresses</Text>
+              </View>
+            </View>
+          )}
+          
+          <FlatList
+            data={sortedAddresses}
+            renderItem={renderAddressItem}
+            keyExtractor={(item) => item.id}
+            style={styles.addressList}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.addressListContent}
+          />
+        </View>
       )}
 
       {/* Add Address Modal */}
@@ -348,11 +393,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  addressListContainer: {
+    flex: 1,
+  },
   addressList: {
     flex: 1,
   },
   addressListContent: {
     padding: 16,
+  },
+  sectionHeader: {
+    backgroundColor: '#f7ab18',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0a000',
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  otherAddressesSection: {
+    marginTop: 8,
+  },
+  otherSectionHeader: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  otherSectionTitle: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  separator: {
+    height: 16,
+    backgroundColor: '#f5f5f5',
+    marginHorizontal: 16,
+    borderRadius: 8,
   },
   addressCard: {
     backgroundColor: '#fff',
@@ -369,6 +452,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#f7ab18',
     backgroundColor: '#fff8e1',
+    shadowColor: '#f7ab18',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   addressHeader: {
     flexDirection: 'row',
@@ -379,11 +467,18 @@ const styles = StyleSheet.create({
   addressInfo: {
     flex: 1,
   },
+  addressLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  defaultIcon: {
+    marginRight: 6,
+  },
   addressLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
   },
   defaultBadge: {
     backgroundColor: '#f7ab18',
