@@ -124,12 +124,22 @@ router.post('/login', async (req, res) => {
     { expiresIn: getJwtExpiry() }
   );
 
-  return res.json({ success: true, token, user: { id: customer._id, name: customer.name, email: customer.email, role: 'customer' } });
+  return res.json({ 
+    success: true, 
+    token, 
+    user: { 
+      id: customer._id, 
+      name: customer.name, 
+      email: customer.email, 
+      phone: customer.phone,
+      role: 'customer' 
+    } 
+  });
 });
 
 // Public customer registration
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body || {};
+  const { name, email, password, phone } = req.body || {};
   if (!name || !email || !password) {
     res.status(400);
     throw new Error('name, email and password are required');
@@ -147,7 +157,12 @@ router.post('/register', async (req, res) => {
   if (exists) { res.status(409); throw new Error('Email already in use'); }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const created = await User.create({ name: String(name).trim(), email: String(email).trim().toLowerCase(), passwordHash });
+  const created = await User.create({ 
+    name: String(name).trim(), 
+    email: String(email).trim().toLowerCase(), 
+    phone: phone ? String(phone).trim() : undefined,
+    passwordHash 
+  });
 
   const token = jwt.sign(
     { id: created._id.toString(), role: 'customer', email: created.email },
@@ -155,24 +170,57 @@ router.post('/register', async (req, res) => {
     { expiresIn: getJwtExpiry() }
   );
 
-  res.status(201).json({ success: true, token, user: { id: created._id, name: created.name, email: created.email, role: 'customer' } });
+  res.status(201).json({ 
+    success: true, 
+    token, 
+    user: { 
+      id: created._id, 
+      name: created.name, 
+      email: created.email, 
+      phone: created.phone,
+      role: 'customer' 
+    } 
+  });
 });
 
-router.get('/me', authenticate, requireAdmin, async (req, res) => {
-  const admin = await Admin.findById(req.user.id).lean();
-  if (!admin || admin.isActive === false) {
-    res.status(401);
-    throw new Error('Admin not found or inactive');
-  }
-  res.json({
-    success: true,
-    user: {
-      id: admin._id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role
+// Customer: get my profile
+router.get('/me', authenticate, async (req, res) => {
+  if (req.user.role === 'customer') {
+    const customer = await User.findById(req.user.id).lean();
+    if (!customer || customer.isActive === false) {
+      res.status(401);
+      throw new Error('Customer not found or inactive');
     }
-  });
+    res.json({
+      success: true,
+      user: {
+        id: customer._id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        role: 'customer'
+      }
+    });
+  } else if (req.user.role === 'admin') {
+    // Admin profile endpoint
+    const admin = await Admin.findById(req.user.id).lean();
+    if (!admin || admin.isActive === false) {
+      res.status(401);
+      throw new Error('Admin not found or inactive');
+    }
+    res.json({
+      success: true,
+      user: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role
+      }
+    });
+  } else {
+    res.status(400);
+    throw new Error('Invalid user role');
+  }
 });
 
 // Get current user permissions in real-time
