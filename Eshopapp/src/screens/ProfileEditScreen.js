@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 
 const ProfileEditScreen = () => {
   const navigation = useNavigation();
@@ -98,45 +98,121 @@ const ProfileEditScreen = () => {
     return true;
   };
 
-  const handleImagePick = async () => {
-    try {
-      // Request permissions for Android
-      const hasPermission = await requestStoragePermission();
-      if (!hasPermission) {
-        Alert.alert(
-          'Permission Required',
-          'Sorry, we need storage permissions to select profile pictures!',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      // Launch image picker
-      const result = await launchImageLibrary({
-        mediaType: 'photo',
-        includeBase64: false,
-        maxHeight: 800,
-        maxWidth: 800,
-        quality: 0.8,
-        selectionLimit: 1,
-      });
-
-      if (result.assets && result.assets.length > 0) {
-        const selectedImage = result.assets[0];
-        setFormData(prev => ({
-          ...prev,
-          avatar: selectedImage.uri,
-          selectedImageFile: {
-            uri: selectedImage.uri,
-            type: selectedImage.type || 'image/jpeg',
-            name: selectedImage.fileName || 'profile.jpg'
+  const requestCameraPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera Permission',
+            message: 'App needs access to your camera to take profile pictures.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
           }
-        }));
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
       }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
+    return true;
+  };
+
+  const handleImagePick = async () => {
+    Alert.alert(
+      'Select Profile Picture',
+      'Choose how you want to add a profile picture',
+      [
+        {
+          text: 'Camera',
+          onPress: async () => {
+            try {
+              const hasPermission = await requestCameraPermission();
+              if (!hasPermission) {
+                Alert.alert(
+                  'Permission Required',
+                  'Sorry, we need camera permissions to take profile pictures!',
+                  [{ text: 'OK' }]
+                );
+                return;
+              }
+
+              const result = await launchCamera({
+                mediaType: 'photo',
+                includeBase64: false,
+                maxHeight: 800,
+                maxWidth: 800,
+                quality: 0.8,
+                saveToPhotos: true,
+              });
+
+              if (result.assets && result.assets.length > 0) {
+                const selectedImage = result.assets[0];
+                setFormData(prev => ({
+                  ...prev,
+                  avatar: selectedImage.uri,
+                  selectedImageFile: {
+                    uri: selectedImage.uri,
+                    type: selectedImage.type || 'image/jpeg',
+                    name: selectedImage.fileName || 'profile.jpg'
+                  }
+                }));
+              }
+            } catch (error) {
+              console.error('Error taking photo:', error);
+              Alert.alert('Error', 'Failed to take photo. Please try again.');
+            }
+          }
+        },
+        {
+          text: 'Gallery',
+          onPress: async () => {
+            try {
+              const hasPermission = await requestStoragePermission();
+              if (!hasPermission) {
+                Alert.alert(
+                  'Permission Required',
+                  'Sorry, we need storage permissions to select profile pictures!',
+                  [{ text: 'OK' }]
+                );
+                return;
+              }
+
+              const result = await launchImageLibrary({
+                mediaType: 'photo',
+                includeBase64: false,
+                maxHeight: 800,
+                maxWidth: 800,
+                quality: 0.8,
+                selectionLimit: 1,
+              });
+
+              if (result.assets && result.assets.length > 0) {
+                const selectedImage = result.assets[0];
+                setFormData(prev => ({
+                  ...prev,
+                  avatar: selectedImage.uri,
+                  selectedImageFile: {
+                    uri: selectedImage.uri,
+                    type: selectedImage.type || 'image/jpeg',
+                    name: selectedImage.fileName || 'profile.jpg'
+                  }
+                }));
+              }
+            } catch (error) {
+              console.error('Error picking image:', error);
+              Alert.alert('Error', 'Failed to pick image. Please try again.');
+            }
+          }
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
   };
 
   const handleSave = async () => {
