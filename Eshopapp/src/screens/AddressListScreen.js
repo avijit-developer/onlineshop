@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,20 @@ const AddressListScreen = ({ route }) => {
   const isSelecting = route.params?.isSelecting || false;
   const setDefaultOnSelect = route.params?.setDefaultOnSelect || false;
   const returnTo = route.params?.returnTo || null;
+
+  // Ensure default address is always shown at the top
+  const sortedAddresses = useMemo(() => {
+    const clone = [...addresses];
+    clone.sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      // Secondary sort: newest updated first
+      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+    return clone;
+  }, [addresses]);
 
   const handleAddAddress = () => {
     setShowAddModal(true);
@@ -185,6 +199,15 @@ const AddressListScreen = ({ route }) => {
             </View>
           )}
         </View>
+        {/* Quick action to set default when not selecting */}
+        {!isSelecting && !item.isDefault && (
+          <TouchableOpacity
+            style={styles.setDefaultButton}
+            onPress={() => handleSetDefault(item)}
+          >
+            <Text style={styles.setDefaultText}>Set Default</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.addressContent}>
@@ -210,12 +233,19 @@ const AddressListScreen = ({ route }) => {
         <View style={[styles.primaryButton, styles.defaultButton]}>
           <Text style={[styles.primaryButtonText, styles.defaultButtonText]}>Default Address</Text>
         </View>
-      ) : (
+      ) : isSelecting ? (
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={() => handleSelectAddress(item)}
         >
           <Text style={styles.primaryButtonText}>Deliver to this address</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => handleSetDefault(item)}
+        >
+          <Text style={styles.primaryButtonText}>Set as default</Text>
         </TouchableOpacity>
       )}
 
@@ -267,7 +297,7 @@ const AddressListScreen = ({ route }) => {
         renderEmptyState()
       ) : (
         <FlatList
-          data={addresses}
+          data={sortedAddresses}
           renderItem={renderAddressItem}
           keyExtractor={(item) => item.id}
           style={styles.addressList}
