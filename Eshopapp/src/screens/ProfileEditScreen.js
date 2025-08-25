@@ -13,6 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
+import * as ImagePicker from 'expo-image-picker';
 
 const ProfileEditScreen = () => {
   const navigation = useNavigation();
@@ -74,12 +75,43 @@ const ProfileEditScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleImagePick = () => {
-    Alert.alert(
-      'Profile Picture',
-      'Image picking functionality will be available in a future update. For now, you can edit your profile information.',
-      [{ text: 'OK' }]
-    );
+  const handleImagePick = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Sorry, we need camera roll permissions to make this work!',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const selectedImage = result.assets[0];
+        setFormData(prev => ({
+          ...prev,
+          avatar: selectedImage.uri,
+          selectedImageFile: {
+            uri: selectedImage.uri,
+            type: 'image/jpeg',
+            name: 'profile.jpg'
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
   };
 
   const handleSave = async () => {
@@ -93,19 +125,31 @@ const ProfileEditScreen = () => {
         name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        avatar: formData.avatar,
       };
 
-      // Call updateUser function from UserContext
-      const result = await updateUser(updatedUserData);
-      
-      if (result.success) {
-        Alert.alert('Success', 'Profile updated successfully!', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+      // If there's a new image selected, upload it first
+      if (formData.selectedImageFile) {
+        try {
+          const uploadResult = await updateUser({ ...updatedUserData, selectedImageFile: formData.selectedImageFile });
+          if (!uploadResult.success) {
+            throw new Error(uploadResult.error || 'Failed to upload profile picture');
+          }
+        } catch (uploadError) {
+          console.log('Error uploading image:', uploadError);
+          Alert.alert('Error', 'Failed to upload profile picture. Please try again.');
+          return;
+        }
       } else {
-        throw new Error(result.error || 'Failed to update profile');
+        // Update profile without image
+        const result = await updateUser(updatedUserData);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to update profile');
+        }
       }
+      
+      Alert.alert('Success', 'Profile updated successfully!', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
     } catch (error) {
       console.log('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');

@@ -173,8 +173,25 @@ export const UserProvider = ({ children }) => {
 
   const updateUser = async (userData) => {
     try {
-      // Call API to update user profile
-      const response = await api.updateUserProfile(token, userData);
+      let response;
+      
+      // If there's an image file to upload, handle it separately
+      if (userData.selectedImageFile) {
+        // Upload image first
+        const imageResponse = await api.uploadProfilePicture(token, userData.selectedImageFile);
+        
+        // Then update profile with the new avatar URL
+        const { selectedImageFile, ...profileData } = userData;
+        const profileResponse = await api.updateUserProfile(token, {
+          ...profileData,
+          avatar: imageResponse.data.avatar
+        });
+        
+        response = profileResponse;
+      } else {
+        // Regular profile update
+        response = await api.updateUserProfile(token, userData);
+      }
       
       // Update local state with the response from server
       const updatedUser = { ...user, ...response.data };

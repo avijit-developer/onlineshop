@@ -132,6 +132,7 @@ router.post('/login', async (req, res) => {
       name: customer.name, 
       email: customer.email, 
       phone: customer.phone,
+      avatar: customer.avatar,
       role: 'customer' 
     } 
   });
@@ -178,6 +179,7 @@ router.post('/register', async (req, res) => {
       name: created.name, 
       email: created.email, 
       phone: created.phone,
+      avatar: created.avatar,
       role: 'customer' 
     } 
   });
@@ -198,6 +200,7 @@ router.get('/me', authenticate, async (req, res) => {
         name: customer.name,
         email: customer.email,
         phone: customer.phone,
+        avatar: customer.avatar,
         role: 'customer'
       }
     });

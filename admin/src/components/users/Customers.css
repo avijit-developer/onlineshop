@@ -19,6 +19,38 @@
 /* Customer info in table */
 .customer-info {
   display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.customer-avatar {
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e0e0e0;
+}
+
+.avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #f7ab18;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  border: 2px solid #e0e0e0;
+}
+
+.customer-details {
+  display: flex;
   flex-direction: column;
 }
 

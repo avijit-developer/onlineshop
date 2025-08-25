@@ -72,6 +72,7 @@ const Customers = () => {
         name: u.name,
         email: u.email,
         phone: u.phone || '-',
+        avatar: u.avatar,
         status: u.isActive === false ? 'inactive' : 'active',
         totalOrders: u.totalOrders || 0,
         totalSpent: u.totalSpent || 0,
@@ -319,8 +320,28 @@ const Customers = () => {
                 <tr key={customer.id}>
                   <td>
                     <div className="customer-info">
-                      <strong>{customer.name}</strong>
-                      <span>ID: {customer.id}</span>
+                      <div className="customer-avatar">
+                        {customer.avatar ? (
+                          <img 
+                            src={customer.avatar} 
+                            alt={customer.name}
+                            className="avatar-img"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                        ) : null}
+                        {!customer.avatar && (
+                          <div className="avatar-placeholder">
+                            {customer.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="customer-details">
+                        <strong>{customer.name}</strong>
+                        <span>ID: {customer.id}</span>
+                      </div>
                     </div>
                   </td>
                   <td>

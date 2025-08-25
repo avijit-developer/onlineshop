@@ -1,6 +1,20 @@
 const express = require('express');
+const multer = require('multer');
 const User = require('../models/User');
 const { authenticate, requireAdmin, requireRole } = require('../middleware/auth');
+const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -202,7 +216,7 @@ router.put('/me/addresses/:addressId', authenticate, requireRole(['customer']), 
 
 // Customer (self): update profile
 router.put('/me/profile', authenticate, requireRole(['customer']), async (req, res) => {
-  const { name, email, phone } = req.body || {};
+  const { name, email, phone, avatar } = req.body || {};
   
   const user = await User.findById(req.user.id);
   if (!user) { 
@@ -230,6 +244,7 @@ router.put('/me/profile', authenticate, requireRole(['customer']), async (req, r
   if (name !== undefined) updateData.name = String(name).trim();
   if (email !== undefined) updateData.email = String(email).trim().toLowerCase();
   if (phone !== undefined) updateData.phone = String(phone).trim();
+  if (avatar !== undefined) updateData.avatar = String(avatar).trim();
 
   const updatedUser = await User.findByIdAndUpdate(
     req.user.id, 
@@ -238,6 +253,79 @@ router.put('/me/profile', authenticate, requireRole(['customer']), async (req, r
   ).select('-passwordHash');
 
   res.json({ success: true, data: updatedUser });
+});
+
+// Customer (self): upload profile picture
+router.post('/me/avatar', authenticate, requireRole(['customer']), upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      res.status(400);
+      throw new Error('No image file provided');
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    // Delete old avatar from Cloudinary if it exists
+    if (user.avatarPublicId) {
+      await deleteImageByPublicId(user.avatarPublicId);
+    }
+
+    // Upload new image to Cloudinary
+    let uploaded = null;
+    try {
+      uploaded = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'avatars');
+    } catch (e) {
+      throw new Error(`Cloudinary upload failed: ${e?.message || e}`);
+    }
+
+    // Update user with new avatar
+    user.avatar = uploaded.url;
+    user.avatarPublicId = uploaded.publicId;
+    await user.save();
+
+    res.json({ 
+      success: true, 
+      data: { 
+        avatar: user.avatar,
+        avatarPublicId: user.avatarPublicId 
+      } 
+    });
+  } catch (error) {
+    console.error('Profile picture upload error:', error);
+    res.status(500);
+    throw new Error(error.message || 'Failed to upload profile picture');
+  }
+});
+
+// Customer (self): delete profile picture
+router.delete('/me/avatar', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    // Delete avatar from Cloudinary if it exists
+    if (user.avatarPublicId) {
+      await deleteImageByPublicId(user.avatarPublicId);
+    }
+
+    // Remove avatar from user
+    user.avatar = undefined;
+    user.avatarPublicId = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Profile picture removed successfully' });
+  } catch (error) {
+    console.error('Profile picture deletion error:', error);
+    res.status(500);
+    throw new Error(error.message || 'Failed to remove profile picture');
+  }
 });
 
 // Customer (self): delete address

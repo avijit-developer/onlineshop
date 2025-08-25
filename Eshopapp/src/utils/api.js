@@ -148,6 +148,35 @@ const api = {
     });
   },
 
+  // Customer profile picture upload
+  async uploadProfilePicture(token, imageFile) {
+    const formData = new FormData();
+    formData.append('avatar', {
+      uri: imageFile.uri,
+      type: imageFile.type || 'image/jpeg',
+      name: imageFile.name || 'profile.jpg'
+    });
+
+    return this.request('/api/v1/users/me/avatar', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+  },
+
+  // Customer profile picture delete
+  async deleteProfilePicture(token) {
+    return this.request('/api/v1/users/me/avatar', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
   // Categories (public)
   async getCategoriesPublic(params = {}) {
     const parts = [];
