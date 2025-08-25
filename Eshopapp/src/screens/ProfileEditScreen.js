@@ -9,11 +9,12 @@ import {
   Alert,
   TextInput,
   Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
-import * as ImagePicker from 'expo-image-picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 const ProfileEditScreen = () => {
   const navigation = useNavigation();
@@ -75,36 +76,60 @@ const ProfileEditScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const requestStoragePermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          {
+            title: 'Storage Permission',
+            message: 'App needs access to your storage to select profile pictures.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleImagePick = async () => {
     try {
-      // Request permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
+      // Request permissions for Android
+      const hasPermission = await requestStoragePermission();
+      if (!hasPermission) {
         Alert.alert(
           'Permission Required',
-          'Sorry, we need camera roll permissions to make this work!',
+          'Sorry, we need storage permissions to select profile pictures!',
           [{ text: 'OK' }]
         );
         return;
       }
 
       // Launch image picker
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        includeBase64: false,
+        maxHeight: 800,
+        maxWidth: 800,
         quality: 0.8,
+        selectionLimit: 1,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (result.assets && result.assets.length > 0) {
         const selectedImage = result.assets[0];
         setFormData(prev => ({
           ...prev,
           avatar: selectedImage.uri,
           selectedImageFile: {
             uri: selectedImage.uri,
-            type: 'image/jpeg',
-            name: 'profile.jpg'
+            type: selectedImage.type || 'image/jpeg',
+            name: selectedImage.fileName || 'profile.jpg'
           }
         }));
       }
