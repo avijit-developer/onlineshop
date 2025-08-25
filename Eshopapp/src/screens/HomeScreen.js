@@ -5,10 +5,12 @@ import {
   ScrollView,
   StyleSheet,
   Animated,
-
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 
 import Header from '../components/Header';
+import { useWishlist } from '../contexts/WishlistContext';
 
 // Removed static Best Seller (RecentView)
 
@@ -24,6 +26,7 @@ import BestSellerSection from '../components/BestSellerSection';
 const HomeScreen = ({ navigation }) => {
   const translateY = useRef(new Animated.Value(0)).current;
   const [prevScrollY, setPrevScrollY] = useState(0);
+  const { getWishlistCount, toggleWishlist, isInWishlist } = useWishlist();
 
   const handleScroll = (event) => {
     const currentY = event.nativeEvent.contentOffset.y;
@@ -57,6 +60,17 @@ const HomeScreen = ({ navigation }) => {
 
        
         <Header />
+        
+        {/* Test Wishlist Button */}
+        <TouchableOpacity 
+          style={styles.testButton}
+          onPress={() => {
+            Alert.alert('Wishlist Test', `Wishlist count: ${getWishlistCount()}`);
+          }}
+        >
+          <Text style={styles.testButtonText}>Test Wishlist ({getWishlistCount()})</Text>
+        </TouchableOpacity>
+        
         <SliderBanner />
         <AllCategories />
         <MostPopularSection navigation={navigation} />
@@ -87,6 +101,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  testButton: {
+    backgroundColor: '#f7ab18',
+    padding: 10,
+    margin: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  testButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 

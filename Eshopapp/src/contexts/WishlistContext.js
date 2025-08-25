@@ -18,14 +18,18 @@ export const WishlistProvider = ({ children }) => {
 
   // Load wishlist on mount
   useEffect(() => {
+    console.log('WishlistProvider: Loading wishlist on mount');
     loadWishlist();
   }, []);
 
   const loadWishlist = async () => {
     try {
+      console.log('WishlistProvider: Starting to load wishlist');
       setIsLoading(true);
       const response = await api.getWishlist();
+      console.log('WishlistProvider: API response:', response);
       const wishlistItems = response.data || [];
+      console.log('WishlistProvider: Wishlist items:', wishlistItems);
       setWishlist(wishlistItems);
       
       // Update wishlist status for all products
@@ -34,9 +38,13 @@ export const WishlistProvider = ({ children }) => {
         statusMap[item._id] = true;
       });
       setWishlistStatus(statusMap);
+      console.log('WishlistProvider: Wishlist status map:', statusMap);
     } catch (error) {
       console.error('Error loading wishlist:', error);
       // Don't show error for initial load if user is not logged in
+      // Set empty wishlist on error
+      setWishlist([]);
+      setWishlistStatus({});
     } finally {
       setIsLoading(false);
     }
