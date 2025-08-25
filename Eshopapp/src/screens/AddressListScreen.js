@@ -267,7 +267,13 @@ const AddressListScreen = ({ route }) => {
         renderEmptyState()
       ) : (
         <FlatList
-          data={addresses}
+          data={addresses.sort((a, b) => {
+            // Sort default address to the top
+            if (a.isDefault && !b.isDefault) return -1;
+            if (!a.isDefault && b.isDefault) return 1;
+            // If both have same default status, maintain original order
+            return 0;
+          })}
           renderItem={renderAddressItem}
           keyExtractor={(item) => item.id}
           style={styles.addressList}
