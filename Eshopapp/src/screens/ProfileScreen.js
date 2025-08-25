@@ -13,7 +13,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
-import { Image } from 'react-native';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
