@@ -7,6 +7,7 @@ import ProductReviews from '../components/ProductReviews';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import LottieView from 'lottie-react-native';
 import { useCart } from '../contexts/CartContext';
+import { useWishlist } from '../contexts/WishlistContext';
 import ViewCartFooter from '../components/ViewCartFooter';
 import api from '../utils/api';
 
@@ -16,6 +17,7 @@ export default function ProductDetailsScreen() {
     const { productId, product: productData } = route.params || {};
 
     const { addToCart } = useCart();
+    const { toggleWishlist, isInWishlist, checkWishlistStatus } = useWishlist();
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -53,6 +55,13 @@ export default function ProductDetailsScreen() {
             setLoading(false);
         }
     }, [productId, productData]);
+
+    // Check wishlist status when product changes
+    useEffect(() => {
+        if (product && product._id) {
+            checkWishlistStatus(product._id);
+        }
+    }, [product, checkWishlistStatus]);
 
     const setupProductData = (productData) => {
         if (!productData) return;
@@ -324,6 +333,26 @@ export default function ProductDetailsScreen() {
         }, 500);
     };
 
+    const handleToggleWishlist = async () => {
+        if (!product || !product._id) {
+            Alert.alert('Error', 'Product information not available');
+            return;
+        }
+        
+        try {
+            const result = await toggleWishlist(product._id);
+            if (result.success) {
+                // Success feedback could be added here
+                console.log('Wishlist updated successfully');
+            } else {
+                Alert.alert('Error', result.error || 'Failed to update wishlist');
+            }
+        } catch (error) {
+            console.error('Error toggling wishlist:', error);
+            Alert.alert('Error', 'Failed to update wishlist');
+        }
+    };
+
     const { regular, special } = currentPriceBlock();
     const stock = currentStock();
     const outOfStock = isOutOfStock();
@@ -590,8 +619,15 @@ export default function ProductDetailsScreen() {
             </ScrollView>
 
             <View style={styles.actionsContainer}>
-                <TouchableOpacity style={styles.heartButton}>
-                    <Text style={styles.heartIcon}>♡</Text>
+                <TouchableOpacity 
+                    style={[styles.heartButton, isInWishlist(product._id) && styles.heartButtonActive]} 
+                    onPress={handleToggleWishlist}
+                >
+                    <AntDesign 
+                        name={isInWishlist(product._id) ? "heart" : "hearto"} 
+                        size={20} 
+                        color={isInWishlist(product._id) ? "#e53935" : "#333"} 
+                    />
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -816,6 +852,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 1 },
         shadowRadius: 2,
+    },
+    heartButtonActive: {
+        borderColor: '#e53935',
+        backgroundColor: '#fff5f5',
     },
     heartIcon: {
         fontSize: 20,
