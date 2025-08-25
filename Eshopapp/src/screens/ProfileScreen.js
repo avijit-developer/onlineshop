@@ -43,7 +43,7 @@ const ProfileScreen = () => {
       id: 'orders',
       title: 'My Orders',
       subtitle: `${orders?.length || 0} orders`,
-      icon: 'bag-outline',
+      icon: 'receipt-outline',
       onPress: () => navigation.navigate('OrderList'),
     },
     {
