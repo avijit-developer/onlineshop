@@ -113,18 +113,18 @@ const WishlistScreen = ({ navigation }) => {
             )}
           </View>
 
-        <TouchableOpacity
-          style={styles.addToCartButton}
-          onPress={() => handleAddToCart(item)}
-        >
-          <Icon name="shopping-cart" size={14} color="#fff" />
-          <Text style={styles.addToCartText}>
-            Add to Cart
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addToCartButton}
+            onPress={() => handleAddToCart(item)}
+          >
+            <Icon name="shopping-cart" size={14} color="#fff" />
+            <Text style={styles.addToCartText}>
+              Add to Cart
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
 
   return (
     <View style={styles.container}>
