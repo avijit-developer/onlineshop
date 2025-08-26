@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../utils/api';
 
 const WishlistContext = createContext();
@@ -16,13 +16,7 @@ export const WishlistProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [wishlistStatus, setWishlistStatus] = useState({}); // productId -> boolean
 
-  // Load wishlist on mount
-  useEffect(() => {
-    console.log('WishlistProvider: Loading wishlist on mount');
-    loadWishlist();
-  }, []);
-
-  const loadWishlist = async () => {
+  const loadWishlist = useCallback(async () => {
     try {
       console.log('WishlistProvider: Starting to load wishlist');
       setIsLoading(true);
@@ -48,9 +42,15 @@ export const WishlistProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const addToWishlist = async (productId) => {
+  // Load wishlist on mount
+  useEffect(() => {
+    console.log('WishlistProvider: Loading wishlist on mount');
+    loadWishlist();
+  }, [loadWishlist]);
+
+  const addToWishlist = useCallback(async (productId) => {
     try {
       await api.addToWishlist(productId);
       
@@ -68,9 +68,9 @@ export const WishlistProvider = ({ children }) => {
       console.error('Error adding to wishlist:', error);
       return { success: false, error: error.message };
     }
-  };
+  }, [loadWishlist]);
 
-  const removeFromWishlist = async (productId) => {
+  const removeFromWishlist = useCallback(async (productId) => {
     try {
       await api.removeFromWishlist(productId);
       
@@ -88,19 +88,17 @@ export const WishlistProvider = ({ children }) => {
       console.error('Error removing from wishlist:', error);
       return { success: false, error: error.message };
     }
-  };
+  }, []);
 
-  const toggleWishlist = async (productId) => {
-    const isInWishlist = wishlistStatus[productId];
-    
-    if (isInWishlist) {
+  const toggleWishlist = useCallback(async (productId) => {
+    const inList = wishlistStatus[productId];
+    if (inList) {
       return await removeFromWishlist(productId);
-    } else {
-      return await addToWishlist(productId);
     }
-  };
+    return await addToWishlist(productId);
+  }, [wishlistStatus, addToWishlist, removeFromWishlist]);
 
-  const checkWishlistStatus = async (productId) => {
+  const checkWishlistStatus = useCallback(async (productId) => {
     try {
       const response = await api.checkWishlistStatus(productId);
       const isInWishlist = response.data.isInWishlist;
@@ -115,17 +113,13 @@ export const WishlistProvider = ({ children }) => {
       console.error('Error checking wishlist status:', error);
       return false;
     }
-  };
+  }, []);
 
-  const getWishlistCount = () => {
-    return wishlist.length;
-  };
+  const getWishlistCount = useCallback(() => wishlist.length, [wishlist]);
 
-  const isInWishlist = (productId) => {
-    return wishlistStatus[productId] || false;
-  };
+  const isInWishlist = useCallback((productId) => wishlistStatus[productId] || false, [wishlistStatus]);
 
-  const value = {
+  const value = useMemo(() => ({
     wishlist,
     isLoading,
     wishlistStatus,
@@ -136,7 +130,7 @@ export const WishlistProvider = ({ children }) => {
     loadWishlist,
     getWishlistCount,
     isInWishlist,
-  };
+  }), [wishlist, isLoading, wishlistStatus, addToWishlist, removeFromWishlist, toggleWishlist, checkWishlistStatus, loadWishlist, getWishlistCount, isInWishlist]);
 
   return (
     <WishlistContext.Provider value={value}>

@@ -54,7 +54,7 @@ export default function ProductDetailsScreen() {
             setError('No product information provided');
             setLoading(false);
         }
-    }, [productId, productData]);
+    }, [productId]);
 
     // Check wishlist status when product changes
     useEffect(() => {
