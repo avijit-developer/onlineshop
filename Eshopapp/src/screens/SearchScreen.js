@@ -215,6 +215,11 @@ const SearchScreen = () => {
     navigation.navigate('ProductDetails', { productId: item.id });
   };
 
+  // Helper function to get the correct price for cart
+  const getCartPrice = (item) => {
+    return item.specialPrice != null ? item.specialPrice : item.regularPrice;
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <View style={styles.container}>
@@ -359,7 +364,15 @@ const SearchScreen = () => {
                     )}
                     <TouchableOpacity
                       style={{ borderWidth: 1, borderColor: '#FFA726', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6 }}
-                      onPress={() => addToCart({ _id: item.id, id: item.id, regularPrice: item.regularPrice, specialPrice: item.specialPrice, images: [item.image] }, 1)}
+                      onPress={() => addToCart({ 
+                        _id: item.id, 
+                        id: item.id, 
+                        name: item.name, // Add product name
+                        regularPrice: item.regularPrice, 
+                        specialPrice: item.specialPrice,
+                        price: getCartPrice(item), // Use the correct price for cart
+                        images: [item.image] 
+                      }, 1)}
                     >
                       <Text style={{ color: '#FFA726', fontWeight: '700', fontSize: 12 }}>ADD</Text>
                     </TouchableOpacity>
