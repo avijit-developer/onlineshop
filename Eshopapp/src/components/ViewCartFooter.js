@@ -25,25 +25,32 @@ const ViewCartFooter = () => {
 
   // Auto-expand when cart has items
   useEffect(() => {
-    if (cartItems.length > 0 && !isExpanded) {
-      setIsExpanded(true);
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-    } else if (cartItems.length === 0 && isExpanded) {
-      setIsExpanded(false);
-      Animated.spring(slideAnim, {
-        toValue: 100,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
+    console.log('🦶 ViewCartFooter Debug - cartItems.length:', cartItems.length, 'isExpanded:', isExpanded);
+    
+    if (cartItems.length > 0) {
+      if (!isExpanded) {
+        console.log('🦶 Expanding footer...');
+        setIsExpanded(true);
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }).start();
+      }
+    } else {
+      if (isExpanded) {
+        console.log('🦶 Collapsing footer...');
+        setIsExpanded(false);
+        Animated.spring(slideAnim, {
+          toValue: 100,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }).start();
+      }
     }
   }, [cartItems.length, isExpanded, slideAnim]);
-
 
   // Memoize calculations to prevent unnecessary re-renders
   const { total, itemsCount, displayItems } = useMemo(() => {
@@ -58,7 +65,8 @@ const ViewCartFooter = () => {
     return { total, itemsCount, displayItems };
   }, [cartItems, getCartTotal, getCartItemsCount]);
 
-  if (!isAuthenticated || cartItems.length === 0) {
+  // Don't return null, always render but control visibility with animation
+  if (!isAuthenticated) {
     return null;
   }
 
@@ -130,6 +138,10 @@ const ViewCartFooter = () => {
 
 const styles = StyleSheet.create({
   container: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
@@ -142,6 +154,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
+    zIndex: 1000,
   },
   cartInfo: {
     flex: 1,

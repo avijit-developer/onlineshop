@@ -178,12 +178,19 @@ const SearchScreen = () => {
               attributes: p.attributes || p.productAttributes,
               productType: p.productType || p.type,
               isConfigurable: p.isConfigurable || p.configurable || false,
+              variants: p.variants || [],
+              productAttributes: p.productAttributes || [],
+              // Additional fields that might indicate configurable products
+              options: p.options || [],
+              customOptions: p.customOptions || [],
+              bundleOptions: p.bundleOptions || [],
             };
             console.log('🔍 Product Mapping Debug:', {
               original: p,
               mapped: mappedItem,
               regularPriceType: typeof p.regularPrice,
-              specialPriceType: typeof p.specialPrice
+              specialPriceType: typeof p.specialPrice,
+              isConfigurable: mappedItem.isConfigurable
             });
             return mappedItem;
           });
@@ -247,16 +254,50 @@ const SearchScreen = () => {
 
   // Helper function to check if product is configurable
   const isConfigurableProduct = (item) => {
-    // Check if product has variants, attributes, or is marked as configurable
-    return item.hasVariants || item.attributes || item.productType === 'configurable' || item.isConfigurable;
+    // TEMPORARY: Force some products to be configurable for testing
+    // Remove this after testing
+    const forceConfigurable = item.id === 'test-configurable' || 
+                              item.name?.toLowerCase().includes('configurable') ||
+                              item.name?.toLowerCase().includes('variant');
+    
+    const isConfigurable = forceConfigurable || 
+                           item.hasVariants || 
+                           item.attributes || 
+                           item.productType === 'configurable' || 
+                           item.isConfigurable ||
+                           item.variants?.length > 0 ||
+                           item.productAttributes?.length > 0;
+    
+    console.log('🔍 Configurable Product Check:', {
+      itemId: item.id,
+      itemName: item.name,
+      hasVariants: item.hasVariants,
+      attributes: item.attributes,
+      productType: item.productType,
+      isConfigurable: item.isConfigurable,
+      variants: item.variants,
+      productAttributes: item.productAttributes,
+      forceConfigurable: forceConfigurable,
+      isConfigurableResult: isConfigurable
+    });
+    
+    return isConfigurable;
   };
 
   // Helper function to handle product action (add to cart or navigate to details)
   const handleProductAction = (item) => {
+    console.log('🔍 handleProductAction called for:', {
+      itemId: item.id,
+      itemName: item.name,
+      isConfigurable: isConfigurableProduct(item)
+    });
+    
     if (isConfigurableProduct(item)) {
+      console.log('🚀 Navigating to ProductDetails for configurable product:', item.name);
       // Navigate to product details for configurable products
       navigation.navigate('ProductDetails', { productId: item.id });
     } else {
+      console.log('🛒 Adding to cart for simple product:', item.name);
       // Add to cart directly for simple products
       const cartItem = { 
         _id: item.id, 
