@@ -230,40 +230,40 @@ const SearchScreen = () => {
           onLayout={(e) => setSearchBoxHeight(e.nativeEvent.layout.height)}
         >
           <Icon name="search-outline" size={20} color="#999" style={styles.searchIcon} />
-          <View style={{ flex: 1 }}>
-          <TextInput
-            placeholder=""
-            value={query}
-            onChangeText={handleChangeQuery}
-            style={styles.searchInput}
-            autoFocus={false}
-            returnKeyType="search"
-            cursorColor="#333"
-            selectionColor="#FFA726"
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            onSubmitEditing={() => {
-              if (query.trim().length >= 2) {
-                saveRecent(query.trim());
-                navigation.navigate('ProductList', { title: `Results for \"${query.trim()}\"`, sectionName: undefined, categoryId: undefined });
-                setShowSuggestions(false);
-              }
-            }}
-          />
-          {(!isFocused && query.length === 0 && text) && (
-          <Animated.Text
-  style={[
-    styles.animatedPlaceholder,
-    {
-      transform: [{ translateY: slideAnim }],
-      opacity,
-    },
-  ]}
-  pointerEvents="none"
->
-  {text}
-</Animated.Text>
-          )}
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder=""
+              value={query}
+              onChangeText={handleChangeQuery}
+              style={styles.searchInput}
+              autoFocus={false}
+              returnKeyType="search"
+              cursorColor="#333"
+              selectionColor="#FFA726"
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              onSubmitEditing={() => {
+                if (query.trim().length >= 2) {
+                  saveRecent(query.trim());
+                  navigation.navigate('ProductList', { title: `Results for \"${query.trim()}\"`, sectionName: undefined, categoryId: undefined });
+                  setShowSuggestions(false);
+                }
+              }}
+            />
+            {(!isFocused && query.length === 0 && text) && (
+              <Animated.Text
+                style={[
+                  styles.animatedPlaceholder,
+                  {
+                    transform: [{ translateY: slideAnim }],
+                    opacity,
+                  },
+                ]}
+                pointerEvents="none"
+              >
+                {text}
+              </Animated.Text>
+            )}
           </View>
           {query.length > 0 && (
             <TouchableOpacity
@@ -328,7 +328,7 @@ const SearchScreen = () => {
       </View>
 
       {/* Category-wise Products (2nd level title, products from main category, 5 items, with See All) */}
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 32, paddingBottom: 100 }}>
         {categorySections.map((section) => (
           <View key={section.parentId} style={{ marginBottom: 32 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -371,6 +371,9 @@ const SearchScreen = () => {
         ))}
       </View>
       </ScrollView>
+      
+      {/* View Cart Footer */}
+      <ViewCartFooter />
     </View>
   );
 };
@@ -393,13 +396,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    position: 'relative',
   },
-  searchIcon: { marginRight: 8 },
+  searchIcon: { 
+    marginRight: 12,
+    alignSelf: 'center',
+  },
   searchInput: {
     fontSize: 18,
     color: '#111',
     height: 40,
     paddingVertical: 0,
+    paddingHorizontal: 0,
+  },
+  inputContainer: {
+    flex: 1,
+    position: 'relative',
+    justifyContent: 'center',
   },
   suggestionsContainer: {
     position: 'absolute',
@@ -443,10 +456,11 @@ const styles = StyleSheet.create({
   },
   animatedPlaceholder: {
     position: 'absolute',
-    top: 0,
+    top: 10,
     left: 0,
-    fontSize: 16,
+    fontSize: 18,
     color: '#aaa',
+    pointerEvents: 'none',
   },
 
   recentSection: { marginTop: 24 },
