@@ -226,11 +226,15 @@ const SearchScreen = () => {
 
   // Helper function to get the correct price for cart
   const getCartPrice = (item) => {
-    const price = item.specialPrice != null ? item.specialPrice : item.regularPrice;
+    // Check if specialPrice exists and is not undefined/null (0 is a valid price)
+    const price = (item.specialPrice !== null && item.specialPrice !== undefined) ? item.specialPrice : item.regularPrice;
     console.log('🔍 getCartPrice Debug:', {
       itemId: item.id,
       regularPrice: item.regularPrice,
       specialPrice: item.specialPrice,
+      specialPriceType: typeof item.specialPrice,
+      specialPriceNull: item.specialPrice === null,
+      specialPriceUndefined: item.specialPrice === undefined,
       calculatedPrice: price
     });
     return price;

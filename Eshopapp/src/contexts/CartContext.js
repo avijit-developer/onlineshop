@@ -97,26 +97,35 @@ export const CartProvider = ({ children }) => {
       const response = await api.getUserCart();
       if (response && response.success && response.data) {
         // Transform API cart data to match frontend format
-        const transformedItems = response.data.items.map(item => ({
-          id: item.product._id || item.product.id,
-          name: item.product.name,
-          cartId: item.cartId,
-          quantity: item.quantity,
-          selectedAttributes: item.selectedAttributes ? (typeof item.selectedAttributes.toJSON === 'function' ? item.selectedAttributes.toJSON() : (typeof item.selectedAttributes === 'object' ? item.selectedAttributes : {})) : {},
-          variantInfo: item.variantInfo ? {
-            attributes: item.variantInfo.attributes ? (typeof item.variantInfo.attributes.toJSON === 'function' ? item.variantInfo.attributes.toJSON() : (typeof item.variantInfo.attributes === 'object' ? item.variantInfo.attributes : {})) : {},
-            price: item.variantInfo.price,
-            specialPrice: item.variantInfo.specialPrice,
-            stock: item.variantInfo.stock,
-            sku: item.variantInfo.sku,
-            images: item.variantInfo.images || []
-          } : null,
-          images: item.images || [],
-          regularPrice: item.product.regularPrice,
-          specialPrice: item.product.specialPrice,
-          stock: item.product.stock,
-          sku: item.product.sku
-        }));
+        const transformedItems = response.data.items.map(item => {
+          // Calculate the correct price (special price if available, otherwise regular price)
+          const calculatedPrice = (item.product.specialPrice !== null && item.product.specialPrice !== undefined) 
+            ? item.product.specialPrice 
+            : item.product.regularPrice;
+          
+          return {
+            id: item.product._id || item.product.id,
+            name: item.product.name,
+            cartId: item.cartId,
+            quantity: item.quantity,
+            // Set the calculated price field
+            price: calculatedPrice,
+            selectedAttributes: item.selectedAttributes ? (typeof item.selectedAttributes.toJSON === 'function' ? item.selectedAttributes.toJSON() : (typeof item.selectedAttributes === 'object' ? item.selectedAttributes : {})) : {},
+            variantInfo: item.variantInfo ? {
+              attributes: item.variantInfo.attributes ? (typeof item.variantInfo.attributes.toJSON === 'function' ? item.variantInfo.attributes.toJSON() : (typeof item.variantInfo.attributes === 'object' ? item.variantInfo.attributes : {})) : {},
+              price: item.variantInfo.price,
+              specialPrice: item.variantInfo.specialPrice,
+              stock: item.variantInfo.stock,
+              sku: item.variantInfo.sku,
+              images: item.variantInfo.images || []
+            } : null,
+            images: item.images || [],
+            regularPrice: item.product.regularPrice,
+            specialPrice: item.product.specialPrice,
+            stock: item.product.stock,
+            sku: item.product.sku
+          };
+        });
         setCartItems(transformedItems);
         console.log('Loaded cart from database:', transformedItems.length, 'items');
       } else {
