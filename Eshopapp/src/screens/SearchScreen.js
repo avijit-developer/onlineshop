@@ -272,6 +272,7 @@ const SearchScreen = () => {
 
   const applyFilters = useCallback(async (filters) => {
     try {
+      console.log('🚀 applyFilters called with:', filters);
       setFilterLoading(true);
       setCurrentFilters(filters);
       
@@ -316,6 +317,7 @@ const SearchScreen = () => {
         })));
         
         setFilteredProducts(items);
+        console.log('📱 State updated: filteredProducts set to', items.length, 'items');
       }
     } catch (error) {
       console.error('❌ Failed to apply filters:', error);
@@ -536,6 +538,7 @@ const SearchScreen = () => {
       </View>
 
       {/* Filtered Products */}
+      {console.log('🔍 Rendering filtered products section, count:', filteredProducts.length)}
       {filteredProducts.length > 0 && (
         <View style={{ marginTop: 32, paddingBottom: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
