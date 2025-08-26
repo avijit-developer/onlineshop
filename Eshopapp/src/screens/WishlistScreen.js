@@ -43,9 +43,6 @@ const WishlistScreen = ({ navigation }) => {
   // Removed old add-to-cart alert flow and bulk move flow
 
   const renderWishlistItem = ({ item }) => {
-    // Debug: Log the item structure
-    console.log('Wishlist item:', JSON.stringify(item, null, 2));
-    
     // Get the correct price
     const regularPrice = item.regularPrice || item.price || 0;
     const specialPrice = item.specialPrice;
