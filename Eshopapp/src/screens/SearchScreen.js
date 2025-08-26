@@ -173,17 +173,9 @@ const SearchScreen = () => {
               regularPrice: p.regularPrice ?? 0,
               specialPrice: p.specialPrice ?? null,
               image: (Array.isArray(p.images) && p.images[0]) || placeholder,
-              // Add configurable product detection fields
-              hasVariants: p.hasVariants || p.variants?.length > 0,
-              attributes: p.attributes || p.productAttributes,
-              productType: p.productType || p.type,
-              isConfigurable: p.isConfigurable || p.configurable || false,
+              // Use the actual fields from the API
+              productType: p.productType || 'simple',
               variants: p.variants || [],
-              productAttributes: p.productAttributes || [],
-              // Additional fields that might indicate configurable products
-              options: p.options || [],
-              customOptions: p.customOptions || [],
-              bundleOptions: p.bundleOptions || [],
             };
             
             // Special debugging for product 15
@@ -193,17 +185,12 @@ const SearchScreen = () => {
                 mappedItem: mappedItem,
                 originalId: p._id || p.id,
                 mappedId: mappedItem.id,
-                isConfigurable: mappedItem.isConfigurable
+                productType: mappedItem.productType,
+                variantsLength: mappedItem.variants?.length || 0,
+                isConfigurable: mappedItem.productType === 'configurable'
               });
             }
             
-            console.log('🔍 Product Mapping Debug:', {
-              original: p,
-              mapped: mappedItem,
-              regularPriceType: typeof p.regularPrice,
-              specialPriceType: typeof p.specialPrice,
-              isConfigurable: mappedItem.isConfigurable
-            });
             return mappedItem;
           });
           return { ...sec, products: items };
@@ -266,38 +253,22 @@ const SearchScreen = () => {
 
   // Helper function to check if product is configurable
   const isConfigurableProduct = (item) => {
-    // TEMPORARY: Force some products to be configurable for testing
-    // Remove this after testing
-    const forceConfigurable = item.id === 'test-configurable' || 
-                              item.name?.toLowerCase().includes('configurable') ||
-                              item.name?.toLowerCase().includes('variant') ||
-                              item.id === '15' || // Force product 15 to be configurable
-                              item._id === '15';  // Also check _id field
+    // Use the actual productType field from the API
+    const isConfigurable = item.productType === 'configurable' || 
+                           (item.variants && Array.isArray(item.variants) && item.variants.length > 0);
     
-    const isConfigurable = forceConfigurable || 
-                           item.hasVariants || 
-                           item.attributes || 
-                           item.productType === 'configurable' || 
-                           item.isConfigurable ||
-                           item.variants?.length > 0 ||
-                           item.productAttributes?.length > 0;
-    
-    console.log('🔍 Configurable Product Check for Product 15:', {
-      itemId: item.id,
-      item_id: item._id,
-      itemName: item.name,
-      hasVariants: item.hasVariants,
-      attributes: item.attributes,
-      productType: item.productType,
-      isConfigurable: item.isConfigurable,
-      variants: item.variants,
-      productAttributes: item.productAttributes,
-      forceConfigurable: forceConfigurable,
-      isConfigurableResult: isConfigurable,
-      // Log all available fields for debugging
-      allFields: Object.keys(item),
-      allValues: item
-    });
+    // Only log for product 15 or when debugging is needed
+    if (item.id === '15' || item._id === '15') {
+      console.log('🔍 Configurable Product Check for Product 15:', {
+        itemId: item.id,
+        item_id: item._id,
+        itemName: item.name,
+        productType: item.productType,
+        variants: item.variants,
+        variantsLength: item.variants?.length || 0,
+        isConfigurableResult: isConfigurable
+      });
+    }
     
     return isConfigurable;
   };
@@ -320,12 +291,7 @@ const SearchScreen = () => {
       });
     }
     
-    // TEMPORARY: Force product 15 to always navigate to ProductDetails
-    const shouldNavigate = isConfigurableProduct(item) || 
-                           item.id === '15' || 
-                           item._id === '15';
-    
-    if (shouldNavigate) {
+    if (isConfigurableProduct(item)) {
       console.log('🚀 Navigating to ProductDetails for configurable product:', item.name);
       // Navigate to product details for configurable products
       navigation.navigate('ProductDetails', { productId: item.id || item._id });
@@ -491,20 +457,20 @@ const SearchScreen = () => {
                     <TouchableOpacity
                       style={{ 
                         borderWidth: 1, 
-                        borderColor: (isConfigurableProduct(item) || item.id === '15' || item._id === '15') ? '#4CAF50' : '#FFA726', 
+                        borderColor: isConfigurableProduct(item) ? '#4CAF50' : '#FFA726', 
                         paddingVertical: 4, 
                         paddingHorizontal: 10, 
                         borderRadius: 6,
-                        backgroundColor: (isConfigurableProduct(item) || item.id === '15' || item._id === '15') ? '#4CAF50' : 'transparent'
+                        backgroundColor: isConfigurableProduct(item) ? '#4CAF50' : 'transparent'
                       }}
                       onPress={() => handleProductAction(item)}
                     >
                       <Text style={{ 
-                        color: (isConfigurableProduct(item) || item.id === '15' || item._id === '15') ? '#fff' : '#FFA726', 
+                        color: isConfigurableProduct(item) ? '#fff' : '#FFA726', 
                         fontWeight: '700', 
                         fontSize: 12 
                       }}>
-                        {(isConfigurableProduct(item) || item.id === '15' || item._id === '15') ? 'VIEW' : 'ADD'}
+                        {isConfigurableProduct(item) ? 'VIEW' : 'ADD'}
                       </Text>
                     </TouchableOpacity>
                   </View>
