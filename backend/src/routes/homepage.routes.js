@@ -165,16 +165,19 @@ router.get('/sections/:name/products/public', async (req, res) => {
     const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
     let filters = { ...baseFilters };
     let sort = { createdAt: -1 };
-
-    if (section.type === 'manual') {
-      const ordered = (section.products || []).sort((a, b) => (a.order || 0) - (b.order || 0));
-      const total = ordered.length;
-      const slice = ordered.slice((pageNum - 1) * perPage, (pageNum - 1) * perPage + perPage);
+    // If admin curated products exist for this section, honor that list even if type is auto
+    const curated = Array.isArray(section.products) ? section.products.filter(p => p && p.productId).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
+    if (curated.length > 0) {
+      const total = curated.length;
+      const slice = curated.slice((pageNum - 1) * perPage, (pageNum - 1) * perPage + perPage);
       const ids = slice.map(p => p.productId).filter(Boolean);
-      const items = await Product.find({ _id: { $in: ids }, ...baseFilters })
+      const found = await Product.find({ _id: { $in: ids }, ...baseFilters })
         .select('name images regularPrice specialPrice rating')
         .lean();
-      return res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+      // Preserve curated order
+      const mapById = new Map(found.map(p => [String(p._id), p]));
+      const orderedItems = ids.map(id => mapById.get(String(id))).filter(Boolean);
+      return res.json({ success: true, data: orderedItems, meta: { total, page: pageNum, limit: perPage } });
     }
 
     switch (section.type) {
