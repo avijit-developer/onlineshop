@@ -301,15 +301,26 @@ router.get('/public/filters', async (req, res) => {
       filters.category = { $in: Array.from(allIds) };
     }
 
-    // Get price range
+    // Get price range - consider both special and regular prices
     const priceStats = await Product.aggregate([
       { $match: filters },
       {
+        $addFields: {
+          effectivePrice: {
+            $cond: {
+              if: { $and: [{ $exists: ['$specialPrice', true] }, { $ne: ['$specialPrice', null] }] },
+              then: '$specialPrice',
+              else: '$regularPrice'
+            }
+          }
+        }
+      },
+      {
         $group: {
           _id: null,
-          minPrice: { $min: '$regularPrice' },
-          maxPrice: { $max: '$regularPrice' },
-          avgPrice: { $avg: '$regularPrice' }
+          minPrice: { $min: '$effectivePrice' },
+          maxPrice: { $max: '$effectivePrice' },
+          avgPrice: { $avg: '$effectivePrice' }
         }
       }
     ]);
@@ -443,11 +454,39 @@ router.get('/public', async (req, res) => {
       filters.category = { $in: Array.from(allIds) };
     }
 
-    // Apply price filters
+    // Apply price filters - check both special and regular prices
     if (minPrice || maxPrice) {
-      filters.regularPrice = {};
-      if (minPrice) filters.regularPrice.$gte = parseFloat(minPrice);
-      if (maxPrice) filters.regularPrice.$lte = parseFloat(maxPrice);
+      const minPriceVal = minPrice ? parseFloat(minPrice) : 0;
+      const maxPriceVal = maxPrice ? parseFloat(maxPrice) : Number.MAX_SAFE_INTEGER;
+      
+      console.log('💰 Price filtering:', { minPrice: minPriceVal, maxPrice: maxPriceVal });
+      
+      // Complex price filtering: check if special price OR regular price falls within range
+      filters.$or = [
+        // Special price within range
+        {
+          $and: [
+            { specialPrice: { $exists: true, $ne: null } },
+            { specialPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
+          ]
+        },
+        // Regular price within range (when no special price or special price is outside range)
+        {
+          $and: [
+            {
+              $or: [
+                { specialPrice: { $exists: false } },
+                { specialPrice: null },
+                { specialPrice: { $lt: minPriceVal } },
+                { specialPrice: { $gt: maxPriceVal } }
+              ]
+            },
+            { regularPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
+          ]
+        }
+      ];
+      
+      console.log('🔍 Price filter query:', JSON.stringify(filters.$or, null, 2));
     }
 
     // Apply brand filters
@@ -479,10 +518,12 @@ router.get('/public', async (req, res) => {
     let sortOrder = {};
     switch (sortBy) {
       case 'price_low':
-        sortOrder = { regularPrice: 1 };
+        // For price sorting, we'll use aggregation to calculate effective price
+        sortOrder = { createdAt: -1 }; // Default sort, will be overridden in aggregation
         break;
       case 'price_high':
-        sortOrder = { regularPrice: -1 };
+        // For price sorting, we'll use aggregation to calculate effective price
+        sortOrder = { createdAt: -1 }; // Default sort, will be overridden in aggregation
         break;
       case 'rating':
         sortOrder = { rating: -1 };
@@ -499,17 +540,82 @@ router.get('/public', async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
-    let [items, total] = await Promise.all([
-      Product.find(filters)
-        .select('_id name images regularPrice specialPrice rating productType variants stock brand')
-        .populate('category', 'name')
-        .populate('brand', 'name')
-        .sort(sortOrder)
-        .skip((pageNum - 1) * perPage)
-        .limit(perPage)
-        .lean(),
-      Product.countDocuments(filters)
-    ]);
+    let items, total;
+    
+    // Handle price sorting with aggregation for effective price calculation
+    if (sortBy === 'price_low' || sortBy === 'price_high') {
+      const sortDirection = sortBy === 'price_low' ? 1 : -1;
+      
+      const aggregationPipeline = [
+        { $match: filters },
+        {
+          $addFields: {
+            effectivePrice: {
+              $cond: {
+                if: { $and: [{ $exists: ['$specialPrice', true] }, { $ne: ['$specialPrice', null] }] },
+                then: '$specialPrice',
+                else: '$regularPrice'
+              }
+            }
+          }
+        },
+        { $sort: { effectivePrice: sortDirection } },
+        { $skip: (pageNum - 1) * perPage },
+        { $limit: perPage },
+        {
+          $lookup: {
+            from: 'categories',
+            localField: 'category',
+            foreignField: '_id',
+            as: 'category'
+          }
+        },
+        {
+          $lookup: {
+            from: 'brands',
+            localField: 'brand',
+            foreignField: '_id',
+            as: 'brand'
+          }
+        },
+        { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            images: 1,
+            regularPrice: 1,
+            specialPrice: 1,
+            rating: 1,
+            productType: 1,
+            variants: 1,
+            stock: 1,
+            brand: 1,
+            'category.name': 1,
+            'brand.name': 1
+          }
+        }
+      ];
+      
+      [items, total] = await Promise.all([
+        Product.aggregate(aggregationPipeline),
+        Product.countDocuments(filters)
+      ]);
+    } else {
+      // Use regular find for non-price sorting
+      [items, total] = await Promise.all([
+        Product.find(filters)
+          .select('_id name images regularPrice specialPrice rating productType variants stock brand')
+          .populate('category', 'name')
+          .populate('brand', 'name')
+          .sort(sortOrder)
+          .skip((pageNum - 1) * perPage)
+          .limit(perPage)
+          .lean(),
+        Product.countDocuments(filters)
+      ]);
+    }
 
     // Fallback: if no results and a category was specified, try relaxing filters further
     if ((items?.length || 0) === 0 && category) {
@@ -533,17 +639,79 @@ router.get('/public', async (req, res) => {
       }
       filters.category = { $in: Array.from(allIds) };
 
-      ;[items, total] = await Promise.all([
-        Product.find(filters)
-          .select('_id name images regularPrice specialPrice rating productType variants stock brand')
-          .populate('category', 'name')
-          .populate('brand', 'name')
-          .sort(sortOrder)
-          .skip((pageNum - 1) * perPage)
-          .limit(perPage)
-          .lean(),
-        Product.countDocuments(filters)
-      ]);
+      // Fallback also needs to handle price sorting
+      if (sortBy === 'price_low' || sortBy === 'price_high') {
+        const sortDirection = sortBy === 'price_low' ? 1 : -1;
+        
+        const fallbackPipeline = [
+          { $match: filters },
+          {
+            $addFields: {
+              effectivePrice: {
+                $cond: {
+                  if: { $and: [{ $exists: ['$specialPrice', true] }, { $ne: ['$specialPrice', null] }] },
+                  then: '$specialPrice',
+                  else: '$regularPrice'
+                }
+              }
+            }
+          },
+          { $sort: { effectivePrice: sortDirection } },
+          { $skip: (pageNum - 1) * perPage },
+          { $limit: perPage },
+          {
+            $lookup: {
+              from: 'categories',
+              localField: 'category',
+              foreignField: '_id',
+              as: 'category'
+            }
+          },
+          {
+            $lookup: {
+              from: 'brands',
+              localField: 'brand',
+              foreignField: '_id',
+              as: 'brand'
+            }
+          },
+          { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+          { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              images: 1,
+              regularPrice: 1,
+              specialPrice: 1,
+              rating: 1,
+              productType: 1,
+              variants: 1,
+              stock: 1,
+              brand: 1,
+              'category.name': 1,
+              'brand.name': 1
+            }
+          }
+        ];
+        
+        [items, total] = await Promise.all([
+          Product.aggregate(fallbackPipeline),
+          Product.countDocuments(filters)
+        ]);
+      } else {
+        [items, total] = await Promise.all([
+          Product.find(filters)
+            .select('_id name images regularPrice specialPrice rating productType variants stock brand')
+            .populate('category', 'name')
+            .populate('brand', 'name')
+            .sort(sortOrder)
+            .skip((pageNum - 1) * perPage)
+            .limit(perPage)
+            .lean(),
+          Product.countDocuments(filters)
+        ]);
+      }
     }
 
     res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
