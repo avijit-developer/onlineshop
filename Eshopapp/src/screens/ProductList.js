@@ -24,6 +24,8 @@ const ProductList = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [appliedFilters, setAppliedFilters] = useState({});
   const [resultCount, setResultCount] = useState(0);
+  const [totalAvailable, setTotalAvailable] = useState(0);
+  const [loadedCount, setLoadedCount] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -33,7 +35,9 @@ const ProductList = () => {
     setFilteredProducts([]);
     setPage(1);
     setHasMore(true);
-  }, [categoryId]);
+    setLoadedCount(0);
+    setTotalAvailable(0);
+  }, [categoryId, sectionName]);
 
   useEffect(() => {
     (async () => {
@@ -54,20 +58,20 @@ const ProductList = () => {
           image: (Array.isArray(p.images) && p.images[0]) || placeholder,
           liked: false,
         }));
+        const total = res?.meta?.total ?? 0;
+        setTotalAvailable(total);
         setFilteredProducts(prev => page === 1 ? items : [...prev, ...items]);
-        setResultCount(prev => (page === 1 ? items.length : prev + items.length));
-        const total = res?.meta?.total || 0;
-        const fetchedSoFar = (page === 1 ? items.length : (filteredProducts.length + items.length));
-        if (fetchedSoFar >= total || items.length === 0) {
-          setHasMore(false);
-        }
+        const newLoaded = page === 1 ? items.length : (loadedCount + items.length);
+        setLoadedCount(newLoaded);
+        setResultCount(total > 0 ? total : newLoaded);
+        setHasMore(newLoaded < total && items.length > 0);
       } catch (_) {
         setHasMore(false);
       } finally {
         setLoadingMore(false);
       }
     })();
-  }, [page, categoryId, sectionName]);
+  }, [page, categoryId, sectionName, loadedCount]);
 
   const handleEndReached = () => {
     if (hasMore && !loadingMore) {

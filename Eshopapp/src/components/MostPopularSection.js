@@ -117,8 +117,8 @@ const MostPopularSection = ({ navigation }) => {
         <TouchableOpacity 
           style={styles.seeAll}
           onPress={() => navigation.navigate('ProductList', { 
-            title: sectionConfig.title,
-            sectionName: 'most-popular'
+            title: sectionConfig.title || 'Most Popular',
+            sectionName: sectionConfig?.name || 'most-popular'
           })}
         >
           <Text style={styles.seeAllText}>See All</Text>

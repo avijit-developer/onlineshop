@@ -93,7 +93,7 @@ const BestSellerSection = ({ navigation }) => {
         <Text style={styles.title}>{sectionConfig.title}</Text>
         <TouchableOpacity
           style={styles.seeAll}
-          onPress={() => navigation.navigate('ProductList', { title: sectionConfig.title, sectionName: 'best-seller' })}
+          onPress={() => navigation.navigate('ProductList', { title: sectionConfig.title || 'Best Sellers', sectionName: sectionConfig?.name || 'best-seller' })}
         >
           <Text style={styles.seeAllText}>See All</Text>
           <Ionicons name="arrow-forward-circle" size={18} color="#FFA726" />
