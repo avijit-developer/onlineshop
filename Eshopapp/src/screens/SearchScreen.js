@@ -288,7 +288,11 @@ const SearchScreen = () => {
       // Remove undefined values
       Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
       
+      console.log('🔍 Applying filters with params:', params);
+      
       const res = await api.getProductsPublic(params);
+      console.log('📡 API response:', res);
+      
       if (res?.success && res?.data) {
         const items = res.data.map(p => ({
           id: p._id || p.id,
@@ -302,10 +306,19 @@ const SearchScreen = () => {
           stock: p.stock || 0,
           rating: p.rating || 0
         }));
+        
+        console.log('✅ Filtered products:', items.length, 'items');
+        console.log('💰 Price ranges in results:', items.map(item => ({
+          name: item.name,
+          regularPrice: item.regularPrice,
+          specialPrice: item.specialPrice,
+          effectivePrice: item.specialPrice ?? item.regularPrice
+        })));
+        
         setFilteredProducts(items);
       }
     } catch (error) {
-      console.error('Failed to apply filters:', error);
+      console.error('❌ Failed to apply filters:', error);
     } finally {
       setFilterLoading(false);
     }
