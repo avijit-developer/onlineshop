@@ -28,14 +28,36 @@ const cartItemSchema = new mongoose.Schema({
     },
     price: {
       type: Number,
-      required: function() { return this.variantInfo != null; }
+      required: function() {
+        const vi = this.variantInfo;
+        if (!vi) return false;
+        const attrs = vi.attributes;
+        if (!attrs) return false;
+        let obj = attrs;
+        if (typeof attrs?.toJSON === 'function') obj = attrs.toJSON();
+        else if (typeof attrs?.get === 'function') {
+          try { obj = Object.fromEntries(attrs); } catch (_) { obj = {}; }
+        }
+        return obj && Object.keys(obj).length > 0;
+      }
     },
     specialPrice: {
       type: Number
     },
     stock: {
       type: Number,
-      required: function() { return this.variantInfo != null; }
+      required: function() {
+        const vi = this.variantInfo;
+        if (!vi) return false;
+        const attrs = vi.attributes;
+        if (!attrs) return false;
+        let obj = attrs;
+        if (typeof attrs?.toJSON === 'function') obj = attrs.toJSON();
+        else if (typeof attrs?.get === 'function') {
+          try { obj = Object.fromEntries(attrs); } catch (_) { obj = {}; }
+        }
+        return obj && Object.keys(obj).length > 0;
+      }
     },
     sku: {
       type: String
