@@ -166,36 +166,6 @@ const SearchScreen = () => {
         // Fetch 5 products for each parent
         const fetched = await Promise.all(built.map(sec => api.getProductsPublic({ category: sec.parentId, page: 1, limit: 5 })));
         
-        // Debug: Log the raw API response for product 15
-        fetched.forEach((response, idx) => {
-          if (response?.data) {
-            const product15 = response.data.find(p => p._id === '15' || p.id === '15');
-            if (product15) {
-              console.log('🎯 RAW API RESPONSE for Product 15:', {
-                response: response,
-                product15: product15,
-                productType: product15.productType,
-                variants: product15.variants,
-                variantsLength: product15.variants?.length || 0,
-                allFields: Object.keys(product15),
-                allValues: product15
-              });
-            }
-            
-            // Also log the first product to see what fields are available
-            if (response.data.length > 0) {
-              const firstProduct = response.data[0];
-              console.log('🔍 First Product API Response Fields:', {
-                productId: firstProduct._id || firstProduct.id,
-                productName: firstProduct.name,
-                availableFields: Object.keys(firstProduct),
-                hasProductType: 'productType' in firstProduct,
-                hasVariants: 'variants' in firstProduct
-              });
-            }
-          }
-        });
-        
         const withProducts = built.map((sec, idx) => {
           const items = (fetched[idx]?.data || []).map(p => {
             const mappedItem = {
@@ -212,23 +182,6 @@ const SearchScreen = () => {
                                    p.name?.toLowerCase().includes('variant') ||
                                    p.name?.toLowerCase().includes('product 15')
             };
-            
-            // Special debugging for product 15
-            if (mappedItem.id === '15' || p._id === '15' || p.id === '15' || 
-                p.name?.toLowerCase().includes('product 15')) {
-              console.log('🎯 PRODUCT 15 MAPPING DEBUG:', {
-                originalAPI: p,
-                mappedItem: mappedItem,
-                originalId: p._id || p.id,
-                mappedId: mappedItem.id,
-                productType: mappedItem.productType,
-                variantsLength: mappedItem.variants?.length || 0,
-                isConfigurable: mappedItem.productType === 'configurable',
-                rawProductType: p.productType,
-                rawVariants: p.variants,
-                isConfigurableByName: mappedItem.isConfigurableByName
-              });
-            }
             
             return mappedItem;
           });
@@ -278,76 +231,25 @@ const SearchScreen = () => {
   const getCartPrice = (item) => {
     // Check if specialPrice exists and is not undefined/null (0 is a valid price)
     const price = (item.specialPrice !== null && item.specialPrice !== undefined) ? item.specialPrice : item.regularPrice;
-    console.log('🔍 getCartPrice Debug:', {
-      itemId: item.id,
-      regularPrice: item.regularPrice,
-      specialPrice: item.specialPrice,
-      specialPriceType: typeof item.specialPrice,
-      specialPriceNull: item.specialPrice === null,
-      specialPriceUndefined: item.specialPrice === undefined,
-      calculatedPrice: price
-    });
     return price;
   };
 
   // Helper function to check if product is configurable
   const isConfigurableProduct = (item) => {
-    // TEMPORARY: Force product 15 to be configurable while debugging
-    if (item.id === '15' || item._id === '15' || 
-        item.name?.toLowerCase().includes('product 15')) {
-      console.log('🎯 FORCING Product 15 as configurable for debugging');
-      return true;
-    }
-    
     // Use the actual productType field from the API
     const isConfigurable = item.productType === 'configurable' || 
                            (item.variants && Array.isArray(item.variants) && item.variants.length > 0) ||
                            item.isConfigurableByName; // Fallback to name-based detection
-    
-    // Only log for product 15 or when debugging is needed
-    if (item.id === '15' || item._id === '15' || 
-        item.name?.toLowerCase().includes('product 15')) {
-      console.log('🔍 Configurable Product Check for Product 15:', {
-        itemId: item.id,
-        item_id: item._id,
-        itemName: item.name,
-        productType: item.productType,
-        variants: item.variants,
-        variantsLength: item.variants?.length || 0,
-        isConfigurableResult: isConfigurable,
-        rawProductType: item.productType,
-        rawVariants: item.variants,
-        isConfigurableByName: item.isConfigurableByName
-      });
-    }
     
     return isConfigurable;
   };
 
   // Helper function to handle product action (add to cart or navigate to details)
   const handleProductAction = (item) => {
-    console.log('🔍 handleProductAction called for:', {
-      itemId: item.id,
-      item_id: item._id,
-      itemName: item.name,
-      isConfigurable: isConfigurableProduct(item)
-    });
-    
-    // Special debugging for product 15
-    if (item.id === '15' || item._id === '15') {
-      console.log('🎯 SPECIAL DEBUG for Product 15:', {
-        item: item,
-        isConfigurableResult: isConfigurableProduct(item),
-        willNavigate: isConfigurableProduct(item) ? 'YES - to ProductDetails' : 'NO - will add to cart'
-      });
-    }
-    
     if (isConfigurableProduct(item)) {
-      console.log('🚀 Navigating to ProductDetails for configurable product:', item.name);
       // Navigate to product details for configurable products
       navigation.navigate('ProductDetails', { productId: item.id || item._id });
     } else {
-      console.log('🛒 Adding to cart for simple product:', item.name);
       // Add to cart directly for simple products
       const cartItem = { 
         _id: item.id || item._id, 
@@ -358,7 +260,6 @@ const SearchScreen = () => {
         price: getCartPrice(item),
         images: [item.image] 
       };
-      console.log('🛒 addToCart Debug:', cartItem);
       addToCart(cartItem, 1);
     }
   };
