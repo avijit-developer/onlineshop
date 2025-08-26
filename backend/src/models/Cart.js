@@ -111,7 +111,7 @@ cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
       stock: product.selectedVariant?.stock || product.stock,
       sku: product.selectedVariant?.sku || product.sku,
       images: product.selectedVariant?.images || []
-    } : null;
+    } : undefined;
     this.items[existingItemIndex].images = (product && (product.images || [product.image])) || [];
   } else {
     // Add new item
@@ -120,16 +120,18 @@ cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
       quantity,
       selectedAttributes: selectedAttributes || {},
       cartId,
-      variantInfo: (selectedAttributes && Object.keys(selectedAttributes).length > 0) ? {
+      images: (product && (product.images || [product.image])) || []
+    };
+    if (selectedAttributes && Object.keys(selectedAttributes).length > 0) {
+      newItem.variantInfo = {
         attributes: selectedAttributes,
         price: product.selectedVariant?.price || product.regularPrice,
         specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
         stock: product.selectedVariant?.stock || product.stock,
         sku: product.selectedVariant?.sku || product.sku,
         images: product.selectedVariant?.images || []
-      } : null,
-      images: (product && (product.images || [product.image])) || []
-    };
+      };
+    }
     this.items.push(newItem);
   }
 

@@ -43,6 +43,57 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    // Normalize selectedAttributes: only keep keys with non-empty values
+    const normalizedSelected = Object.keys(selectedAttributes || {}).reduce((acc, key) => {
+      const value = selectedAttributes[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        acc[key] = String(value);
+      }
+      return acc;
+    }, {});
+
+    // Build product payload for cart (ensure base fields present)
+    const baseProduct = {
+      id: productDoc._id.toString(),
+      _id: productDoc._id.toString(),
+      regularPrice: productDoc.regularPrice,
+      specialPrice: productDoc.specialPrice,
+      stock: productDoc.stock,
+      sku: productDoc.sku,
+      images: Array.isArray(productDoc.images) ? productDoc.images : [],
+    };
+
+    // If variant attributes were provided, derive variant on server side
+    let productForCart = { ...baseProduct };
+    if (Object.keys(normalizedSelected).length > 0 && Array.isArray(productDoc.variants)) {
+      const foundVariant = productDoc.variants.find(v => {
+        const attrs = (v.attributes && typeof v.attributes.get === 'function')
+          ? Object.fromEntries(v.attributes)
+          : (v.attributes || {});
+        return Object.keys(normalizedSelected).every(k => String(attrs[k]) === String(normalizedSelected[k]));
+      });
+
+      if (foundVariant) {
+        productForCart.selectedVariant = {
+          attributes: normalizedSelected,
+          price: foundVariant.price ?? productDoc.regularPrice,
+          specialPrice: foundVariant.specialPrice ?? productDoc.specialPrice,
+          stock: foundVariant.stock ?? productDoc.stock,
+          sku: foundVariant.sku ?? productDoc.sku,
+          images: Array.isArray(foundVariant.images) ? foundVariant.images : [],
+        };
+        // Prefer variant stock/images at top-level for client previews
+        productForCart.stock = productForCart.selectedVariant.stock;
+        if (productForCart.selectedVariant.images.length > 0) {
+          productForCart.images = productForCart.selectedVariant.images;
+        }
+      } else {
+        // No matching variant; treat as simple product by clearing attributes
+        // so variantInfo is not created by the model
+        for (const k of Object.keys(normalizedSelected)) delete normalizedSelected[k];
+      }
+    }
+
     let cart = await Cart.findOne({ user: req.user.id });
     
     if (!cart) {
@@ -51,7 +102,7 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
     }
 
     // Add item to cart using the model method
-    cart.addItem(product, quantity, selectedAttributes);
+    cart.addItem(productForCart, quantity, normalizedSelected);
     await cart.save();
 
     // Populate product details for response
