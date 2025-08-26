@@ -227,6 +227,8 @@ const SearchScreen = () => {
             style={styles.searchInput}
             autoFocus={false}
             returnKeyType="search"
+            cursorColor="#333"
+            selectionColor="#FFA726"
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onSubmitEditing={() => {
@@ -352,13 +354,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f7f7f7',
     borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   searchIcon: { marginRight: 8 },
   searchInput: {
-    fontSize: 16,
-    color: '#333',
-    height: 24,
+    fontSize: 18,
+    color: '#111',
+    height: 40,
+    paddingVertical: 0,
   },
   suggestionsContainer: {
     position: 'absolute',
