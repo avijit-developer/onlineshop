@@ -174,7 +174,8 @@ const SearchScreen = () => {
     try {
       if (term.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
       setSuggestLoading(true);
-      const res = await api.searchProductsPublic({ q: term, limit: 10 });
+      // Use public products endpoint with q filter
+      const res = await api.getProductsPublic({ q: term, limit: 10 });
       const items = (res?.data || []).map(p => ({
         id: p._id || p.id,
         name: p.name,
