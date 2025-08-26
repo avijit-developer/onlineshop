@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,11 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../utils/api';
 import ViewCartFooter from '../components/ViewCartFooter';
 
-const recentSearches = ['Sunglasses', 'Sweater', 'Hoodie'];
+const RECENT_KEY = 'recentSearchesV1';
 const rotatingTexts = [
   'Search fresh milk...',
   'Find snacks & chips...',
@@ -23,80 +25,7 @@ const rotatingTexts = [
   'Search grocery items...',
 ];
 
-const categorizedProducts = [
-  {
-    id: 'chips',
-    title: 'Chips & Crisps',
-    products: [
-      {
-        id: 'lays1',
-        name: "Lay's India's Magic Masala Potato Chips",
-        price: '₹30',
-        weight: '67 g',
-        rating: '4.5',
-        reviews: '51,962',
-        time: '8 MINS',
-        image: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-      },
-      {
-        id: 'lays2',
-        name: "Lay's West Indies Hot n Sweet Chilli",
-        price: '₹20',
-        weight: '48 g',
-        rating: '4.6',
-        reviews: '1,31,284',
-        time: '8 MINS',
-        image: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-      },
-      {
-        id: 'kurkure',
-        name: 'Kurkure Masala Munch Crisps',
-        price: '₹20',
-        weight: '75 g',
-        rating: '4.4',
-        reviews: '1,78,346',
-        time: '8 MINS',
-        image: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-      },
-    ],
-  },
-  {
-    id: 'curd',
-    title: 'Curd & Yogurt',
-    products: [
-      {
-        id: 'curd1',
-        name: 'Amul Masti Pouch Curd',
-        price: '₹20',
-        weight: '200 g',
-        rating: '4.4',
-        reviews: '14,436',
-        time: '8 MINS',
-        image: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-      },
-      {
-        id: 'curd2',
-        name: 'Mother Dairy Classic Cup Curd',
-        price: '₹50',
-        weight: '400 g',
-        rating: '4.6',
-        reviews: '38,346',
-        time: '8 MINS',
-        image: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-      },
-      {
-        id: 'doi',
-        name: 'Mother Dairy Mishti Doi',
-        price: '₹15',
-        weight: '80 g',
-        rating: '4.5',
-        reviews: '39,182',
-        time: '8 MINS',
-        image: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-      },
-    ],
-  },
-];
+const placeholder = 'https://via.placeholder.com/300x300.png?text=Product';
 
 const SearchScreen = () => {
   const navigation = useNavigation();
@@ -105,6 +34,13 @@ const SearchScreen = () => {
   const [text, setText] = useState(rotatingTexts[0]);
   const slideAnim = useRef(new Animated.Value(20)).current; // slide from right
   const opacity = useRef(new Animated.Value(0)).current;
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const debounceRef = useRef(null);
+  const [recent, setRecent] = useState([]);
+  const [categorySections, setCategorySections] = useState([]); // [{title, parentId, products: []}]
 
  useEffect(() => {
   const animateText = () => {
@@ -145,6 +81,125 @@ const SearchScreen = () => {
   return () => clearInterval(interval);
 }, [index]);
 
+  // Load recent searches
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(RECENT_KEY);
+        if (stored) {
+          setRecent(JSON.parse(stored));
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
+  const saveRecent = useCallback(async (term) => {
+    try {
+      const trimmed = String(term || '').trim();
+      if (!trimmed) return;
+      const next = [trimmed, ...recent.filter(r => r !== trimmed)].slice(0, 10);
+      setRecent(next);
+      await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    } catch (_) {}
+  }, [recent]);
+
+  const removeRecent = useCallback(async (term) => {
+    try {
+      const next = recent.filter(r => r !== term);
+      setRecent(next);
+      await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    } catch (_) {}
+  }, [recent]);
+
+  const clearRecent = useCallback(async () => {
+    try {
+      setRecent([]);
+      await AsyncStorage.setItem(RECENT_KEY, JSON.stringify([]));
+    } catch (_) {}
+  }, []);
+
+  // Fetch categories and build sections (2nd-level category name, products from main category limited to 5)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await api.getCategoriesPublic({ parent: 'all', limit: 1000 });
+        const all = res?.data || [];
+        const parents = all.filter(c => !c.parent);
+        const childrenByParent = new Map();
+        all.forEach(c => {
+          const pid = c.parent;
+          if (!pid) return;
+          const key = (typeof pid === 'object' && pid !== null) ? (pid._id || String(pid)) : String(pid);
+          if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+          childrenByParent.get(key).push(c);
+        });
+        const built = [];
+        for (const p of parents.slice(0, 4)) {
+          const pid = String(p._id);
+          const children = childrenByParent.get(pid) || [];
+          if (children.length === 0) continue;
+          // Pick the first child as the 2nd-level name to show
+          const child = children[0];
+          built.push({
+            title: child.name,
+            parentId: pid,
+            parentTitle: p.name,
+            products: [],
+          });
+        }
+        if (!mounted) return;
+        setCategorySections(built);
+        // Fetch 5 products for each parent
+        const fetched = await Promise.all(built.map(sec => api.getProductsPublic({ category: sec.parentId, page: 1, limit: 5 })));
+        const withProducts = built.map((sec, idx) => {
+          const items = (fetched[idx]?.data || []).map(p => ({
+            id: p._id || p.id,
+            name: p.name,
+            price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
+            image: (Array.isArray(p.images) && p.images[0]) || placeholder,
+          }));
+          return { ...sec, products: items };
+        });
+        if (!mounted) return;
+        setCategorySections(withProducts);
+      } catch (_) {}
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const fetchSuggestions = useCallback(async (term) => {
+    try {
+      if (term.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+      setSuggestLoading(true);
+      const res = await api.searchProductsPublic({ q: term, limit: 10 });
+      const items = (res?.data || []).map(p => ({
+        id: p._id || p.id,
+        name: p.name,
+        image: (Array.isArray(p.images) && p.images[0]) || placeholder,
+      }));
+      setSuggestions(items);
+      setShowSuggestions(true);
+    } catch (_) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setSuggestLoading(false);
+    }
+  }, []);
+
+  const handleChangeQuery = (val) => {
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val.trim()), 300);
+  };
+
+  const handleSelectSuggestion = async (item) => {
+    await saveRecent(item.name);
+    setShowSuggestions(false);
+    navigation.navigate('ProductDetails', { productId: item.id });
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -158,9 +213,19 @@ const SearchScreen = () => {
         <Icon name="search-outline" size={20} color="#999" style={styles.searchIcon} />
         <View style={{ flex: 1 }}>
           <TextInput
-            placeholder=""
-            editable={false}
+            placeholder="Search products"
+            value={query}
+            onChangeText={handleChangeQuery}
             style={styles.searchInput}
+            autoFocus={false}
+            returnKeyType="search"
+            onSubmitEditing={() => {
+              if (query.trim().length >= 2) {
+                saveRecent(query.trim());
+                navigation.navigate('ProductList', { title: `Results for "${query.trim()}"`, sectionName: undefined, categoryId: undefined });
+                setShowSuggestions(false);
+              }
+            }}
           />
           <Animated.Text
   style={[
@@ -179,19 +244,43 @@ const SearchScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {/* Autocomplete Suggestions */}
+      {showSuggestions && (
+        <View style={styles.suggestionsContainer}>
+          {suggestLoading ? (
+            <Text style={{ padding: 12, color: '#666' }}>Searching...</Text>
+          ) : suggestions.length === 0 ? (
+            <Text style={{ padding: 12, color: '#666' }}>No matches</Text>
+          ) : (
+            <FlatList
+              data={suggestions}
+              keyExtractor={(it) => String(it.id)}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.suggestionRow} onPress={() => handleSelectSuggestion(item)}>
+                  <Image source={{ uri: item.image }} style={styles.suggestionImage} />
+                  <Text style={styles.suggestionText} numberOfLines={1}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      )}
+
       {/* Recent Searches */}
       <View style={styles.recentSection}>
         <View style={styles.recentHeader}>
           <Text style={styles.recentTitle}>Recent Searches</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={clearRecent}>
             <Icon name="trash-outline" size={20} color="#888" />
           </TouchableOpacity>
         </View>
         <View style={styles.chipsWrapper}>
-          {recentSearches.map((item, index) => (
+          {recent.map((item, index) => (
             <View key={index} style={styles.chip}>
-              <Text style={styles.chipText}>{item}</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => handleChangeQuery(item)}>
+                <Text style={styles.chipText}>{item}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => removeRecent(item)}>
                 <Icon name="close" size={14} color="#999" />
               </TouchableOpacity>
             </View>
@@ -199,33 +288,27 @@ const SearchScreen = () => {
         </View>
       </View>
 
-      {/* Category-wise Products */}
+      {/* Category-wise Products (2nd level title, products from main category, 5 items, with See All) */}
       <View style={{ marginTop: 32 }}>
-        {categorizedProducts.map((section) => (
-          <View key={section.id} style={{ marginBottom: 32 }}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+        {categorySections.map((section) => (
+          <View key={section.parentId} style={{ marginBottom: 32 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('ProductList', { title: section.parentTitle, categoryId: section.parentId })}>
+                <Text style={{ color: '#FFA726', fontWeight: '500' }}>See All</Text>
+              </TouchableOpacity>
+            </View>
             <FlatList
               data={section.products}
               horizontal
               showsHorizontalScrollIndicator={false}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (
-                <View style={styles.groceryCard}>
+                <TouchableOpacity style={styles.groceryCard} onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}>
                   <Image source={{ uri: item.image }} style={styles.groceryImage} />
-                  <Text style={styles.groceryWeight}>{item.weight}</Text>
                   <Text style={styles.groceryName} numberOfLines={2}>{item.name}</Text>
-                  <View style={styles.ratingRow}>
-                    <Icon name="star" size={14} color="#f9a825" />
-                    <Text style={styles.ratingText}>
-                      {item.rating} ({item.reviews})
-                    </Text>
-                  </View>
-                  <Text style={styles.timeText}>{item.time}</Text>
                   <Text style={styles.priceText}>{item.price}</Text>
-                  <TouchableOpacity style={styles.addButton}>
-                    <Text style={styles.addButtonText}>ADD</Text>
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               )}
             />
           </View>
@@ -259,6 +342,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     height: 24,
+  },
+  suggestionsContainer: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f3f3',
+  },
+  suggestionImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    marginRight: 10,
+    backgroundColor: '#eee'
+  },
+  suggestionText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
   },
   animatedPlaceholder: {
     position: 'absolute',
