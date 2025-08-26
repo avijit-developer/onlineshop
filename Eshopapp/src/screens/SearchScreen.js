@@ -165,6 +165,37 @@ const SearchScreen = () => {
         }
         // Fetch 5 products for each parent
         const fetched = await Promise.all(built.map(sec => api.getProductsPublic({ category: sec.parentId, page: 1, limit: 5 })));
+        
+        // Debug: Log the raw API response for product 15
+        fetched.forEach((response, idx) => {
+          if (response?.data) {
+            const product15 = response.data.find(p => p._id === '15' || p.id === '15');
+            if (product15) {
+              console.log('🎯 RAW API RESPONSE for Product 15:', {
+                response: response,
+                product15: product15,
+                productType: product15.productType,
+                variants: product15.variants,
+                variantsLength: product15.variants?.length || 0,
+                allFields: Object.keys(product15),
+                allValues: product15
+              });
+            }
+            
+            // Also log the first product to see what fields are available
+            if (response.data.length > 0) {
+              const firstProduct = response.data[0];
+              console.log('🔍 First Product API Response Fields:', {
+                productId: firstProduct._id || firstProduct.id,
+                productName: firstProduct.name,
+                availableFields: Object.keys(firstProduct),
+                hasProductType: 'productType' in firstProduct,
+                hasVariants: 'variants' in firstProduct
+              });
+            }
+          }
+        });
+        
         const withProducts = built.map((sec, idx) => {
           const items = (fetched[idx]?.data || []).map(p => {
             const mappedItem = {
@@ -187,7 +218,9 @@ const SearchScreen = () => {
                 mappedId: mappedItem.id,
                 productType: mappedItem.productType,
                 variantsLength: mappedItem.variants?.length || 0,
-                isConfigurable: mappedItem.productType === 'configurable'
+                isConfigurable: mappedItem.productType === 'configurable',
+                rawProductType: p.productType,
+                rawVariants: p.variants
               });
             }
             
@@ -253,6 +286,12 @@ const SearchScreen = () => {
 
   // Helper function to check if product is configurable
   const isConfigurableProduct = (item) => {
+    // TEMPORARY: Force product 15 to be configurable while debugging
+    if (item.id === '15' || item._id === '15') {
+      console.log('🎯 FORCING Product 15 as configurable for debugging');
+      return true;
+    }
+    
     // Use the actual productType field from the API
     const isConfigurable = item.productType === 'configurable' || 
                            (item.variants && Array.isArray(item.variants) && item.variants.length > 0);
@@ -266,7 +305,9 @@ const SearchScreen = () => {
         productType: item.productType,
         variants: item.variants,
         variantsLength: item.variants?.length || 0,
-        isConfigurableResult: isConfigurable
+        isConfigurableResult: isConfigurable,
+        rawProductType: item.productType,
+        rawVariants: item.variants
       });
     }
     
