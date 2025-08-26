@@ -461,33 +461,40 @@ router.get('/public', async (req, res) => {
       
       console.log('💰 Price filtering:', { minPrice: minPriceVal, maxPrice: maxPriceVal });
       
-      // Complex price filtering: check if special price OR regular price falls within range
-      filters.$or = [
-        // Special price within range
-        {
-          $and: [
-            { specialPrice: { $exists: true, $ne: null } },
-            { specialPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
-          ]
-        },
-        // Regular price within range (when no special price or special price is outside range)
-        {
-          $and: [
-            {
-              $or: [
-                { specialPrice: { $exists: false } },
-                { specialPrice: null },
-                { specialPrice: { $lt: minPriceVal } },
-                { specialPrice: { $gt: maxPriceVal } }
-              ]
-            },
-            { regularPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
-          ]
-        }
-      ];
+      // Simpler approach: Use $expr to create a calculated field for effective price
+      // This is more reliable than complex $or/$and combinations
+      filters.$expr = {
+        $or: [
+          // Special price exists and is within range
+          {
+            $and: [
+              { $ne: ['$specialPrice', null] },
+              { $gte: ['$specialPrice', minPriceVal] },
+              { $lte: ['$specialPrice', maxPriceVal] }
+            ]
+          },
+          // No special price or special price outside range, but regular price within range
+          {
+            $and: [
+              {
+                $or: [
+                  { $eq: ['$specialPrice', null] },
+                  { $lt: ['$specialPrice', minPriceVal] },
+                  { $gt: ['$specialPrice', maxPriceVal] }
+                ]
+              },
+              { $gte: ['$regularPrice', minPriceVal] },
+              { $lte: ['$regularPrice', maxPriceVal] }
+            ]
+          }
+        ]
+      };
       
-      console.log('🔍 Price filter query:', JSON.stringify(filters.$or, null, 2));
-    }
+          console.log('🔍 Final filters object:', JSON.stringify(filters, null, 2));
+  }
+
+  // Debug: Log the final query being executed
+  console.log('🚀 Executing query with filters:', JSON.stringify(filters, null, 2));
 
     // Apply brand filters
     if (brands) {
