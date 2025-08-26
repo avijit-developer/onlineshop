@@ -159,8 +159,41 @@ export const CartProvider = ({ children }) => {
         return { success: false, error: 'Not authenticated' };
       }
 
-      console.log('Adding to cart via database:', product?.name || product?._id, quantity, selectedAttributes);
-      const response = await api.addToUserCart(product, quantity, selectedAttributes);
+      // Normalize product payload to ensure backend compatibility
+      const parseNumericPrice = (p) => {
+        if (typeof p === 'number') return p;
+        if (typeof p === 'string') {
+          const cleaned = p.replace(/[^0-9.]/g, '');
+          const num = parseFloat(cleaned);
+          return isNaN(num) ? undefined : num;
+        }
+        return undefined;
+      };
+
+      const productId = (product && (product._id || product.id)) ? (product._id || product.id) : (typeof product === 'string' ? product : undefined);
+      if (!productId) {
+        console.log('addToCart: Invalid product payload, missing id/_id');
+        return { success: false, error: 'Invalid product' };
+      }
+
+      const normalizedProduct = {
+        // Ensure both _id and id are present for backend lookups
+        _id: String(productId),
+        id: String(productId),
+        // Carry forward fields the backend/cart model may utilize for images/pricing
+        regularPrice: product?.regularPrice ?? parseNumericPrice(product?.price),
+        specialPrice: product?.specialPrice ?? undefined,
+        stock: product?.stock ?? product?.currentStock ?? undefined,
+        sku: product?.sku ?? product?.selectedVariant?.sku,
+        images: Array.isArray(product?.images)
+          ? product.images
+          : (Array.isArray(product?.currentImages) ? product.currentImages : (product?.image ? [product.image] : [])),
+        // Preserve selectedVariant if provided (for configurable products)
+        selectedVariant: product?.selectedVariant ?? undefined,
+      };
+
+      console.log('Adding to cart via database:', product?.name || normalizedProduct._id, quantity, selectedAttributes);
+      const response = await api.addToUserCart(normalizedProduct, quantity, selectedAttributes);
       if (response && response.success) {
         await loadCart();
         return { success: true };
