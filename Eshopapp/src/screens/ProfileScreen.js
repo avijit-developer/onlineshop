@@ -205,42 +205,7 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* Section: Recent Wishlist Items */}
-        {wishlist.length > 0 && (
-          <>
-            <View style={styles.wishlistSectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Wishlist Items</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Wishlist')}>
-                <Text style={styles.viewAllText}>View All</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.wishlistScrollView}
-              contentContainerStyle={styles.wishlistScrollContent}
-            >
-              {wishlist.slice(0, 5).map((item, index) => (
-                <TouchableOpacity 
-                  key={item._id || index}
-                  style={styles.wishlistItem}
-                  onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
-                >
-                  <Image 
-                    source={{ uri: item.images?.[0] || 'https://via.placeholder.com/100' }} 
-                    style={styles.wishlistItemImage} 
-                  />
-                  <Text style={styles.wishlistItemName} numberOfLines={2}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.wishlistItemPrice}>
-                    ₹{item.price || 0}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </>
-        )}
+        {/* Recent Wishlist Items removed as requested */}
 
         {/* Section: Account */}
         <Text style={styles.sectionTitle}>Account</Text>

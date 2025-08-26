@@ -61,15 +61,7 @@ const HomeScreen = ({ navigation }) => {
        
         <Header />
         
-        {/* Test Wishlist Button */}
-        <TouchableOpacity 
-          style={styles.testButton}
-          onPress={() => {
-            Alert.alert('Wishlist Test', `Wishlist count: ${getWishlistCount()}`);
-          }}
-        >
-          <Text style={styles.testButtonText}>Test Wishlist ({getWishlistCount()})</Text>
-        </TouchableOpacity>
+        {/* Removed test wishlist button */}
         
         <SliderBanner />
         <AllCategories />
@@ -102,17 +94,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  testButton: {
-    backgroundColor: '#f7ab18',
-    padding: 10,
-    margin: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  testButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
+  
 });
 
 export default HomeScreen;
