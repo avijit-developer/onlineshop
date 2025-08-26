@@ -313,7 +313,7 @@ router.get('/public', async (req, res) => {
 
     let [items, total] = await Promise.all([
       Product.find(filters)
-        .select('name images regularPrice specialPrice rating')
+        .select('_id name images regularPrice specialPrice rating productType variants')
         .populate('category', 'name')
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * perPage)
@@ -346,7 +346,7 @@ router.get('/public', async (req, res) => {
 
       ;[items, total] = await Promise.all([
         Product.find(filters)
-          .select('name images regularPrice specialPrice rating')
+          .select('_id name images regularPrice specialPrice rating productType variants')
           .populate('category', 'name')
           .sort({ createdAt: -1 })
           .skip((pageNum - 1) * perPage)
@@ -374,13 +374,13 @@ router.get('/:id/related/public', async (req, res) => {
     let items = [];
     if (product.relatedProducts && product.relatedProducts.length > 0) {
       items = await Product.find({ _id: { $in: product.relatedProducts }, enabled: true, status: { $ne: 'rejected' } })
-        .select('name images regularPrice specialPrice rating')
+        .select('_id name images regularPrice specialPrice rating productType variants')
         .populate('category', 'name')
         .limit(12)
         .lean();
     } else if (product.category) {
       items = await Product.find({ category: product.category, _id: { $ne: id }, enabled: true, status: { $ne: 'rejected' } })
-        .select('name images regularPrice specialPrice rating')
+        .select('_id name images regularPrice specialPrice rating productType variants')
         .populate('category', 'name')
         .sort({ createdAt: -1 })
         .limit(12)
