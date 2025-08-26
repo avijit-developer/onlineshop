@@ -454,44 +454,50 @@ router.get('/public', async (req, res) => {
       filters.category = { $in: Array.from(allIds) };
     }
 
-    // Apply price filters - check both special and regular prices
+        // Apply price filters - check both special and regular prices
     if (minPrice || maxPrice) {
       const minPriceVal = minPrice ? parseFloat(minPrice) : 0;
       const maxPriceVal = maxPrice ? parseFloat(maxPrice) : Number.MAX_SAFE_INTEGER;
       
       console.log('💰 Price filtering:', { minPrice: minPriceVal, maxPrice: maxPriceVal });
       
-      // Simpler approach: Use $expr to create a calculated field for effective price
-      // This is more reliable than complex $or/$and combinations
-      filters.$expr = {
+      // Create price filter
+      const priceFilter = {
         $or: [
-          // Special price exists and is within range
+          // Special price within range
           {
-            $and: [
-              { $ne: ['$specialPrice', null] },
-              { $gte: ['$specialPrice', minPriceVal] },
-              { $lte: ['$specialPrice', maxPriceVal] }
-            ]
+            specialPrice: { 
+              $exists: true, 
+              $ne: null, 
+              $gte: minPriceVal, 
+              $lte: maxPriceVal 
+            }
           },
-          // No special price or special price outside range, but regular price within range
+          // Regular price within range
           {
-            $and: [
-              {
-                $or: [
-                  { $eq: ['$specialPrice', null] },
-                  { $lt: ['$specialPrice', minPriceVal] },
-                  { $gt: ['$specialPrice', maxPriceVal] }
-                ]
-              },
-              { $gte: ['$regularPrice', minPriceVal] },
-              { $lte: ['$regularPrice', maxPriceVal] }
-            ]
+            regularPrice: { 
+              $gte: minPriceVal, 
+              $lte: maxPriceVal 
+            }
           }
         ]
       };
       
-          console.log('🔍 Final filters object:', JSON.stringify(filters, null, 2));
-  }
+      // If we already have $or filters (from search), combine them with $and
+      if (filters.$or) {
+        const searchFilters = filters.$or;
+        filters.$and = [
+          { $or: searchFilters },
+          { $or: priceFilter.$or }
+        ];
+        delete filters.$or; // Remove the old $or
+      } else {
+        // No existing $or filters, use price filter directly
+        filters.$or = priceFilter.$or;
+      }
+      
+      console.log('🔍 Final filters object:', JSON.stringify(filters, null, 2));
+    }
 
   // Debug: Log the final query being executed
   console.log('🚀 Executing query with filters:', JSON.stringify(filters, null, 2));
