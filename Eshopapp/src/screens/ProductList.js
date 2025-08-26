@@ -58,6 +58,20 @@ const ProductList = () => {
   useEffect(() => {
     (async () => {
       try {
+        // Don't load initial data if filters are active
+        const hasActiveFilters = currentFilters.priceRange[0] !== (filterOptions?.priceRange?.min || 0) ||
+                                currentFilters.priceRange[1] !== (filterOptions?.priceRange?.max || 1000) ||
+                                currentFilters.brands.length > 0 ||
+                                currentFilters.productType !== 'all' ||
+                                currentFilters.availability !== 'all' ||
+                                currentFilters.minRating > 0 ||
+                                currentFilters.sortBy !== 'newest';
+        
+        if (hasActiveFilters) {
+          console.log('🔍 Filters are active, skipping initial data load');
+          return;
+        }
+        
         if (!hasMore && page !== 1) return;
         setLoadingMore(true);
         const fetcher = sectionName
@@ -87,7 +101,7 @@ const ProductList = () => {
         setLoadingMore(false);
       }
     })();
-  }, [page, categoryId, sectionName, loadedCount]);
+  }, [page, categoryId, sectionName, loadedCount, currentFilters, filterOptions]);
 
   const handleEndReached = () => {
     if (hasMore && !loadingMore) {
@@ -119,6 +133,7 @@ const ProductList = () => {
 
   const applyFilters = useCallback(async (filters) => {
     try {
+      console.log('🚀 ProductList applyFilters called with:', filters);
       setFilterLoading(true);
       setCurrentFilters(filters);
       setPage(1);
@@ -139,7 +154,11 @@ const ProductList = () => {
       // Remove undefined values
       Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
       
+      console.log('🔍 ProductList applying filters with params:', params);
+      
       const res = await api.getProductsPublic(params);
+      console.log('📡 ProductList API response:', res);
+      
       if (res?.success && res?.data) {
         const items = res.data.map(p => ({
           id: p._id || p.id,
@@ -151,15 +170,25 @@ const ProductList = () => {
           image: (Array.isArray(p.images) && p.images[0]) || placeholder,
           liked: false,
         }));
+        
+        console.log('✅ ProductList filtered products:', items.length, 'items');
+        console.log('💰 ProductList price ranges in results:', items.map(item => ({
+          name: item.name,
+          price: item.price,
+          oldPrice: item.oldPrice
+        })));
+        
         const total = res?.meta?.total ?? 0;
         setTotalAvailable(total);
         setFilteredProducts(items);
         setLoadedCount(items.length);
         setResultCount(total > 0 ? total : items.length);
         setHasMore(items.length > 0 && items.length < total);
+        
+        console.log('📱 ProductList state updated: filteredProducts set to', items.length, 'items');
       }
     } catch (error) {
-      console.error('Failed to apply filters:', error);
+      console.error('❌ ProductList failed to apply filters:', error);
     } finally {
       setFilterLoading(false);
     }
@@ -263,6 +292,26 @@ const ProductList = () => {
       {filterLoading ? (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Applying filters...</Text>
+        </View>
+      ) : filteredProducts.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            {(() => {
+              const hasActiveFilters = currentFilters.priceRange[0] !== (filterOptions?.priceRange?.min || 0) ||
+                                      currentFilters.priceRange[1] !== (filterOptions?.priceRange?.max || 1000) ||
+                                      currentFilters.brands.length > 0 ||
+                                      currentFilters.productType !== 'all' ||
+                                      currentFilters.availability !== 'all' ||
+                                      currentFilters.minRating > 0 ||
+                                      currentFilters.sortBy !== 'newest';
+              
+              if (hasActiveFilters) {
+                return 'No products found with current filters. Try adjusting your criteria.';
+              } else {
+                return 'No products available in this category.';
+              }
+            })()}
+          </Text>
         </View>
       ) : (
         <FlatList
