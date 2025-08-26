@@ -174,13 +174,9 @@ const SearchScreen = () => {
               regularPrice: p.regularPrice ?? 0,
               specialPrice: p.specialPrice ?? null,
               image: (Array.isArray(p.images) && p.images[0]) || placeholder,
-              // Use the actual fields from the API with fallbacks
+              // Use the actual fields from the API
               productType: p.productType || 'simple',
               variants: p.variants || [],
-              // Fallback: check if product name suggests it's configurable
-              isConfigurableByName: p.name?.toLowerCase().includes('configurable') || 
-                                   p.name?.toLowerCase().includes('variant') ||
-                                   p.name?.toLowerCase().includes('product 15')
             };
             
             return mappedItem;
@@ -236,12 +232,19 @@ const SearchScreen = () => {
 
   // Helper function to check if product is configurable
   const isConfigurableProduct = (item) => {
-    // Use the actual productType field from the API
-    const isConfigurable = item.productType === 'configurable' || 
-                           (item.variants && Array.isArray(item.variants) && item.variants.length > 0) ||
-                           item.isConfigurableByName; // Fallback to name-based detection
+    // Dynamic detection based on actual product data
+    // 1. Check if productType is explicitly set to 'configurable'
+    if (item.productType === 'configurable') {
+      return true;
+    }
     
-    return isConfigurable;
+    // 2. Check if product has variants (which makes it configurable)
+    if (item.variants && Array.isArray(item.variants) && item.variants.length > 0) {
+      return true;
+    }
+    
+    // 3. Default to simple product
+    return false;
   };
 
   // Helper function to handle product action (add to cart or navigate to details)
