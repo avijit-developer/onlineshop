@@ -194,6 +194,8 @@ export const CartProvider = ({ children }) => {
         selectedVariant: product?.selectedVariant ?? undefined,
       };
 
+      console.log('🔍 CartContext Debug - Original product:', product);
+      console.log('🔍 CartContext Debug - Normalized product:', normalizedProduct);
       console.log('Adding to cart via database:', product?.name || normalizedProduct._id, quantity, selectedAttributes);
       const response = await api.addToUserCart(normalizedProduct, quantity, selectedAttributes);
       if (response && response.success) {
@@ -287,23 +289,37 @@ export const CartProvider = ({ children }) => {
   };
 
   const getItemPrice = (item) => {
+    console.log('🔍 getItemPrice Debug - Item:', {
+      id: item._id || item.id,
+      price: item.price,
+      regularPrice: item.regularPrice,
+      specialPrice: item.specialPrice,
+      variantInfo: item.variantInfo
+    });
+    
     // Use the price field first if available (this is set by our getCartPrice logic)
     if (item.price && item.price > 0) {
+      console.log('✅ Using item.price:', item.price);
       return item.price;
     }
     // Use variant price if available, otherwise fall back to regular price
     if (item.variantInfo?.price) {
+      console.log('✅ Using variantInfo.price:', item.variantInfo.price);
       return item.variantInfo.price;
     }
     if (item.variantInfo?.specialPrice && item.variantInfo.specialPrice < item.variantInfo.price) {
+      console.log('✅ Using variantInfo.specialPrice:', item.variantInfo.specialPrice);
       return item.variantInfo.specialPrice;
     }
     if (item.regularPrice) {
+      console.log('✅ Using item.regularPrice:', item.regularPrice);
       return item.regularPrice;
     }
     if (item.specialPrice && item.specialPrice < item.regularPrice) {
+      console.log('✅ Using item.specialPrice:', item.specialPrice);
       return item.specialPrice;
     }
+    console.log('✅ Using parsePrice(item.price):', parsePrice(item.price));
     return parsePrice(item.price);
   };
 

@@ -166,13 +166,22 @@ const SearchScreen = () => {
         // Fetch 5 products for each parent
         const fetched = await Promise.all(built.map(sec => api.getProductsPublic({ category: sec.parentId, page: 1, limit: 5 })));
         const withProducts = built.map((sec, idx) => {
-          const items = (fetched[idx]?.data || []).map(p => ({
-            id: p._id || p.id,
-            name: p.name,
-            regularPrice: p.regularPrice ?? 0,
-            specialPrice: p.specialPrice ?? null,
-            image: (Array.isArray(p.images) && p.images[0]) || placeholder,
-          }));
+          const items = (fetched[idx]?.data || []).map(p => {
+            const mappedItem = {
+              id: p._id || p.id,
+              name: p.name,
+              regularPrice: p.regularPrice ?? 0,
+              specialPrice: p.specialPrice ?? null,
+              image: (Array.isArray(p.images) && p.images[0]) || placeholder,
+            };
+            console.log('🔍 Product Mapping Debug:', {
+              original: p,
+              mapped: mappedItem,
+              regularPriceType: typeof p.regularPrice,
+              specialPriceType: typeof p.specialPrice
+            });
+            return mappedItem;
+          });
           return { ...sec, products: items };
         });
         if (!mounted) return;
@@ -217,7 +226,14 @@ const SearchScreen = () => {
 
   // Helper function to get the correct price for cart
   const getCartPrice = (item) => {
-    return item.specialPrice != null ? item.specialPrice : item.regularPrice;
+    const price = item.specialPrice != null ? item.specialPrice : item.regularPrice;
+    console.log('🔍 getCartPrice Debug:', {
+      itemId: item.id,
+      regularPrice: item.regularPrice,
+      specialPrice: item.specialPrice,
+      calculatedPrice: price
+    });
+    return price;
   };
 
   return (
@@ -364,15 +380,19 @@ const SearchScreen = () => {
                     )}
                     <TouchableOpacity
                       style={{ borderWidth: 1, borderColor: '#FFA726', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6 }}
-                      onPress={() => addToCart({ 
-                        _id: item.id, 
-                        id: item.id, 
-                        name: item.name, // Add product name
-                        regularPrice: item.regularPrice, 
-                        specialPrice: item.specialPrice,
-                        price: getCartPrice(item), // Use the correct price for cart
-                        images: [item.image] 
-                      }, 1)}
+                      onPress={() => {
+                        const cartItem = { 
+                          _id: item.id, 
+                          id: item.id, 
+                          name: item.name, // Add product name
+                          regularPrice: item.regularPrice, 
+                          specialPrice: item.specialPrice,
+                          price: getCartPrice(item), // Use the correct price for cart
+                          images: [item.image] 
+                        };
+                        console.log('🛒 addToCart Debug:', cartItem);
+                        addToCart(cartItem, 1);
+                      }}
                     >
                       <Text style={{ color: '#FFA726', fontWeight: '700', fontSize: 12 }}>ADD</Text>
                     </TouchableOpacity>
