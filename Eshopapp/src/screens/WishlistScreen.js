@@ -12,7 +12,6 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useCart } from '../contexts/CartContext';
-import ViewCartFooter from '../components/ViewCartFooter';
 
 const WishlistScreen = ({ navigation }) => {
   const { wishlist, isLoading, removeFromWishlist } = useWishlist();
@@ -116,11 +115,26 @@ const WishlistScreen = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.addToCartButton}
-            onPress={() => handleAddToCart(item)}
+            onPress={() => {
+              if (item.productType === 'configurable') {
+                navigation.navigate('ProductDetails', { productId: item._id });
+                return;
+              }
+              // simple product: add directly
+              addToCart(item, 1);
+              Alert.alert(
+                'Added to Cart',
+                `${item.name} has been added to your cart`,
+                [
+                  { text: 'Continue', style: 'cancel' },
+                  { text: 'View Cart', onPress: () => navigation.navigate('Cart') }
+                ]
+              );
+            }}
           >
             <Icon name="shopping-cart" size={14} color="#fff" />
             <Text style={styles.addToCartText}>
-              Add to Cart
+              {item.productType === 'configurable' ? 'Choose Options' : 'Add to Cart'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -220,7 +234,6 @@ const WishlistScreen = ({ navigation }) => {
           />
         </>
       )}
-      <ViewCartFooter />
     </View>
   );
 };
