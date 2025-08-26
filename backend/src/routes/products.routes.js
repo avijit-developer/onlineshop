@@ -501,6 +501,9 @@ router.get('/public', async (req, res) => {
 
   // Debug: Log the final query being executed
   console.log('🚀 Executing query with filters:', JSON.stringify(filters, null, 2));
+  
+  // Also log the query parameters for debugging
+  console.log('📋 Query params:', { q, category, minPrice, maxPrice, brands, productType, availability, minRating, sortBy });
 
     // Apply brand filters
     if (brands) {
@@ -615,6 +618,15 @@ router.get('/public', async (req, res) => {
         Product.aggregate(aggregationPipeline),
         Product.countDocuments(filters)
       ]);
+      
+      console.log('📊 Aggregation results:', items.length, 'items');
+      if (items.length > 0) {
+        console.log('💰 Sample prices from aggregation:', items.slice(0, 3).map(item => ({
+          name: item.name,
+          regularPrice: item.regularPrice,
+          specialPrice: item.specialPrice
+        })));
+      }
     } else {
       // Use regular find for non-price sorting
       [items, total] = await Promise.all([
@@ -628,6 +640,15 @@ router.get('/public', async (req, res) => {
           .lean(),
         Product.countDocuments(filters)
       ]);
+      
+      console.log('📊 Find results:', items.length, 'items');
+      if (items.length > 0) {
+        console.log('💰 Sample prices from find:', items.slice(0, 3).map(item => ({
+          name: item.name,
+          regularPrice: item.regularPrice,
+          specialPrice: item.specialPrice
+        })));
+      }
     }
 
     // Fallback: if no results and a category was specified, try relaxing filters further
