@@ -139,10 +139,13 @@ const CartScreen = () => {
         <View style={styles.priceQuantitySection}>
           <View style={styles.priceSection}>
             <Text style={styles.itemPrice}>
-              ₹{String(item.variantInfo?.price || item.regularPrice || item.price || 0)}
+              ₹{String(item.specialPrice || item.variantInfo?.specialPrice || item.regularPrice || item.variantInfo?.price || item.price || 0)}
             </Text>
-            {item.variantInfo?.specialPrice && item.variantInfo.specialPrice < item.variantInfo.price && (
-              <Text style={styles.originalPrice}>₹{String(item.variantInfo.price)}</Text>
+            {/* Show original price if special price exists */}
+            {(item.specialPrice || item.variantInfo?.specialPrice) && (
+              <Text style={styles.originalPrice}>
+                ₹{String(item.regularPrice || item.variantInfo?.price || item.price || 0)}
+              </Text>
             )}
           </View>
           
