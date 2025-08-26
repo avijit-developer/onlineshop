@@ -24,18 +24,18 @@ const cartItemSchema = new mongoose.Schema({
     attributes: {
       type: Map,
       of: String,
-      default: {}
+      default: undefined
     },
     price: {
       type: Number,
-      required: true
+      required: function() { return this.variantInfo != null; }
     },
     specialPrice: {
       type: Number
     },
     stock: {
       type: Number,
-      required: true
+      required: function() { return this.variantInfo != null; }
     },
     sku: {
       type: String

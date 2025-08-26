@@ -52,6 +52,8 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
       return acc;
     }, {});
 
+    console.log('Cart:add: productId =', bodyProductId, 'quantity =', quantity, 'selected =', normalizedSelected);
+
     // Build product payload for cart (ensure base fields present)
     const baseProduct = {
       id: productDoc._id.toString(),
@@ -67,13 +69,21 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
     let productForCart = { ...baseProduct };
     if (Object.keys(normalizedSelected).length > 0 && Array.isArray(productDoc.variants)) {
       const foundVariant = productDoc.variants.find(v => {
-        const attrs = (v.attributes && typeof v.attributes.get === 'function')
-          ? Object.fromEntries(v.attributes)
-          : (v.attributes || {});
+        let attrs = {};
+        if (v.attributes) {
+          if (typeof v.attributes.toJSON === 'function') {
+            attrs = v.attributes.toJSON();
+          } else if (typeof v.attributes.get === 'function') {
+            try { attrs = Object.fromEntries(v.attributes); } catch (_) { attrs = {}; }
+          } else {
+            attrs = v.attributes || {};
+          }
+        }
         return Object.keys(normalizedSelected).every(k => String(attrs[k]) === String(normalizedSelected[k]));
       });
 
       if (foundVariant) {
+        console.log('Cart:add: matched variant for selected attrs');
         productForCart.selectedVariant = {
           attributes: normalizedSelected,
           price: foundVariant.price ?? productDoc.regularPrice,
@@ -88,11 +98,20 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
           productForCart.images = productForCart.selectedVariant.images;
         }
       } else {
+        console.log('Cart:add: no variant match, clearing selected attributes');
         // No matching variant; treat as simple product by clearing attributes
         // so variantInfo is not created by the model
         for (const k of Object.keys(normalizedSelected)) delete normalizedSelected[k];
       }
     }
+
+    console.log('Cart:add: productForCart =', {
+      id: productForCart.id,
+      hasSelectedVariant: Boolean(productForCart.selectedVariant),
+      variantStock: productForCart.selectedVariant?.stock,
+      variantPrice: productForCart.selectedVariant?.price,
+      stock: productForCart.stock,
+    });
 
     let cart = await Cart.findOne({ user: req.user.id });
     
