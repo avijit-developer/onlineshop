@@ -32,8 +32,13 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
       return res.status(400).json({ success: false, message: 'Product and quantity are required' });
     }
 
+    // Resolve product id from body (supports string id or object with id/_id)
+    const bodyProductId = (typeof product === 'string' || typeof product === 'number')
+      ? String(product)
+      : (product?.id || product?._id);
+
     // Verify product exists
-    const productDoc = await Product.findById(product.id || product._id);
+    const productDoc = await Product.findById(bodyProductId);
     if (!productDoc) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }

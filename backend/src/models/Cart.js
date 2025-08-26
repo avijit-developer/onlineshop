@@ -79,14 +79,22 @@ cartSchema.pre('save', function(next) {
 
 // Add methods to the cart schema
 cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
+  // Resolve productId from string/object
+  const productId = (typeof product === 'string' || typeof product === 'number')
+    ? String(product)
+    : String(product?.id || product?._id || '');
+  if (!productId) {
+    throw new Error('Invalid product id');
+  }
+
   // Create unique cart ID based on product and variant
-  let cartId = product.id || product._id;
+  let cartId = productId;
   if (selectedAttributes && Object.keys(selectedAttributes).length > 0) {
     const variantKey = Object.entries(selectedAttributes)
       .map(([key, value]) => `${key}:${value}`)
       .sort()
       .join('|');
-    cartId = `${product.id || product._id}-${variantKey}`;
+    cartId = `${productId}-${variantKey}`;
   }
 
   // Check if item already exists
@@ -95,7 +103,8 @@ cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
   if (existingItemIndex !== -1) {
     // Update existing item quantity
     this.items[existingItemIndex].quantity = quantity;
-    this.items[existingItemIndex].variantInfo = selectedAttributes ? {
+    const hasSelected = selectedAttributes && Object.keys(selectedAttributes).length > 0;
+    this.items[existingItemIndex].variantInfo = hasSelected ? {
       attributes: selectedAttributes,
       price: product.selectedVariant?.price || product.regularPrice,
       specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
@@ -103,15 +112,15 @@ cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
       sku: product.selectedVariant?.sku || product.sku,
       images: product.selectedVariant?.images || []
     } : null;
-    this.items[existingItemIndex].images = product.images || [product.image] || [];
+    this.items[existingItemIndex].images = (product && (product.images || [product.image])) || [];
   } else {
     // Add new item
     const newItem = {
-      product: product.id || product._id,
+      product: productId,
       quantity,
       selectedAttributes: selectedAttributes || {},
       cartId,
-      variantInfo: selectedAttributes ? {
+      variantInfo: (selectedAttributes && Object.keys(selectedAttributes).length > 0) ? {
         attributes: selectedAttributes,
         price: product.selectedVariant?.price || product.regularPrice,
         specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
@@ -119,7 +128,7 @@ cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
         sku: product.selectedVariant?.sku || product.sku,
         images: product.selectedVariant?.images || []
       } : null,
-      images: product.images || [product.image] || []
+      images: (product && (product.images || [product.image])) || []
     };
     this.items.push(newItem);
   }
