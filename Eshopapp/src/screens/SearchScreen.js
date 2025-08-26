@@ -15,15 +15,10 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
 import ViewCartFooter from '../components/ViewCartFooter';
+import { useCart } from '../contexts/CartContext';
 
 const RECENT_KEY = 'recentSearchesV1';
-const rotatingTexts = [
-  'Search fresh milk...',
-  'Find snacks & chips...',
-  'Try yogurt or curd...',
-  'Explore chocolates...',
-  'Search grocery items...',
-];
+const rotatingTexts = [];
 
 const placeholder = 'https://via.placeholder.com/300x300.png?text=Product';
 
@@ -43,6 +38,8 @@ const SearchScreen = () => {
   const [categorySections, setCategorySections] = useState([]); // [{title, parentId, products: []}]
   const [isFocused, setIsFocused] = useState(false);
   const [searchBoxHeight, setSearchBoxHeight] = useState(0);
+  const [animatedChoices, setAnimatedChoices] = useState(rotatingTexts);
+  const { addToCart } = useCart();
 
  useEffect(() => {
   if (isFocused || query.length > 0) return;
@@ -59,8 +56,9 @@ const SearchScreen = () => {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      const nextIndex = (index + 1) % rotatingTexts.length;
-      setText(rotatingTexts[nextIndex]);
+      const pool = animatedChoices && animatedChoices.length ? animatedChoices : ['Search products'];
+      const nextIndex = (index + 1) % pool.length;
+      setText(pool[nextIndex]);
       setIndex(nextIndex);
       slideAnim.setValue(20); // reset from bottom
       opacity.setValue(0);
@@ -82,7 +80,7 @@ const SearchScreen = () => {
 
   const interval = setInterval(animateText, 3000);
   return () => clearInterval(interval);
-}, [index, isFocused, query]);
+}, [index, isFocused, query, animatedChoices]);
 
   // Load recent searches
   useEffect(() => {
@@ -153,13 +151,26 @@ const SearchScreen = () => {
         }
         if (!mounted) return;
         setCategorySections(built);
+        // Build rotating placeholder list from 2nd-level category names (fallback to top-level)
+        const childNames = [];
+        parents.forEach(p => {
+          const pid = String(p._id);
+          const children = childrenByParent.get(pid) || [];
+          children.forEach(ch => childNames.push(ch.name));
+        });
+        const names = childNames.length ? childNames : parents.map(p => p.name);
+        if (names.length && mounted) {
+          setAnimatedChoices(names);
+          setText(names[0]);
+        }
         // Fetch 5 products for each parent
         const fetched = await Promise.all(built.map(sec => api.getProductsPublic({ category: sec.parentId, page: 1, limit: 5 })));
         const withProducts = built.map((sec, idx) => {
           const items = (fetched[idx]?.data || []).map(p => ({
             id: p._id || p.id,
             name: p.name,
-            price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
+            regularPrice: p.regularPrice ?? 0,
+            specialPrice: p.specialPrice ?? null,
             image: (Array.isArray(p.images) && p.images[0]) || placeholder,
           }));
           return { ...sec, products: items };
@@ -221,7 +232,7 @@ const SearchScreen = () => {
           <Icon name="search-outline" size={20} color="#999" style={styles.searchIcon} />
           <View style={{ flex: 1 }}>
           <TextInput
-            placeholder="Search products"
+            placeholder=""
             value={query}
             onChangeText={handleChangeQuery}
             style={styles.searchInput}
@@ -239,7 +250,7 @@ const SearchScreen = () => {
               }
             }}
           />
-          {(!isFocused && query.length === 0) && (
+          {(!isFocused && query.length === 0 && text) && (
           <Animated.Text
   style={[
     styles.animatedPlaceholder,
@@ -248,6 +259,7 @@ const SearchScreen = () => {
       opacity,
     },
   ]}
+  pointerEvents="none"
 >
   {text}
 </Animated.Text>
@@ -331,11 +343,28 @@ const SearchScreen = () => {
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.groceryCard} onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}>
-                  <Image source={{ uri: item.image }} style={styles.groceryImage} />
-                  <Text style={styles.groceryName} numberOfLines={2}>{item.name}</Text>
-                  <Text style={styles.priceText}>{item.price}</Text>
-                </TouchableOpacity>
+                <View style={styles.groceryCard}>
+                  <TouchableOpacity onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}>
+                    <Image source={{ uri: item.image }} style={styles.groceryImage} />
+                    <Text style={styles.groceryName} numberOfLines={2}>{item.name}</Text>
+                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                    {item.specialPrice != null ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#e53935' }}>₹{item.specialPrice}</Text>
+                        <Text style={{ fontSize: 12, color: '#888', textDecorationLine: 'line-through' }}>₹{item.regularPrice}</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.priceText}>₹{item.regularPrice}</Text>
+                    )}
+                    <TouchableOpacity
+                      style={{ borderWidth: 1, borderColor: '#FFA726', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6 }}
+                      onPress={() => addToCart({ _id: item.id, id: item.id, regularPrice: item.regularPrice, specialPrice: item.specialPrice, images: [item.image] }, 1)}
+                    >
+                      <Text style={{ color: '#FFA726', fontWeight: '700', fontSize: 12 }}>ADD</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               )}
             />
           </View>
