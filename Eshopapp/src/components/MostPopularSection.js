@@ -118,7 +118,7 @@ const MostPopularSection = ({ navigation }) => {
           style={styles.seeAll}
           onPress={() => navigation.navigate('ProductList', { 
             title: sectionConfig.title,
-            filter: 'popular'
+            sectionName: 'most-popular'
           })}
         >
           <Text style={styles.seeAllText}>See All</Text>

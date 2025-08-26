@@ -8,7 +8,7 @@ const cardWidth = (screenWidth - 48) / 2; // Adjusted for 2 columns with spacing
 
 const placeholder = require('../assets/cat_clothing.png');
 
-const CategoryBlockGrid = () => {
+const CategoryBlockGrid = ({ navigation }) => {
     const [blocks, setBlocks] = useState([]);
 
     useEffect(() => {
@@ -60,7 +60,7 @@ const CategoryBlockGrid = () => {
             {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Categories</Text>
-                <TouchableOpacity style={styles.seeAll}>
+                <TouchableOpacity style={styles.seeAll} onPress={() => navigation.navigate('Category', { title: 'Categories', categoryId: 'all' })}>
                     <Text style={styles.seeAllText}>See All</Text>
                     <Ionicons name="arrow-forward-circle" size={18} color="#FFA726" />
                 </TouchableOpacity>

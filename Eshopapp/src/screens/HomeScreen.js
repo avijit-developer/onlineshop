@@ -67,7 +67,7 @@ const HomeScreen = ({ navigation }) => {
         <AllCategories />
         <MostPopularSection navigation={navigation} />
         <BestSellerSection navigation={navigation} />
-        <CategoriesGrid />
+        <CategoriesGrid navigation={navigation} />
         <JustForYou navigation={navigation} />
       </ScrollView>
 

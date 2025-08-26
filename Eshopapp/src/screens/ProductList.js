@@ -20,7 +20,7 @@ const placeholder = 'https://via.placeholder.com/300x300.png?text=Product';
 const ProductList = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { categoryId, title } = route.params || {};
+  const { categoryId, title, sectionName } = route.params || {};
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [appliedFilters, setAppliedFilters] = useState({});
   const [resultCount, setResultCount] = useState(0);
@@ -40,7 +40,10 @@ const ProductList = () => {
       try {
         if (!hasMore && page !== 1) return;
         setLoadingMore(true);
-        const res = await api.getProductsPublic({ category: categoryId, page, limit: 20 });
+        const fetcher = sectionName
+          ? () => api.getHomePageSectionProducts(sectionName, { page, limit: 20 })
+          : () => api.getProductsPublic({ category: categoryId, page, limit: 20 });
+        const res = await fetcher();
         const items = (res?.data || []).map(p => ({
           id: p._id || p.id,
           name: p.name,
@@ -64,7 +67,7 @@ const ProductList = () => {
         setLoadingMore(false);
       }
     })();
-  }, [page, categoryId]);
+  }, [page, categoryId, sectionName]);
 
   const handleEndReached = () => {
     if (hasMore && !loadingMore) {

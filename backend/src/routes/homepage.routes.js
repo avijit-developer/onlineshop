@@ -149,6 +149,76 @@ router.get('/sections/public', async (req, res) => {
   }
 });
 
+// Public: Get products for a specific homepage section with pagination
+router.get('/sections/:name/products/public', async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+
+    const section = await HomePageSection.findOne({ name }).lean();
+    if (!section || !section.isActive) {
+      return res.status(404).json({ success: false, message: 'Section not found or inactive' });
+    }
+
+    const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
+    let filters = { ...baseFilters };
+    let sort = { createdAt: -1 };
+
+    if (section.type === 'manual') {
+      const ordered = (section.products || []).sort((a, b) => (a.order || 0) - (b.order || 0));
+      const total = ordered.length;
+      const slice = ordered.slice((pageNum - 1) * perPage, (pageNum - 1) * perPage + perPage);
+      const ids = slice.map(p => p.productId).filter(Boolean);
+      const items = await Product.find({ _id: { $in: ids }, ...baseFilters })
+        .select('name images regularPrice specialPrice rating')
+        .lean();
+      return res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+    }
+
+    switch (section.type) {
+      case 'auto-popular':
+        // Prefer products with salesCount first, then featured, then recents
+        sort = { salesCount: -1, featured: -1, createdAt: -1 };
+        break;
+      case 'auto-recent': {
+        const daysBack = section.autoSettings?.daysBack || 30;
+        const dateLimit = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+        filters.createdAt = { $gte: dateLimit };
+        sort = { createdAt: -1 };
+        break;
+      }
+      case 'auto-category':
+        if (section.autoSettings?.categoryId) {
+          filters.category = section.autoSettings.categoryId;
+        }
+        sort = { createdAt: -1 };
+        break;
+      case 'auto-rating':
+        sort = { rating: -1, createdAt: -1 };
+        break;
+      default:
+        sort = { createdAt: -1 };
+    }
+
+    const [items, total] = await Promise.all([
+      Product.find(filters)
+        .select('name images regularPrice specialPrice rating')
+        .sort(sort)
+        .skip((pageNum - 1) * perPage)
+        .limit(perPage)
+        .lean(),
+      Product.countDocuments(filters)
+    ]);
+
+    return res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+  } catch (error) {
+    console.error('Homepage: section products error:', error);
+    res.status(500).json({ success: false, message: error?.message || 'Failed to fetch section products' });
+  }
+});
+
 // Create new section
 router.post('/sections', authenticate, requireAdmin, async (req, res) => {
   try {

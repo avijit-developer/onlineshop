@@ -85,7 +85,7 @@ const JustForYou = ({ navigation }) => {
         <TouchableOpacity 
           onPress={() => navigation.navigate('ProductList', { 
             title: sectionConfig.title,
-            filter: 'recommended'
+            sectionName: 'just-for-you'
           })}
         >
           <Text style={styles.seeAll}>See All</Text>

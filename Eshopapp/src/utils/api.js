@@ -115,6 +115,14 @@ const api = {
     return this.request(`/api/v1/homepage/sections/${sectionName}`);
   },
 
+  async getHomePageSectionProducts(sectionName, params = {}) {
+    const parts = [];
+    if (params.page != null) parts.push('page=' + encodeURIComponent(String(params.page)));
+    if (params.limit != null) parts.push('limit=' + encodeURIComponent(String(params.limit)));
+    const qs = parts.length ? '?' + parts.join('&') : '';
+    return this.request(`/api/v1/homepage/sections/${encodeURIComponent(String(sectionName))}/products/public${qs}`);
+  },
+
   async forgotPassword(email) {
     return this.request('/api/v1/auth/forgot-password', {
       method: 'POST',
