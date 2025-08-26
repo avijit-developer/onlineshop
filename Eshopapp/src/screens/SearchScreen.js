@@ -41,8 +41,10 @@ const SearchScreen = () => {
   const debounceRef = useRef(null);
   const [recent, setRecent] = useState([]);
   const [categorySections, setCategorySections] = useState([]); // [{title, parentId, products: []}]
+  const [isFocused, setIsFocused] = useState(false);
 
  useEffect(() => {
+  if (isFocused || query.length > 0) return;
   const animateText = () => {
     Animated.parallel([
       Animated.timing(opacity, {
@@ -79,7 +81,7 @@ const SearchScreen = () => {
 
   const interval = setInterval(animateText, 3000);
   return () => clearInterval(interval);
-}, [index]);
+}, [index, isFocused, query]);
 
   // Load recent searches
   useEffect(() => {
@@ -219,14 +221,17 @@ const SearchScreen = () => {
             style={styles.searchInput}
             autoFocus={false}
             returnKeyType="search"
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             onSubmitEditing={() => {
               if (query.trim().length >= 2) {
                 saveRecent(query.trim());
-                navigation.navigate('ProductList', { title: `Results for "${query.trim()}"`, sectionName: undefined, categoryId: undefined });
+                navigation.navigate('ProductList', { title: `Results for \"${query.trim()}\"`, sectionName: undefined, categoryId: undefined });
                 setShowSuggestions(false);
               }
             }}
           />
+          {(!isFocused && query.length === 0) && (
           <Animated.Text
   style={[
     styles.animatedPlaceholder,
@@ -238,6 +243,7 @@ const SearchScreen = () => {
 >
   {text}
 </Animated.Text>
+          )}
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('ProductList')}>
           <Icon name="options-outline" size={20} color="#555" />
