@@ -12,6 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useCart } from '../contexts/CartContext';
+import ViewCartFooter from '../components/ViewCartFooter';
 
 const WishlistScreen = ({ navigation }) => {
   const { wishlist, isLoading, removeFromWishlist } = useWishlist();
@@ -39,43 +40,7 @@ const WishlistScreen = ({ navigation }) => {
     );
   };
 
-  const handleAddToCart = async (item) => {
-    try {
-      await addToCart(item);
-      Alert.alert('Success', `${item.name} has been added to your cart!`);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add item to cart');
-    }
-  };
-
-  const moveAllToCart = async () => {
-    const inStockItems = wishlist.filter(item => item.isActive);
-    if (inStockItems.length === 0) {
-      Alert.alert('No Items', 'No items available to add to cart');
-      return;
-    }
-    
-    Alert.alert(
-      'Move to Cart',
-      `Move ${inStockItems.length} item${inStockItems.length > 1 ? 's' : ''} to cart?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Move All',
-          onPress: async () => {
-            try {
-              for (const item of inStockItems) {
-                await addToCart(item);
-              }
-              Alert.alert('Success', `${inStockItems.length} items moved to cart!`);
-            } catch (error) {
-              Alert.alert('Error', 'Failed to add some items to cart');
-            }
-          }
-        }
-      ]
-    );
-  };
+  // Removed old add-to-cart alert flow and bulk move flow
 
   const renderWishlistItem = ({ item }) => {
     // Debug: Log the item structure
@@ -122,19 +87,7 @@ const WishlistScreen = ({ navigation }) => {
               }
               // simple product: add directly
               (async () => {
-                const result = await addToCart(item, 1);
-                if (result?.success) {
-                  Alert.alert(
-                    'Added to Cart',
-                    `${item.name} has been added to your cart`,
-                    [
-                      { text: 'Continue', style: 'cancel' },
-                      { text: 'View Cart', onPress: () => navigation.navigate('Cart') }
-                    ]
-                  );
-                } else {
-                  Alert.alert('Error', result?.error || 'Failed to add item to cart');
-                }
+                await addToCart(item, 1);
               })();
             }}
           >
@@ -181,53 +134,6 @@ const WishlistScreen = ({ navigation }) => {
         </View>
       ) : (
         <>
-          {/* Wishlist Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{wishlist.length}</Text>
-              <Text style={styles.statLabel}>Items</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                ₹{wishlist.reduce((sum, item) => {
-                  const regularPrice = item.regularPrice || item.price || 0;
-                  const specialPrice = item.specialPrice;
-                  const price = specialPrice && specialPrice < regularPrice ? specialPrice : regularPrice;
-                  console.log(`Item: ${item.name}, Regular: ${regularPrice}, Special: ${specialPrice}, Final: ${price}`);
-                  return sum + price;
-                }, 0).toFixed(0)}
-              </Text>
-              <Text style={styles.statLabel}>Total Value</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {wishlist.filter(item => item.isActive).length}
-              </Text>
-              <Text style={styles.statLabel}>Available</Text>
-            </View>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity 
-              style={styles.moveAllButton}
-              onPress={moveAllToCart}
-            >
-              <Icon name="shopping-cart" size={16} color="#fff" />
-              <Text style={styles.moveAllButtonText}>Move All to Cart</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.shareButton}
-              onPress={() => Alert.alert('Share', 'Wishlist sharing feature coming soon!')}
-            >
-              <Icon name="share" size={16} color="#FFA726" />
-              <Text style={styles.shareButtonText}>Share</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Wishlist Items */}
           <FlatList
             data={wishlist}
@@ -240,6 +146,7 @@ const WishlistScreen = ({ navigation }) => {
           />
         </>
       )}
+      <ViewCartFooter />
     </View>
   );
 };
