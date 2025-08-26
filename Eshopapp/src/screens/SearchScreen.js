@@ -42,6 +42,7 @@ const SearchScreen = () => {
   const [recent, setRecent] = useState([]);
   const [categorySections, setCategorySections] = useState([]); // [{title, parentId, products: []}]
   const [isFocused, setIsFocused] = useState(false);
+  const [searchBoxHeight, setSearchBoxHeight] = useState(0);
 
  useEffect(() => {
   if (isFocused || query.length > 0) return;
@@ -204,17 +205,21 @@ const SearchScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconWrapper}>
-          <Icon name="arrow-back-outline" size={22} color="#333" />
-        </TouchableOpacity>
-      </View>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconWrapper}>
+            <Icon name="arrow-back-outline" size={22} color="#333" />
+          </TouchableOpacity>
+        </View>
 
-      {/* Search Box with Animated Placeholder */}
-      <View style={styles.searchBoxWrapper}>
-        <Icon name="search-outline" size={20} color="#999" style={styles.searchIcon} />
-        <View style={{ flex: 1 }}>
+        {/* Search Box with Animated Placeholder */}
+        <View
+          style={[styles.searchBoxWrapper, { position: 'relative' }]}
+          onLayout={(e) => setSearchBoxHeight(e.nativeEvent.layout.height)}
+        >
+          <Icon name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+          <View style={{ flex: 1 }}>
           <TextInput
             placeholder="Search products"
             value={query}
@@ -245,33 +250,37 @@ const SearchScreen = () => {
   {text}
 </Animated.Text>
           )}
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate('ProductList')}>
-          <Icon name="options-outline" size={20} color="#555" />
-        </TouchableOpacity>
-      </View>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('ProductList')}>
+            <Icon name="options-outline" size={20} color="#555" />
+          </TouchableOpacity>
 
-      {/* Autocomplete Suggestions */}
-      {showSuggestions && (
-        <View style={styles.suggestionsContainer}>
-          {suggestLoading ? (
-            <Text style={{ padding: 12, color: '#666' }}>Searching...</Text>
-          ) : suggestions.length === 0 ? (
-            <Text style={{ padding: 12, color: '#666' }}>No matches</Text>
-          ) : (
-            <FlatList
-              data={suggestions}
-              keyExtractor={(it) => String(it.id)}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.suggestionRow} onPress={() => handleSelectSuggestion(item)}>
-                  <Image source={{ uri: item.image }} style={styles.suggestionImage} />
-                  <Text style={styles.suggestionText} numberOfLines={1}>{item.name}</Text>
-                </TouchableOpacity>
+          {/* Autocomplete Suggestions (overlay) */}
+          {showSuggestions && (
+            <View style={[styles.suggestionsContainer, { top: searchBoxHeight + 8 }] }>
+              {suggestLoading ? (
+                <Text style={{ padding: 12, color: '#666' }}>Searching...</Text>
+              ) : suggestions.length === 0 ? (
+                <Text style={{ padding: 12, color: '#666' }}>No matches</Text>
+              ) : (
+                <FlatList
+                  data={suggestions}
+                  keyExtractor={(it) => String(it.id)}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => (
+                    <TouchableOpacity style={styles.suggestionRow} onPress={() => handleSelectSuggestion(item)}>
+                      <Image source={{ uri: item.image }} style={styles.suggestionImage} />
+                      <Text style={styles.suggestionText} numberOfLines={1}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
               )}
-            />
+            </View>
           )}
         </View>
-      )}
+      </View>
+
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
 
       {/* Recent Searches */}
       <View style={styles.recentSection}>
@@ -321,7 +330,8 @@ const SearchScreen = () => {
           </View>
         ))}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -351,11 +361,20 @@ const styles = StyleSheet.create({
     height: 24,
   },
   suggestionsContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#eee',
     borderRadius: 8,
-    marginTop: 8,
+    maxHeight: 280,
+    zIndex: 10,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
   suggestionRow: {
     flexDirection: 'row',
