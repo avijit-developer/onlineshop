@@ -104,14 +104,22 @@ cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
     // Update existing item quantity
     this.items[existingItemIndex].quantity = quantity;
     const hasSelected = selectedAttributes && Object.keys(selectedAttributes).length > 0;
-    this.items[existingItemIndex].variantInfo = hasSelected ? {
-      attributes: selectedAttributes,
-      price: product.selectedVariant?.price || product.regularPrice,
-      specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
-      stock: product.selectedVariant?.stock || product.stock,
-      sku: product.selectedVariant?.sku || product.sku,
-      images: product.selectedVariant?.images || []
-    } : undefined;
+    if (hasSelected) {
+      this.items[existingItemIndex].variantInfo = {
+        attributes: selectedAttributes,
+        price: product.selectedVariant?.price || product.regularPrice,
+        specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
+        stock: product.selectedVariant?.stock || product.stock,
+        sku: product.selectedVariant?.sku || product.sku,
+        images: product.selectedVariant?.images || []
+      };
+    } else {
+      // Explicitly remove variantInfo when no attributes are selected
+      if (this.items[existingItemIndex].variantInfo !== undefined) {
+        delete this.items[existingItemIndex].variantInfo;
+        this.markModified('items');
+      }
+    }
     this.items[existingItemIndex].images = (product && (product.images || [product.image])) || [];
   } else {
     // Add new item

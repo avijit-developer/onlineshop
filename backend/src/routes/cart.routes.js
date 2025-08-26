@@ -121,8 +121,13 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
     }
 
     // Add item to cart using the model method
-    cart.addItem(productForCart, quantity, normalizedSelected);
-    await cart.save();
+    try {
+      cart.addItem(productForCart, quantity, normalizedSelected);
+      await cart.save();
+    } catch (e) {
+      console.error('Cart:add: save failed', e);
+      return res.status(500).json({ success: false, message: e?.message || 'Failed to add item to cart' });
+    }
 
     // Populate product details for response
     await cart.populate('items.product');
