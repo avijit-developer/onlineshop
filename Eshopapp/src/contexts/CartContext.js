@@ -180,6 +180,8 @@ export const CartProvider = ({ children }) => {
         // Ensure both _id and id are present for backend lookups
         _id: String(productId),
         id: String(productId),
+        // Use the price field if provided, otherwise fall back to regular price
+        price: product?.price ?? product?.regularPrice ?? parseNumericPrice(product?.price),
         // Carry forward fields the backend/cart model may utilize for images/pricing
         regularPrice: product?.regularPrice ?? parseNumericPrice(product?.price),
         specialPrice: product?.specialPrice ?? undefined,
@@ -285,6 +287,10 @@ export const CartProvider = ({ children }) => {
   };
 
   const getItemPrice = (item) => {
+    // Use the price field first if available (this is set by our getCartPrice logic)
+    if (item.price && item.price > 0) {
+      return item.price;
+    }
     // Use variant price if available, otherwise fall back to regular price
     if (item.variantInfo?.price) {
       return item.variantInfo.price;
