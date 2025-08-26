@@ -173,6 +173,11 @@ const SearchScreen = () => {
               regularPrice: p.regularPrice ?? 0,
               specialPrice: p.specialPrice ?? null,
               image: (Array.isArray(p.images) && p.images[0]) || placeholder,
+              // Add configurable product detection fields
+              hasVariants: p.hasVariants || p.variants?.length > 0,
+              attributes: p.attributes || p.productAttributes,
+              productType: p.productType || p.type,
+              isConfigurable: p.isConfigurable || p.configurable || false,
             };
             console.log('🔍 Product Mapping Debug:', {
               original: p,
@@ -238,6 +243,33 @@ const SearchScreen = () => {
       calculatedPrice: price
     });
     return price;
+  };
+
+  // Helper function to check if product is configurable
+  const isConfigurableProduct = (item) => {
+    // Check if product has variants, attributes, or is marked as configurable
+    return item.hasVariants || item.attributes || item.productType === 'configurable' || item.isConfigurable;
+  };
+
+  // Helper function to handle product action (add to cart or navigate to details)
+  const handleProductAction = (item) => {
+    if (isConfigurableProduct(item)) {
+      // Navigate to product details for configurable products
+      navigation.navigate('ProductDetails', { productId: item.id });
+    } else {
+      // Add to cart directly for simple products
+      const cartItem = { 
+        _id: item.id, 
+        id: item.id, 
+        name: item.name,
+        regularPrice: item.regularPrice, 
+        specialPrice: item.specialPrice,
+        price: getCartPrice(item),
+        images: [item.image] 
+      };
+      console.log('🛒 addToCart Debug:', cartItem);
+      addToCart(cartItem, 1);
+    }
   };
 
   return (
@@ -383,22 +415,23 @@ const SearchScreen = () => {
                       <Text style={styles.priceText}>₹{item.regularPrice}</Text>
                     )}
                     <TouchableOpacity
-                      style={{ borderWidth: 1, borderColor: '#FFA726', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6 }}
-                      onPress={() => {
-                        const cartItem = { 
-                          _id: item.id, 
-                          id: item.id, 
-                          name: item.name, // Add product name
-                          regularPrice: item.regularPrice, 
-                          specialPrice: item.specialPrice,
-                          price: getCartPrice(item), // Use the correct price for cart
-                          images: [item.image] 
-                        };
-                        console.log('🛒 addToCart Debug:', cartItem);
-                        addToCart(cartItem, 1);
+                      style={{ 
+                        borderWidth: 1, 
+                        borderColor: isConfigurableProduct(item) ? '#4CAF50' : '#FFA726', 
+                        paddingVertical: 4, 
+                        paddingHorizontal: 10, 
+                        borderRadius: 6,
+                        backgroundColor: isConfigurableProduct(item) ? '#4CAF50' : 'transparent'
                       }}
+                      onPress={() => handleProductAction(item)}
                     >
-                      <Text style={{ color: '#FFA726', fontWeight: '700', fontSize: 12 }}>ADD</Text>
+                      <Text style={{ 
+                        color: isConfigurableProduct(item) ? '#fff' : '#FFA726', 
+                        fontWeight: '700', 
+                        fontSize: 12 
+                      }}>
+                        {isConfigurableProduct(item) ? 'VIEW' : 'ADD'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>

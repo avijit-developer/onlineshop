@@ -277,7 +277,9 @@ export const CartProvider = ({ children }) => {
       console.log('Clearing cart via database');
       const response = await api.clearUserCart();
       if (response && response.success) {
-        await loadCart();
+        // Immediately clear the local state for instant UI update
+        setCartItems([]);
+        console.log('Cart cleared successfully, local state updated');
       } else {
         console.log('Failed to clear cart in database');
       }

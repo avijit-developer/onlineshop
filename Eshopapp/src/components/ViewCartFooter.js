@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -14,12 +15,34 @@ import { useCart } from '../contexts/CartContext';
 const ViewCartFooter = () => {
   const navigation = useNavigation();
   const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart, isAuthenticated } = useCart();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const slideAnim = React.useRef(new Animated.Value(100)).current;
 
   // Refresh cart data when component mounts (only once)
   useEffect(() => {
     refreshCart();
   }, []); // run once on mount
 
+  // Auto-expand when cart has items
+  useEffect(() => {
+    if (cartItems.length > 0 && !isExpanded) {
+      setIsExpanded(true);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }).start();
+    } else if (cartItems.length === 0 && isExpanded) {
+      setIsExpanded(false);
+      Animated.spring(slideAnim, {
+        toValue: 100,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }).start();
+    }
+  }, [cartItems.length, isExpanded, slideAnim]);
 
 
   // Memoize calculations to prevent unnecessary re-renders
@@ -44,7 +67,14 @@ const ViewCartFooter = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <Animated.View 
+      style={[
+        styles.container,
+        {
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
+    >
       <View style={styles.cartInfo}>
         <ScrollView
           horizontal
@@ -94,7 +124,7 @@ const ViewCartFooter = () => {
         <Text style={styles.viewCartText}>View Cart</Text>
         <Icon name="arrow-forward-outline" size={16} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 };
 
