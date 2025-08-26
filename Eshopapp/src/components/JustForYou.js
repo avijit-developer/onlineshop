@@ -82,14 +82,6 @@ const JustForYou = ({ navigation }) => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{sectionConfig.title}</Text>
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('ProductList', { 
-            title: sectionConfig.title || 'Just For You',
-            sectionName: sectionConfig?.name || 'just-for-you'
-          })}
-        >
-          <Text style={styles.seeAll}>See All</Text>
-        </TouchableOpacity>
       </View>
       <FlatList
         data={products}

@@ -114,16 +114,6 @@ const MostPopularSection = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{sectionConfig.title}</Text>
-        <TouchableOpacity 
-          style={styles.seeAll}
-          onPress={() => navigation.navigate('ProductList', { 
-            title: sectionConfig.title || 'Most Popular',
-            sectionName: sectionConfig?.name || 'most-popular'
-          })}
-        >
-          <Text style={styles.seeAllText}>See All</Text>
-          <Ionicons name="arrow-forward-circle" size={18} color="#FFA726" />
-        </TouchableOpacity>
       </View>
 
       {/* Horizontal List */}
