@@ -253,6 +253,15 @@ const SearchScreen = () => {
 </Animated.Text>
           )}
           </View>
+          {query.length > 0 && (
+            <TouchableOpacity
+              onPress={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false); }}
+              style={styles.clearButton}
+              accessibilityLabel="Clear search"
+            >
+              <Icon name="close-circle" size={20} color="#999" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={() => navigation.navigate('ProductList')}>
             <Icon name="options-outline" size={20} color="#555" />
           </TouchableOpacity>
@@ -398,6 +407,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     flex: 1,
+  },
+  clearButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   animatedPlaceholder: {
     position: 'absolute',
