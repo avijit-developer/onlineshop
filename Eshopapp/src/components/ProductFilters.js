@@ -177,47 +177,55 @@ const ProductFilters = ({
 
   const renderBrandsFilter = () => (
     <View style={styles.brandsContainer}>
-      {filterOptions?.brands?.map((brand) => (
-        <TouchableOpacity
-          key={brand.id}
-          style={[
-            styles.brandChip,
-            filters.brands.includes(brand.id) && styles.brandChipSelected
-          ]}
-          onPress={() => toggleBrand(brand.id)}
-          activeOpacity={0.7}
-        >
-          <Text style={[
-            styles.brandChipText,
-            filters.brands.includes(brand.id) && styles.brandChipTextSelected
-          ]}>
-            {brand.name} ({brand.count})
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {filterOptions?.brands?.length > 0 ? (
+        filterOptions.brands.map((brand) => (
+          <TouchableOpacity
+            key={brand.id}
+            style={[
+              styles.brandChip,
+              filters.brands.includes(brand.id) && styles.brandChipSelected
+            ]}
+            onPress={() => toggleBrand(brand.id)}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.brandChipText,
+              filters.brands.includes(brand.id) && styles.brandChipTextSelected
+            ]}>
+              {brand.name} ({brand.count})
+            </Text>
+          </TouchableOpacity>
+        ))
+      ) : (
+        <Text style={styles.noOptionsText}>No brands available</Text>
+      )}
     </View>
   );
 
   const renderProductTypeFilter = () => (
     <View style={styles.optionsContainer}>
-      {filterOptions?.productTypes?.map((type) => (
-        <TouchableOpacity
-          key={type.type}
-          style={[
-            styles.optionChip,
-            filters.productType === type.type && styles.optionChipSelected
-          ]}
-          onPress={() => updateFilter('productType', type.type)}
-          activeOpacity={0.7}
-        >
-          <Text style={[
-            styles.optionChipText,
-            filters.productType === type.type && styles.optionChipTextSelected
-          ]}>
-            {type.type === 'simple' ? 'Simple Products' : 'Configurable Products'} ({type.count})
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {filterOptions?.productTypes?.length > 0 ? (
+        filterOptions.productTypes.map((type) => (
+          <TouchableOpacity
+            key={type.type}
+            style={[
+              styles.optionChip,
+              filters.productType === type.type && styles.optionChipSelected
+            ]}
+            onPress={() => updateFilter('productType', type.type)}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.optionChipText,
+              filters.productType === type.type && styles.optionChipTextSelected
+            ]}>
+              {type.type === 'simple' ? 'Simple Products' : 'Configurable Products'} ({type.count})
+            </Text>
+          </TouchableOpacity>
+        ))
+      ) : (
+        <Text style={styles.noOptionsText}>No product types available</Text>
+      )}
     </View>
   );
 
@@ -495,6 +503,13 @@ const styles = StyleSheet.create({
   },
   optionChipTextSelected: {
     color: 'white',
+  },
+  noOptionsText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 20,
   },
   footer: {
     padding: 20,

@@ -217,42 +217,10 @@ const ProductList = () => {
     loadFilterOptions();
   }, [loadFilterOptions]);
 
-  const applyFilters = (filters) => {
-    let filtered = [...filteredProducts];
-
-    // Apply category filter
-    if (filters.categories && filters.categories.length > 0) {
-      // For demo purposes, we'll assume all current products are dresses
-      // In a real app, you'd filter based on product categories
-    }
-
-    // Apply price filter
-    if (filters.priceRange) {
-      filtered = filtered.filter(item => {
-        const price = parseFloat(String(item.price).replace('₹', ''));
-        return price >= filters.priceRange[0] && price <= filters.priceRange[1];
-      });
-    }
-
-    // Apply rating filter
-    if (filters.rating > 0) {
-      filtered = filtered.filter(item => item.rating >= filters.rating);
-    }
-
-    // Apply on sale filter
-    if (filters.onSale) {
-      filtered = filtered.filter(item => item.oldPrice);
-    }
-
-    setFilteredProducts(filtered);
-    setResultCount(filtered.length);
-    setAppliedFilters(filters);
-  };
+  // Old filter function removed - now using comprehensive API-based filtering
 
   const handleFilterPress = () => {
-    navigation.navigate('Filter', {
-      onApplyFilters: applyFilters,
-    });
+    setShowFilters(true);
   };
 
   const renderItem = ({ item }) => <ProductCard item={item} />;
@@ -272,26 +240,56 @@ const ProductList = () => {
       {/* Filter & Count */}
       <View style={styles.filterRow}>
         <Text style={styles.resultText}>Found {resultCount} Results</Text>
-        <TouchableOpacity style={styles.filterButton} onPress={handleFilterPress}>
-          <Text style={styles.filterText}>Filter</Text>
-          <Icon name="chevron-down-outline" size={16} />
-        </TouchableOpacity>
+        <FilterButton 
+          onPress={handleFilterPress}
+          activeFiltersCount={Object.values(currentFilters).filter((v, i) => {
+            if (i === 0) { // priceRange
+              return v[0] !== (filterOptions?.priceRange?.min || 0) || v[1] !== (filterOptions?.priceRange?.max || 1000);
+            }
+            return v !== 'all' && v !== 0 && (!Array.isArray(v) || v.length > 0);
+          }).length}
+        />
       </View>
 
-      {/* Product Grid */}
-      <FlatList
-        data={filteredProducts}
-        numColumns={2}
-        renderItem={renderItem}
-        keyExtractor={(item) => String(item.id)}
-        columnWrapperStyle={styles.column}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.5}
+      {/* Filter Summary */}
+      <FilterSummary 
+        filters={currentFilters}
+        filterOptions={filterOptions}
+        onRemoveFilter={removeFilter}
+        onClearAll={clearAllFilters}
       />
 
+      {/* Product Grid */}
+      {filterLoading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Applying filters...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredProducts}
+          numColumns={2}
+          renderItem={renderItem}
+          keyExtractor={(item) => String(item.id)}
+          columnWrapperStyle={styles.column}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+        />
+      )}
+
       </ScrollView>
+      
+      {/* Product Filters Modal */}
+      <ProductFilters
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        onApply={applyFilters}
+        filterOptions={filterOptions}
+        currentFilters={currentFilters}
+        loading={filterLoading}
+      />
+      
       <ViewCartFooter />
     </View>
   );
@@ -343,6 +341,15 @@ const styles = StyleSheet.create({
   column: {
     justifyContent: 'space-between',
     marginBottom: 24,
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
   },
   card: {
     width: '45%',
