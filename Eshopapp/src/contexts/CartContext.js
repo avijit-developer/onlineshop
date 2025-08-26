@@ -156,19 +156,23 @@ export const CartProvider = ({ children }) => {
     try {
       if (!isAuthenticated) {
         console.log('User not authenticated, cannot add to cart');
-        return;
+        return { success: false, error: 'Not authenticated' };
       }
 
-      console.log('Adding to cart via database:', product.name, quantity, selectedAttributes);
+      console.log('Adding to cart via database:', product?.name || product?._id, quantity, selectedAttributes);
       const response = await api.addToUserCart(product, quantity, selectedAttributes);
       if (response && response.success) {
         await loadCart();
+        return { success: true };
       } else {
-        console.log('Failed to add item to cart in database');
+        const message = response?.message || 'Failed to add item to cart in database';
+        console.log(message);
+        return { success: false, error: message };
       }
       
     } catch (error) {
       console.log('Error adding to cart:', error);
+      return { success: false, error: error?.message || 'Failed to add item to cart' };
     }
   };
 

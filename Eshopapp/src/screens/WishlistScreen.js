@@ -121,15 +121,21 @@ const WishlistScreen = ({ navigation }) => {
                 return;
               }
               // simple product: add directly
-              addToCart(item, 1);
-              Alert.alert(
-                'Added to Cart',
-                `${item.name} has been added to your cart`,
-                [
-                  { text: 'Continue', style: 'cancel' },
-                  { text: 'View Cart', onPress: () => navigation.navigate('Cart') }
-                ]
-              );
+              (async () => {
+                const result = await addToCart(item, 1);
+                if (result?.success) {
+                  Alert.alert(
+                    'Added to Cart',
+                    `${item.name} has been added to your cart`,
+                    [
+                      { text: 'Continue', style: 'cancel' },
+                      { text: 'View Cart', onPress: () => navigation.navigate('Cart') }
+                    ]
+                  );
+                } else {
+                  Alert.alert('Error', result?.error || 'Failed to add item to cart');
+                }
+              })();
             }}
           >
             <Icon name="shopping-cart" size={14} color="#fff" />
