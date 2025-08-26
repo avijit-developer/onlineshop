@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ import ProductCard from '../components/ProductCard';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import api from '../utils/api';
 import ViewCartFooter from '../components/ViewCartFooter';
+import ProductFilters from '../components/ProductFilters';
+import FilterButton from '../components/FilterButton';
+import FilterSummary from '../components/FilterSummary';
 
 const placeholder = 'https://via.placeholder.com/300x300.png?text=Product';
 
@@ -29,6 +32,19 @@ const ProductList = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterOptions, setFilterOptions] = useState(null);
+  const [currentFilters, setCurrentFilters] = useState({
+    priceRange: [0, 1000],
+    brands: [],
+    productType: 'all',
+    availability: 'all',
+    minRating: 0,
+    sortBy: 'newest'
+  });
+  const [filterLoading, setFilterLoading] = useState(false);
 
   useEffect(() => {
     // reset when category changes
@@ -78,6 +94,128 @@ const ProductList = () => {
       setPage(prev => prev + 1);
     }
   };
+
+  // Filter functions
+  const loadFilterOptions = useCallback(async () => {
+    try {
+      setFilterLoading(true);
+      const res = await api.getProductFilters({ category: categoryId });
+      if (res?.success && res?.data) {
+        setFilterOptions(res.data);
+        // Initialize price range from filter options
+        if (res.data.priceRange) {
+          setCurrentFilters(prev => ({
+            ...prev,
+            priceRange: [res.data.priceRange.min, res.data.priceRange.max]
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load filter options:', error);
+    } finally {
+      setFilterLoading(false);
+    }
+  }, [categoryId]);
+
+  const applyFilters = useCallback(async (filters) => {
+    try {
+      setFilterLoading(true);
+      setCurrentFilters(filters);
+      setPage(1);
+      setHasMore(true);
+      setLoadedCount(0);
+      
+      // Build API parameters
+      const params = {
+        category: categoryId,
+        page: 1,
+        limit: 20,
+        ...filters,
+        brands: filters.brands.length > 0 ? filters.brands.join(',') : undefined,
+        minPrice: filters.priceRange[0],
+        maxPrice: filters.priceRange[1]
+      };
+      
+      // Remove undefined values
+      Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+      
+      const res = await api.getProductsPublic(params);
+      if (res?.success && res?.data) {
+        const items = res.data.map(p => ({
+          id: p._id || p.id,
+          name: p.name,
+          price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
+          oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
+          rating: p.rating || 0,
+          reviews: 0,
+          image: (Array.isArray(p.images) && p.images[0]) || placeholder,
+          liked: false,
+        }));
+        const total = res?.meta?.total ?? 0;
+        setTotalAvailable(total);
+        setFilteredProducts(items);
+        setLoadedCount(items.length);
+        setResultCount(total > 0 ? total : items.length);
+        setHasMore(items.length > 0 && items.length < total);
+      }
+    } catch (error) {
+      console.error('Failed to apply filters:', error);
+    } finally {
+      setFilterLoading(false);
+    }
+  }, [categoryId]);
+
+  const removeFilter = useCallback((filterKey) => {
+    const newFilters = { ...currentFilters };
+    
+    switch (filterKey) {
+      case 'priceRange':
+        newFilters.priceRange = filterOptions?.priceRange ? 
+          [filterOptions.priceRange.min, filterOptions.priceRange.max] : [0, 1000];
+        break;
+      case 'brands':
+        newFilters.brands = [];
+        break;
+      case 'productType':
+        newFilters.productType = 'all';
+        break;
+      case 'availability':
+        newFilters.availability = 'all';
+        break;
+      case 'minRating':
+        newFilters.minRating = 0;
+        break;
+      case 'sortBy':
+        newFilters.sortBy = 'newest';
+        break;
+    }
+    
+    setCurrentFilters(newFilters);
+    applyFilters(newFilters);
+  }, [currentFilters, filterOptions, applyFilters]);
+
+  const clearAllFilters = useCallback(() => {
+    const defaultFilters = {
+      priceRange: filterOptions?.priceRange ? 
+        [filterOptions.priceRange.min, filterOptions.priceRange.max] : [0, 1000],
+      brands: [],
+      productType: 'all',
+      availability: 'all',
+      minRating: 0,
+      sortBy: 'newest'
+    };
+    setCurrentFilters(defaultFilters);
+    setFilteredProducts([]);
+    // Reset to original data
+    setPage(1);
+    setHasMore(true);
+    setLoadedCount(0);
+  }, [filterOptions]);
+
+  // Load filter options on mount
+  useEffect(() => {
+    loadFilterOptions();
+  }, [loadFilterOptions]);
 
   const applyFilters = (filters) => {
     let filtered = [...filteredProducts];

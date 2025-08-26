@@ -278,10 +278,145 @@ router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), requ
   res.json({ success: true, data: updated });
 });
 
-// Public: GET /products/public?category=&q=&page=&limit=
+// Public: Get filter options for products (aggregation)
+router.get('/public/filters', async (req, res) => {
+  try {
+    const { category } = req.query;
+    const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
+    let filters = { ...baseFilters };
+
+    if (category) {
+      // Include products in the selected category and all descendants
+      const allIds = new Set([String(category)]);
+      let frontier = [String(category)];
+      while (frontier.length > 0) {
+        const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
+        const newIds = children
+          .map(c => String(c._id))
+          .filter(id => !allIds.has(id));
+        if (newIds.length === 0) break;
+        newIds.forEach(id => allIds.add(id));
+        frontier = newIds;
+      }
+      filters.category = { $in: Array.from(allIds) };
+    }
+
+    // Get price range
+    const priceStats = await Product.aggregate([
+      { $match: filters },
+      {
+        $group: {
+          _id: null,
+          minPrice: { $min: '$regularPrice' },
+          maxPrice: { $max: '$regularPrice' },
+          avgPrice: { $avg: '$regularPrice' }
+        }
+      }
+    ]);
+
+    // Get brands
+    const brands = await Product.aggregate([
+      { $match: filters },
+      { $lookup: { from: 'brands', localField: 'brand', foreignField: '_id', as: 'brandInfo' } },
+      { $unwind: '$brandInfo' },
+      {
+        $group: {
+          _id: '$brand',
+          name: { $first: '$brandInfo.name' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 50 }
+    ]);
+
+    // Get product types
+    const productTypes = await Product.aggregate([
+      { $match: filters },
+      {
+        $group: {
+          _id: '$productType',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Get availability status
+    const availability = await Product.aggregate([
+      { $match: filters },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $gt: ['$stock', 0] },
+              'in_stock',
+              'out_of_stock'
+            ]
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Get rating distribution
+    const ratings = await Product.aggregate([
+      { $match: { ...filters, rating: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: {
+            $switch: {
+              branches: [
+                { case: { $gte: ['$rating', 4.5] }, then: '4.5+ stars' },
+                { case: { $gte: ['$rating', 4.0] }, then: '4.0+ stars' },
+                { case: { $gte: ['$rating', 3.5] }, then: '3.5+ stars' },
+                { case: { $gte: ['$rating', 3.0] }, then: '3.0+ stars' }
+              ],
+              default: 'Below 3.0'
+            }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    const filterOptions = {
+      priceRange: priceStats[0] ? {
+        min: Math.floor(priceStats[0].minPrice),
+        max: Math.ceil(priceStats[0].maxPrice),
+        avg: Math.round(priceStats[0].avgPrice)
+      } : { min: 0, max: 1000, avg: 500 },
+      brands: brands.map(b => ({ id: b._id, name: b.name, count: b.count })),
+      productTypes: productTypes.map(t => ({ type: t._id, count: t.count })),
+      availability: availability.map(a => ({ status: a._id, count: a.count })),
+      ratings: ratings.map(r => ({ range: r._id, count: r.count }))
+    };
+
+    res.json({ success: true, data: filterOptions });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to fetch filter options' });
+  }
+});
+
+// Public: GET /products/public?category=&q=&page=&limit=&filters=
 router.get('/public', async (req, res) => {
   try {
-    const { q = '', category, page = 1, limit = 20 } = req.query;
+    const { 
+      q = '', 
+      category, 
+      page = 1, 
+      limit = 20,
+      minPrice,
+      maxPrice,
+      brands,
+      productType,
+      availability,
+      minRating,
+      sortBy = 'newest'
+    } = req.query;
+    
     const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
     let filters = { ...baseFilters };
 
@@ -308,14 +443,68 @@ router.get('/public', async (req, res) => {
       filters.category = { $in: Array.from(allIds) };
     }
 
+    // Apply price filters
+    if (minPrice || maxPrice) {
+      filters.regularPrice = {};
+      if (minPrice) filters.regularPrice.$gte = parseFloat(minPrice);
+      if (maxPrice) filters.regularPrice.$lte = parseFloat(maxPrice);
+    }
+
+    // Apply brand filters
+    if (brands) {
+      const brandIds = brands.split(',').map(id => id.trim());
+      if (brandIds.length > 0) {
+        filters.brand = { $in: brandIds };
+      }
+    }
+
+    // Apply product type filter
+    if (productType && productType !== 'all') {
+      filters.productType = productType;
+    }
+
+    // Apply availability filter
+    if (availability === 'in_stock') {
+      filters.stock = { $gt: 0 };
+    } else if (availability === 'out_of_stock') {
+      filters.stock = { $lte: 0 };
+    }
+
+    // Apply rating filter
+    if (minRating) {
+      filters.rating = { $gte: parseFloat(minRating) };
+    }
+
+    // Determine sort order
+    let sortOrder = {};
+    switch (sortBy) {
+      case 'price_low':
+        sortOrder = { regularPrice: 1 };
+        break;
+      case 'price_high':
+        sortOrder = { regularPrice: -1 };
+        break;
+      case 'rating':
+        sortOrder = { rating: -1 };
+        break;
+      case 'name':
+        sortOrder = { name: 1 };
+        break;
+      case 'newest':
+      default:
+        sortOrder = { createdAt: -1 };
+        break;
+    }
+
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
     let [items, total] = await Promise.all([
       Product.find(filters)
-        .select('_id name images regularPrice specialPrice rating productType variants')
+        .select('_id name images regularPrice specialPrice rating productType variants stock brand')
         .populate('category', 'name')
-        .sort({ createdAt: -1 })
+        .populate('brand', 'name')
+        .sort(sortOrder)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
         .lean(),
@@ -346,9 +535,10 @@ router.get('/public', async (req, res) => {
 
       ;[items, total] = await Promise.all([
         Product.find(filters)
-          .select('_id name images regularPrice specialPrice rating productType variants')
+          .select('_id name images regularPrice specialPrice rating productType variants stock brand')
           .populate('category', 'name')
-          .sort({ createdAt: -1 })
+          .populate('brand', 'name')
+          .sort(sortOrder)
           .skip((pageNum - 1) * perPage)
           .limit(perPage)
           .lean(),

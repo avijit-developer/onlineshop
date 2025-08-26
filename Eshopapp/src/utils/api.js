@@ -246,12 +246,23 @@ const api = {
     if (params.category) parts.push('category=' + encodeURIComponent(String(params.category)));
     if (params.page != null) parts.push('page=' + encodeURIComponent(String(params.page)));
     if (params.limit != null) parts.push('limit=' + encodeURIComponent(String(params.limit)));
-    if (params.brand) parts.push('brand=' + encodeURIComponent(String(params.brand)));
+    if (params.brands) parts.push('brands=' + encodeURIComponent(String(params.brands)));
     if (params.minPrice != null) parts.push('minPrice=' + encodeURIComponent(String(params.minPrice)));
     if (params.maxPrice != null) parts.push('maxPrice=' + encodeURIComponent(String(params.maxPrice)));
-    if (params.sort) parts.push('sort=' + encodeURIComponent(String(params.sort)));
+    if (params.productType) parts.push('productType=' + encodeURIComponent(String(params.productType)));
+    if (params.availability) parts.push('availability=' + encodeURIComponent(String(params.availability)));
+    if (params.minRating != null) parts.push('minRating=' + encodeURIComponent(String(params.minRating)));
+    if (params.sortBy) parts.push('sortBy=' + encodeURIComponent(String(params.sortBy)));
     const qs = parts.length ? '?' + parts.join('&') : '';
     return this.request(`/api/v1/products/public${qs}`);
+  },
+
+  // Get filter options for products
+  async getProductFilters(params = {}) {
+    const parts = [];
+    if (params.category) parts.push('category=' + encodeURIComponent(String(params.category)));
+    const qs = parts.length ? '?' + parts.join('&') : '';
+    return this.request(`/api/v1/products/public/filters${qs}`);
   },
 
   async getRelatedProductsPublic(productId) {
