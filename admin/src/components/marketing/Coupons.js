@@ -225,7 +225,13 @@ const Coupons = () => {
         const res = await fetch(`${API_BASE}/api/v1/coupons/${id}`, {
           method: 'PUT',
           headers: getAuthHeaders(),
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            ...payload,
+            // send arrays only relevant to appliesTo to avoid backend replacing unintended fields
+            vendorIds: payload.appliesTo === 'vendor' ? payload.vendorIds : undefined,
+            categoryIds: payload.appliesTo === 'category' ? payload.categoryIds : undefined,
+            productIds: payload.appliesTo === 'product' ? payload.productIds : undefined,
+          })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.message || 'Failed to update coupon');
@@ -234,7 +240,12 @@ const Coupons = () => {
         const res = await fetch(`${API_BASE}/api/v1/coupons`, {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            ...payload,
+            vendorIds: payload.appliesTo === 'vendor' ? payload.vendorIds : [],
+            categoryIds: payload.appliesTo === 'category' ? payload.categoryIds : [],
+            productIds: payload.appliesTo === 'product' ? payload.productIds : [],
+          })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.message || 'Failed to create coupon');
