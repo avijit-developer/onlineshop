@@ -454,13 +454,15 @@ const Categories = () => {
   };
 
   const getCategoryPath = (categoryId) => {
-    const category = categories.find(cat => cat.id === categoryId);
+    if (!categoryId) return '';
+    const source = allCategories.length > 0 ? allCategories : categories;
+    const category = source.find(cat => cat.id === categoryId);
     if (!category) return '';
     const path = [];
     let current = category;
     while (current) {
       path.unshift(current.name);
-      current = current.parentId ? categories.find(cat => cat.id === current.parentId) : null;
+      current = current.parentId ? source.find(cat => cat.id === current.parentId) : null;
     }
     return path.join(' › ');
   };
