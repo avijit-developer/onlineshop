@@ -8,7 +8,7 @@ const DEFAULT_BASE = Platform.select({
   android: 'http://10.0.2.2:5000',
   default: 'http://localhost:5000',
 });
-const API_BASE = (EXPO_PUBLIC_API_URL || API_URL || process.env?.EXPO_PUBLIC_API_URL || process.env?.API_URL || DEFAULT_BASE);
+export const API_BASE = (EXPO_PUBLIC_API_URL || API_URL || process.env?.EXPO_PUBLIC_API_URL || process.env?.API_URL || DEFAULT_BASE);
 
 class ApiError extends Error {
   constructor(message, status) {
@@ -27,6 +27,7 @@ const api = {
       ...restOptions,
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         ...(optionHeaders || {}),
       },
     };
