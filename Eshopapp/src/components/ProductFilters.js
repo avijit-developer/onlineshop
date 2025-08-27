@@ -424,12 +424,18 @@ const ProductFilters = ({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {renderSection('Subcategories', 'categories', renderChildCategories())}
-            {renderSection('Price Range', 'price', renderPriceFilter())}
-            {renderSection('Brands', 'brands', renderBrandsFilter())}
-            {renderSection('Product Type', 'productType', renderProductTypeFilter())}
-            {renderSection('Availability', 'availability', renderAvailabilityFilter())}
-            {renderSection('Rating', 'rating', renderRatingFilter())}
+            {filterOptions?.childCategories && filterOptions.childCategories.length > 0 &&
+              renderSection('Categories', 'categories', renderChildCategories())}
+            {filterOptions?.priceRange &&
+              renderSection('Price Range', 'price', renderPriceFilter())}
+            {filterOptions?.brands && filterOptions.brands.length > 0 &&
+              renderSection('Brands', 'brands', renderBrandsFilter())}
+            {filterOptions?.productTypes && filterOptions.productTypes.length > 0 &&
+              renderSection('Product Type', 'productType', renderProductTypeFilter())}
+            {filterOptions?.availability && filterOptions.availability.length > 0 &&
+              renderSection('Availability', 'availability', renderAvailabilityFilter())}
+            {filterOptions?.ratings && filterOptions.ratings.length > 0 &&
+              renderSection('Rating', 'rating', renderRatingFilter())}
             {renderSection('Sort By', 'sort', renderSortOptions())}
           </ScrollView>
 
