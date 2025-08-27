@@ -32,6 +32,12 @@ router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) 
   }
 });
 
+function uniqueIdArray(arr) {
+  if (!Array.isArray(arr)) return [];
+  const set = new Set(arr.map(v => String(v)));
+  return Array.from(set);
+}
+
 // Create coupon
 router.post('/', authenticate, requireRole(['admin']), requirePermission('coupons.add'), async (req, res) => {
   try {
@@ -55,9 +61,9 @@ router.post('/', authenticate, requireRole(['admin']), requirePermission('coupon
       endDate: new Date(body.endDate),
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
       appliesTo: body.appliesTo || 'all',
-      vendorIds: Array.isArray(body.vendorIds) ? body.vendorIds : [],
-      categoryIds: Array.isArray(body.categoryIds) ? body.categoryIds : [],
-      productIds: Array.isArray(body.productIds) ? body.productIds : [],
+      vendorIds: uniqueIdArray(body.vendorIds),
+      categoryIds: uniqueIdArray(body.categoryIds),
+      productIds: uniqueIdArray(body.productIds),
     };
     const created = await Coupon.create(payload);
     res.json({ success: true, data: created });
@@ -84,9 +90,9 @@ router.put('/:id', authenticate, requireRole(['admin']), requirePermission('coup
       endDate: body.endDate ? new Date(body.endDate) : undefined,
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
       appliesTo: body.appliesTo,
-      vendorIds: Array.isArray(body.vendorIds) ? body.vendorIds : undefined,
-      categoryIds: Array.isArray(body.categoryIds) ? body.categoryIds : undefined,
-      productIds: Array.isArray(body.productIds) ? body.productIds : undefined,
+      vendorIds: Array.isArray(body.vendorIds) ? uniqueIdArray(body.vendorIds) : undefined,
+      categoryIds: Array.isArray(body.categoryIds) ? uniqueIdArray(body.categoryIds) : undefined,
+      productIds: Array.isArray(body.productIds) ? uniqueIdArray(body.productIds) : undefined,
     };
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
     const updated = await Coupon.findByIdAndUpdate(id, payload, { new: true });

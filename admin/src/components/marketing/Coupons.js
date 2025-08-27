@@ -130,7 +130,11 @@ const Coupons = () => {
       if (prev.selected.find(s => String(s.id) === String(item.id))) return prev;
       return { ...prev, selected: [...prev.selected, item] };
     });
-    setFormData(prev => ({ ...prev, productIds: [...(prev.productIds || []), item.id] }));
+    setFormData(prev => {
+      const existing = new Set((prev.productIds || []).map(String));
+      existing.add(String(item.id));
+      return { ...prev, productIds: Array.from(existing) };
+    });
   };
 
   const removeProductFromCoupon = (id) => {
