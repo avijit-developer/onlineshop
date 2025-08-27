@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const Brand = require('../models/Brand');
@@ -298,7 +299,8 @@ router.get('/public/filters', async (req, res) => {
         newIds.forEach(id => allIds.add(id));
         frontier = newIds;
       }
-      filters.category = { $in: Array.from(allIds) };
+      const objectIdList = Array.from(allIds).map(id => new mongoose.Types.ObjectId(id));
+      filters.category = { $in: objectIdList };
     }
 
     // Get price range - consider both special and regular prices
@@ -455,8 +457,9 @@ router.get('/public', async (req, res) => {
         newIds.forEach(id => allIds.add(id));
         frontier = newIds;
       }
-      filters.category = { $in: Array.from(allIds) };
-      console.log('🔒 Category filter expanded to include:', Array.from(allIds));
+      const objectIdList = Array.from(allIds).map(id => new mongoose.Types.ObjectId(id));
+      filters.category = { $in: objectIdList };
+      console.log('🔒 Category filter expanded to include:', objectIdList);
     } else {
       console.log('⚠️ No category specified - will show all products');
     }
@@ -676,7 +679,8 @@ router.get('/public', async (req, res) => {
         newIds.forEach(id => allIds.add(id));
         frontier = newIds;
       }
-      filters.category = { $in: Array.from(allIds) };
+      const objectIdList = Array.from(allIds).map(id => new mongoose.Types.ObjectId(id));
+      filters.category = { $in: objectIdList };
 
       // Fallback also needs to handle price sorting
       if (sortBy === 'price_low' || sortBy === 'price_high') {
