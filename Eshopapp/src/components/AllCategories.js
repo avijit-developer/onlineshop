@@ -38,6 +38,7 @@ const AllCategories = () => {
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.imageWrapper} onPress={()=>navigation.navigate('Category', { categoryId: item.id, title: item.name })}>
             <Image source={ item.image ? { uri: item.image } : placeholder } style={styles.image} />
+            <Text style={styles.categoryName} numberOfLines={2}>{item.name}</Text>
           </TouchableOpacity>
         )}
       />
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
   },
 imageWrapper: {
   width: 70,
-  height: 70,
+  height: 90,
   borderRadius: 35,
   backgroundColor: '#fff',
   justifyContent: 'center',
@@ -82,6 +83,12 @@ imageWrapper: {
     height: 58,
     borderRadius: 29,
     resizeMode: 'cover',
+  },
+  categoryName: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+    color: '#000',
   },
 });
 
