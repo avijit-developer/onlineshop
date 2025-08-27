@@ -133,15 +133,15 @@ const ProductList = () => {
   const applyFilters = useCallback(async (filters) => {
     try {
       console.log('🚀 ProductList applyFilters called with:', filters);
+      console.log('📍 Current categoryId:', categoryId);
       setFilterLoading(true);
       setCurrentFilters(filters);
       setPage(1);
       setHasMore(true);
       setLoadedCount(0);
       
-      // Build API parameters
+      // Build API parameters - ALWAYS include category if available
       const params = {
-        category: categoryId,
         page: 1,
         limit: 20,
         ...filters,
@@ -149,6 +149,15 @@ const ProductList = () => {
         minPrice: filters.priceRange[0],
         maxPrice: filters.priceRange[1]
       };
+      
+      // Ensure category is always included if we have one
+      if (categoryId) {
+        params.category = categoryId;
+        console.log('🔒 Locking filters to category:', categoryId);
+      } else if (sectionName) {
+        params.sectionName = sectionName;
+        console.log('🔒 Locking filters to section:', sectionName);
+      }
       
       // Remove undefined values
       Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
@@ -191,7 +200,7 @@ const ProductList = () => {
     } finally {
       setFilterLoading(false);
     }
-  }, [categoryId]);
+  }, [categoryId, sectionName]);
 
   const removeFilter = useCallback((filterKey) => {
     const newFilters = { ...currentFilters };
@@ -234,11 +243,17 @@ const ProductList = () => {
     };
     setCurrentFilters(defaultFilters);
     setFilteredProducts([]);
-    // Reset to original data
+    // Reset to original data but maintain category scope
     setPage(1);
     setHasMore(true);
     setLoadedCount(0);
-  }, [filterOptions]);
+    
+    // Reload products for current category only
+    if (categoryId || sectionName) {
+      console.log('🔄 Clearing filters, reloading products for current category/section');
+      // This will trigger the useEffect to reload data for current category
+    }
+  }, [filterOptions, categoryId, sectionName]);
 
   // Load filter options on mount
   useEffect(() => {

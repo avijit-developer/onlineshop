@@ -428,6 +428,9 @@ router.get('/public', async (req, res) => {
       sortBy = 'newest'
     } = req.query;
     
+    console.log('🔍 Backend received request with category:', category);
+    console.log('🔍 Backend received request with filters:', { minPrice, maxPrice, brands, productType, availability, minRating, sortBy });
+    
     const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
     let filters = { ...baseFilters };
 
@@ -439,6 +442,7 @@ router.get('/public', async (req, res) => {
     }
 
     if (category) {
+      console.log('🔒 Applying category filter for:', category);
       // Include products in the selected category and all descendants
       const allIds = new Set([String(category)]);
       let frontier = [String(category)];
@@ -452,6 +456,9 @@ router.get('/public', async (req, res) => {
         frontier = newIds;
       }
       filters.category = { $in: Array.from(allIds) };
+      console.log('🔒 Category filter expanded to include:', Array.from(allIds));
+    } else {
+      console.log('⚠️ No category specified - will show all products');
     }
 
         // Apply price filters - check both special and regular prices
