@@ -7,6 +7,7 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -107,6 +108,47 @@ const Categories = () => {
     fetchCategories();
   }, [currentPage, itemsPerPage, searchTerm]);
 
+  useEffect(() => {
+    fetchAllCategories();
+  }, []);
+
+  const fetchAllCategories = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/categories?parent=all&limit=10000`, {
+        headers: getAuthHeaders()
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || 'Failed to fetch all categories');
+      const items = json.data || [];
+      const idToCategory = new Map(items.map(c => [c._id, c]));
+      const computeLevel = (cat) => {
+        let level = 1; let cur = cat;
+        while (cur.parent) {
+          level += 1;
+          cur = idToCategory.get(cur.parent) || null;
+          if (!cur) break;
+        }
+        return level;
+      };
+      const mapped = items.map(c => ({
+        id: c._id,
+        name: c.name,
+        description: c.description || '',
+        parentId: c.parent || null,
+        image: c.image || '',
+        featured: !!c.featured,
+        sortOrder: c.sortOrder || 0,
+        enabled: !!c.enabled,
+        level: computeLevel(c),
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt
+      }));
+      setAllCategories(mapped);
+    } catch (e) {
+      // ignore
+    }
+  };
+
   const fetchCategories = async () => {
     try {
       setLoading(true);
@@ -158,12 +200,14 @@ const Categories = () => {
   };
 
   const getCategoryLevel = (categoryId) => {
-    const category = categories.find(cat => cat.id === categoryId);
+    const source = allCategories.length > 0 ? allCategories : categories;
+    const category = source.find(cat => cat.id === categoryId);
     return category ? category.level : 0;
   };
 
   const getAvailableParents = (currentCategoryId = null) => {
-    return categories.filter(cat => {
+    const source = allCategories.length > 0 ? allCategories : categories;
+    return source.filter(cat => {
       if (currentCategoryId && (cat.id === currentCategoryId || isDescendant(cat.id, currentCategoryId))) {
         return false;
       }
@@ -173,7 +217,8 @@ const Categories = () => {
   };
 
   const isDescendant = (categoryId, ancestorId) => {
-    const category = categories.find(cat => cat.id === categoryId);
+    const source = allCategories.length > 0 ? allCategories : categories;
+    const category = source.find(cat => cat.id === categoryId);
     if (!category || !category.parentId) return false;
     if (category.parentId === ancestorId) return true;
     return isDescendant(category.parentId, ancestorId);
@@ -224,6 +269,7 @@ const Categories = () => {
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.message || `Failed to delete category (HTTP ${res.status})`);
         await fetchCategories();
+        await fetchAllCategories();
         toast.success('Category deleted successfully');
       } catch (error) {
         toast.error(error.message || 'Failed to delete category');
@@ -302,6 +348,7 @@ const Categories = () => {
       setShowEditModal(false);
       setImageFile(null);
       await fetchCategories();
+      await fetchAllCategories();
     } catch (error) {
       toast.error(error.message || 'Failed to save category');
     } finally {
@@ -355,6 +402,7 @@ const Categories = () => {
       }
       
       await fetchCategories();
+      await fetchAllCategories();
       toast.success(`Category ${!category.featured ? 'featured' : 'unfeatured'} successfully`);
     } catch (error) {
       toast.error(error.message || 'Failed to toggle featured status');
@@ -374,6 +422,7 @@ const Categories = () => {
       }
       
       await fetchCategories();
+      await fetchAllCategories();
       toast.success('Category status updated successfully');
     } catch (error) {
       toast.error(error.message || 'Failed to toggle enabled status');
@@ -417,18 +466,26 @@ const Categories = () => {
   };
 
   const buildCategoryTree = (availableCategories) => {
-    const tree = [];
-    const categoryMap = {};
-    availableCategories.forEach(category => {
-      categoryMap[category.id] = { ...category, children: [] };
+    const map = new Map();
+    const source = allCategories.length > 0 ? allCategories : categories;
+    availableCategories.forEach(cat => {
+      map.set(cat.id, { ...cat, children: [] });
     });
-    availableCategories.forEach(category => {
-      if (category.parentId && categoryMap[category.parentId]) {
-        categoryMap[category.parentId].children.push(categoryMap[category.id]);
+    const tree = [];
+    availableCategories.forEach(cat => {
+      const node = map.get(cat.id);
+      if (node.parentId && map.has(node.parentId)) {
+        map.get(node.parentId).children.push(node);
       } else {
-        tree.push(categoryMap[category.id]);
+        tree.push(node);
       }
     });
+    // Ensure children ordering by sortOrder then name
+    const sortNodes = (nodes) => {
+      nodes.sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0) || a.name.localeCompare(b.name));
+      nodes.forEach(n => sortNodes(n.children));
+    };
+    sortNodes(tree);
     return tree;
   };
 
