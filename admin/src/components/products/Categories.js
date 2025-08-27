@@ -391,35 +391,6 @@ const Categories = () => {
     }
   };
 
-  const toggleFeatured = async (categoryId) => {
-    try {
-      const category = categories.find(cat => cat.id === categoryId);
-      if (!category) return;
-      
-      // Store current page to restore after operation
-      const currentPageBefore = currentPage;
-      
-      const res = await fetch(`${API_BASE}/api/v1/categories/${categoryId}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ featured: !category.featured })
-      });
-      
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json?.message || 'Failed to toggle featured status');
-      }
-      
-      await fetchCategories();
-      await fetchAllCategories();
-      // Restore the page position after operation
-      setCurrentPage(currentPageBefore);
-      toast.success(`Category ${!category.featured ? 'featured' : 'unfeatured'} successfully`);
-    } catch (error) {
-      toast.error(error.message || 'Failed to toggle featured status');
-    }
-  };
-
   const toggleEnabled = async (categoryId) => {
     try {
       // Store current page to restore after operation
@@ -611,9 +582,6 @@ const Categories = () => {
             {category.featured && <span className="featured-indicator">★</span>}
             <div className="hierarchy-actions">
               <button onClick={() => handleEditCategory(category)} className="btn btn-info btn-sm">Edit</button>
-              <button onClick={() => toggleFeatured(category.id)} className={`btn btn-sm ${category.featured ? 'btn-warning' : 'btn-success'}`}>
-                {category.featured ? 'Unfeature' : 'Feature'}
-              </button>
               <div className="toggle-container">
                 <label className="toggle-switch">
                   <input
@@ -827,12 +795,6 @@ const Categories = () => {
                             className="btn btn-info btn-sm"
                           >
                             Edit
-                          </button>
-                          <button
-                            onClick={() => toggleFeatured(category.id)}
-                            className={`btn btn-sm ${category.featured ? 'btn-warning' : 'btn-success'}`}
-                          >
-                            {category.featured ? 'Unfeature' : 'Feature'}
                           </button>
                           <div className="toggle-container">
                             <label className="toggle-switch">
