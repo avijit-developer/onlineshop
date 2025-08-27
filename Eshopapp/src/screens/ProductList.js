@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
-  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ProductCard from '../components/ProductCard';
@@ -256,9 +255,8 @@ const ProductList = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <ScrollView style={{padding: 16, backgroundColor: '#fff'}} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: 16 }]}>
         <TouchableOpacity onPress={()=>navigation.goBack()}>
           <Icon name="arrow-back-outline" size={22} color="#333" />
         </TouchableOpacity>
@@ -267,7 +265,7 @@ const ProductList = () => {
       </View>
 
       {/* Filter & Count */}
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, { paddingHorizontal: 16 }]}>
         <Text style={styles.resultText}>Found {resultCount} Results</Text>
         <FilterButton 
           onPress={handleFilterPress}
@@ -281,12 +279,14 @@ const ProductList = () => {
       </View>
 
       {/* Filter Summary */}
-      <FilterSummary 
-        filters={currentFilters}
-        filterOptions={filterOptions}
-        onRemoveFilter={removeFilter}
-        onClearAll={clearAllFilters}
-      />
+      <View style={{ paddingHorizontal: 16 }}>
+        <FilterSummary 
+          filters={currentFilters}
+          filterOptions={filterOptions}
+          onRemoveFilter={removeFilter}
+          onClearAll={clearAllFilters}
+        />
+      </View>
 
       {/* Product Grid */}
       {filterLoading ? (
@@ -324,10 +324,13 @@ const ProductList = () => {
           showsVerticalScrollIndicator={false}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
+          ListHeaderComponent={() => (
+            <View style={{ paddingHorizontal: 16 }}>
+              {/* Header content moved here */}
+            </View>
+          )}
         />
       )}
-
-      </ScrollView>
       
       {/* Product Filters Modal */}
       <ProductFilters
