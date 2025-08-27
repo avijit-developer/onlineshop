@@ -398,7 +398,7 @@ router.get('/public/filters', async (req, res) => {
         min: Math.floor(priceStats[0].minPrice),
         max: Math.ceil(priceStats[0].maxPrice),
         avg: Math.round(priceStats[0].avgPrice)
-      } : { min: 0, max: 1000, avg: 500 },
+      } : null,
       brands: brands.map(b => ({ id: b._id, name: b.name, count: b.count })),
       productTypes: productTypes.map(t => ({ type: t._id, count: t.count })),
       availability: availability.map(a => ({ status: a._id, count: a.count })),

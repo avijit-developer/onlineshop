@@ -71,10 +71,14 @@ const ProductFilters = ({
     if (filterOptions?.priceRange) {
       const min = filterOptions.priceRange.min || 0;
       const max = filterOptions.priceRange.max || 100;
+      console.log('🔍 FilterOptions received:', filterOptions);
+      console.log('💰 Price range from filterOptions:', { min, max });
       setFilters(prev => ({
         ...prev,
         priceRange: [min, max]
       }));
+    } else {
+      console.log('⚠️ No filterOptions.priceRange available:', filterOptions);
     }
   }, [filterOptions]);
 
@@ -157,8 +161,12 @@ const ProductFilters = ({
   const renderPriceFilter = () => (
     <View style={styles.priceContainer}>
       <View style={styles.priceLabels}>
-        <Text style={styles.priceLabel}>₹{Math.round(filters.priceRange[0])}</Text>
-        <Text style={styles.priceLabel}>₹{Math.round(filters.priceRange[1])}</Text>
+        <Text style={styles.priceLabel}>
+          {filterOptions?.priceRange ? `₹${Math.round(filters.priceRange[0])}` : '₹0'}
+        </Text>
+        <Text style={styles.priceLabel}>
+          {filterOptions?.priceRange ? `₹${Math.round(filters.priceRange[1])}` : '₹100'}
+        </Text>
       </View>
       
       <View style={styles.sliderContainer}>
@@ -188,6 +196,7 @@ const ProductFilters = ({
           maximumTrackTintColor="transparent"
           thumbStyle={styles.sliderThumb}
           trackStyle={styles.sliderTrack}
+          enabled={!!filterOptions?.priceRange}
         />
         
         {/* Max value slider (right thumb) */}
@@ -204,6 +213,7 @@ const ProductFilters = ({
           maximumTrackTintColor="#007AFF"
           thumbStyle={styles.sliderThumb}
           trackStyle={styles.sliderTrack}
+          enabled={!!filterOptions?.priceRange}
         />
       </View>
       
@@ -211,7 +221,9 @@ const ProductFilters = ({
         <Text style={styles.priceRangeText}>
           {filterOptions?.priceRange ? 
             `Price range: ₹${Math.round(filterOptions.priceRange.min)} - ₹${Math.round(filterOptions.priceRange.max)}` :
-            'Loading price range...'
+            filterOptions?.priceRange === null ? 
+              'No products available in this category' :
+              'Loading price range...'
           }
         </Text>
       </View>
