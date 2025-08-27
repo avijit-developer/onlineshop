@@ -316,7 +316,7 @@ const Products = () => {
       seoTitle: '',
       seoDescription: '',
       images: product.images || [],
-      variants: product.variants || []
+      variants: Array.isArray(product.variants) ? product.variants : []
     });
     setShowEditModal(true);
     // Prefill related products
@@ -404,8 +404,12 @@ const Products = () => {
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
           images: Array.isArray(v.images) ? v.images : []
         }));
+      } else {
+        // Ensure variants is always an array
+        payload.variants = [];
       }
 
+      // Now payload.variants is guaranteed to be an array
       if (payload.variants.length > 0) {
         for (const v of payload.variants) {
           if (!v.sku || v.price === undefined) {
