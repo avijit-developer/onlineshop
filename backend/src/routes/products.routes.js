@@ -308,7 +308,7 @@ router.get('/public/filters', async (req, res) => {
         $addFields: {
           effectivePrice: {
             $cond: {
-              if: { $and: [{ $ne: ['$specialPrice', null] }, { $ne: ['$specialPrice', 0] }] },
+              if: { $ne: ['$specialPrice', null] },
               then: '$specialPrice',
               else: '$regularPrice'
             }
@@ -461,31 +461,29 @@ router.get('/public', async (req, res) => {
       console.log('⚠️ No category specified - will show all products');
     }
 
-        // Apply price filters - check both special and regular prices
+        // Apply price filters - prefer specialPrice when present, otherwise use regularPrice
     if (minPrice || maxPrice) {
       const minPriceVal = minPrice ? parseFloat(minPrice) : 0;
       const maxPriceVal = maxPrice ? parseFloat(maxPrice) : Number.MAX_SAFE_INTEGER;
       
       console.log('💰 Price filtering:', { minPrice: minPriceVal, maxPrice: maxPriceVal });
       
-      // Create price filter
+      // Create price filter with preference for specialPrice when it exists
       const priceFilter = {
         $or: [
-          // Special price within range
+          // If specialPrice exists, it must fall within range
           {
-            specialPrice: { 
-              $exists: true, 
-              $ne: null, 
-              $gte: minPriceVal, 
-              $lte: maxPriceVal 
-            }
+            $and: [
+              { specialPrice: { $exists: true, $ne: null } },
+              { specialPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
+            ]
           },
-          // Regular price within range
+          // If specialPrice does not exist, fallback to regularPrice range
           {
-            regularPrice: { 
-              $gte: minPriceVal, 
-              $lte: maxPriceVal 
-            }
+            $and: [
+              { $or: [ { specialPrice: { $exists: false } }, { specialPrice: null } ] },
+              { regularPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
+            ]
           }
         ]
       };
@@ -575,7 +573,7 @@ router.get('/public', async (req, res) => {
           $addFields: {
             effectivePrice: {
               $cond: {
-                if: { $and: [{ $ne: ['$specialPrice', null] }, { $ne: ['$specialPrice', 0] }] },
+                if: { $ne: ['$specialPrice', null] },
                 then: '$specialPrice',
                 else: '$regularPrice'
               }
@@ -690,7 +688,7 @@ router.get('/public', async (req, res) => {
             $addFields: {
               effectivePrice: {
                 $cond: {
-                  if: { $and: [{ $ne: ['$specialPrice', null] }, { $ne: ['$specialPrice', 0] }] },
+                  if: { $ne: ['$specialPrice', null] },
                   then: '$specialPrice',
                   else: '$regularPrice'
                 }
