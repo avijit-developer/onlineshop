@@ -47,6 +47,12 @@ const Coupons = () => {
     setCurrentPage(1);
   }, [searchTerm, filterStatus]);
 
+  // Refetch when page, search, or status changes
+  useEffect(() => {
+    fetchCoupons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, searchTerm, filterStatus]);
+
   const getAuthHeaders = () => {
     const token = localStorage.getItem('adminToken');
     return {
@@ -239,9 +245,37 @@ const Coupons = () => {
     }
   };
 
+  const formatDateInput = (val) => {
+    if (!val) return '';
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return '';
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const handleEdit = (coupon) => {
     setEditingCoupon(coupon);
-    setFormData(coupon);
+    setProductPicker({ query: '', results: [], selected: [] });
+    setFormData({
+      code: coupon.code || '',
+      name: coupon.name || '',
+      description: coupon.description || '',
+      discountType: coupon.discountType || 'percentage',
+      discountValue: coupon.discountValue ?? '',
+      minimumAmount: coupon.minimumAmount ?? '',
+      maximumDiscount: coupon.maximumDiscount ?? '',
+      usageLimit: coupon.usageLimit ?? '',
+      usedCount: coupon.usedCount ?? 0,
+      startDate: formatDateInput(coupon.startDate),
+      endDate: formatDateInput(coupon.endDate),
+      isActive: !!coupon.isActive,
+      appliesTo: coupon.appliesTo || 'all',
+      vendorIds: coupon.vendorIds || [],
+      categoryIds: coupon.categoryIds || [],
+      productIds: coupon.productIds || []
+    });
     setShowModal(true);
   };
 
@@ -469,7 +503,7 @@ const Coupons = () => {
                   </span>
                 </td>
                 <td>
-                  <div className="action-buttons">
+                  <div className="action-buttons" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button
                       onClick={() => handleEdit(coupon)}
                       className="btn btn-info btn-sm"
@@ -477,17 +511,15 @@ const Coupons = () => {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleToggleStatus(coupon)}
-                      className={`btn btn-sm ${coupon.isActive ? 'btn-warning' : 'btn-success'}`}
-                    >
-                      {coupon.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(coupon.id)}
+                      onClick={() => handleDelete(coupon._id || coupon.id)}
                       className="btn btn-danger btn-sm"
                     >
                       Delete
                     </button>
+                    <label className="toggle-switch" title="Active">
+                      <input type="checkbox" checked={!!coupon.isActive} onChange={(e) => handleToggleStatus({ ...coupon, isActive: e.target.checked })} />
+                      <span className="slider" />
+                    </label>
                   </div>
                 </td>
               </tr>
