@@ -308,7 +308,7 @@ router.get('/public/filters', async (req, res) => {
         $addFields: {
           effectivePrice: {
             $cond: {
-              if: { $and: [{ $exists: ['$specialPrice', true] }, { $ne: ['$specialPrice', null] }] },
+              if: { $and: [{ $ne: ['$specialPrice', null] }, { $ne: ['$specialPrice', 0] }] },
               then: '$specialPrice',
               else: '$regularPrice'
             }
@@ -568,7 +568,7 @@ router.get('/public', async (req, res) => {
           $addFields: {
             effectivePrice: {
               $cond: {
-                if: { $and: [{ $exists: ['$specialPrice', true] }, { $ne: ['$specialPrice', null] }] },
+                if: { $and: [{ $ne: ['$specialPrice', null] }, { $ne: ['$specialPrice', 0] }] },
                 then: '$specialPrice',
                 else: '$regularPrice'
               }
@@ -683,7 +683,7 @@ router.get('/public', async (req, res) => {
             $addFields: {
               effectivePrice: {
                 $cond: {
-                  if: { $and: [{ $exists: ['$specialPrice', true] }, { $ne: ['$specialPrice', null] }] },
+                  if: { $and: [{ $ne: ['$specialPrice', null] }, { $ne: ['$specialPrice', 0] }] },
                   then: '$specialPrice',
                   else: '$regularPrice'
                 }
