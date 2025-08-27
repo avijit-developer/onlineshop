@@ -145,33 +145,49 @@ const ProductFilters = ({
   const renderPriceFilter = () => (
     <View style={styles.priceContainer}>
       <View style={styles.priceLabels}>
-        <Text style={styles.priceLabel}>₹{filters.priceRange[0]}</Text>
-        <Text style={styles.priceLabel}>₹{filters.priceRange[1]}</Text>
+        <Text style={styles.priceLabel}>₹{Math.round(filters.priceRange[0])}</Text>
+        <Text style={styles.priceLabel}>₹{Math.round(filters.priceRange[1])}</Text>
       </View>
       
-      <Slider
-        style={styles.slider}
-        minimumValue={filterOptions?.priceRange?.min || 0}
-        maximumValue={filterOptions?.priceRange?.max || 1000}
-        value={filters.priceRange[1]}
-        onValueChange={(value) => updateFilter('priceRange', [filters.priceRange[0], Math.round(value)])}
-        minimumTrackTintColor="#007AFF"
-        maximumTrackTintColor="#E0E0E0"
-        thumbStyle={styles.sliderThumb}
-        trackStyle={styles.sliderTrack}
-      />
+      <View style={styles.sliderContainer}>
+        <Slider
+          style={styles.slider}
+          minimumValue={filterOptions?.priceRange?.min || 0}
+          maximumValue={filterOptions?.priceRange?.max || 1000}
+          value={filters.priceRange[1]}
+          onValueChange={(value) => {
+            const newMax = Math.round(value);
+            const newMin = Math.min(filters.priceRange[0], newMax);
+            updateFilter('priceRange', [newMin, newMax]);
+          }}
+          minimumTrackTintColor="#007AFF"
+          maximumTrackTintColor="#E0E0E0"
+          thumbStyle={styles.sliderThumb}
+          trackStyle={styles.sliderTrack}
+        />
+        
+        <Slider
+          style={[styles.slider, styles.overlaySlider]}
+          minimumValue={filterOptions?.priceRange?.min || 0}
+          maximumValue={filters.priceRange[1]}
+          value={filters.priceRange[0]}
+          onValueChange={(value) => {
+            const newMin = Math.round(value);
+            const newMax = Math.max(filters.priceRange[1], newMin);
+            updateFilter('priceRange', [newMin, newMax]);
+          }}
+          minimumTrackTintColor="transparent"
+          maximumTrackTintColor="transparent"
+          thumbStyle={styles.sliderThumb}
+          trackStyle={styles.sliderTrack}
+        />
+      </View>
       
-      <Slider
-        style={styles.slider}
-        minimumValue={filterOptions?.priceRange?.min || 0}
-        maximumValue={filters.priceRange[1]}
-        value={filters.priceRange[0]}
-        onValueChange={(value) => updateFilter('priceRange', [Math.round(value), filters.priceRange[1]])}
-        minimumTrackTintColor="#007AFF"
-        maximumTrackTintColor="#E0E0E0"
-        thumbStyle={styles.sliderThumb}
-        trackStyle={styles.sliderTrack}
-      />
+      <View style={styles.priceRangeInfo}>
+        <Text style={styles.priceRangeText}>
+          Price range: ₹{Math.round(filterOptions?.priceRange?.min || 0)} - ₹{Math.round(filterOptions?.priceRange?.max || 1000)}
+        </Text>
+      </View>
     </View>
   );
 
@@ -444,19 +460,43 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-  slider: {
+  sliderContainer: {
+    position: 'relative',
     width: '100%',
     height: 40,
     marginBottom: 10,
+  },
+  slider: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  overlaySlider: {
+    zIndex: 1,
   },
   sliderThumb: {
     backgroundColor: '#007AFF',
     width: 20,
     height: 20,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   sliderTrack: {
     height: 4,
     borderRadius: 2,
+  },
+  priceRangeInfo: {
+    marginTop: 10,
+    paddingHorizontal: 10,
+  },
+  priceRangeText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
   brandsContainer: {
     flexDirection: 'row',
