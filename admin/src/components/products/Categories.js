@@ -283,6 +283,9 @@ const Categories = () => {
       if (submitting) return;
       setSubmitting(true);
 
+      // Store current page to restore after operation
+      const currentPageBefore = currentPage;
+
       if (!formData.name.trim()) {
         toast.error('Name is required');
         setSubmitting(false);
@@ -347,8 +350,11 @@ const Categories = () => {
       setShowAddModal(false);
       setShowEditModal(false);
       setImageFile(null);
+      
+      // Restore the page position after operation
       await fetchCategories();
       await fetchAllCategories();
+      setCurrentPage(currentPageBefore);
     } catch (error) {
       toast.error(error.message || 'Failed to save category');
     } finally {
@@ -390,6 +396,9 @@ const Categories = () => {
       const category = categories.find(cat => cat.id === categoryId);
       if (!category) return;
       
+      // Store current page to restore after operation
+      const currentPageBefore = currentPage;
+      
       const res = await fetch(`${API_BASE}/api/v1/categories/${categoryId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
@@ -403,6 +412,8 @@ const Categories = () => {
       
       await fetchCategories();
       await fetchAllCategories();
+      // Restore the page position after operation
+      setCurrentPage(currentPageBefore);
       toast.success(`Category ${!category.featured ? 'featured' : 'unfeatured'} successfully`);
     } catch (error) {
       toast.error(error.message || 'Failed to toggle featured status');
@@ -411,6 +422,9 @@ const Categories = () => {
 
   const toggleEnabled = async (categoryId) => {
     try {
+      // Store current page to restore after operation
+      const currentPageBefore = currentPage;
+      
       const res = await fetch(`${API_BASE}/api/v1/categories/${categoryId}/toggle-enabled`, {
         method: 'PATCH',
         headers: getAuthHeaders()
@@ -423,6 +437,8 @@ const Categories = () => {
       
       await fetchCategories();
       await fetchAllCategories();
+      // Restore the page position after operation
+      setCurrentPage(currentPageBefore);
       toast.success('Category status updated successfully');
     } catch (error) {
       toast.error(error.message || 'Failed to toggle enabled status');
