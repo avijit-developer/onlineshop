@@ -431,7 +431,8 @@ const Categories = () => {
 
   const getParentName = (parentId) => {
     if (!parentId) return 'None';
-    const parent = categories.find(cat => cat.id === parentId);
+    const source = allCategories.length > 0 ? allCategories : categories;
+    const parent = source.find(cat => cat.id === parentId);
     return parent ? parent.name : 'Unknown';
   };
 
