@@ -14,6 +14,11 @@ const Coupons = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
+  // Selection sources
+  const [vendors, setVendors] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [productPicker, setProductPicker] = useState({ query: '', results: [], selected: [] });
+
   // Form state
   const [formData, setFormData] = useState({
     code: '',
@@ -69,6 +74,62 @@ const Coupons = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load vendors and categories for Applies To selectors
+  useEffect(() => {
+    (async () => {
+      try {
+        const [venRes, catRes] = await Promise.all([
+          fetch(`${API_BASE}/api/v1/vendors?page=1&limit=1000`, { headers: getAuthHeaders() }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
+          fetch(`${API_BASE}/api/v1/categories?parent=all&page=1&limit=1000`, { headers: getAuthHeaders() })
+        ]);
+        const [venJson, catJson] = await Promise.all([venRes.json(), catRes.json()]);
+        if (venRes.ok) setVendors((venJson.data || []).map(v => ({ id: v._id || v.id, name: v.companyName })));
+        if (catRes.ok) setCategories((catJson.data || []).map(c => ({ id: c._id || c.id, name: c.name })));
+      } catch (_) {}
+    })();
+  }, []);
+
+  const toggleVendor = (id) => {
+    setFormData(prev => {
+      const exists = prev.vendorIds.includes(id);
+      return { ...prev, vendorIds: exists ? prev.vendorIds.filter(v => v !== id) : [...prev.vendorIds, id] };
+    });
+  };
+
+  const toggleCategory = (id) => {
+    setFormData(prev => {
+      const exists = prev.categoryIds.includes(id);
+      return { ...prev, categoryIds: exists ? prev.categoryIds.filter(v => v !== id) : [...prev.categoryIds, id] };
+    });
+  };
+
+  const searchProducts = async () => {
+    try {
+      const q = productPicker.query.trim();
+      if (!q) { setProductPicker(prev => ({ ...prev, results: [] })); return; }
+      const params = new URLSearchParams({ q, page: '1', limit: '10' });
+      const res = await fetch(`${API_BASE}/api/v1/products?${params.toString()}`, { headers: getAuthHeaders() });
+      const json = await res.json();
+      if (json?.success) {
+        const items = (json.data || []).map(p => ({ id: p._id || p.id, name: p.name, image: (p.images && p.images[0]) }));
+        setProductPicker(prev => ({ ...prev, results: items }));
+      }
+    } catch (_) {}
+  };
+
+  const addProductToCoupon = (item) => {
+    setProductPicker(prev => {
+      if (prev.selected.find(s => String(s.id) === String(item.id))) return prev;
+      return { ...prev, selected: [...prev.selected, item] };
+    });
+    setFormData(prev => ({ ...prev, productIds: [...(prev.productIds || []), item.id] }));
+  };
+
+  const removeProductFromCoupon = (id) => {
+    setProductPicker(prev => ({ ...prev, selected: prev.selected.filter(s => String(s.id) !== String(id)) }));
+    setFormData(prev => ({ ...prev, productIds: (prev.productIds || []).filter(pid => String(pid) !== String(id)) }));
   };
 
   const generateSampleCoupons = () => {
@@ -591,6 +652,79 @@ const Coupons = () => {
                     <option value="product">Specific Products</option>
                   </select>
                 </div>
+                {formData.appliesTo === 'vendor' && (
+                  <div className="form-group full-width">
+                    <label>Select Vendors</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {vendors.map(v => (
+                        <button
+                          key={v.id}
+                          type="button"
+                          className={`btn btn-sm ${formData.vendorIds.includes(v.id) ? 'btn-primary' : 'btn-secondary'}`}
+                          onClick={() => toggleVendor(v.id)}
+                        >
+                          {v.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {formData.appliesTo === 'category' && (
+                  <div className="form-group full-width">
+                    <label>Select Categories</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {categories.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className={`btn btn-sm ${formData.categoryIds.includes(c.id) ? 'btn-primary' : 'btn-secondary'}`}
+                          onClick={() => toggleCategory(c.id)}
+                        >
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {formData.appliesTo === 'product' && (
+                  <div className="form-group full-width">
+                    <label>Select Products</label>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Search products..."
+                        value={productPicker.query}
+                        onChange={(e) => setProductPicker(prev => ({ ...prev, query: e.target.value }))}
+                        style={{ flex: 1 }}
+                      />
+                      <button type="button" className="btn btn-secondary" onClick={searchProducts}>Search</button>
+                    </div>
+                    {productPicker.results.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginBottom: 10 }}>
+                        {productPicker.results.map(item => (
+                          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #eee', padding: 8, borderRadius: 6 }}>
+                            <img src={item.image || '/default-product.png'} alt={item.name} style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }} />
+                            <div style={{ flex: 1, fontSize: 12 }}>{item.name}</div>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => addProductToCoupon(item)}>Add</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {productPicker.selected.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {productPicker.selected.map(item => (
+                          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #eee', padding: '4px 8px', borderRadius: 20 }}>
+                            <img src={item.image || '/default-product.png'} alt={item.name} style={{ width: 22, height: 22, borderRadius: 11, objectFit: 'cover' }} />
+                            <span style={{ fontSize: 12 }}>{item.name}</span>
+                            <button type="button" className="btn btn-danger btn-sm" onClick={() => removeProductFromCoupon(item.id)}>Remove</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Status</label>
                   <div className="checkbox-group">
