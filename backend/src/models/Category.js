@@ -8,7 +8,8 @@ const categorySchema = new mongoose.Schema(
     parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null, index: true },
     image: { type: String, default: '' },
     featured: { type: Boolean, default: false },
-    sortOrder: { type: Number, default: 0 }
+    sortOrder: { type: Number, default: 0 },
+    enabled: { type: Boolean, default: true }
   },
   { timestamps: true }
 );

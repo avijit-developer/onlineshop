@@ -53,7 +53,7 @@ router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) 
 router.get('/public', async (req, res) => {
   const { parent = 'root', q = '', page = 1, limit = 50 } = req.query;
   console.log('Categories public: query', { parent, q, page, limit });
-  const filters = {};
+  const filters = { enabled: true };
   if (parent === 'root') {
     filters.parent = null;
   } else if (parent === 'all') {
@@ -129,6 +129,7 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
       image: (uploaded?.url || imageUrl || ''),
       featured: String(featured) === 'true' || featured === true,
       sortOrder: Number(sortOrder) || 0,
+      enabled: String(req.body.enabled) === 'true' || req.body.enabled === true,
       imagePublicId: (uploaded?.publicId || imagePublicId || undefined)
     });
     return res.status(201).json({ success: true, data: created });
@@ -137,10 +138,26 @@ router.post('/', authenticate, requireAdmin, upload.single('imageFile'), async (
   }
 });
 
+// Toggle category enabled status
+router.patch('/:id/toggle-enabled', authenticate, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  
+  const category = await Category.findById(id);
+  if (!category) {
+    res.status(404);
+    throw new Error('category not found');
+  }
+  
+  category.enabled = !category.enabled;
+  const updated = await category.save();
+  
+  res.json({ success: true, data: updated });
+});
+
 // Update a category
 router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async (req, res) => {
   const { id } = req.params;
-  const { name, description, parent, featured, sortOrder } = req.body || {};
+  const { name, description, parent, featured, sortOrder, enabled } = req.body || {};
 
   if (parent && parent === id) {
     res.status(400);
@@ -192,6 +209,7 @@ router.put('/:id', authenticate, requireAdmin, upload.single('imageFile'), async
   if (!uploaded && imagePublicId) existing.imagePublicId = imagePublicId;
   if (featured !== undefined) existing.featured = String(featured) === 'true' || featured === true;
   if (sortOrder !== undefined) existing.sortOrder = Number(sortOrder) || 0;
+  if (enabled !== undefined) existing.enabled = String(enabled) === 'true' || enabled === true;
 
   try {
     const updated = await existing.save();

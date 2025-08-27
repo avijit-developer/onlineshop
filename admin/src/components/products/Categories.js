@@ -23,7 +23,8 @@ const Categories = () => {
     parentId: '',
     image: '',
     featured: false,
-    sortOrder: 0
+    sortOrder: 0,
+    enabled: true
   });
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -135,6 +136,7 @@ const Categories = () => {
         image: c.image || '',
         featured: !!c.featured,
         sortOrder: c.sortOrder || 0,
+        enabled: !!c.enabled,
         level: computeLevel(c),
         createdAt: c.createdAt,
         updatedAt: c.updatedAt
@@ -190,7 +192,8 @@ const Categories = () => {
       parentId: '',
       image: '',
       featured: false,
-      sortOrder: 0
+      sortOrder: 0,
+      enabled: true
     });
     setImageFile(null);
     setShowAddModal(true);
@@ -204,7 +207,8 @@ const Categories = () => {
       parentId: category.parentId || '',
       image: category.image || '',
       featured: category.featured || false,
-      sortOrder: category.sortOrder || 0
+      sortOrder: category.sortOrder || 0,
+      enabled: category.enabled || true
     });
     setImageFile(null);
     setShowEditModal(true);
@@ -265,6 +269,7 @@ const Categories = () => {
       fd.append('parent', formData.parentId || '');
       fd.append('featured', String(!!formData.featured));
       fd.append('sortOrder', String(sortNorm));
+      fd.append('enabled', String(!!formData.enabled));
 
       // Direct upload to Cloudinary first if a file is selected
       if (imageFile) {
@@ -335,19 +340,43 @@ const Categories = () => {
 
   const toggleFeatured = async (categoryId) => {
     try {
-      const category = categories.find(c => c.id === categoryId);
+      const category = categories.find(cat => cat.id === categoryId);
       if (!category) return;
+      
       const res = await fetch(`${API_BASE}/api/v1/categories/${categoryId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ featured: !category.featured })
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message || `Failed to update featured status (HTTP ${res.status})`);
+      
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.message || 'Failed to toggle featured status');
+      }
+      
       await fetchCategories();
-      toast.success('Featured status updated successfully');
+      toast.success(`Category ${!category.featured ? 'featured' : 'unfeatured'} successfully`);
     } catch (error) {
-      toast.error(error.message || 'Failed to update featured status');
+      toast.error(error.message || 'Failed to toggle featured status');
+    }
+  };
+
+  const toggleEnabled = async (categoryId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/categories/${categoryId}/toggle-enabled`, {
+        method: 'PATCH',
+        headers: getAuthHeaders()
+      });
+      
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.message || 'Failed to toggle enabled status');
+      }
+      
+      await fetchCategories();
+      toast.success('Category status updated successfully');
+    } catch (error) {
+      toast.error(error.message || 'Failed to toggle enabled status');
     }
   };
 
@@ -509,6 +538,9 @@ const Categories = () => {
               <button onClick={() => toggleFeatured(category.id)} className={`btn btn-sm ${category.featured ? 'btn-warning' : 'btn-success'}`}>
                 {category.featured ? 'Unfeature' : 'Feature'}
               </button>
+              <button onClick={() => toggleEnabled(category.id)} className={`btn btn-sm ${category.enabled ? 'btn-warning' : 'btn-success'}`}>
+                {category.enabled ? 'Disable' : 'Enable'}
+              </button>
               <button onClick={() => handleDeleteCategory(category.id)} className="btn btn-danger btn-sm">Delete</button>
             </div>
           </div>
@@ -628,6 +660,14 @@ const Categories = () => {
           <p>{categories.filter(cat => cat.featured).length}</p>
         </div>
         <div className="stat-card">
+          <h3>Enabled Categories</h3>
+          <p>{categories.filter(cat => cat.enabled).length}</p>
+        </div>
+        <div className="stat-card">
+          <h3>Disabled Categories</h3>
+          <p>{categories.filter(cat => !cat.enabled).length}</p>
+        </div>
+        <div className="stat-card">
           <h3>Max Depth</h3>
           <p>{Math.max(0, ...categories.map(cat => cat.level || 0))}</p>
         </div>
@@ -645,6 +685,7 @@ const Categories = () => {
                   <th>Products</th>
                   <th>Subcategories</th>
                   <th>Featured</th>
+                  <th>Enabled</th>
                   <th>Sort Order</th>
                   <th>Actions</th>
                 </tr>
@@ -686,6 +727,13 @@ const Categories = () => {
                         </span>
                       ) : ''}
                     </td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
+                      {!category.isPlaceholder ? (
+                        <span className={`enabled-badge ${category.enabled ? 'enabled' : 'disabled'}`}>
+                          {category.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      ) : ''}
+                    </td>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? (category.sortOrder || 0) : ''}</td>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
                       {!category.isPlaceholder ? (
@@ -701,6 +749,12 @@ const Categories = () => {
                             className={`btn btn-sm ${category.featured ? 'btn-warning' : 'btn-success'}`}
                           >
                             {category.featured ? 'Unfeature' : 'Feature'}
+                          </button>
+                          <button
+                            onClick={() => toggleEnabled(category.id)}
+                            className={`btn btn-sm ${category.enabled ? 'btn-warning' : 'btn-success'}`}
+                          >
+                            {category.enabled ? 'Disable' : 'Enable'}
                           </button>
                           <button
                             onClick={() => handleDeleteCategory(category.id)}
@@ -854,6 +908,18 @@ const Categories = () => {
                       onChange={handleInputChange}
                     />
                     <span>Mark as featured</span>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Enabled</label>
+                  <div className="checkbox-group">
+                    <input
+                      type="checkbox"
+                      name="enabled"
+                      checked={formData.enabled}
+                      onChange={handleInputChange}
+                    />
+                    <span>Enable this category</span>
                   </div>
                 </div>
                 <div className="form-group full-width">
