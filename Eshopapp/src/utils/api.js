@@ -1,6 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import { EXPO_PUBLIC_API_URL, API_URL } from '@env';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || 'http://10.0.2.2:5000';
+// Prefer env from @env (react-native-dotenv), fallback to process.env, then platform default
+const DEFAULT_BASE = Platform.select({
+  ios: 'http://localhost:5000',
+  android: 'http://10.0.2.2:5000',
+  default: 'http://localhost:5000',
+});
+const API_BASE = (EXPO_PUBLIC_API_URL || API_URL || process.env?.EXPO_PUBLIC_API_URL || process.env?.API_URL || DEFAULT_BASE);
 
 class ApiError extends Error {
   constructor(message, status) {
