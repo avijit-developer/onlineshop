@@ -20,6 +20,7 @@ const CategoryScreen = () => {
   const route = useRoute();
   const { categoryId, title } = route.params || {};
   const [children, setChildren] = useState([]);
+  const [featuredCategories, setFeaturedCategories] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -37,6 +38,25 @@ const CategoryScreen = () => {
       }
     })();
   }, [categoryId]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // Fetch featured categories from root level
+        const res = await api.getCategoriesPublic({ parent: 'root', limit: 100 });
+        if (res?.success) {
+          // Filter only featured categories
+          const featured = (res.data || [])
+            .filter(c => c.featured === true)
+            .map(c => ({ id: c._id, name: c.name, image: c.image }))
+            .slice(0, 6); // Show max 6 featured categories
+          setFeaturedCategories(featured);
+        }
+      } catch (_) {
+        // Ignore error for featured categories
+      }
+    })();
+  }, []);
 
   const handleCategoryPress = (category) => {
     navigation.navigate('ProductList', { title: category.name, categoryId: category.id });
@@ -84,21 +104,23 @@ const CategoryScreen = () => {
         />
 
         {/* Featured Categories */}
-        <View style={styles.featuredSection}>
-          <Text style={styles.sectionTitle}>Featured Categories</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {children.slice(0, 4).map((item) => (
-              <TouchableOpacity
-                key={`featured-${item.id}`}
-                style={styles.featuredCard}
-                onPress={() => handleCategoryPress(item)}
-              >
-                <Image source={{ uri: item.image || placeholder }} style={styles.featuredImage} />
-                <Text style={styles.featuredName}>{item.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-                 </View>
+        {featuredCategories.length > 0 && (
+          <View style={styles.featuredSection}>
+            <Text style={styles.sectionTitle}>Featured Categories</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {featuredCategories.map((item) => (
+                <TouchableOpacity
+                  key={`featured-${item.id}`}
+                  style={styles.featuredCard}
+                  onPress={() => handleCategoryPress(item)}
+                >
+                  <Image source={{ uri: item.image || placeholder }} style={styles.featuredImage} />
+                  <Text style={styles.featuredName}>{item.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
        </ScrollView>
        
        <ViewCartFooter />
