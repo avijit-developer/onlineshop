@@ -538,9 +538,17 @@ const Categories = () => {
               <button onClick={() => toggleFeatured(category.id)} className={`btn btn-sm ${category.featured ? 'btn-warning' : 'btn-success'}`}>
                 {category.featured ? 'Unfeature' : 'Feature'}
               </button>
-              <button onClick={() => toggleEnabled(category.id)} className={`btn btn-sm ${category.enabled ? 'btn-warning' : 'btn-success'}`}>
-                {category.enabled ? 'Disable' : 'Enable'}
-              </button>
+              <div className="toggle-container">
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={category.enabled}
+                    onChange={() => toggleEnabled(category.id)}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <span className="toggle-label">{category.enabled ? 'Enabled' : 'Disabled'}</span>
+              </div>
               <button onClick={() => handleDeleteCategory(category.id)} className="btn btn-danger btn-sm">Delete</button>
             </div>
           </div>
@@ -750,12 +758,17 @@ const Categories = () => {
                           >
                             {category.featured ? 'Unfeature' : 'Feature'}
                           </button>
-                          <button
-                            onClick={() => toggleEnabled(category.id)}
-                            className={`btn btn-sm ${category.enabled ? 'btn-warning' : 'btn-success'}`}
-                          >
-                            {category.enabled ? 'Disable' : 'Enable'}
-                          </button>
+                          <div className="toggle-container">
+                            <label className="toggle-switch">
+                              <input
+                                type="checkbox"
+                                checked={category.enabled}
+                                onChange={() => toggleEnabled(category.id)}
+                              />
+                              <span className="toggle-slider"></span>
+                            </label>
+                            <span className="toggle-label">{category.enabled ? 'Enabled' : 'Disabled'}</span>
+                          </div>
                           <button
                             onClick={() => handleDeleteCategory(category.id)}
                             className="btn btn-danger btn-sm"
@@ -912,14 +925,17 @@ const Categories = () => {
                 </div>
                 <div className="form-group">
                   <label>Enabled</label>
-                  <div className="checkbox-group">
-                    <input
-                      type="checkbox"
-                      name="enabled"
-                      checked={formData.enabled}
-                      onChange={handleInputChange}
-                    />
-                    <span>Enable this category</span>
+                  <div className="toggle-container">
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        name="enabled"
+                        checked={formData.enabled}
+                        onChange={handleInputChange}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <span className="toggle-label">{formData.enabled ? 'Enabled' : 'Disabled'}</span>
                   </div>
                 </div>
                 <div className="form-group full-width">
