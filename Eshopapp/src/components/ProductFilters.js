@@ -23,7 +23,7 @@ const ProductFilters = ({
   loading = false 
 }) => {
   const [filters, setFilters] = useState({
-    priceRange: [0, 1000],
+    priceRange: [0, 100],
     brands: [],
     productType: 'all',
     availability: 'all',
@@ -44,7 +44,15 @@ const ProductFilters = ({
 
   useEffect(() => {
     if (visible) {
-      setFilters(currentFilters);
+      // Only set filters if we have filterOptions, otherwise keep current
+      if (filterOptions?.priceRange) {
+        setFilters({
+          ...currentFilters,
+          priceRange: [filterOptions.priceRange.min, filterOptions.priceRange.max]
+        });
+      } else {
+        setFilters(currentFilters);
+      }
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 300,
@@ -57,13 +65,15 @@ const ProductFilters = ({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible]);
+  }, [visible, filterOptions]);
 
   useEffect(() => {
     if (filterOptions?.priceRange) {
+      const min = filterOptions.priceRange.min || 0;
+      const max = filterOptions.priceRange.max || 100;
       setFilters(prev => ({
         ...prev,
-        priceRange: [filterOptions.priceRange.min, filterOptions.priceRange.max]
+        priceRange: [min, max]
       }));
     }
   }, [filterOptions]);
@@ -92,8 +102,10 @@ const ProductFilters = ({
   };
 
   const clearAllFilters = () => {
+    const min = filterOptions?.priceRange?.min || 0;
+    const max = filterOptions?.priceRange?.max || 100;
     setFilters({
-      priceRange: filterOptions?.priceRange ? [filterOptions.priceRange.min, filterOptions.priceRange.max] : [0, 1000],
+      priceRange: [min, max],
       brands: [],
       productType: 'all',
       availability: 'all',
@@ -110,7 +122,7 @@ const ProductFilters = ({
   const getActiveFiltersCount = () => {
     let count = 0;
     if (filters.priceRange[0] !== (filterOptions?.priceRange?.min || 0) || 
-        filters.priceRange[1] !== (filterOptions?.priceRange?.max || 1000)) count++;
+        filters.priceRange[1] !== (filterOptions?.priceRange?.max || 100)) count++;
     if (filters.brands.length > 0) count++;
     if (filters.productType !== 'all') count++;
     if (filters.availability !== 'all') count++;
@@ -154,8 +166,8 @@ const ProductFilters = ({
         <Slider
           style={styles.backgroundSlider}
           minimumValue={filterOptions?.priceRange?.min || 0}
-          maximumValue={filterOptions?.priceRange?.max || 1000}
-          value={filterOptions?.priceRange?.max || 1000}
+          maximumValue={filterOptions?.priceRange?.max || 100}
+          value={filterOptions?.priceRange?.max || 100}
           enabled={false}
           minimumTrackTintColor="#E0E0E0"
           maximumTrackTintColor="#E0E0E0"
@@ -182,7 +194,7 @@ const ProductFilters = ({
         <Slider
           style={styles.maxSlider}
           minimumValue={filters.priceRange[0]}
-          maximumValue={filterOptions?.priceRange?.max || 1000}
+          maximumValue={filterOptions?.priceRange?.max || 100}
           value={filters.priceRange[1]}
           onValueChange={(value) => {
             const newMax = Math.round(value);
@@ -197,7 +209,10 @@ const ProductFilters = ({
       
       <View style={styles.priceRangeInfo}>
         <Text style={styles.priceRangeText}>
-          Price range: ₹{Math.round(filterOptions?.priceRange?.min || 0)} - ₹{Math.round(filterOptions?.priceRange?.max || 1000)}
+          {filterOptions?.priceRange ? 
+            `Price range: ₹${Math.round(filterOptions.priceRange.min)} - ₹${Math.round(filterOptions.priceRange.max)}` :
+            'Loading price range...'
+          }
         </Text>
       </View>
     </View>
