@@ -276,9 +276,9 @@ const Coupons = () => {
       endDate: formatDateInput(coupon.endDate),
       isActive: !!coupon.isActive,
       appliesTo: coupon.appliesTo || 'all',
-      vendorIds: coupon.vendorIds || [],
-      categoryIds: coupon.categoryIds || [],
-      productIds: coupon.productIds || []
+      vendorIds: (coupon.vendorIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v),
+      categoryIds: (coupon.categoryIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v),
+      productIds: (coupon.productIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v)
     });
     setShowModal(true);
   };
