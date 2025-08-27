@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Coupons.css';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Coupons = () => {
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,15 +42,31 @@ const Coupons = () => {
     setCurrentPage(1);
   }, [searchTerm, filterStatus]);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : ''
+    };
+  };
+
   const fetchCoupons = async () => {
     try {
-      // Generate sample coupons data
-      const sampleCoupons = generateSampleCoupons();
-      setCoupons(sampleCoupons);
-      setLoading(false);
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('q', searchTerm);
+      if (filterStatus && filterStatus !== 'all') params.append('status', filterStatus);
+      params.append('page', String(currentPage));
+      params.append('limit', String(itemsPerPage));
+
+      const res = await fetch(`${API_BASE}/api/v1/coupons?${params.toString()}`, { headers: getAuthHeaders() });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || 'Failed to load coupons');
+      setCoupons(json.data || []);
     } catch (error) {
       console.error('Error fetching coupons:', error);
-      toast.error('Failed to load coupons');
+      toast.error(error.message || 'Failed to load coupons');
+    } finally {
       setLoading(false);
     }
   };
@@ -110,33 +128,54 @@ const Coupons = () => {
     ];
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (editingCoupon) {
-      // Update existing coupon
-      const updatedCoupons = coupons.map(coupon => 
-        coupon.id === editingCoupon.id 
-          ? { ...formData, id: editingCoupon.id, createdAt: editingCoupon.createdAt }
-          : coupon
-      );
-      setCoupons(updatedCoupons);
-      toast.success('Coupon updated successfully');
-    } else {
-      // Add new coupon
-      const newCoupon = {
-        ...formData,
-        id: Date.now(),
-        usedCount: 0,
-        createdAt: new Date().toISOString()
+    try {
+      const payload = {
+        code: formData.code.trim(),
+        name: formData.name.trim(),
+        description: formData.description?.trim() || '',
+        discountType: formData.discountType,
+        discountValue: Number(formData.discountValue) || 0,
+        minimumAmount: formData.minimumAmount !== '' ? Number(formData.minimumAmount) : undefined,
+        maximumDiscount: formData.maximumDiscount !== '' ? Number(formData.maximumDiscount) : undefined,
+        usageLimit: Number(formData.usageLimit) || 0,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        isActive: !!formData.isActive,
+        appliesTo: formData.appliesTo,
+        vendorIds: formData.vendorIds || [],
+        categoryIds: formData.categoryIds || [],
+        productIds: formData.productIds || []
       };
-      setCoupons([newCoupon, ...coupons]);
-      toast.success('Coupon created successfully');
+
+      if (editingCoupon) {
+        const id = editingCoupon._id || editingCoupon.id;
+        const res = await fetch(`${API_BASE}/api/v1/coupons/${id}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to update coupon');
+        toast.success('Coupon updated successfully');
+      } else {
+        const res = await fetch(`${API_BASE}/api/v1/coupons`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to create coupon');
+        toast.success('Coupon created successfully');
+      }
+      setShowModal(false);
+      setEditingCoupon(null);
+      resetForm();
+      await fetchCoupons();
+    } catch (error) {
+      toast.error(error.message || 'Failed to save coupon');
     }
-    
-    setShowModal(false);
-    setEditingCoupon(null);
-    resetForm();
   };
 
   const handleEdit = (coupon) => {
@@ -145,22 +184,38 @@ const Coupons = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (couponId) => {
-    if (window.confirm('Are you sure you want to delete this coupon?')) {
-      const updatedCoupons = coupons.filter(coupon => coupon.id !== couponId);
-      setCoupons(updatedCoupons);
+  const handleDelete = async (couponId) => {
+    if (!window.confirm('Are you sure you want to delete this coupon?')) return;
+    try {
+      const id = couponId;
+      const res = await fetch(`${API_BASE}/api/v1/coupons/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to delete coupon');
       toast.success('Coupon deleted successfully');
+      await fetchCoupons();
+    } catch (error) {
+      toast.error(error.message || 'Failed to delete coupon');
     }
   };
 
-  const handleToggleStatus = (couponId) => {
-    const updatedCoupons = coupons.map(coupon => 
-      coupon.id === couponId 
-        ? { ...coupon, isActive: !coupon.isActive }
-        : coupon
-    );
-    setCoupons(updatedCoupons);
-    toast.success('Coupon status updated');
+  const handleToggleStatus = async (coupon) => {
+    try {
+      const id = coupon._id || coupon.id;
+      const res = await fetch(`${API_BASE}/api/v1/coupons/${id}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ isActive: !coupon.isActive })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to update status');
+      toast.success('Coupon status updated');
+      await fetchCoupons();
+    } catch (error) {
+      toast.error(error.message || 'Failed to update status');
+    }
   };
 
   const resetForm = () => {
@@ -361,7 +416,7 @@ const Coupons = () => {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleToggleStatus(coupon.id)}
+                      onClick={() => handleToggleStatus(coupon)}
                       className={`btn btn-sm ${coupon.isActive ? 'btn-warning' : 'btn-success'}`}
                     >
                       {coupon.isActive ? 'Deactivate' : 'Activate'}
