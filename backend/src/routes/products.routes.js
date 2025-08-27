@@ -395,6 +395,21 @@ router.get('/public/filters', async (req, res) => {
       { $sort: { count: -1 } }
     ]);
 
+    // Get child categories of the provided category (one level down)
+    let childCategories = [];
+    if (category) {
+      const childDocs = await Category.find({ parent: category }).select('_id name').lean();
+      const childIds = childDocs.map(c => c._id);
+      if (childIds.length > 0) {
+        const counts = await Product.aggregate([
+          { $match: { ...filters, category: { $in: childIds } } },
+          { $group: { _id: '$category', count: { $sum: 1 } } }
+        ]);
+        const countMap = new Map(counts.map(c => [String(c._id), c.count]));
+        childCategories = childDocs.map(c => ({ id: c._id, name: c.name, count: countMap.get(String(c._id)) || 0 }));
+      }
+    }
+
     const filterOptions = {
       priceRange: priceStats[0] ? {
         min: Math.floor(priceStats[0].minPrice),
@@ -404,7 +419,8 @@ router.get('/public/filters', async (req, res) => {
       brands: brands.map(b => ({ id: b._id, name: b.name, count: b.count })),
       productTypes: productTypes.map(t => ({ type: t._id, count: t.count })),
       availability: availability.map(a => ({ status: a._id, count: a.count })),
-      ratings: ratings.map(r => ({ range: r._id, count: r.count }))
+      ratings: ratings.map(r => ({ range: r._id, count: r.count })),
+      childCategories
     };
 
     res.json({ success: true, data: filterOptions });

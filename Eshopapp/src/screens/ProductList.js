@@ -150,8 +150,11 @@ const ProductList = () => {
         maxPrice: filters.priceRange[1]
       };
       
-      // Ensure category is always included if we have one
-      if (categoryId) {
+      // Ensure category: prefer selected child category, else lock to parent category if available
+      if (filters.category) {
+        params.category = filters.category;
+        console.log('🔒 Using selected child category:', filters.category);
+      } else if (categoryId) {
         params.category = categoryId;
         console.log('🔒 Locking filters to category:', categoryId);
       } else if (sectionName) {

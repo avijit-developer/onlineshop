@@ -37,6 +37,7 @@ const ProductFilters = ({
     productType: true,
     availability: true,
     rating: true,
+    categories: true,
     sort: true
   });
 
@@ -131,6 +132,7 @@ const ProductFilters = ({
     if (filters.productType !== 'all') count++;
     if (filters.availability !== 'all') count++;
     if (filters.minRating > 0) count++;
+    if (filters.category && filters.category !== 'all') count++;
     if (filters.sortBy !== 'newest') count++;
     return count;
   };
@@ -253,6 +255,38 @@ const ProductFilters = ({
         ))
       ) : (
         <Text style={styles.noOptionsText}>No brands available</Text>
+      )}
+    </View>
+  );
+
+  const renderChildCategories = () => (
+    <View style={styles.optionsContainer}>
+      {filterOptions?.childCategories && filterOptions.childCategories.length > 0 ? (
+        <>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+            {filterOptions.childCategories.map((c) => (
+              <TouchableOpacity
+                key={c.id}
+                style={[styles.optionChip, filters.category === c.id && styles.optionChipSelected]}
+                onPress={() => updateFilter('category', filters.category === c.id ? undefined : c.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.optionChipText, filters.category === c.id && styles.optionChipTextSelected]}>
+                  {c.name} ({c.count})
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {filters.category && (
+            <View style={{ marginTop: 8 }}>
+              <TouchableOpacity onPress={() => updateFilter('category', undefined)}>
+                <Text style={{ color: '#007AFF' }}>Clear category selection</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </>
+      ) : (
+        <Text style={styles.noOptionsText}>No subcategories</Text>
       )}
     </View>
   );
@@ -390,6 +424,7 @@ const ProductFilters = ({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {renderSection('Subcategories', 'categories', renderChildCategories())}
             {renderSection('Price Range', 'price', renderPriceFilter())}
             {renderSection('Brands', 'brands', renderBrandsFilter())}
             {renderSection('Product Type', 'productType', renderProductTypeFilter())}
