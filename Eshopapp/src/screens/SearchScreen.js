@@ -16,9 +16,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
 import ViewCartFooter from '../components/ViewCartFooter';
 import { useCart } from '../contexts/CartContext';
-import ProductFilters from '../components/ProductFilters';
-import FilterButton from '../components/FilterButton';
-import FilterSummary from '../components/FilterSummary';
+// import ProductFilters from '../components/ProductFilters';
+// import FilterButton from '../components/FilterButton';
+// import FilterSummary from '../components/FilterSummary';
 
 const RECENT_KEY = 'recentSearchesV1';
 const rotatingTexts = [];
@@ -43,19 +43,7 @@ const SearchScreen = () => {
   const [searchBoxHeight, setSearchBoxHeight] = useState(0);
   const [animatedChoices, setAnimatedChoices] = useState(rotatingTexts);
   
-  // Filter state
-  const [showFilters, setShowFilters] = useState(false);
-  const [filterOptions, setFilterOptions] = useState(null);
-  const [currentFilters, setCurrentFilters] = useState({
-    priceRange: [0, 1000],
-    brands: [],
-    productType: 'all',
-    availability: 'all',
-    minRating: 0,
-    sortBy: 'newest'
-  });
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [filterLoading, setFilterLoading] = useState(false);
+  // Filters removed from Search screen
   
   const { addToCart } = useCart();
 
@@ -248,131 +236,7 @@ const SearchScreen = () => {
     return price;
   };
 
-  // Filter functions
-  const loadFilterOptions = useCallback(async () => {
-    try {
-      setFilterLoading(true);
-      const res = await api.getProductFilters();
-      if (res?.success && res?.data) {
-        setFilterOptions(res.data);
-        // Initialize price range from filter options
-        if (res.data.priceRange) {
-          setCurrentFilters(prev => ({
-            ...prev,
-            priceRange: [res.data.priceRange.min, res.data.priceRange.max]
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load filter options:', error);
-    } finally {
-      setFilterLoading(false);
-    }
-  }, []);
-
-  const applyFilters = useCallback(async (filters) => {
-    try {
-      console.log('🚀 applyFilters called with:', filters);
-      setFilterLoading(true);
-      setCurrentFilters(filters);
-      
-      // Build API parameters
-      const params = {
-        page: 1,
-        limit: 50,
-        ...filters,
-        brands: filters.brands.length > 0 ? filters.brands.join(',') : undefined,
-        minPrice: filters.priceRange[0],
-        maxPrice: filters.priceRange[1]
-      };
-      
-      // Remove undefined values
-      Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
-      
-      console.log('🔍 Applying filters with params:', params);
-      
-      const res = await api.getProductsPublic(params);
-      console.log('📡 API response:', res);
-      
-      if (res?.success && res?.data) {
-        const items = res.data.map(p => ({
-          id: p._id || p.id,
-          name: p.name,
-          regularPrice: p.regularPrice ?? 0,
-          specialPrice: p.specialPrice ?? null,
-          image: (Array.isArray(p.images) && p.images[0]) || placeholder,
-          productType: p.productType || 'simple',
-          variants: p.variants || [],
-          brand: p.brand,
-          stock: p.stock || 0,
-          rating: p.rating || 0
-        }));
-        
-        console.log('✅ Filtered products:', items.length, 'items');
-        console.log('💰 Price ranges in results:', items.map(item => ({
-          name: item.name,
-          regularPrice: item.regularPrice,
-          specialPrice: item.specialPrice,
-          effectivePrice: item.specialPrice ?? item.regularPrice
-        })));
-        
-        setFilteredProducts(items);
-        console.log('📱 State updated: filteredProducts set to', items.length, 'items');
-      }
-    } catch (error) {
-      console.error('❌ Failed to apply filters:', error);
-    } finally {
-      setFilterLoading(false);
-    }
-  }, []);
-
-  const removeFilter = useCallback((filterKey) => {
-    const newFilters = { ...currentFilters };
-    
-    switch (filterKey) {
-      case 'priceRange':
-        newFilters.priceRange = filterOptions?.priceRange ? 
-          [filterOptions.priceRange.min, filterOptions.priceRange.max] : [0, 1000];
-        break;
-      case 'brands':
-        newFilters.brands = [];
-        break;
-      case 'productType':
-        newFilters.productType = 'all';
-        break;
-      case 'availability':
-        newFilters.availability = 'all';
-        break;
-      case 'minRating':
-        newFilters.minRating = 0;
-        break;
-      case 'sortBy':
-        newFilters.sortBy = 'newest';
-        break;
-    }
-    
-    setCurrentFilters(newFilters);
-    applyFilters(newFilters);
-  }, [currentFilters, filterOptions, applyFilters]);
-
-  const clearAllFilters = useCallback(() => {
-    const defaultFilters = {
-      priceRange: filterOptions?.priceRange ? 
-        [filterOptions.priceRange.min, filterOptions.priceRange.max] : [0, 1000],
-      brands: [],
-      productType: 'all',
-      availability: 'all',
-      minRating: 0,
-      sortBy: 'newest'
-    };
-    setCurrentFilters(defaultFilters);
-    setFilteredProducts([]);
-  }, [filterOptions]);
-
-  // Load filter options on mount
-  useEffect(() => {
-    loadFilterOptions();
-  }, [loadFilterOptions]);
+  // Filters removed
 
   // Helper function to check if product is configurable
   const isConfigurableProduct = (item) => {
@@ -470,15 +334,7 @@ const SearchScreen = () => {
               <Icon name="close-circle" size={20} color="#999" />
             </TouchableOpacity>
           )}
-          <FilterButton 
-            onPress={() => setShowFilters(true)}
-            activeFiltersCount={Object.values(currentFilters).filter((v, i) => {
-              if (i === 0) { // priceRange
-                return v[0] !== (filterOptions?.priceRange?.min || 0) || v[1] !== (filterOptions?.priceRange?.max || 1000);
-              }
-              return v !== 'all' && v !== 0 && (!Array.isArray(v) || v.length > 0);
-            }).length}
-          />
+          {/* Filters removed */}
 
           {/* Autocomplete Suggestions (overlay) */}
           {showSuggestions && (
@@ -505,13 +361,7 @@ const SearchScreen = () => {
         </View>
       </View>
 
-      {/* Filter Summary */}
-      <FilterSummary 
-        filters={currentFilters}
-        filterOptions={filterOptions}
-        onRemoveFilter={removeFilter}
-        onClearAll={clearAllFilters}
-      />
+      {/* Filter Summary removed */}
 
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
 
@@ -537,61 +387,7 @@ const SearchScreen = () => {
         </View>
       </View>
 
-      {/* Filtered Products */}
-      {console.log('🔍 Rendering filtered products section, count:', filteredProducts.length)}
-      {filteredProducts.length > 0 && (
-        <View style={{ marginTop: 32, paddingBottom: 20 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <Text style={styles.sectionTitle}>Filtered Results ({filteredProducts.length})</Text>
-            <TouchableOpacity onPress={clearAllFilters}>
-              <Text style={{ color: '#FFA726', fontWeight: '500' }}>Clear Filters</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={filteredProducts}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={({ item }) => (
-              <View style={styles.groceryCard}>
-                <TouchableOpacity onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}>
-                  <Image source={{ uri: item.image }} style={styles.groceryImage} />
-                  <Text style={styles.groceryName} numberOfLines={2}>{item.name}</Text>
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-                  {item.specialPrice != null ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#e53935' }}>₹{item.specialPrice}</Text>
-                      <Text style={{ fontSize: 12, color: '#888', textDecorationLine: 'line-through' }}>₹{item.regularPrice}</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.priceText}>₹{item.regularPrice}</Text>
-                  )}
-                  <TouchableOpacity
-                    style={{ 
-                      borderWidth: 1, 
-                      borderColor: isConfigurableProduct(item) ? '#4CAF50' : '#FFA726', 
-                      paddingVertical: 4, 
-                      paddingHorizontal: 10, 
-                      borderRadius: 6,
-                      backgroundColor: isConfigurableProduct(item) ? '#4CAF50' : 'transparent'
-                    }}
-                    onPress={() => handleProductAction(item)}
-                  >
-                    <Text style={{ 
-                      color: isConfigurableProduct(item) ? '#fff' : '#FFA726', 
-                      fontWeight: '700', 
-                      fontSize: 12 
-                    }}>
-                      {isConfigurableProduct(item) ? 'VIEW' : 'ADD'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          />
-        </View>
-      )}
+      {/* Filtered products section removed */}
 
       {/* Category-wise Products (2nd level title, products from main category, 5 items, with See All) */}
       <View style={{ marginTop: 32, paddingBottom: 100 }}>
@@ -651,15 +447,7 @@ const SearchScreen = () => {
       </View>
       </ScrollView>
       
-      {/* Product Filters Modal */}
-      <ProductFilters
-        visible={showFilters}
-        onClose={() => setShowFilters(false)}
-        onApply={applyFilters}
-        filterOptions={filterOptions}
-        currentFilters={currentFilters}
-        loading={filterLoading}
-      />
+      {/* Product Filters Modal removed */}
       
       {/* View Cart Footer */}
       <ViewCartFooter />
