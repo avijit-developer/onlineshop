@@ -150,34 +150,46 @@ const ProductFilters = ({
       </View>
       
       <View style={styles.sliderContainer}>
+        {/* Background slider for visual track */}
         <Slider
-          style={styles.slider}
+          style={styles.backgroundSlider}
           minimumValue={filterOptions?.priceRange?.min || 0}
           maximumValue={filterOptions?.priceRange?.max || 1000}
-          value={filters.priceRange[1]}
-          onValueChange={(value) => {
-            const newMax = Math.round(value);
-            const newMin = Math.min(filters.priceRange[0], newMax);
-            updateFilter('priceRange', [newMin, newMax]);
-          }}
-          minimumTrackTintColor="#007AFF"
+          value={filterOptions?.priceRange?.max || 1000}
+          enabled={false}
+          minimumTrackTintColor="#E0E0E0"
           maximumTrackTintColor="#E0E0E0"
-          thumbStyle={styles.sliderThumb}
           trackStyle={styles.sliderTrack}
         />
         
+        {/* Min value slider (left thumb) */}
         <Slider
-          style={[styles.slider, styles.overlaySlider]}
+          style={styles.minSlider}
           minimumValue={filterOptions?.priceRange?.min || 0}
           maximumValue={filters.priceRange[1]}
           value={filters.priceRange[0]}
           onValueChange={(value) => {
             const newMin = Math.round(value);
-            const newMax = Math.max(filters.priceRange[1], newMin);
-            updateFilter('priceRange', [newMin, newMax]);
+            updateFilter('priceRange', [newMin, filters.priceRange[1]]);
+          }}
+          minimumTrackTintColor="#007AFF"
+          maximumTrackTintColor="transparent"
+          thumbStyle={styles.sliderThumb}
+          trackStyle={styles.sliderTrack}
+        />
+        
+        {/* Max value slider (right thumb) */}
+        <Slider
+          style={styles.maxSlider}
+          minimumValue={filters.priceRange[0]}
+          maximumValue={filterOptions?.priceRange?.max || 1000}
+          value={filters.priceRange[1]}
+          onValueChange={(value) => {
+            const newMax = Math.round(value);
+            updateFilter('priceRange', [filters.priceRange[0], newMax]);
           }}
           minimumTrackTintColor="transparent"
-          maximumTrackTintColor="transparent"
+          maximumTrackTintColor="#007AFF"
           thumbStyle={styles.sliderThumb}
           trackStyle={styles.sliderTrack}
         />
@@ -466,13 +478,23 @@ const styles = StyleSheet.create({
     height: 40,
     marginBottom: 10,
   },
-  slider: {
+  backgroundSlider: {
     position: 'absolute',
     width: '100%',
     height: '100%',
+    zIndex: 0,
   },
-  overlaySlider: {
+  minSlider: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
     zIndex: 1,
+  },
+  maxSlider: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    zIndex: 2,
   },
   sliderThumb: {
     backgroundColor: '#007AFF',
