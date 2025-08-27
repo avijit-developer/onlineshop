@@ -14,7 +14,7 @@ const couponSchema = new mongoose.Schema(
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     isActive: { type: Boolean, default: true, index: true },
-    appliesTo: { type: String, enum: ['all', 'category', 'vendor', 'product'], default: 'all' },
+    appliesTo: { type: String, enum: ['all', 'category', 'vendor', 'product', 'new_user'], default: 'all' },
     vendorIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' }],
     categoryIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
     productIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],

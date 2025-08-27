@@ -862,4 +862,20 @@ router.get('/:id/public', async (req, res) => {
   }
 });
 
+// Admin: Get single product (full)
+router.get('/:id', authenticate, requireRole(['admin','vendor']), requirePermission('products.view'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await Product.findById(id)
+      .populate('category', 'name')
+      .populate('brand', 'name')
+      .populate('vendor', 'companyName')
+      .lean();
+    if (!item) return res.status(404).json({ success: false, message: 'Product not found' });
+    res.json({ success: true, data: item });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to fetch product' });
+  }
+});
+
 module.exports = router;

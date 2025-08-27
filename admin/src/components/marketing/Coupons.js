@@ -682,6 +682,7 @@ const Coupons = () => {
                     <option value="category">Specific Categories</option>
                     <option value="vendor">Specific Vendors</option>
                     <option value="product">Specific Products</option>
+                    <option value="new_user">New User</option>
                   </select>
                 </div>
                 {formData.appliesTo === 'vendor' && (
