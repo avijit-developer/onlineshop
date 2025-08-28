@@ -290,16 +290,7 @@ const Orders = () => {
               <option value="cancelled">Cancelled</option>
               <option value="refunded">Refunded</option>
             </select>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-            </select>
+            {/* Date range moved to collapsible Filters below */}
           </div>
         </div>
       </div>
