@@ -25,23 +25,15 @@ const CartScreen = () => {
     try {
       setValidating(true);
       setCouponError('');
-      const items = cartItems.map(ci => ({ product: ci.id, price: (ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.regularPrice ?? 0), quantity: ci.quantity }));
-      const res = await api.validateCoupon(couponCode.trim(), items);
+      const res = await api.applyCouponToCart(couponCode.trim());
       if (res?.success && res?.data) {
-        setAppliedCoupon(res.data);
-        console.log('[Coupon] Applied successfully:', {
-          code: res.data.couponCode,
-          discountAmount: res.data.discountAmount,
-          applicableSubtotal: res.data.applicableSubtotal
-        });
+        setAppliedCoupon({ couponCode: res.data.couponCode, discountAmount: res.data.discountAmount });
+        console.log('[Coupon] Applied and saved to cart:', res.data);
       } else {
         setAppliedCoupon(null);
         const reason = res?.message || 'Invalid coupon';
         setCouponError(reason);
-        console.warn('[Coupon] Validation failed:', {
-          code: couponCode.trim(),
-          reason,
-        });
+        console.warn('[Coupon] Apply failed:', { code: couponCode.trim(), reason });
       }
     } catch (_) {
       setAppliedCoupon(null);
@@ -52,7 +44,10 @@ const CartScreen = () => {
     }
   };
 
-  const handleRemoveCoupon = () => {
+  const handleRemoveCoupon = async () => {
+    try {
+      await api.removeCouponFromCart();
+    } catch (_) {}
     setAppliedCoupon(null);
     setCouponCode('');
     setCouponError('');

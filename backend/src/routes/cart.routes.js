@@ -2,6 +2,7 @@ const express = require('express');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const { authenticate, requireRole } = require('../middleware/auth');
+const Coupon = require('../models/Coupon');
 
 const router = express.Router();
 
@@ -238,3 +239,71 @@ router.get('/me/summary', authenticate, requireRole(['customer']), async (req, r
 });
 
 module.exports = router;
+// Apply coupon to cart
+router.post('/me/coupon', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const { couponCode } = req.body || {};
+    if (!couponCode) return res.status(400).json({ success: false, message: 'couponCode is required' });
+    const code = String(couponCode).toUpperCase();
+    const cart = await Cart.findOne({ user: req.user.id }).populate('items.product');
+    if (!cart) return res.status(404).json({ success: false, message: 'Cart not found' });
+    if (!cart.items || cart.items.length === 0) return res.status(400).json({ success: false, message: 'Cart is empty' });
+
+    // Reuse validate logic
+    const items = cart.items.map(ci => ({ product: ci.product._id || ci.product.id, price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? 0, quantity: ci.quantity }));
+    const now = new Date();
+    const coupon = await Coupon.findOne({ code, isActive: true, startDate: { $lte: now }, endDate: { $gte: now } }).lean();
+    if (!coupon) return res.json({ success: false, message: 'Invalid or expired coupon' });
+    const productIds = items.map(i => i.product);
+    const products = await Product.find({ _id: { $in: productIds } }).select('_id vendor category').lean();
+    const idToProduct = new Map(products.map(p => [String(p._id), p]));
+    const applicable = (() => {
+      if (coupon.appliesTo === 'all' || coupon.appliesTo === 'new_user') return items;
+      if (coupon.appliesTo === 'vendor') return items.filter(it => {
+        const p = idToProduct.get(String(it.product));
+        return p && coupon.vendorIds && coupon.vendorIds.find(id => String(id) === String(p.vendor));
+      });
+      if (coupon.appliesTo === 'category') return items.filter(it => {
+        const p = idToProduct.get(String(it.product));
+        return p && coupon.categoryIds && coupon.categoryIds.find(id => String(id) === String(p.category));
+      });
+      if (coupon.appliesTo === 'product') return items.filter(it => coupon.productIds && coupon.productIds.find(id => String(id) === String(it.product)));
+      return items;
+    })();
+    if (applicable.length === 0) return res.json({ success: false, message: 'Coupon does not apply to selected items' });
+    const orderSubtotal = items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+    if (coupon.minimumAmount && orderSubtotal < Number(coupon.minimumAmount)) return res.json({ success: false, message: `Minimum order amount is ${coupon.minimumAmount}` });
+    const applicableSubtotal = applicable.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+    let discountAmount = 0;
+    if (coupon.discountType === 'percentage') {
+      discountAmount = (applicableSubtotal * Number(coupon.discountValue || 0)) / 100;
+      if (coupon.maximumDiscount) discountAmount = Math.min(discountAmount, Number(coupon.maximumDiscount));
+    } else {
+      discountAmount = Number(coupon.discountValue || 0);
+    }
+    cart.couponCode = code;
+    cart.couponDiscount = discountAmount;
+    await cart.save();
+    await cart.populate('items.product');
+    return res.json({ success: true, data: { cart, couponCode: code, discountAmount } });
+  } catch (e) {
+    console.error('Error applying coupon to cart:', e);
+    res.status(500).json({ success: false, message: e?.message || 'Failed to apply coupon' });
+  }
+});
+
+// Remove coupon from cart
+router.delete('/me/coupon', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const cart = await Cart.findOne({ user: req.user.id }).populate('items.product');
+    if (!cart) return res.status(404).json({ success: false, message: 'Cart not found' });
+    cart.couponCode = null;
+    cart.couponDiscount = 0;
+    await cart.save();
+    await cart.populate('items.product');
+    return res.json({ success: true, data: cart });
+  } catch (e) {
+    console.error('Error removing coupon from cart:', e);
+    res.status(500).json({ success: false, message: e?.message || 'Failed to remove coupon' });
+  }
+});

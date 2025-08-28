@@ -355,6 +355,23 @@ const api = {
       },
     });
   },
+  async applyCouponToCart(couponCode) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/cart/me/coupon', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ couponCode }),
+    });
+  },
+  async removeCouponFromCart() {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/cart/me/coupon', {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
 
   async addToUserCart(product, quantity, selectedAttributes) {
     const token = await this.getStoredToken();

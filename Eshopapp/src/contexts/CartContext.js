@@ -127,6 +127,13 @@ export const CartProvider = ({ children }) => {
           };
         });
         setCartItems(transformedItems);
+        // Log coupon state from backend cart
+        if (response.data.couponCode) {
+          console.log('Cart has applied coupon from backend:', {
+            couponCode: response.data.couponCode,
+            couponDiscount: response.data.couponDiscount
+          });
+        }
         console.log('Loaded cart from database:', transformedItems.length, 'items');
       } else {
         setCartItems([]);

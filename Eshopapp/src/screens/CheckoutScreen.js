@@ -473,18 +473,17 @@ const CheckoutScreen = () => {
     try {
       setValidating(true);
       setCouponError('');
-      const items = cartItems.map(ci => ({ product: ci.id, price: (ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.regularPrice ?? 0), quantity: ci.quantity }));
       const code = couponCode.trim();
-      const res = await api.validateCoupon(code, items);
+      const res = await api.applyCouponToCart(code);
       if (res?.success && res?.data) {
-        setAppliedCoupon(res.data);
+        setAppliedCoupon({ couponCode: res.data.couponCode, discountAmount: res.data.discountAmount });
         setCouponCode(res.data.couponCode);
-        console.log('[Coupon] Applied successfully (checkout):', res.data);
+        console.log('[Coupon] Applied and saved to cart (checkout):', res.data);
       } else {
         setAppliedCoupon(null);
         const reason = res?.message || 'Invalid coupon';
         setCouponError(reason);
-        console.warn('[Coupon] Validation failed (checkout):', { code, reason });
+        console.warn('[Coupon] Apply failed (checkout):', { code, reason });
       }
     } catch (e) {
       setAppliedCoupon(null);
@@ -495,7 +494,8 @@ const CheckoutScreen = () => {
     }
   };
 
-  const handleRemoveCoupon = () => {
+  const handleRemoveCoupon = async () => {
+    try { await api.removeCouponFromCart(); } catch (_) {}
     setAppliedCoupon(null);
     setCouponCode('');
     setCouponError('');
