@@ -83,6 +83,13 @@ const cartSchema = new mongoose.Schema({
     unique: true
   },
   items: [cartItemSchema],
+  appliedCoupon: {
+    code: { type: String },
+    discountType: { type: String, enum: ['percentage', 'fixed'] },
+    discountValue: { type: Number },
+    minimumAmount: { type: Number },
+    maxDiscountAmount: { type: Number },
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -195,6 +202,39 @@ cartSchema.methods.getTotal = function() {
     const price = item.variantInfo?.price || 0;
     return total + (price * item.quantity);
   }, 0);
+};
+
+cartSchema.methods.getDiscountAmount = function() {
+  if (!this.appliedCoupon || !this.appliedCoupon.code) return 0;
+  const subtotal = this.getTotal();
+  const {
+    discountType,
+    discountValue = 0,
+    minimumAmount = 0,
+    maxDiscountAmount
+  } = this.appliedCoupon || {};
+
+  if (subtotal < minimumAmount) return 0;
+
+  let discount = 0;
+  if (discountType === 'percentage') {
+    discount = (subtotal * discountValue) / 100;
+  } else if (discountType === 'fixed') {
+    discount = discountValue;
+  }
+
+  if (typeof maxDiscountAmount === 'number' && maxDiscountAmount >= 0) {
+    discount = Math.min(discount, maxDiscountAmount);
+  }
+
+  // Ensure discount does not exceed subtotal
+  return Math.max(0, Math.min(discount, subtotal));
+};
+
+cartSchema.methods.getTotalAfterDiscount = function() {
+  const subtotal = this.getTotal();
+  const discount = this.getDiscountAmount();
+  return Math.max(0, subtotal - discount);
 };
 
 cartSchema.methods.getItemCount = function() {

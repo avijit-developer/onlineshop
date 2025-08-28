@@ -403,6 +403,30 @@ const api = {
     });
   },
 
+  async applyCoupon(code, discountType, discountValue, opts = {}) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    const { minimumAmount = 0, maxDiscountAmount } = opts || {};
+    return this.request('/api/v1/cart/me/coupon', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ code, discountType, discountValue, minimumAmount, maxDiscountAmount }),
+    });
+  },
+
+  async removeCoupon() {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/cart/me/coupon', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
   // Orders (customer)
   async createOrder(orderData) {
     const token = await this.getStoredToken();

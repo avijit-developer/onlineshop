@@ -217,16 +217,20 @@ router.get('/me/summary', authenticate, requireRole(['customer']), async (req, r
     const cart = await Cart.findOne({ user: req.user.id });
     
     if (!cart) {
-      return res.json({ success: true, data: { total: 0, itemCount: 0, items: [] } });
+      return res.json({ success: true, data: { total: 0, discount: 0, totalAfterDiscount: 0, itemCount: 0, items: [] } });
     }
 
     const total = cart.getTotal();
+    const discount = cart.getDiscountAmount();
+    const totalAfterDiscount = cart.getTotalAfterDiscount();
     const itemCount = cart.getItemCount();
 
     res.json({ 
       success: true, 
       data: { 
-        total, 
+        total,
+        discount,
+        totalAfterDiscount,
         itemCount, 
         items: cart.items 
       } 
@@ -234,6 +238,61 @@ router.get('/me/summary', authenticate, requireRole(['customer']), async (req, r
   } catch (error) {
     console.error('Error getting cart summary:', error);
     res.status(500).json({ success: false, message: 'Failed to get cart summary' });
+  }
+});
+
+// Apply coupon to cart
+router.post('/me/coupon', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const { code, discountType, discountValue, minimumAmount = 0, maxDiscountAmount } = req.body || {};
+
+    if (!code || !discountType || discountValue == null) {
+      return res.status(400).json({ success: false, message: 'code, discountType, and discountValue are required' });
+    }
+
+    if (!['percentage', 'fixed'].includes(discountType)) {
+      return res.status(400).json({ success: false, message: 'discountType must be percentage or fixed' });
+    }
+
+    let cart = await Cart.findOne({ user: req.user.id });
+    if (!cart) {
+      cart = new Cart({ user: req.user.id, items: [] });
+    }
+
+    // Assign coupon data to cart; simple stateless validation here
+    cart.appliedCoupon = { code, discountType, discountValue, minimumAmount, maxDiscountAmount };
+    await cart.save();
+
+    const total = cart.getTotal();
+    const discount = cart.getDiscountAmount();
+    const totalAfterDiscount = cart.getTotalAfterDiscount();
+
+    res.status(200).json({ success: true, data: { cart, total, discount, totalAfterDiscount } });
+  } catch (error) {
+    console.error('Error applying coupon:', error);
+    res.status(500).json({ success: false, message: 'Failed to apply coupon' });
+  }
+});
+
+// Remove coupon from cart
+router.delete('/me/coupon', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const cart = await Cart.findOne({ user: req.user.id });
+    if (!cart) {
+      return res.status(404).json({ success: false, message: 'Cart not found' });
+    }
+
+    cart.appliedCoupon = undefined;
+    await cart.save();
+
+    const total = cart.getTotal();
+    const discount = cart.getDiscountAmount();
+    const totalAfterDiscount = cart.getTotalAfterDiscount();
+
+    res.json({ success: true, data: { cart, total, discount, totalAfterDiscount } });
+  } catch (error) {
+    console.error('Error removing coupon:', error);
+    res.status(500).json({ success: false, message: 'Failed to remove coupon' });
   }
 });
 
