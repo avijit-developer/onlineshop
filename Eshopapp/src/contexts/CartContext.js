@@ -292,6 +292,7 @@ export const CartProvider = ({ children }) => {
       if (response && response.success) {
         // Immediately clear the local state for instant UI update
         setCartItems([]);
+        setCartCoupon(null);
         console.log('Cart cleared successfully, local state updated');
       } else {
         console.log('Failed to clear cart in database');

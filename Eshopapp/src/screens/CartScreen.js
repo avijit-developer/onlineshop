@@ -18,7 +18,6 @@ const CartScreen = () => {
   const navigation = useNavigation();
   const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading, isAuthenticated, refreshCart, cartCoupon } = useCart();
   const [couponCode, setCouponCode] = React.useState('');
-  const [appliedCoupon, setAppliedCoupon] = React.useState(null);
   const [couponError, setCouponError] = React.useState('');
   const [validating, setValidating] = React.useState(false);
   const handleApplyCoupon = async () => {
@@ -27,10 +26,9 @@ const CartScreen = () => {
       setCouponError('');
       const res = await api.applyCouponToCart(couponCode.trim(), 'cart');
       if (res?.success && res?.data) {
-        setAppliedCoupon({ couponCode: res.data.couponCode, discountAmount: res.data.discountAmount, freeShipping: !!res.data.freeShipping });
+        await refreshCart();
         console.log('[Coupon] Applied and saved to cart:', res.data);
       } else {
-        setAppliedCoupon(null);
         const reason = res?.message || 'Invalid coupon';
         setCouponError(reason);
         console.warn('[Coupon] Apply failed:', { code: couponCode.trim(), reason });
@@ -48,9 +46,9 @@ const CartScreen = () => {
     try {
       await api.removeCouponFromCart();
     } catch (_) {}
-    setAppliedCoupon(null);
     setCouponCode('');
     setCouponError('');
+    await refreshCart();
   };
 
   useFocusEffect(
@@ -61,12 +59,9 @@ const CartScreen = () => {
 
   // Restore applied coupon from backend cart when screen is focused and cart reloads
   React.useEffect(() => {
-    if (cartCoupon && (!appliedCoupon || cartCoupon.couponCode !== appliedCoupon.couponCode)) {
-      setAppliedCoupon(cartCoupon);
-      setCouponCode(cartCoupon.couponCode);
-    }
-    if (!cartCoupon && appliedCoupon) {
-      setAppliedCoupon(null);
+    if (cartCoupon) {
+      setCouponCode(cartCoupon.couponCode || '');
+    } else {
       setCouponCode('');
     }
   }, [cartCoupon]);
@@ -249,7 +244,7 @@ const CartScreen = () => {
   const subtotal = getCartTotal();
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08;
-  const discount = appliedCoupon?.discountAmount || 0;
+  const discount = cartCoupon?.discountAmount || 0;
   const total = Math.max(0, subtotal + shipping + tax - discount);
 
   return (

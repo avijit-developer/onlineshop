@@ -48,11 +48,10 @@ const CheckoutScreen = () => {
   const [orderNote, setOrderNote] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   useEffect(() => {
-    if (cartCoupon && (!appliedCoupon || cartCoupon.couponCode !== appliedCoupon.couponCode)) {
+    if (cartCoupon) {
       setAppliedCoupon(cartCoupon);
-      setCouponCode(cartCoupon.couponCode);
-    }
-    if (!cartCoupon && appliedCoupon) {
+      setCouponCode(cartCoupon.couponCode || '');
+    } else {
       setAppliedCoupon(null);
       setCouponCode('');
     }
@@ -486,8 +485,7 @@ const CheckoutScreen = () => {
       const code = couponCode.trim();
       const res = await api.applyCouponToCart(code, paymentMethod);
       if (res?.success && res?.data) {
-        setAppliedCoupon({ couponCode: res.data.couponCode, discountAmount: res.data.discountAmount, freeShipping: !!res.data.freeShipping });
-        setCouponCode(res.data.couponCode);
+        // server is source of truth; rehydrated via cartCoupon
         console.log('[Coupon] Applied and saved to cart (checkout):', res.data);
       } else {
         setAppliedCoupon(null);
