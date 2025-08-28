@@ -339,13 +339,13 @@ const Coupons = () => {
     }
   };
 
-  const handleToggleStatus = async (coupon) => {
+  const handleToggleStatus = async (couponId, newActive) => {
     try {
-      const id = coupon._id || coupon.id;
+      const id = couponId;
       const res = await fetch(`${API_BASE}/api/v1/coupons/${id}/status`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ isActive: !coupon.isActive })
+        body: JSON.stringify({ isActive: !!newActive })
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.message || 'Failed to update status');
@@ -560,7 +560,7 @@ const Coupons = () => {
                       Delete
                     </button>
                     <label className="toggle-switch" title="Active">
-                      <input type="checkbox" checked={!!coupon.isActive} onChange={(e) => handleToggleStatus({ ...coupon, isActive: e.target.checked })} />
+                      <input type="checkbox" checked={!!coupon.isActive} onChange={(e) => handleToggleStatus(coupon._id || coupon.id, e.target.checked)} />
                       <span className="slider" />
                     </label>
                   </div>
