@@ -29,13 +29,24 @@ const CartScreen = () => {
       const res = await api.validateCoupon(couponCode.trim(), items);
       if (res?.success && res?.data) {
         setAppliedCoupon(res.data);
+        console.log('[Coupon] Applied successfully:', {
+          code: res.data.couponCode,
+          discountAmount: res.data.discountAmount,
+          applicableSubtotal: res.data.applicableSubtotal
+        });
       } else {
         setAppliedCoupon(null);
-        setCouponError(res?.message || 'Invalid coupon');
+        const reason = res?.message || 'Invalid coupon';
+        setCouponError(reason);
+        console.warn('[Coupon] Validation failed:', {
+          code: couponCode.trim(),
+          reason,
+        });
       }
     } catch (_) {
       setAppliedCoupon(null);
       setCouponError('Invalid coupon');
+      console.error('[Coupon] Validation error (network or server):', _?.message || _);
     } finally {
       setValidating(false);
     }
@@ -304,9 +315,7 @@ const CartScreen = () => {
                   <Text style={[styles.summaryValue, { color: '#4caf50' }]}>- ₹{String(appliedCoupon.discountAmount.toFixed(2))}</Text>
                 </View>
               )}
-              {!!couponError && (
-                <Text style={{ color: '#e53935', marginBottom: 8 }}>{couponError}</Text>
-              )}
+              {/* Intentionally not showing error message in UI; logging to console instead */}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
                 <Text style={styles.summaryValue}>₹{subtotal.toFixed(2)}</Text>

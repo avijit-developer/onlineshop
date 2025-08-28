@@ -142,14 +142,20 @@ router.post('/validate', authenticate, requireRole(['customer']), async (req, re
     const code = String(couponCode).toUpperCase();
     const now = new Date();
     const coupon = await Coupon.findOne({ code, isActive: true, startDate: { $lte: now }, endDate: { $gte: now } }).lean();
-    if (!coupon) return res.json({ success: false, message: 'Invalid or expired coupon' });
+    if (!coupon) {
+      console.warn('[Coupon Validate] Not found or inactive/expired:', code);
+      return res.json({ success: false, message: 'Invalid or expired coupon' });
+    }
 
     // Build items list with product refs
     let orderItems = Array.isArray(items) ? items : [];
     if (orderItems.length === 0) {
       const Cart = require('../models/Cart');
       const cart = await Cart.findOne({ user: req.user.id }).lean();
-      if (!cart || (cart.items || []).length === 0) return res.json({ success: false, message: 'Cart is empty' });
+      if (!cart || (cart.items || []).length === 0) {
+        console.warn('[Coupon Validate] Empty cart for user:', req.user.id);
+        return res.json({ success: false, message: 'Cart is empty' });
+      }
       orderItems = (cart.items || []).map(ci => ({ product: ci.product, price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? 0, quantity: ci.quantity }));
     }
 
@@ -177,15 +183,22 @@ router.post('/validate', authenticate, requireRole(['customer']), async (req, re
     if (coupon.appliesTo === 'new_user') {
       const Order = require('../models/Order');
       const existing = await Order.countDocuments({ user: req.user.id });
-      if (existing > 0) return res.json({ success: false, message: 'Coupon valid for new users only' });
+      if (existing > 0) {
+        console.warn('[Coupon Validate] Not a new user:', req.user.id);
+        return res.json({ success: false, message: 'Coupon valid for new users only' });
+      }
     }
 
     const applicable = getApplicable();
-    if (applicable.length === 0) return res.json({ success: false, message: 'Coupon does not apply to selected items' });
+    if (applicable.length === 0) {
+      console.warn('[Coupon Validate] No applicable items for coupon:', code);
+      return res.json({ success: false, message: 'Coupon does not apply to selected items' });
+    }
 
     const applicableSubtotal = applicable.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
     const orderSubtotal = orderItems.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
     if (coupon.minimumAmount && orderSubtotal < Number(coupon.minimumAmount)) {
+      console.warn('[Coupon Validate] Below minimum amount:', { required: coupon.minimumAmount, orderSubtotal });
       return res.json({ success: false, message: `Minimum order amount is ${coupon.minimumAmount}` });
     }
 
