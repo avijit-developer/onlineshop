@@ -268,20 +268,27 @@ const Orders = () => {
       <div className="page-header">
         <h1>Order Management</h1>
         <div className="header-actions">
-          <div className="search-filter-container">
+          <div className="search-filter-container" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="text"
               placeholder="Search orders..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
+              style={{ minWidth: 280 }}
             />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Status</option>
+            <button className="btn btn-secondary" onClick={() => setFiltersOpen(v => !v)}>
+              {filtersOpen ? 'Hide Filters' : 'Show Filters'}
+            </button>
+          </div>
+        </div>
+      </div>
+      {filtersOpen && (
+        <div className="filters-panel">
+          <div className="filter-row">
+            <label>Status</label>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
+              <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
               <option value="processing">Processing</option>
@@ -290,11 +297,26 @@ const Orders = () => {
               <option value="cancelled">Cancelled</option>
               <option value="refunded">Refunded</option>
             </select>
-            {/* Date range moved to collapsible Filters below */}
+          </div>
+          <div className="filter-row">
+            <label>Customer Email</label>
+            <input type="text" value={emailFilter} onChange={(e) => setEmailFilter(e.target.value)} placeholder="email@example.com" className="search-input" />
+          </div>
+          <div className="filter-row" style={{ display: 'flex', gap: 8 }}>
+            <div>
+              <label>From</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <label>To</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+          </div>
+          <div className="filter-row">
+            <button className="btn btn-secondary" onClick={() => { setStatusFilter('all'); setEmailFilter(''); setDateFrom(''); setDateTo(''); }}>Reset</button>
           </div>
         </div>
-      </div>
-
+      )}
       <div className="stats-cards">
         <div className="stat-card">
           <h3>Total Orders</h3>
@@ -315,45 +337,6 @@ const Orders = () => {
       </div>
 
       <div className="orders-table-container">
-        <div className="filters-collapsible">
-          <button className="btn btn-secondary" onClick={() => setFiltersOpen(v => !v)}>
-            {filtersOpen ? 'Hide Filters' : 'Show Filters'}
-          </button>
-          {filtersOpen && (
-            <div className="filters-panel">
-              <div className="filter-row">
-                <label>Status</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
-                  <option value="all">All</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="processing">Processing</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="refunded">Refunded</option>
-                </select>
-              </div>
-              <div className="filter-row">
-                <label>Customer Email</label>
-                <input type="text" value={emailFilter} onChange={(e) => setEmailFilter(e.target.value)} placeholder="email@example.com" className="search-input" />
-              </div>
-              <div className="filter-row" style={{ display: 'flex', gap: 8 }}>
-                <div>
-                  <label>From</label>
-                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                </div>
-                <div>
-                  <label>To</label>
-                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                </div>
-              </div>
-              <div className="filter-row">
-                <button className="btn btn-secondary" onClick={() => { setStatusFilter('all'); setEmailFilter(''); setDateFrom(''); setDateTo(''); }}>Reset</button>
-              </div>
-            </div>
-          )}
-        </div>
         <table className="orders-table">
           <thead>
             <tr>

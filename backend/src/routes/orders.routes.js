@@ -131,7 +131,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 		const p = Math.max(parseInt(page, 10) || 1, 1);
 		const l = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 		const [items, total] = await Promise.all([
-			Order.find({}).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email').lean(),
+			Order.find({}).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').lean(),
 			Order.countDocuments({})
 		]);
 		res.json({ success: true, data: items, meta: { total, page: p, limit: l } });
