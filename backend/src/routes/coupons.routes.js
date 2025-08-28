@@ -165,7 +165,11 @@ router.post('/validate', authenticate, requireRole(['customer']), async (req, re
       if (!cart || (cart.items || []).length === 0) {
         return res.json({ success: false, message: 'Cart is empty' });
       }
-      orderItems = (cart.items || []).map(ci => ({ product: ci.product, price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? 0, quantity: ci.quantity }));
+      orderItems = (cart.items || []).map(ci => ({
+        product: ci.product,
+        price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.product?.specialPrice ?? ci.product?.regularPrice ?? 0,
+        quantity: ci.quantity
+      }));
     }
 
     const result = await validateAndComputeCoupon({ couponCode, items: orderItems, userId: req.user.id, paymentMethod });

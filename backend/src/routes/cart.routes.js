@@ -262,7 +262,11 @@ router.post('/me/coupon', authenticate, requireRole(['customer']), async (req, r
     if (!cart) return res.status(404).json({ success: false, message: 'Cart not found' });
     if (!cart.items || cart.items.length === 0) return res.status(400).json({ success: false, message: 'Cart is empty' });
 
-    const items = cart.items.map(ci => ({ product: ci.product._id || ci.product.id, price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? 0, quantity: ci.quantity }));
+    const items = cart.items.map(ci => ({
+      product: ci.product._id || ci.product.id,
+      price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.product?.specialPrice ?? ci.product?.regularPrice ?? 0,
+      quantity: ci.quantity
+    }));
     const result = await validateAndComputeCoupon({ couponCode: code, items, userId: req.user.id, paymentMethod });
     if (!result.valid) return res.json({ success: false, message: result.message || 'Coupon invalid' });
 
