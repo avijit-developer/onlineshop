@@ -147,7 +147,7 @@ const CheckoutScreen = () => {
         shippingAddress: shippingAddressStr,
         paymentMethod,
         tax: 8,
-        shippingCost: shipping,
+        shippingCost: appliedCoupon?.freeShipping ? 0 : shipping,
         couponCode: (appliedCoupon?.couponCode || couponCode.trim()) || undefined,
         orderNote: orderNote.trim() || undefined,
       });
@@ -474,9 +474,9 @@ const CheckoutScreen = () => {
       setValidating(true);
       setCouponError('');
       const code = couponCode.trim();
-      const res = await api.applyCouponToCart(code);
+      const res = await api.applyCouponToCart(code, paymentMethod);
       if (res?.success && res?.data) {
-        setAppliedCoupon({ couponCode: res.data.couponCode, discountAmount: res.data.discountAmount });
+        setAppliedCoupon({ couponCode: res.data.couponCode, discountAmount: res.data.discountAmount, freeShipping: !!res.data.freeShipping });
         setCouponCode(res.data.couponCode);
         console.log('[Coupon] Applied and saved to cart (checkout):', res.data);
       } else {

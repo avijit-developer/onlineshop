@@ -25,9 +25,9 @@ const CartScreen = () => {
     try {
       setValidating(true);
       setCouponError('');
-      const res = await api.applyCouponToCart(couponCode.trim());
+      const res = await api.applyCouponToCart(couponCode.trim(), 'cart');
       if (res?.success && res?.data) {
-        setAppliedCoupon({ couponCode: res.data.couponCode, discountAmount: res.data.discountAmount });
+        setAppliedCoupon({ couponCode: res.data.couponCode, discountAmount: res.data.discountAmount, freeShipping: !!res.data.freeShipping });
         console.log('[Coupon] Applied and saved to cart:', res.data);
       } else {
         setAppliedCoupon(null);

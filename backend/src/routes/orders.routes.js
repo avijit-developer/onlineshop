@@ -4,6 +4,7 @@ const Cart = require('../models/Cart');
 const { authenticate, requireRole, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
+const { validateAndComputeCoupon } = require('../utils/coupons');
 
 // Helper to compute totals
 function computeTotals(items, taxPercent = 0, shippingCost = 0, discountAmount = 0) {
@@ -38,26 +39,19 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 		if (!Array.isArray(items) || items.length === 0) {
 			return res.status(400).json({ success: false, message: 'No items to place order' });
 		}
-		// Compute discount via coupon if provided
-		let discountAmount = 0; let appliedCouponCode = null;
+		// Compute discount via coupon if provided (enforce rules and free shipping/payment method)
+		let discountAmount = 0; let appliedCouponCode = null; let effectiveShippingCost = Number(shippingCost || 0);
 		if (couponCode) {
-			try {
-				const Coupon = require('../models/Coupon');
-				const now = new Date();
-				const coupon = await Coupon.findOne({ code: String(couponCode).toUpperCase(), isActive: true, startDate: { $lte: now }, endDate: { $gte: now } }).lean();
-				if (coupon) {
-					const sub = items.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
-					if (coupon.discountType === 'percentage') {
-						discountAmount = (sub * Number(coupon.discountValue || 0)) / 100;
-						if (coupon.maximumDiscount) discountAmount = Math.min(discountAmount, Number(coupon.maximumDiscount));
-					} else {
-						discountAmount = Number(coupon.discountValue || 0);
-					}
-					appliedCouponCode = coupon.code;
+			const result = await validateAndComputeCoupon({ couponCode, items, userId: req.user.id, paymentMethod });
+			if (result.valid) {
+				discountAmount = Number(result.discountAmount || 0);
+				appliedCouponCode = String(couponCode).toUpperCase();
+				if (result.freeShipping) {
+					effectiveShippingCost = 0;
 				}
-			} catch (_) {}
+			}
 		}
-		const { subtotal, total } = computeTotals(items, tax, shippingCost, discountAmount);
+		const { subtotal, total } = computeTotals(items, tax, effectiveShippingCost, discountAmount);
 		const orderNumber = await Order.generateOrderNumber();
 		const order = await Order.create({
 			user: req.user.id,
@@ -67,7 +61,7 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			shippingAddress,
 			paymentMethod,
 			tax,
-			shippingCost,
+			shippingCost: effectiveShippingCost,
 			discountAmount,
 			couponCode: appliedCouponCode,
 			subtotal,
@@ -75,6 +69,13 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			orderNote: orderNote || '',
 			statusHistory: [{ status: 'confirmed', updatedBy: 'system' }],
 		});
+		// Increment coupon usage if applied
+		if (appliedCouponCode) {
+			try {
+				const Coupon = require('../models/Coupon');
+				await Coupon.updateOne({ code: appliedCouponCode }, { $inc: { usedCount: 1 } });
+			} catch (_) {}
+		}
 		// Clear cart after order
 		const cart = await Cart.findOne({ user: req.user.id });
 		if (cart) { cart.clearCart(); await cart.save(); }

@@ -355,13 +355,13 @@ const api = {
       },
     });
   },
-  async applyCouponToCart(couponCode) {
+  async applyCouponToCart(couponCode, paymentMethod) {
     const token = await this.getStoredToken();
     if (!token) throw new Error('No authentication token');
     return this.request('/api/v1/cart/me/coupon', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ couponCode }),
+      body: JSON.stringify({ couponCode, paymentMethod }),
     });
   },
   async removeCouponFromCart() {
@@ -440,13 +440,13 @@ const api = {
     });
   },
 
-  async validateCoupon(couponCode, items) {
+  async validateCoupon(couponCode, items, paymentMethod) {
     const token = await this.getStoredToken();
     if (!token) throw new Error('No authentication token');
     return this.request('/api/v1/coupons/validate', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ couponCode, items }),
+      body: JSON.stringify({ couponCode, items, paymentMethod }),
     });
   },
 

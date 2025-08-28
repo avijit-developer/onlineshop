@@ -29,6 +29,7 @@ const Coupons = () => {
     minimumAmount: '',
     maximumDiscount: '',
     usageLimit: '',
+    perUserLimit: '',
     usedCount: 0,
     startDate: '',
     endDate: '',
@@ -36,7 +37,14 @@ const Coupons = () => {
     appliesTo: 'all',
     vendorIds: [],
     categoryIds: [],
-    productIds: []
+    productIds: [],
+    freeShipping: false,
+    allowedPaymentMethods: [],
+    ruleType: 'standard',
+    bogoBuyProductIds: [],
+    bogoGetProductIds: [],
+    bogoBuyQty: 1,
+    bogoGetQty: 1,
   });
 
   useEffect(() => {
@@ -239,13 +247,21 @@ const Coupons = () => {
         minimumAmount: formData.minimumAmount !== '' ? Number(formData.minimumAmount) : undefined,
         maximumDiscount: formData.maximumDiscount !== '' ? Number(formData.maximumDiscount) : undefined,
         usageLimit: Number(formData.usageLimit) || 0,
+        perUserLimit: formData.perUserLimit !== '' ? Number(formData.perUserLimit) : undefined,
         startDate: formData.startDate,
         endDate: formData.endDate,
         isActive: !!formData.isActive,
         appliesTo: formData.appliesTo,
         vendorIds: formData.vendorIds || [],
         categoryIds: formData.categoryIds || [],
-        productIds: formData.productIds || []
+        productIds: formData.productIds || [],
+        freeShipping: !!formData.freeShipping,
+        allowedPaymentMethods: formData.allowedPaymentMethods || [],
+        ruleType: formData.ruleType,
+        bogoBuyProductIds: formData.bogoBuyProductIds || [],
+        bogoGetProductIds: formData.bogoGetProductIds || [],
+        bogoBuyQty: Number(formData.bogoBuyQty) || 1,
+        bogoGetQty: Number(formData.bogoGetQty) || 1,
       };
 
       if (editingCoupon) {
@@ -310,6 +326,7 @@ const Coupons = () => {
       minimumAmount: coupon.minimumAmount ?? '',
       maximumDiscount: coupon.maximumDiscount ?? '',
       usageLimit: coupon.usageLimit ?? '',
+      perUserLimit: coupon.perUserLimit ?? '',
       usedCount: coupon.usedCount ?? 0,
       startDate: formatDateInput(coupon.startDate),
       endDate: formatDateInput(coupon.endDate),
@@ -317,7 +334,14 @@ const Coupons = () => {
       appliesTo: coupon.appliesTo || 'all',
       vendorIds: (coupon.vendorIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v),
       categoryIds: (coupon.categoryIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v),
-      productIds: (coupon.productIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v)
+      productIds: (coupon.productIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v),
+      freeShipping: !!coupon.freeShipping,
+      allowedPaymentMethods: Array.isArray(coupon.allowedPaymentMethods) ? coupon.allowedPaymentMethods : [],
+      ruleType: coupon.ruleType || 'standard',
+      bogoBuyProductIds: (coupon.bogoBuyProductIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v),
+      bogoGetProductIds: (coupon.bogoGetProductIds || []).map(v => typeof v === 'object' ? (v._id || v.id) : v),
+      bogoBuyQty: coupon.bogoBuyQty ?? 1,
+      bogoGetQty: coupon.bogoGetQty ?? 1,
     });
     setShowModal(true);
   };
@@ -698,6 +722,16 @@ const Coupons = () => {
                   />
                 </div>
                 <div className="form-group">
+                  <label>Per User Limit</label>
+                  <input
+                    type="number"
+                    value={formData.perUserLimit}
+                    onChange={(e) => setFormData({...formData, perUserLimit: e.target.value})}
+                    min="1"
+                    placeholder="1"
+                  />
+                </div>
+                <div className="form-group">
                   <label>Start Date *</label>
                   <input
                     type="date"
@@ -715,6 +749,52 @@ const Coupons = () => {
                     required
                   />
                 </div>
+                <div className="form-group">
+                  <label>Payment Methods (optional)</label>
+                  <input
+                    type="text"
+                    value={formData.allowedPaymentMethods.join(',')}
+                    onChange={(e) => setFormData({ ...formData, allowedPaymentMethods: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                    placeholder="e.g., paytm, upi, card, cod"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Free Shipping</label>
+                  <div className="checkbox-group">
+                    <input
+                      type="checkbox"
+                      id="freeShipping"
+                      checked={!!formData.freeShipping}
+                      onChange={(e) => setFormData({...formData, freeShipping: e.target.checked})}
+                    />
+                    <label htmlFor="freeShipping">Enable free shipping</label>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Rule Type</label>
+                  <select
+                    value={formData.ruleType}
+                    onChange={(e) => setFormData({ ...formData, ruleType: e.target.value })}
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="bogo">Buy X Get Y (BOGO)</option>
+                  </select>
+                </div>
+                {formData.ruleType === 'bogo' && (
+                  <div className="form-group full-width">
+                    <label>BOGO Config</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                      <div>
+                        <label>Buy Qty</label>
+                        <input type="number" min="1" value={formData.bogoBuyQty} onChange={(e) => setFormData({ ...formData, bogoBuyQty: e.target.value })} />
+                      </div>
+                      <div>
+                        <label>Get Qty</label>
+                        <input type="number" min="1" value={formData.bogoGetQty} onChange={(e) => setFormData({ ...formData, bogoGetQty: e.target.value })} />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Applies To</label>
                   <select

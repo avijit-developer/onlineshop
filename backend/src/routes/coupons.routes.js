@@ -2,6 +2,7 @@ const express = require('express');
 const Coupon = require('../models/Coupon');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
+const { validateAndComputeCoupon } = require('../utils/coupons');
 const { authenticate, requireRole, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
@@ -63,6 +64,7 @@ router.post('/', authenticate, requireRole(['admin']), requirePermission('coupon
       minimumAmount: body.minimumAmount !== undefined ? Number(body.minimumAmount) : 0,
       maximumDiscount: body.maximumDiscount !== undefined ? Number(body.maximumDiscount) : null,
       usageLimit: Number(body.usageLimit) || 0,
+      perUserLimit: body.perUserLimit !== undefined ? Number(body.perUserLimit) : null,
       startDate: new Date(body.startDate),
       endDate: new Date(body.endDate),
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
@@ -70,6 +72,13 @@ router.post('/', authenticate, requireRole(['admin']), requirePermission('coupon
       vendorIds: toObjectIdArray(body.vendorIds),
       categoryIds: toObjectIdArray(body.categoryIds),
       productIds: toObjectIdArray(body.productIds),
+      freeShipping: !!body.freeShipping,
+      allowedPaymentMethods: Array.isArray(body.allowedPaymentMethods) ? Array.from(new Set(body.allowedPaymentMethods.map(String))) : [],
+      ruleType: body.ruleType || 'standard',
+      bogoBuyProductIds: toObjectIdArray(body.bogoBuyProductIds),
+      bogoGetProductIds: toObjectIdArray(body.bogoGetProductIds),
+      bogoBuyQty: body.bogoBuyQty != null ? Number(body.bogoBuyQty) : 1,
+      bogoGetQty: body.bogoGetQty != null ? Number(body.bogoGetQty) : 1,
     };
     const created = await Coupon.create(payload);
     res.json({ success: true, data: created });
@@ -92,6 +101,7 @@ router.put('/:id', authenticate, requireRole(['admin']), requirePermission('coup
       minimumAmount: body.minimumAmount !== undefined ? Number(body.minimumAmount) : undefined,
       maximumDiscount: body.maximumDiscount !== undefined ? Number(body.maximumDiscount) : undefined,
       usageLimit: body.usageLimit !== undefined ? Number(body.usageLimit) : undefined,
+      perUserLimit: body.perUserLimit !== undefined ? Number(body.perUserLimit) : undefined,
       startDate: body.startDate ? new Date(body.startDate) : undefined,
       endDate: body.endDate ? new Date(body.endDate) : undefined,
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
@@ -99,6 +109,13 @@ router.put('/:id', authenticate, requireRole(['admin']), requirePermission('coup
       vendorIds: Array.isArray(body.vendorIds) ? toObjectIdArray(body.vendorIds) : undefined,
       categoryIds: Array.isArray(body.categoryIds) ? toObjectIdArray(body.categoryIds) : undefined,
       productIds: Array.isArray(body.productIds) ? toObjectIdArray(body.productIds) : undefined,
+      freeShipping: body.freeShipping !== undefined ? !!body.freeShipping : undefined,
+      allowedPaymentMethods: Array.isArray(body.allowedPaymentMethods) ? Array.from(new Set(body.allowedPaymentMethods.map(String))) : undefined,
+      ruleType: body.ruleType,
+      bogoBuyProductIds: Array.isArray(body.bogoBuyProductIds) ? toObjectIdArray(body.bogoBuyProductIds) : undefined,
+      bogoGetProductIds: Array.isArray(body.bogoGetProductIds) ? toObjectIdArray(body.bogoGetProductIds) : undefined,
+      bogoBuyQty: body.bogoBuyQty != null ? Number(body.bogoBuyQty) : undefined,
+      bogoGetQty: body.bogoGetQty != null ? Number(body.bogoGetQty) : undefined,
     };
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
     const updated = await Coupon.findByIdAndUpdate(id, payload, { new: true });
@@ -137,15 +154,8 @@ router.patch('/:id/status', authenticate, requireRole(['admin']), requirePermiss
 // Validate coupon against current user's cart or provided items
 router.post('/validate', authenticate, requireRole(['customer']), async (req, res) => {
   try {
-    const { couponCode, items } = req.body || {};
+    const { couponCode, items, paymentMethod } = req.body || {};
     if (!couponCode) return res.status(400).json({ success: false, message: 'couponCode is required' });
-    const code = String(couponCode).toUpperCase();
-    const now = new Date();
-    const coupon = await Coupon.findOne({ code, isActive: true, startDate: { $lte: now }, endDate: { $gte: now } }).lean();
-    if (!coupon) {
-      console.warn('[Coupon Validate] Not found or inactive/expired:', code);
-      return res.json({ success: false, message: 'Invalid or expired coupon' });
-    }
 
     // Build items list with product refs
     let orderItems = Array.isArray(items) ? items : [];
@@ -153,64 +163,14 @@ router.post('/validate', authenticate, requireRole(['customer']), async (req, re
       const Cart = require('../models/Cart');
       const cart = await Cart.findOne({ user: req.user.id }).lean();
       if (!cart || (cart.items || []).length === 0) {
-        console.warn('[Coupon Validate] Empty cart for user:', req.user.id);
         return res.json({ success: false, message: 'Cart is empty' });
       }
       orderItems = (cart.items || []).map(ci => ({ product: ci.product, price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? 0, quantity: ci.quantity }));
     }
 
-    const productIds = orderItems.map(i => i.product).filter(Boolean);
-    const products = await Product.find({ _id: { $in: productIds } }).select('_id vendor category').lean();
-    const idToProduct = new Map(products.map(p => [String(p._id), p]));
-
-    // Compute applicable subtotal based on appliesTo
-    const getApplicable = () => {
-      if (coupon.appliesTo === 'new_user') return orderItems; // subtotal later if user is new
-      if (coupon.appliesTo === 'all') return orderItems;
-      if (coupon.appliesTo === 'vendor') return orderItems.filter(it => {
-        const p = idToProduct.get(String(it.product));
-        return p && coupon.vendorIds && coupon.vendorIds.find(id => String(id) === String(p.vendor));
-      });
-      if (coupon.appliesTo === 'category') return orderItems.filter(it => {
-        const p = idToProduct.get(String(it.product));
-        return p && coupon.categoryIds && coupon.categoryIds.find(id => String(id) === String(p.category));
-      });
-      if (coupon.appliesTo === 'product') return orderItems.filter(it => coupon.productIds && coupon.productIds.find(id => String(id) === String(it.product)));
-      return orderItems;
-    };
-
-    // Check new user condition
-    if (coupon.appliesTo === 'new_user') {
-      const Order = require('../models/Order');
-      const existing = await Order.countDocuments({ user: req.user.id });
-      if (existing > 0) {
-        console.warn('[Coupon Validate] Not a new user:', req.user.id);
-        return res.json({ success: false, message: 'Coupon valid for new users only' });
-      }
-    }
-
-    const applicable = getApplicable();
-    if (applicable.length === 0) {
-      console.warn('[Coupon Validate] No applicable items for coupon:', code);
-      return res.json({ success: false, message: 'Coupon does not apply to selected items' });
-    }
-
-    const applicableSubtotal = applicable.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
-    const orderSubtotal = orderItems.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
-    if (coupon.minimumAmount && orderSubtotal < Number(coupon.minimumAmount)) {
-      console.warn('[Coupon Validate] Below minimum amount:', { required: coupon.minimumAmount, orderSubtotal });
-      return res.json({ success: false, message: `Minimum order amount is ${coupon.minimumAmount}` });
-    }
-
-    let discountAmount = 0;
-    if (coupon.discountType === 'percentage') {
-      discountAmount = (applicableSubtotal * Number(coupon.discountValue || 0)) / 100;
-      if (coupon.maximumDiscount) discountAmount = Math.min(discountAmount, Number(coupon.maximumDiscount));
-    } else {
-      discountAmount = Number(coupon.discountValue || 0);
-    }
-
-    return res.json({ success: true, data: { couponCode: code, discountAmount, applicableSubtotal } });
+    const result = await validateAndComputeCoupon({ couponCode, items: orderItems, userId: req.user.id, paymentMethod });
+    if (!result.valid) return res.json({ success: false, message: result.message || 'Coupon invalid' });
+    return res.json({ success: true, data: { couponCode: String(couponCode).toUpperCase(), discountAmount: result.discountAmount, applicableSubtotal: result.applicableSubtotal, freeShipping: !!result.freeShipping } });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to validate coupon' });
   }

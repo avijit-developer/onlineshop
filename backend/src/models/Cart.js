@@ -85,6 +85,7 @@ const cartSchema = new mongoose.Schema({
   items: [cartItemSchema],
   couponCode: { type: String, default: null },
   couponDiscount: { type: Number, default: 0 },
+  freeShippingApplied: { type: Boolean, default: false },
   createdAt: {
     type: Date,
     default: Date.now
