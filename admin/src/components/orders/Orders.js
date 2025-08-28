@@ -7,10 +7,16 @@ const Orders = () => {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  // Active filters (applied)
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
+  // Draft filters (edited in UI before Apply)
+  const [draftStatus, setDraftStatus] = useState('all');
+  const [draftEmail, setDraftEmail] = useState('');
+  const [draftFrom, setDraftFrom] = useState('');
+  const [draftTo, setDraftTo] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -137,6 +143,24 @@ const Orders = () => {
     setCurrentPage(1);
   };
 
+  const applyFilters = () => {
+    setStatusFilter(draftStatus);
+    setEmailFilter(draftEmail);
+    setDateFrom(draftFrom);
+    setDateTo(draftTo);
+  };
+
+  const resetFilters = () => {
+    setDraftStatus('all');
+    setDraftEmail('');
+    setDraftFrom('');
+    setDraftTo('');
+    setStatusFilter('all');
+    setEmailFilter('');
+    setDateFrom('');
+    setDateTo('');
+  };
+
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
       const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -209,7 +233,7 @@ const Orders = () => {
       if (vendorIds.length === 0) return 'Unknown';
       if (vendorIds.length > 1) return 'Multiple';
       const v = vendors.find(v => String(v.id) === String(vendorIds[0]));
-      return v ? v.name : 'Unknown';
+      return v ? (v.name || v.companyName || 'Unknown') : 'Unknown';
     } catch (_) { return 'Unknown'; }
   };
 
@@ -287,7 +311,7 @@ const Orders = () => {
         <div className="filters-panel">
           <div className="filter-row">
             <label>Status</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
+            <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} className="filter-select">
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
@@ -300,20 +324,21 @@ const Orders = () => {
           </div>
           <div className="filter-row">
             <label>Customer Email</label>
-            <input type="text" value={emailFilter} onChange={(e) => setEmailFilter(e.target.value)} placeholder="email@example.com" className="search-input" />
+            <input type="text" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} placeholder="email@example.com" className="search-input" />
           </div>
           <div className="filter-row" style={{ display: 'flex', gap: 8 }}>
             <div>
               <label>From</label>
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <input type="date" value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} />
             </div>
             <div>
               <label>To</label>
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <input type="date" value={draftTo} onChange={(e) => setDraftTo(e.target.value)} />
             </div>
           </div>
           <div className="filter-row">
-            <button className="btn btn-secondary" onClick={() => { setStatusFilter('all'); setEmailFilter(''); setDateFrom(''); setDateTo(''); }}>Reset</button>
+            <button className="btn btn-primary" onClick={applyFilters} style={{ marginRight: 8 }}>Apply</button>
+            <button className="btn btn-secondary" onClick={resetFilters}>Reset</button>
           </div>
         </div>
       )}
@@ -486,7 +511,7 @@ const Orders = () => {
                       </div>
                       <div className="info-item">
                         <label>Phone:</label>
-                        <span>{selectedOrder.customerPhone || selectedOrder.user?.phone || ''}</span>
+                        <span>{selectedOrder.customerPhone || selectedOrder.user?.phone || 'N/A'}</span>
                       </div>
                       <div className="info-item">
                         <label>Address:</label>
