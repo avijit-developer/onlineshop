@@ -13,7 +13,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import api from '../utils/api';
-import { EXPO_PUBLIC_FREE_SHIPPING_MIN, EXPO_PUBLIC_SHIPPING_COST } from '@env';
+// shipping settings loaded from API
 
 const CartScreen = () => {
   const navigation = useNavigation();
@@ -242,8 +242,16 @@ const CartScreen = () => {
   );
 
   const subtotal = getCartTotal();
-  const FREE_SHIPPING_MIN = Number(EXPO_PUBLIC_FREE_SHIPPING_MIN || process.env?.EXPO_PUBLIC_FREE_SHIPPING_MIN || 50);
-  const BASE_SHIPPING = Number(EXPO_PUBLIC_SHIPPING_COST || process.env?.EXPO_PUBLIC_SHIPPING_COST || 9.99);
+  const [shippingSettings, setShippingSettings] = React.useState({ freeShippingThreshold: 50, defaultShippingCost: 9.99 });
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try { const res = await api.getShippingSettings(); if (mounted && res?.success) setShippingSettings(res.data || {}); } catch (_) {}
+    })();
+    return () => { mounted = false; };
+  }, []);
+  const FREE_SHIPPING_MIN = Number(shippingSettings.freeShippingThreshold || 50);
+  const BASE_SHIPPING = Number(shippingSettings.defaultShippingCost || 9.99);
   const shipping = (cartCoupon?.freeShipping || subtotal >= FREE_SHIPPING_MIN) ? 0 : BASE_SHIPPING;
   const tax = subtotal * 0.08;
   const discount = cartCoupon?.discountAmount || 0;

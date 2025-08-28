@@ -15,6 +15,7 @@ const cartRoutes = require('./cart.routes');
 const ordersRoutes = require('./orders.routes');
 const adminDashboardRoutes = require('./dashboard.routes');
 const couponsRoutes = require('./coupons.routes');
+const settingsRoutes = require('./settings.routes');
 
 const router = express.Router();
 
@@ -34,5 +35,6 @@ router.use('/cart', cartRoutes);
 router.use('/orders', ordersRoutes);
 router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/coupons', couponsRoutes);
+router.use('/settings', settingsRoutes);
 
 module.exports = router;

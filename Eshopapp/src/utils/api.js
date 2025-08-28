@@ -120,6 +120,10 @@ const api = {
     return this.request('/api/v1/homepage/sections/public');
   },
 
+  async getShippingSettings() {
+    return this.request('/api/v1/settings/shipping/public');
+  },
+
   async getHomePageSection(sectionName) {
     return this.request(`/api/v1/homepage/sections/${sectionName}`);
   },
