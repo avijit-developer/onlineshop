@@ -370,7 +370,7 @@ const CartScreen = () => {
                 <Text style={styles.totalValue}>₹{total.toFixed(2)}</Text>
               </View>
 
-              {shipping > 0 && (
+              {(shipping > 0 && subtotal < FREE_SHIPPING_MIN) && (
                 <View style={styles.freeShippingNote}>
                   <Icon name="information-circle-outline" size={16} color="#f7ab18" />
                   <Text style={styles.freeShippingText}>Add ₹{Math.max(0, (FREE_SHIPPING_MIN - subtotal)).toFixed(2)} more for free shipping</Text>
