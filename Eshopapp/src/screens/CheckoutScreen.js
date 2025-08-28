@@ -46,6 +46,9 @@ const CheckoutScreen = () => {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [orderNote, setOrderNote] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [validating, setValidating] = useState(false);
 
   // Refresh addresses when screen is focused
   useFocusEffect(
@@ -67,7 +70,8 @@ const CheckoutScreen = () => {
   const subtotal = getCartTotal();
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08;
-  const total = subtotal + shipping + tax;
+  const discount = appliedCoupon?.discountAmount || 0;
+  const total = Math.max(0, subtotal + shipping + tax - discount);
 
   // Derive effective address: prefer selected (from params), else default
   const effectiveAddress = selectedAddress || getDefaultAddress();
@@ -144,7 +148,7 @@ const CheckoutScreen = () => {
         paymentMethod,
         tax: 8,
         shippingCost: shipping,
-        couponCode: couponCode.trim() || undefined,
+        couponCode: (appliedCoupon?.couponCode || couponCode.trim()) || undefined,
         orderNote: orderNote.trim() || undefined,
       });
 
@@ -425,6 +429,12 @@ const CheckoutScreen = () => {
       </View>
       
       <View style={styles.summaryContent}>
+        {appliedCoupon && (
+          <View style={[styles.summaryRow, { justifyContent: 'space-between' }]}>
+            <Text style={[styles.summaryLabel, { color: '#4caf50' }]}>Applied: {appliedCoupon.couponCode}</Text>
+            <Text style={[styles.summaryValue, { color: '#4caf50' }]}>- ₹{String(discount.toFixed(2))}</Text>
+          </View>
+        )}
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Subtotal</Text>
           <Text style={styles.summaryValue}>₹{String(subtotal.toFixed(2))}</Text>
@@ -459,6 +469,38 @@ const CheckoutScreen = () => {
     </View>
   );
 
+  const handleApplyCoupon = async () => {
+    try {
+      setValidating(true);
+      setCouponError('');
+      const items = cartItems.map(ci => ({ product: ci.id, price: (ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.regularPrice ?? 0), quantity: ci.quantity }));
+      const code = couponCode.trim();
+      const res = await api.validateCoupon(code, items);
+      if (res?.success && res?.data) {
+        setAppliedCoupon(res.data);
+        setCouponCode(res.data.couponCode);
+        console.log('[Coupon] Applied successfully (checkout):', res.data);
+      } else {
+        setAppliedCoupon(null);
+        const reason = res?.message || 'Invalid coupon';
+        setCouponError(reason);
+        console.warn('[Coupon] Validation failed (checkout):', { code, reason });
+      }
+    } catch (e) {
+      setAppliedCoupon(null);
+      setCouponError('Invalid coupon');
+      console.error('[Coupon] Validation error (checkout):', e?.message || e);
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
@@ -482,20 +524,32 @@ const CheckoutScreen = () => {
             <Icon name="pricetag-outline" size={20} color="#f7ab18" />
             <Text style={styles.sectionTitle}>Coupon</Text>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
-              style={[styles.textInput, { flex: 1 }]}
-              value={couponCode}
-              onChangeText={setCouponCode}
-              placeholder="Enter coupon code"
-              autoCapitalize="characters"
-            />
-            <TouchableOpacity
-              style={[styles.addAddressButton, { paddingVertical: 12 }]} onPress={() => navigation.navigate('Cart')}
-            >
-              <Text style={styles.addAddressButtonText}>Apply in Cart</Text>
-            </TouchableOpacity>
-          </View>
+          {!appliedCoupon ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TextInput
+                style={[styles.textInput, { flex: 1 }]}
+                value={couponCode}
+                onChangeText={setCouponCode}
+                placeholder="Enter coupon code"
+                autoCapitalize="characters"
+              />
+              <TouchableOpacity
+                style={[styles.addAddressButton, { paddingVertical: 12 }]} onPress={handleApplyCoupon} disabled={validating}
+              >
+                <Text style={styles.addAddressButtonText}>{validating ? 'Checking...' : 'Apply'}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#e8f5e9', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10 }}>
+              <Text style={{ color: '#2e7d32', fontWeight: '600' }}>Applied: {appliedCoupon.couponCode}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ color: '#2e7d32', fontWeight: '700', marginRight: 12 }}>- ₹{String(discount.toFixed(2))}</Text>
+                <TouchableOpacity onPress={handleRemoveCoupon} accessibilityLabel="Remove coupon" style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#c8e6c9', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+                  <Text style={{ color: '#666', fontSize: 14 }}>×</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
         {/* Order Note */}
         <View style={styles.section}>
