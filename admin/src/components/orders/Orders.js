@@ -496,6 +496,18 @@ const Orders = () => {
                   <div className="section">
                     <h3>Order Summary</h3>
                     <div className="order-summary">
+                      {selectedOrder.couponCode && (
+                        <div className="summary-row">
+                          <span>Coupon:</span>
+                          <span>{selectedOrder.couponCode}</span>
+                        </div>
+                      )}
+                      {selectedOrder.discountAmount > 0 && (
+                        <div className="summary-row">
+                          <span>Discount:</span>
+                          <span>- ${Number(selectedOrder.discountAmount).toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="summary-row">
                         <span>Subtotal:</span>
                         <span>${selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</span>
@@ -512,6 +524,12 @@ const Orders = () => {
                         <span>Total:</span>
                         <span>${calculateOrderTotal(selectedOrder).toFixed(2)}</span>
                       </div>
+                      {selectedOrder.orderNote && (
+                        <div className="summary-row">
+                          <span>Order Note:</span>
+                          <span>{selectedOrder.orderNote}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

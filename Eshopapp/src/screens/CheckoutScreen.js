@@ -44,6 +44,8 @@ const CheckoutScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [orderNote, setOrderNote] = useState('');
 
   // Refresh addresses when screen is focused
   useFocusEffect(
@@ -142,6 +144,8 @@ const CheckoutScreen = () => {
         paymentMethod,
         tax: 8,
         shippingCost: shipping,
+        couponCode: couponCode.trim() || undefined,
+        orderNote: orderNote.trim() || undefined,
       });
 
       if (!response?.success) {
@@ -472,6 +476,42 @@ const CheckoutScreen = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {renderAddressSection()}
         {renderPaymentMethods()}
+        {/* Coupon Code */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Icon name="pricetag-outline" size={20} color="#f7ab18" />
+            <Text style={styles.sectionTitle}>Coupon</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              style={[styles.textInput, { flex: 1 }]}
+              value={couponCode}
+              onChangeText={setCouponCode}
+              placeholder="Enter coupon code"
+              autoCapitalize="characters"
+            />
+            <TouchableOpacity
+              style={[styles.addAddressButton, { paddingVertical: 12 }]} onPress={() => Alert.alert('Info','Coupon will be applied at order placement.')}
+            >
+              <Text style={styles.addAddressButtonText}>Apply</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        {/* Order Note */}
+        <View style={styles.section}>
+          <View className="sectionHeader" style={styles.sectionHeader}>
+            <Icon name="chatbox-ellipses-outline" size={20} color="#f7ab18" />
+            <Text style={styles.sectionTitle}>Order Notes</Text>
+          </View>
+          <TextInput
+            style={[styles.textInput, styles.fullWidthInput]}
+            value={orderNote}
+            onChangeText={setOrderNote}
+            placeholder="Add any delivery instructions or comments for your order"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
         {renderOrderSummary()}
       </ScrollView>
 

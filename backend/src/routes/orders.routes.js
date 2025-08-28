@@ -6,17 +6,18 @@ const { authenticate, requireRole, requireAdmin } = require('../middleware/auth'
 const router = express.Router();
 
 // Helper to compute totals
-function computeTotals(items, taxPercent = 0, shippingCost = 0) {
+function computeTotals(items, taxPercent = 0, shippingCost = 0, discountAmount = 0) {
 	const subtotal = items.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
 	const taxAmount = (subtotal * Number(taxPercent || 0)) / 100;
-	const total = subtotal + taxAmount + Number(shippingCost || 0);
+	const totalBeforeDiscount = subtotal + taxAmount + Number(shippingCost || 0);
+	const total = Math.max(0, totalBeforeDiscount - Number(discountAmount || 0));
 	return { subtotal, total };
 }
 
 // Customer: create order (uses provided items or cart)
 router.post('/me', authenticate, requireRole(['customer']), async (req, res) => {
 	try {
-		const { items: bodyItems, shippingAddress, paymentMethod = 'cod', tax = 0, shippingCost = 0 } = req.body || {};
+		const { items: bodyItems, shippingAddress, paymentMethod = 'cod', tax = 0, shippingCost = 0, couponCode, orderNote } = req.body || {};
 		if (!shippingAddress) {
 			return res.status(400).json({ success: false, message: 'shippingAddress is required' });
 		}
@@ -37,7 +38,26 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 		if (!Array.isArray(items) || items.length === 0) {
 			return res.status(400).json({ success: false, message: 'No items to place order' });
 		}
-		const { subtotal, total } = computeTotals(items, tax, shippingCost);
+		// Compute discount via coupon if provided
+		let discountAmount = 0; let appliedCouponCode = null;
+		if (couponCode) {
+			try {
+				const Coupon = require('../models/Coupon');
+				const now = new Date();
+				const coupon = await Coupon.findOne({ code: String(couponCode).toUpperCase(), isActive: true, startDate: { $lte: now }, endDate: { $gte: now } }).lean();
+				if (coupon) {
+					const sub = items.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+					if (coupon.discountType === 'percentage') {
+						discountAmount = (sub * Number(coupon.discountValue || 0)) / 100;
+						if (coupon.maximumDiscount) discountAmount = Math.min(discountAmount, Number(coupon.maximumDiscount));
+					} else {
+						discountAmount = Number(coupon.discountValue || 0);
+					}
+					appliedCouponCode = coupon.code;
+				}
+			} catch (_) {}
+		}
+		const { subtotal, total } = computeTotals(items, tax, shippingCost, discountAmount);
 		const orderNumber = await Order.generateOrderNumber();
 		const order = await Order.create({
 			user: req.user.id,
@@ -48,8 +68,11 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			paymentMethod,
 			tax,
 			shippingCost,
+			discountAmount,
+			couponCode: appliedCouponCode,
 			subtotal,
 			total,
+			orderNote: orderNote || '',
 			statusHistory: [{ status: 'confirmed', updatedBy: 'system' }],
 		});
 		// Clear cart after order
