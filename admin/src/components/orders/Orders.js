@@ -12,11 +12,13 @@ const Orders = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
+  const [vendorFilter, setVendorFilter] = useState('');
   // Draft filters (edited in UI before Apply)
   const [draftStatus, setDraftStatus] = useState('all');
   const [draftEmail, setDraftEmail] = useState('');
   const [draftFrom, setDraftFrom] = useState('');
   const [draftTo, setDraftTo] = useState('');
+  const [draftVendor, setDraftVendor] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -44,7 +46,7 @@ const Orders = () => {
 
   useEffect(() => {
     filterOrders();
-  }, [orders, searchTerm, statusFilter, dateFrom, dateTo, emailFilter]);
+  }, [orders, searchTerm, statusFilter, dateFrom, dateTo, emailFilter, vendorFilter]);
 
   const fetchData = async () => {
     try {
@@ -112,11 +114,12 @@ const Orders = () => {
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(order =>
-        order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const q = searchTerm.toLowerCase();
+      filtered = filtered.filter(order => {
+        const orderNum = String(order.orderNumber || '').toLowerCase();
+        const custEmail = String(order.user?.email || order.customerEmail || '').toLowerCase();
+        return orderNum.includes(q) || custEmail.includes(q);
+      });
     }
 
     // Status filter
@@ -126,17 +129,32 @@ const Orders = () => {
 
     // Email filter
     if (emailFilter) {
-      filtered = filtered.filter(order => (order.user?.email || order.customerEmail || '').toLowerCase().includes(emailFilter.toLowerCase()));
+      const e = emailFilter.toLowerCase();
+      filtered = filtered.filter(order => (order.user?.email || order.customerEmail || '').toLowerCase().includes(e));
     }
 
     // Date range filter
     if (dateFrom) {
-      const from = new Date(dateFrom);
-      filtered = filtered.filter(order => new Date(order.createdAt) >= from);
+      const from = new Date(`${dateFrom}T00:00:00`);
+      filtered = filtered.filter(order => {
+        const created = new Date(order.createdAt);
+        return created >= from;
+      });
     }
     if (dateTo) {
-      const to = new Date(dateTo);
-      filtered = filtered.filter(order => new Date(order.createdAt) <= to);
+      const to = new Date(`${dateTo}T23:59:59.999`);
+      filtered = filtered.filter(order => {
+        const created = new Date(order.createdAt);
+        return created <= to;
+      });
+    }
+
+    // Vendor filter
+    if (vendorFilter) {
+      filtered = filtered.filter(order => {
+        const itemVendors = Array.from(new Set((order.items || []).map(i => String(i.vendor)).filter(Boolean)));
+        return itemVendors.includes(String(vendorFilter));
+      });
     }
 
     setFilteredOrders(filtered);
@@ -148,6 +166,7 @@ const Orders = () => {
     setEmailFilter(draftEmail);
     setDateFrom(draftFrom);
     setDateTo(draftTo);
+    setVendorFilter(draftVendor);
   };
 
   const resetFilters = () => {
@@ -155,10 +174,12 @@ const Orders = () => {
     setDraftEmail('');
     setDraftFrom('');
     setDraftTo('');
+    setDraftVendor('');
     setStatusFilter('all');
     setEmailFilter('');
     setDateFrom('');
     setDateTo('');
+    setVendorFilter('');
   };
 
   const handleStatusUpdate = async (orderId, newStatus) => {
@@ -326,6 +347,15 @@ const Orders = () => {
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
               <option value="refunded">Refunded</option>
+            </select>
+          </div>
+          <div className="filter-row">
+            <label>Vendor</label>
+            <select value={draftVendor} onChange={(e) => setDraftVendor(e.target.value)} className="filter-select" style={{ minWidth: 220 }}>
+              <option value="">All Vendors</option>
+              {vendors.map(v => (
+                <option key={v.id} value={v.id}>{v.name || v.companyName}</option>
+              ))}
             </select>
           </div>
           <div className="filter-row">
