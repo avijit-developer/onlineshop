@@ -125,6 +125,10 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
     // Add item to cart using the model method
     try {
       cart.addItem(productForCart, quantity, normalizedSelected);
+      // Invalidate previously applied coupon when cart content changes
+      cart.couponCode = null;
+      cart.couponDiscount = 0;
+      cart.freeShippingApplied = false;
       await cart.save();
     } catch (e) {
       console.error('Cart:add: save failed', e);
@@ -158,6 +162,10 @@ router.put('/me/items/:cartId', authenticate, requireRole(['customer']), async (
 
     // Update quantity using the model method
     cart.updateQuantity(cartId, quantity);
+    // Invalidate coupon when cart content changes
+    cart.couponCode = null;
+    cart.couponDiscount = 0;
+    cart.freeShippingApplied = false;
     await cart.save();
 
     // Populate product details for response
@@ -182,6 +190,10 @@ router.delete('/me/items/:cartId', authenticate, requireRole(['customer']), asyn
 
     // Remove item using the model method
     cart.removeItem(cartId);
+    // Invalidate coupon when cart content changes
+    cart.couponCode = null;
+    cart.couponDiscount = 0;
+    cart.freeShippingApplied = false;
     await cart.save();
 
     // Populate product details for response

@@ -93,9 +93,15 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 				await Coupon.updateOne({ code: appliedCouponCode }, { $inc: { usedCount: 1 } });
 			} catch (_) {}
 		}
-		// Clear cart after order
+		// Clear cart after order and reset any coupon state
 		const cart = await Cart.findOne({ user: req.user.id });
-		if (cart) { cart.clearCart(); await cart.save(); }
+		if (cart) {
+			cart.clearCart();
+			cart.couponCode = null;
+			cart.couponDiscount = 0;
+			cart.freeShippingApplied = false;
+			await cart.save();
+		}
 		res.status(201).json({ success: true, data: order });
 	} catch (err) {
 		console.error('Create order error:', err);
