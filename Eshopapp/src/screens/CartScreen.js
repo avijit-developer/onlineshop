@@ -60,7 +60,7 @@ const CartScreen = () => {
   );
 
   // Restore applied coupon from backend cart when screen is focused and cart reloads
-  useEffect(() => {
+  React.useEffect(() => {
     if (cartCoupon && (!appliedCoupon || cartCoupon.couponCode !== appliedCoupon.couponCode)) {
       setAppliedCoupon(cartCoupon);
       setCouponCode(cartCoupon.couponCode);
