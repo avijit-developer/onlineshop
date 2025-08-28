@@ -8,7 +8,10 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [emailFilter, setEmailFilter] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -28,9 +31,14 @@ const Orders = () => {
     fetchData();
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return { Authorization: token ? `Bearer ${token}` : '' };
+  };
+
   useEffect(() => {
     filterOrders();
-  }, [orders, searchTerm, statusFilter, dateFilter]);
+  }, [orders, searchTerm, statusFilter, dateFrom, dateTo, emailFilter]);
 
   const fetchData = async () => {
     try {
@@ -38,9 +46,10 @@ const Orders = () => {
       const token = localStorage.getItem('adminToken');
       let loadedFromBackend = false;
       try {
-        const resp = await fetch(`${baseUrl}/api/v1/orders`, {
-          headers: { Authorization: token ? `Bearer ${token}` : '' },
-        });
+        const [resp, venRes] = await Promise.all([
+          fetch(`${baseUrl}/api/v1/orders`, { headers: getAuthHeaders() }),
+          fetch(`${baseUrl}/api/v1/vendors?page=1&limit=1000`, { headers: getAuthHeaders() }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
+        ]);
         if (resp.ok) {
           const json = await resp.json();
           if (json?.success) {
@@ -48,6 +57,10 @@ const Orders = () => {
             loadedFromBackend = true;
           }
         }
+        try {
+          const venJson = await venRes.json();
+          if (venRes.ok) setVendors((venJson.data || []).map(v => ({ id: v._id || v.id, name: v.companyName })));
+        } catch (_) {}
       } catch (_) {}
 
       if (!loadedFromBackend) {
@@ -105,29 +118,19 @@ const Orders = () => {
       filtered = filtered.filter(order => order.status === statusFilter);
     }
 
-    // Date filter
-    if (dateFilter !== 'all') {
-      const today = new Date();
-      const orderDate = new Date();
-      
-      switch (dateFilter) {
-        case 'today':
-          filtered = filtered.filter(order => {
-            orderDate.setTime(new Date(order.createdAt).getTime());
-            return orderDate.toDateString() === today.toDateString();
-          });
-          break;
-        case 'week':
-          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-          filtered = filtered.filter(order => new Date(order.createdAt) >= weekAgo);
-          break;
-        case 'month':
-          const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-          filtered = filtered.filter(order => new Date(order.createdAt) >= monthAgo);
-          break;
-        default:
-          break;
-      }
+    // Email filter
+    if (emailFilter) {
+      filtered = filtered.filter(order => (order.user?.email || order.customerEmail || '').toLowerCase().includes(emailFilter.toLowerCase()));
+    }
+
+    // Date range filter
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      filtered = filtered.filter(order => new Date(order.createdAt) >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      filtered = filtered.filter(order => new Date(order.createdAt) <= to);
     }
 
     setFilteredOrders(filtered);
@@ -199,9 +202,15 @@ const Orders = () => {
     return customer ? customer.name : 'Unknown Customer';
   };
 
-  const getVendorName = (vendorId) => {
-    const vendor = vendors.find(v => v.id === vendorId);
-    return vendor ? vendor.companyName : 'Unknown Vendor';
+  const getVendorName = (order) => {
+    // Prefer item-level vendor display; if multiple, show 'Multiple'
+    try {
+      const vendorIds = Array.from(new Set((order.items || []).map(i => String(i.vendor)).filter(Boolean)));
+      if (vendorIds.length === 0) return 'Unknown';
+      if (vendorIds.length > 1) return 'Multiple';
+      const v = vendors.find(v => String(v.id) === String(vendorIds[0]));
+      return v ? v.name : 'Unknown';
+    } catch (_) { return 'Unknown'; }
   };
 
   const getStatusBadgeClass = (status) => {
@@ -315,6 +324,45 @@ const Orders = () => {
       </div>
 
       <div className="orders-table-container">
+        <div className="filters-collapsible">
+          <button className="btn btn-secondary" onClick={() => setFiltersOpen(v => !v)}>
+            {filtersOpen ? 'Hide Filters' : 'Show Filters'}
+          </button>
+          {filtersOpen && (
+            <div className="filters-panel">
+              <div className="filter-row">
+                <label>Status</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
+                  <option value="all">All</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="processing">Processing</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="refunded">Refunded</option>
+                </select>
+              </div>
+              <div className="filter-row">
+                <label>Customer Email</label>
+                <input type="text" value={emailFilter} onChange={(e) => setEmailFilter(e.target.value)} placeholder="email@example.com" className="search-input" />
+              </div>
+              <div className="filter-row" style={{ display: 'flex', gap: 8 }}>
+                <div>
+                  <label>From</label>
+                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                </div>
+                <div>
+                  <label>To</label>
+                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                </div>
+              </div>
+              <div className="filter-row">
+                <button className="btn btn-secondary" onClick={() => { setStatusFilter('all'); setEmailFilter(''); setDateFrom(''); setDateTo(''); }}>Reset</button>
+              </div>
+            </div>
+          )}
+        </div>
         <table className="orders-table">
           <thead>
             <tr>
@@ -343,7 +391,7 @@ const Orders = () => {
                     <small>{order.user?.email || order.customerEmail || ''}</small>
                   </div>
                 </td>
-                <td>{getVendorName(order.vendorId)}</td>
+                <td>{getVendorName(order)}</td>
                 <td>
                   <span className="items-count">
                     {order.items.length} item{order.items.length !== 1 ? 's' : ''}
@@ -464,7 +512,7 @@ const Orders = () => {
                       </div>
                       <div className="info-item">
                         <label>Phone:</label>
-                        <span>{selectedOrder.customerPhone}</span>
+                        <span>{selectedOrder.customerPhone || selectedOrder.user?.phone || ''}</span>
                       </div>
                       <div className="info-item">
                         <label>Address:</label>

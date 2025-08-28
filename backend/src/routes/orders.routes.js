@@ -1,6 +1,8 @@
 const express = require('express');
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
+const Product = require('../models/Product');
+const User = require('../models/User');
 const { authenticate, requireRole, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -39,6 +41,13 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 		if (!Array.isArray(items) || items.length === 0) {
 			return res.status(400).json({ success: false, message: 'No items to place order' });
 		}
+		// Enrich items with vendor to support admin listing
+		try {
+			const ids = items.map(i => i.product).filter(Boolean);
+			const prods = await Product.find({ _id: { $in: ids } }).select('_id vendor').lean();
+			const idToVendor = new Map(prods.map(p => [String(p._id), String(p.vendor)]));
+			items = items.map(i => ({ ...i, vendor: idToVendor.get(String(i.product)) }));
+		} catch (_) {}
 		// Compute discount via coupon if provided (enforce rules and free shipping/payment method)
 		let discountAmount = 0; let appliedCouponCode = null; let effectiveShippingCost = Number(shippingCost || 0);
 		if (couponCode) {
@@ -53,6 +62,13 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 		}
 		const { subtotal, total } = computeTotals(items, tax, effectiveShippingCost, discountAmount);
 		const orderNumber = await Order.generateOrderNumber();
+		// Pull customer phone for admin display
+		let customerPhone = '';
+		try {
+			const u = await User.findById(req.user.id).select('phone').lean();
+			customerPhone = u?.phone || '';
+		} catch (_) {}
+
 		const order = await Order.create({
 			user: req.user.id,
 			orderNumber,
@@ -67,6 +83,7 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			subtotal,
 			total,
 			orderNote: orderNote || '',
+			customerPhone,
 			statusHistory: [{ status: 'confirmed', updatedBy: 'system' }],
 		});
 		// Increment coupon usage if applied

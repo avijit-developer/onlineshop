@@ -19,7 +19,7 @@ const OrderDetailsScreen = ({ route }) => {
   const { addToCart } = useCart();
   const { orderId } = route.params;
   
-  const order = orders.find(o => o.id === orderId);
+  const order = orders.find(o => String(o._id || o.id) === String(orderId));
 
   if (!order) {
     return (
@@ -130,9 +130,9 @@ const OrderDetailsScreen = ({ route }) => {
               <Icon name={getStatusIcon(order.status)} size={16} color="#fff" />
               <Text style={styles.statusText}>{order.status}</Text>
             </View>
-            <Text style={styles.orderId}>#{order.id}</Text>
+            <Text style={styles.orderId}>#{order.orderNumber || (order._id || order.id)}</Text>
           </View>
-          <Text style={styles.orderDate}>Placed on {order.date}</Text>
+          <Text style={styles.orderDate}>Placed on {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''}</Text>
         </View>
 
         {/* Order Progress */}
@@ -176,7 +176,17 @@ const OrderDetailsScreen = ({ route }) => {
         {/* Order Items */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Items ({order.items.length})</Text>
-          {order.items.map(renderOrderItem)}
+          {order.items.map((it, idx) => (
+            <View key={idx} style={styles.orderItem}>
+              <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
+                <Text style={styles.itemVariant}>SKU: {it.sku || ''}</Text>
+                <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
+              </View>
+              <Text style={styles.itemPrice}>₹{Number(it.price || 0).toFixed(2)}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Shipping Address */}
@@ -203,16 +213,22 @@ const OrderDetailsScreen = ({ route }) => {
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>₹{(order.total * 0.85).toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>₹{Number(order.subtotal || 0).toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Shipping</Text>
-              <Text style={styles.summaryValue}>₹{(order.total * 0.07).toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>₹{Number(order.shippingCost || 0).toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Tax</Text>
-              <Text style={styles.summaryValue}>₹{(order.total * 0.08).toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{Number(order.tax || 0)}%</Text>
             </View>
+            {Number(order.discountAmount || 0) > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Discount</Text>
+                <Text style={styles.summaryValue}>- ₹{Number(order.discountAmount || 0).toFixed(2)}</Text>
+              </View>
+            )}
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>₹{order.total.toFixed(2)}</Text>

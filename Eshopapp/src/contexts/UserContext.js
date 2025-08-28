@@ -59,6 +59,7 @@ export const UserProvider = ({ children }) => {
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {}
       }
     } catch (error) {
       console.error('Error loading stored auth:', error);

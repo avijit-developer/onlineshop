@@ -8,6 +8,7 @@ const orderItemSchema = new mongoose.Schema({
 	quantity: { type: Number, required: true, min: 1 },
 	image: { type: String },
 	selectedAttributes: { type: Map, of: String, default: {} },
+    vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
 });
 
 const statusHistorySchema = new mongoose.Schema({
@@ -27,6 +28,7 @@ const orderSchema = new mongoose.Schema({
 	shippingCost: { type: Number, default: 0 },
 	discountAmount: { type: Number, default: 0 },
 	couponCode: { type: String, default: null },
+	customerPhone: { type: String, default: '' },
 	subtotal: { type: Number, required: true },
 	total: { type: Number, required: true },
 	orderNote: { type: String, default: '' },
