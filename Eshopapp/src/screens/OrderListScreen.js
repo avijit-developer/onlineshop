@@ -13,8 +13,12 @@ import { useUser } from '../contexts/UserContext';
 
 const OrderListScreen = () => {
   const navigation = useNavigation();
-  const { orders } = useUser();
+  const { orders, refreshOrders } = useUser();
   const [selectedFilter, setSelectedFilter] = useState('all');
+
+  React.useEffect(() => {
+    refreshOrders();
+  }, []);
 
   const orderFilters = [
     { id: 'all', label: 'All Orders' },
@@ -51,12 +55,12 @@ const OrderListScreen = () => {
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.orderCard}
-      onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
+      onPress={() => navigation.navigate('OrderDetails', { orderId: item._id || item.id })}
     >
       <View style={styles.orderHeader}>
         <View style={styles.orderInfo}>
-          <Text style={styles.orderId}>Order #{item.id}</Text>
-          <Text style={styles.orderDate}>{item.date}</Text>
+          <Text style={styles.orderId}>Order #{item.orderNumber || (item._id || item.id)}</Text>
+          <Text style={styles.orderDate}>{(item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '')}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
@@ -81,7 +85,7 @@ const OrderListScreen = () => {
 
       <View style={styles.orderFooter}>
         <Text style={styles.itemCount}>{item.items.length} item{item.items.length > 1 ? 's' : ''}</Text>
-        <Text style={styles.orderTotal}>₹{item.total.toFixed(2)}</Text>
+        <Text style={styles.orderTotal}>₹{Number(item.total || 0).toFixed(2)}</Text>
       </View>
 
       <View style={styles.orderActions}>
@@ -156,7 +160,7 @@ const OrderListScreen = () => {
         <FlatList
           data={filteredOrders}
           renderItem={renderOrderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item._id || item.id)}
           style={styles.ordersList}
           contentContainerStyle={styles.ordersContent}
           showsVerticalScrollIndicator={false}

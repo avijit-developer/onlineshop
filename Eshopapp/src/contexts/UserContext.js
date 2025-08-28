@@ -17,55 +17,7 @@ export const UserProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [orders, setOrders] = useState([
-    {
-      id: 'ORD-001',
-      date: '2024-01-15',
-      status: 'Delivered',
-      total: 156.99,
-      items: [
-        {
-          id: '1',
-          name: 'Linen Dress',
-          price: '$52.00',
-          quantity: 2,
-          image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/92265483-9E7E-4FC3-A355-16CCA677C11C_zbsxfe.png',
-          size: 'M',
-          color: 'Blue'
-        },
-        {
-          id: '2',
-          name: 'Maxi Dress',
-          price: '$68.00',
-          quantity: 1,
-          image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410273/Placeholder_01_zfhxws.png',
-          size: 'L',
-          color: 'Black'
-        }
-      ],
-      shippingAddress: '123 Main Street, City, State 12345',
-      paymentMethod: 'Credit Card ending in 1234'
-    },
-    {
-      id: 'ORD-002',
-      date: '2024-01-10',
-      status: 'Processing',
-      total: 89.99,
-      items: [
-        {
-          id: '3',
-          name: 'Front Tie Mini Dress',
-          price: '$59.00',
-          quantity: 1,
-          image: 'https://res.cloudinary.com/dwjcuweew/image/upload/v1754410274/32EB245A-E30D-4D15-B57A-23A577C43459_f3x5xd.png',
-          size: 'S',
-          color: 'Red'
-        }
-      ],
-      shippingAddress: '456 Business Ave, Downtown, State 67890',
-      paymentMethod: 'PayPal'
-    }
-  ]);
+  const [orders, setOrders] = useState([]);
 
   const [addresses, setAddresses] = useState([
     {
@@ -127,6 +79,7 @@ export const UserProvider = ({ children }) => {
       
       setToken(authToken);
       setUser(userData);
+      try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {}
       
       return { success: true };
     } catch (error) {
@@ -149,6 +102,7 @@ export const UserProvider = ({ children }) => {
       
       setToken(authToken);
       setUser(newUser);
+      try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {}
       
       return { success: true };
     } catch (error) {
@@ -208,14 +162,16 @@ export const UserProvider = ({ children }) => {
   };
 
   const addOrder = (orderData) => {
-    const newOrder = {
-      id: `ORD-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Processing',
-      ...orderData
-    };
-    setOrders(prevOrders => [newOrder, ...prevOrders]);
-    return newOrder;
+    // Keep for UI previews; prefer backend fetch after creation.
+    setOrders(prevOrders => [orderData, ...prevOrders]);
+    return orderData;
+  };
+
+  const refreshOrders = async () => {
+    try {
+      const res = await api.getMyOrders();
+      if (res?.success) setOrders(res.data || []);
+    } catch (_) {}
   };
 
   const addAddress = (addressData) => {
@@ -260,6 +216,7 @@ export const UserProvider = ({ children }) => {
     logout,
     updateUser,
     addOrder,
+    refreshOrders,
     addAddress,
     updateAddress,
     deleteAddress,
