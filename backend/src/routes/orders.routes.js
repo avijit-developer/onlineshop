@@ -130,11 +130,31 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 		const { page = 1, limit = 20 } = req.query;
 		const p = Math.max(parseInt(page, 10) || 1, 1);
 		const l = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
-		const [items, total] = await Promise.all([
+		const [orders, total] = await Promise.all([
 			Order.find({}).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').lean(),
 			Order.countDocuments({})
 		]);
-		res.json({ success: true, data: items, meta: { total, page: p, limit: l } });
+		try {
+			const missingIds = new Set();
+			for (const o of orders) {
+				for (const it of (o.items || [])) {
+					if (!it.vendor && it.product) missingIds.add(String(it.product));
+				}
+			}
+			if (missingIds.size > 0) {
+				const prods = await Product.find({ _id: { $in: Array.from(missingIds) } }).select('_id vendor').lean();
+				const map = new Map(prods.map(p => [String(p._id), String(p.vendor)]));
+				for (const o of orders) {
+					for (const it of (o.items || [])) {
+						if (!it.vendor && it.product) {
+							const v = map.get(String(it.product));
+							if (v) it.vendor = v;
+						}
+					}
+				}
+			}
+		} catch (_) {}
+		res.json({ success: true, data: orders, meta: { total, page: p, limit: l } });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to list orders' });
 	}

@@ -308,10 +308,16 @@ const Orders = () => {
         </div>
       </div>
       {filtersOpen && (
-        <div className="filters-panel">
+        <div className="filters-panel" style={{
+          background: '#fff',
+          border: '1px solid #eee',
+          borderRadius: 10,
+          padding: 12,
+          marginTop: 10
+        }}>
           <div className="filter-row">
             <label>Status</label>
-            <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} className="filter-select">
+            <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} className="filter-select" style={{ minWidth: 160 }}>
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
@@ -324,7 +330,7 @@ const Orders = () => {
           </div>
           <div className="filter-row">
             <label>Customer Email</label>
-            <input type="text" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} placeholder="email@example.com" className="search-input" />
+            <input type="text" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} placeholder="email@example.com" className="search-input" style={{ minWidth: 260 }} />
           </div>
           <div className="filter-row" style={{ display: 'flex', gap: 8 }}>
             <div>
@@ -337,8 +343,8 @@ const Orders = () => {
             </div>
           </div>
           <div className="filter-row">
-            <button className="btn btn-primary" onClick={applyFilters} style={{ marginRight: 8 }}>Apply</button>
-            <button className="btn btn-secondary" onClick={resetFilters}>Reset</button>
+            <button className="btn btn-primary" onClick={applyFilters} style={{ marginRight: 8, minWidth: 100 }}>Apply</button>
+            <button className="btn btn-secondary" onClick={resetFilters} style={{ minWidth: 100 }}>Reset</button>
           </div>
         </div>
       )}
