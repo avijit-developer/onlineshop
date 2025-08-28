@@ -491,9 +491,9 @@ const CheckoutScreen = () => {
               autoCapitalize="characters"
             />
             <TouchableOpacity
-              style={[styles.addAddressButton, { paddingVertical: 12 }]} onPress={() => Alert.alert('Info','Coupon will be applied at order placement.')}
+              style={[styles.addAddressButton, { paddingVertical: 12 }]} onPress={() => navigation.navigate('Cart')}
             >
-              <Text style={styles.addAddressButtonText}>Apply</Text>
+              <Text style={styles.addAddressButtonText}>Apply in Cart</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -1,5 +1,6 @@
 const express = require('express');
 const Coupon = require('../models/Coupon');
+const Product = require('../models/Product');
 const mongoose = require('mongoose');
 const { authenticate, requireRole, requirePermission } = require('../middleware/auth');
 
@@ -130,6 +131,75 @@ router.patch('/:id/status', authenticate, requireRole(['admin']), requirePermiss
     res.json({ success: true, data: updated });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to update status' });
+  }
+});
+
+// Validate coupon against current user's cart or provided items
+router.post('/validate', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const { couponCode, items } = req.body || {};
+    if (!couponCode) return res.status(400).json({ success: false, message: 'couponCode is required' });
+    const code = String(couponCode).toUpperCase();
+    const now = new Date();
+    const coupon = await Coupon.findOne({ code, isActive: true, startDate: { $lte: now }, endDate: { $gte: now } }).lean();
+    if (!coupon) return res.json({ success: false, message: 'Invalid or expired coupon' });
+
+    // Build items list with product refs
+    let orderItems = Array.isArray(items) ? items : [];
+    if (orderItems.length === 0) {
+      const Cart = require('../models/Cart');
+      const cart = await Cart.findOne({ user: req.user.id }).lean();
+      if (!cart || (cart.items || []).length === 0) return res.json({ success: false, message: 'Cart is empty' });
+      orderItems = (cart.items || []).map(ci => ({ product: ci.product, price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? 0, quantity: ci.quantity }));
+    }
+
+    const productIds = orderItems.map(i => i.product).filter(Boolean);
+    const products = await Product.find({ _id: { $in: productIds } }).select('_id vendor category').lean();
+    const idToProduct = new Map(products.map(p => [String(p._id), p]));
+
+    // Compute applicable subtotal based on appliesTo
+    const getApplicable = () => {
+      if (coupon.appliesTo === 'new_user') return orderItems; // subtotal later if user is new
+      if (coupon.appliesTo === 'all') return orderItems;
+      if (coupon.appliesTo === 'vendor') return orderItems.filter(it => {
+        const p = idToProduct.get(String(it.product));
+        return p && coupon.vendorIds && coupon.vendorIds.find(id => String(id) === String(p.vendor));
+      });
+      if (coupon.appliesTo === 'category') return orderItems.filter(it => {
+        const p = idToProduct.get(String(it.product));
+        return p && coupon.categoryIds && coupon.categoryIds.find(id => String(id) === String(p.category));
+      });
+      if (coupon.appliesTo === 'product') return orderItems.filter(it => coupon.productIds && coupon.productIds.find(id => String(id) === String(it.product)));
+      return orderItems;
+    };
+
+    // Check new user condition
+    if (coupon.appliesTo === 'new_user') {
+      const Order = require('../models/Order');
+      const existing = await Order.countDocuments({ user: req.user.id });
+      if (existing > 0) return res.json({ success: false, message: 'Coupon valid for new users only' });
+    }
+
+    const applicable = getApplicable();
+    if (applicable.length === 0) return res.json({ success: false, message: 'Coupon does not apply to selected items' });
+
+    const applicableSubtotal = applicable.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+    const orderSubtotal = orderItems.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+    if (coupon.minimumAmount && orderSubtotal < Number(coupon.minimumAmount)) {
+      return res.json({ success: false, message: `Minimum order amount is ${coupon.minimumAmount}` });
+    }
+
+    let discountAmount = 0;
+    if (coupon.discountType === 'percentage') {
+      discountAmount = (applicableSubtotal * Number(coupon.discountValue || 0)) / 100;
+      if (coupon.maximumDiscount) discountAmount = Math.min(discountAmount, Number(coupon.maximumDiscount));
+    } else {
+      discountAmount = Number(coupon.discountValue || 0);
+    }
+
+    return res.json({ success: true, data: { couponCode: code, discountAmount, applicableSubtotal } });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to validate coupon' });
   }
 });
 

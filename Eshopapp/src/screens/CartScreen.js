@@ -7,14 +7,39 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
+import api from '../utils/api';
 
 const CartScreen = () => {
   const navigation = useNavigation();
   const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading, isAuthenticated, refreshCart } = useCart();
+  const [couponCode, setCouponCode] = React.useState('');
+  const [appliedCoupon, setAppliedCoupon] = React.useState(null);
+  const [couponError, setCouponError] = React.useState('');
+  const [validating, setValidating] = React.useState(false);
+  const handleApplyCoupon = async () => {
+    try {
+      setValidating(true);
+      setCouponError('');
+      const items = cartItems.map(ci => ({ product: ci.id, price: (ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.regularPrice ?? 0), quantity: ci.quantity }));
+      const res = await api.validateCoupon(couponCode.trim(), items);
+      if (res?.success && res?.data) {
+        setAppliedCoupon(res.data);
+      } else {
+        setAppliedCoupon(null);
+        setCouponError(res?.message || 'Invalid coupon');
+      }
+    } catch (_) {
+      setAppliedCoupon(null);
+      setCouponError('Invalid coupon');
+    } finally {
+      setValidating(false);
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -200,7 +225,8 @@ const CartScreen = () => {
   const subtotal = getCartTotal();
   const shipping = subtotal > 50 ? 0 : 9.99;
   const tax = subtotal * 0.08;
-  const total = subtotal + shipping + tax;
+  const discount = appliedCoupon?.discountAmount || 0;
+  const total = Math.max(0, subtotal + shipping + tax - discount);
 
   return (
     <View style={styles.container}>
@@ -256,6 +282,31 @@ const CartScreen = () => {
             </View>
             
             <View style={styles.summaryContent}>
+              {/* Coupon */}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Coupon</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <TextInput
+                  style={[styles.textInput, { flex: 1 }]}
+                  value={couponCode}
+                  onChangeText={setCouponCode}
+                  placeholder="Enter coupon"
+                  autoCapitalize="characters"
+                />
+                <TouchableOpacity style={styles.applyButton} onPress={handleApplyCoupon} disabled={validating}>
+                  <Text style={{ color: '#fff', fontWeight: '600' }}>{validating ? 'Checking...' : (appliedCoupon ? 'Update' : 'Apply')}</Text>
+                </TouchableOpacity>
+              </View>
+              {appliedCoupon && (
+                <View style={[styles.summaryRow, { justifyContent: 'space-between' }]}>
+                  <Text style={[styles.summaryLabel, { color: '#4caf50' }]}>Applied: {appliedCoupon.couponCode}</Text>
+                  <Text style={[styles.summaryValue, { color: '#4caf50' }]}>- ₹{String(appliedCoupon.discountAmount.toFixed(2))}</Text>
+                </View>
+              )}
+              {!!couponError && (
+                <Text style={{ color: '#e53935', marginBottom: 8 }}>{couponError}</Text>
+              )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
                 <Text style={styles.summaryValue}>₹{subtotal.toFixed(2)}</Text>
@@ -527,6 +578,20 @@ const styles = StyleSheet.create({
   },
   summaryContent: {
     // Add any specific styles for the content area if needed
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: '#fff',
+    marginRight: 8,
+  },
+  applyButton: {
+    backgroundColor: '#f7ab18',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
   },
   summaryRow: {
     flexDirection: 'row',

@@ -423,6 +423,16 @@ const api = {
     });
   },
 
+  async validateCoupon(couponCode, items) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/coupons/validate', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ couponCode, items }),
+    });
+  },
+
   async getMyOrders() {
     const token = await this.getStoredToken();
     if (!token) throw new Error('No authentication token');
