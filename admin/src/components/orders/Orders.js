@@ -329,52 +329,48 @@ const Orders = () => {
         </div>
       </div>
       {filtersOpen && (
-        <div className="filters-panel" style={{
-          background: '#fff',
-          border: '1px solid #eee',
-          borderRadius: 10,
-          padding: 12,
-          marginTop: 10
-        }}>
-          <div className="filter-row">
-            <label>Status</label>
-            <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} className="filter-select" style={{ minWidth: 160 }}>
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="refunded">Refunded</option>
-            </select>
-          </div>
-          <div className="filter-row">
-            <label>Vendor</label>
-            <select value={draftVendor} onChange={(e) => setDraftVendor(e.target.value)} className="filter-select" style={{ minWidth: 220 }}>
-              <option value="">All Vendors</option>
-              {vendors.map(v => (
-                <option key={v.id} value={v.id}>{v.name || v.companyName}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-row">
-            <label>Customer Email</label>
-            <input type="text" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} placeholder="email@example.com" className="search-input" style={{ minWidth: 260 }} />
-          </div>
-          <div className="filter-row" style={{ display: 'flex', gap: 8 }}>
-            <div>
+        <div className="filters-panel">
+          <div className="filters-grid">
+            <div className="filter-control">
+              <label>Status</label>
+              <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} className="filter-input">
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="refunded">Refunded</option>
+              </select>
+            </div>
+            <div className="filter-control">
+              <label>Vendor</label>
+              <select value={draftVendor} onChange={(e) => setDraftVendor(e.target.value)} className="filter-input">
+                <option value="">All Vendors</option>
+                {vendors.map(v => (
+                  <option key={v.id} value={v.id}>{v.name || v.companyName}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-control" style={{ gridColumn: '1 / -1' }}>
+              <label>Customer Email</label>
+              <input type="email" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} placeholder="email@example.com" className="filter-input" />
+            </div>
+            <div className="filter-control">
               <label>From</label>
-              <input type="date" value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} />
+              <input type="date" value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} className="filter-input" />
+              <small className="filter-hint">dd-mm-yyyy</small>
             </div>
-            <div>
+            <div className="filter-control">
               <label>To</label>
-              <input type="date" value={draftTo} onChange={(e) => setDraftTo(e.target.value)} />
+              <input type="date" value={draftTo} onChange={(e) => setDraftTo(e.target.value)} className="filter-input" />
+              <small className="filter-hint">dd-mm-yyyy</small>
             </div>
           </div>
-          <div className="filter-row">
-            <button className="btn btn-primary" onClick={applyFilters} style={{ marginRight: 8, minWidth: 100 }}>Apply</button>
-            <button className="btn btn-secondary" onClick={resetFilters} style={{ minWidth: 100 }}>Reset</button>
+          <div className="filter-actions">
+            <button className="btn btn-primary" onClick={applyFilters}>Apply</button>
+            <button className="btn btn-secondary" onClick={resetFilters}>Reset</button>
           </div>
         </div>
       )}
