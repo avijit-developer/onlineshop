@@ -791,10 +791,31 @@ const Coupons = () => {
                     {productPicker.selected.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                         {productPicker.selected.map(item => (
-                          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #eee', padding: '4px 8px', borderRadius: 20 }}>
+                          <div key={item.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #eee', padding: '4px 8px', borderRadius: 20 }}>
                             <img src={item.image || '/default-product.png'} alt={item.name} style={{ width: 22, height: 22, borderRadius: 11, objectFit: 'cover' }} />
                             <span style={{ fontSize: 12 }}>{item.name}</span>
-                            <button type="button" className="btn btn-danger btn-sm" onClick={() => removeProductFromCoupon(item.id)}>Remove</button>
+                            <button
+                              type="button"
+                              onClick={() => removeProductFromCoupon(item.id)}
+                              title="Remove"
+                              style={{
+                                position: 'absolute',
+                                top: -6,
+                                right: -6,
+                                width: 20,
+                                height: 20,
+                                borderRadius: '50%',
+                                border: '1px solid #ddd',
+                                background: '#fff',
+                                color: '#999',
+                                lineHeight: '18px',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                padding: 0
+                              }}
+                            >
+                              ×
+                            </button>
                           </div>
                         ))}
                       </div>
