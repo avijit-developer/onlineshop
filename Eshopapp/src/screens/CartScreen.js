@@ -34,7 +34,6 @@ const CartScreen = () => {
         console.warn('[Coupon] Apply failed:', { code: couponCode.trim(), reason });
       }
     } catch (_) {
-      setAppliedCoupon(null);
       setCouponError('Invalid coupon');
       console.error('[Coupon] Validation error (network or server):', _?.message || _);
     } finally {
@@ -305,7 +304,7 @@ const CartScreen = () => {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Coupon</Text>
               </View>
-              {!appliedCoupon ? (
+              {!cartCoupon ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <TextInput
                     style={[styles.textInput, { flex: 1 }]}
@@ -323,9 +322,9 @@ const CartScreen = () => {
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                   backgroundColor: '#e8f5e9', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8
                 }}>
-                  <Text style={{ color: '#2e7d32', fontWeight: '600' }}>Applied: {appliedCoupon.couponCode}</Text>
+                  <Text style={{ color: '#2e7d32', fontWeight: '600' }}>Applied: {cartCoupon.couponCode}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Text style={{ color: '#2e7d32', fontWeight: '700' }}>- ₹{String(appliedCoupon.discountAmount.toFixed(2))}</Text>
+                    <Text style={{ color: '#2e7d32', fontWeight: '700' }}>- ₹{String((cartCoupon.discountAmount || 0).toFixed(2))}</Text>
                     <TouchableOpacity onPress={handleRemoveCoupon} accessibilityLabel="Remove coupon" style={{
                       width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#c8e6c9', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff'
                     }}>
