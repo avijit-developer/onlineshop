@@ -20,7 +20,7 @@ import { useUser } from '../contexts/UserContext';
 const CheckoutScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { cartItems, getCartTotal, clearCart } = useCart();
+  const { cartItems, getCartTotal, clearCart, cartCoupon } = useCart();
   const { addresses, getDefaultAddress, addAddress, refreshAddresses, isLoading } = useAddress();
   const { addOrder } = useUser();
 
@@ -47,6 +47,16 @@ const CheckoutScreen = () => {
   const [couponCode, setCouponCode] = useState('');
   const [orderNote, setOrderNote] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  useEffect(() => {
+    if (cartCoupon && (!appliedCoupon || cartCoupon.couponCode !== appliedCoupon.couponCode)) {
+      setAppliedCoupon(cartCoupon);
+      setCouponCode(cartCoupon.couponCode);
+    }
+    if (!cartCoupon && appliedCoupon) {
+      setAppliedCoupon(null);
+      setCouponCode('');
+    }
+  }, [cartCoupon]);
   const [couponError, setCouponError] = useState('');
   const [validating, setValidating] = useState(false);
 

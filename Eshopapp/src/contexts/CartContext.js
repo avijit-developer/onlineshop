@@ -15,6 +15,7 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
+  const [cartCoupon, setCartCoupon] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -127,21 +128,26 @@ export const CartProvider = ({ children }) => {
           };
         });
         setCartItems(transformedItems);
-        // Log coupon state from backend cart
+        // Persist coupon state from backend cart into context so UI can restore after reload
         if (response.data.couponCode) {
-          console.log('Cart has applied coupon from backend:', {
+          setCartCoupon({
             couponCode: response.data.couponCode,
-            couponDiscount: response.data.couponDiscount
+            discountAmount: Number(response.data.couponDiscount || 0),
+            freeShipping: !!response.data.freeShippingApplied,
           });
+        } else {
+          setCartCoupon(null);
         }
         console.log('Loaded cart from database:', transformedItems.length, 'items');
       } else {
         setCartItems([]);
+        setCartCoupon(null);
         console.log('No cart data found in database');
       }
     } catch (error) {
       console.log('Error loading cart from database:', error);
       setCartItems([]);
+      setCartCoupon(null);
     } finally {
       setIsLoadingCart(false);
       isLoadingCartRef.current = false;
@@ -388,6 +394,7 @@ export const CartProvider = ({ children }) => {
     cartItems,
     isLoading,
     isAuthenticated,
+    cartCoupon,
     addToCart,
     removeFromCart,
     updateQuantity,

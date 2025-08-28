@@ -16,7 +16,7 @@ import api from '../utils/api';
 
 const CartScreen = () => {
   const navigation = useNavigation();
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading, isAuthenticated, refreshCart } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading, isAuthenticated, refreshCart, cartCoupon } = useCart();
   const [couponCode, setCouponCode] = React.useState('');
   const [appliedCoupon, setAppliedCoupon] = React.useState(null);
   const [couponError, setCouponError] = React.useState('');
@@ -58,6 +58,18 @@ const CartScreen = () => {
       refreshCart();
     }, [refreshCart])
   );
+
+  // Restore applied coupon from backend cart when screen is focused and cart reloads
+  useEffect(() => {
+    if (cartCoupon && (!appliedCoupon || cartCoupon.couponCode !== appliedCoupon.couponCode)) {
+      setAppliedCoupon(cartCoupon);
+      setCouponCode(cartCoupon.couponCode);
+    }
+    if (!cartCoupon && appliedCoupon) {
+      setAppliedCoupon(null);
+      setCouponCode('');
+    }
+  }, [cartCoupon]);
 
   const handleQuantityChange = (cartId, change) => {
     const item = cartItems.find(item => item.cartId === cartId);
