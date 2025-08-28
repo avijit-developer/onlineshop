@@ -333,6 +333,9 @@ const CartScreen = () => {
                   </View>
                 </View>
               )}
+              {!!couponError && (
+                <Text style={{ color: '#d32f2f', fontSize: 12, marginBottom: 8 }}>{couponError}</Text>
+              )}
               {/* Intentionally not showing error message in UI; logging to console instead */}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>

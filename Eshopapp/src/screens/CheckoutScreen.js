@@ -558,6 +558,9 @@ const CheckoutScreen = () => {
               </View>
             </View>
           )}
+          {!!couponError && (
+            <Text style={{ color: '#d32f2f', fontSize: 12, marginTop: 6 }}>{couponError}</Text>
+          )}
         </View>
         {/* Order Note */}
         <View style={styles.section}>
