@@ -9,6 +9,7 @@ const Coupons = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState(null);
+  const [template, setTemplate] = useState('custom');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,6 +89,75 @@ const Coupons = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyTemplate = (tpl) => {
+    setTemplate(tpl);
+    if (tpl === 'custom') return;
+    const now = new Date();
+    const in30 = new Date(now.getTime() + 30 * 24 * 3600 * 1000);
+    const fmt = (d) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+    const base = {
+      description: '',
+      minimumAmount: '',
+      maximumDiscount: '',
+      usageLimit: '1000',
+      perUserLimit: '',
+      startDate: fmt(now),
+      endDate: fmt(in30),
+      isActive: true,
+      vendorIds: [],
+      categoryIds: [],
+      productIds: [],
+      freeShipping: false,
+      allowedPaymentMethods: [],
+      ruleType: 'standard',
+      bogoBuyProductIds: [],
+      bogoGetProductIds: [],
+      bogoBuyQty: 1,
+      bogoGetQty: 1,
+    };
+    const presets = {
+      global_percent: {
+        code: 'WELCOME10', name: '10% off sitewide', discountType: 'percentage', discountValue: '10', appliesTo: 'all'
+      },
+      vendor_percent: {
+        code: 'NIKE20', name: '20% off selected vendor', discountType: 'percentage', discountValue: '20', appliesTo: 'vendor'
+      },
+      category_percent: {
+        code: 'FASHION15', name: '15% off category', discountType: 'percentage', discountValue: '15', appliesTo: 'category'
+      },
+      product_fixed: {
+        code: 'PROD10', name: '₹10 off selected products', discountType: 'fixed', discountValue: '10', appliesTo: 'product'
+      },
+      cart_fixed_min: {
+        code: 'SAVE200', name: '₹200 off above ₹2000', discountType: 'fixed', discountValue: '200', appliesTo: 'all', minimumAmount: '2000'
+      },
+      bogo_50: {
+        code: 'BOGO50', name: 'Buy 1 get 1 at 50% off', discountType: 'percentage', discountValue: '50', appliesTo: 'product', ruleType: 'bogo', bogoBuyQty: 1, bogoGetQty: 1
+      },
+      free_shipping_min: {
+        code: 'FREESHIP', name: 'Free shipping above ₹500', discountType: 'fixed', discountValue: '0', appliesTo: 'all', freeShipping: true, minimumAmount: '500'
+      },
+      new_user_flat: {
+        code: 'NEW100', name: '₹100 off for new users', discountType: 'fixed', discountValue: '100', appliesTo: 'new_user'
+      },
+      payment_percent: {
+        code: 'PAYTM20', name: '20% off with PayTM', discountType: 'percentage', discountValue: '20', appliesTo: 'all', allowedPaymentMethods: ['paytm']
+      }
+    };
+    const p = presets[tpl];
+    if (!p) return;
+    setFormData(prev => ({
+      ...prev,
+      ...base,
+      ...p
+    }));
   };
 
   // Load vendors and categories for Applies To selectors
@@ -434,6 +504,17 @@ const Coupons = () => {
     return 'status-active';
   };
 
+  const computeCouponType = (c) => {
+    if (c.ruleType === 'bogo') return 'BOGO';
+    if (c.freeShipping) return 'Free Shipping';
+    if (c.appliesTo === 'new_user') return 'New User';
+    if (Array.isArray(c.allowedPaymentMethods) && c.allowedPaymentMethods.length > 0) return 'Payment Method';
+    if (c.appliesTo === 'vendor') return 'Vendor';
+    if (c.appliesTo === 'category') return 'Category';
+    if (c.appliesTo === 'product') return 'Product';
+    return 'Global';
+  };
+
   const getStatusText = (isActive, endDate) => {
     if (!isActive) return 'Inactive';
     if (new Date(endDate) < new Date()) return 'Expired';
@@ -503,6 +584,7 @@ const Coupons = () => {
             <tr>
               <th>Code</th>
               <th>Name</th>
+              <th>Type</th>
               <th>Discount</th>
               <th>Usage</th>
               <th>Valid Period</th>
@@ -534,6 +616,7 @@ const Coupons = () => {
                     <p>{coupon.description}</p>
                   </div>
                 </td>
+                <td>{computeCouponType(coupon)}</td>
                 <td>
                   <div className="discount-info">
                     <strong>
@@ -637,6 +720,21 @@ const Coupons = () => {
             <form onSubmit={handleSubmit} className="modal-body">
               <div className="form-grid">
                 <div className="form-group">
+                  <label>Template</label>
+                  <select value={template} onChange={(e) => applyTemplate(e.target.value)}>
+                    <option value="custom">Custom</option>
+                    <option value="global_percent">Global Percent (WELCOME10)</option>
+                    <option value="vendor_percent">Vendor Percent (NIKE20)</option>
+                    <option value="category_percent">Category Percent (FASHION15)</option>
+                    <option value="product_fixed">Product Fixed (PROD10)</option>
+                    <option value="cart_fixed_min">Cart Fixed with Min (SAVE200)</option>
+                    <option value="bogo_50">BOGO 1+1 @50% (BOGO50)</option>
+                    <option value="free_shipping_min">Free Shipping with Min (FREESHIP)</option>
+                    <option value="new_user_flat">New User Flat (NEW100)</option>
+                    <option value="payment_percent">Payment Method Percent (PAYTM20)</option>
+                  </select>
+                </div>
+                <div className="form-group">
                   <label>Coupon Code *</label>
                   <input
                     type="text"
@@ -645,6 +743,12 @@ const Coupons = () => {
                     required
                     placeholder="e.g., SAVE20"
                   />
+                </div>
+                <div className="form-group full-width">
+                  <label>Summary</label>
+                  <div style={{ fontSize: 12, color: '#555' }}>
+                    This coupon applies to <strong>{computeCouponType(formData)}</strong>{formData.minimumAmount ? ` with min order ₹${formData.minimumAmount}` : ''}{formData.freeShipping ? ` and grants Free Shipping` : ''}{Array.isArray(formData.allowedPaymentMethods) && formData.allowedPaymentMethods.length>0 ? ` when paying via ${formData.allowedPaymentMethods.join(', ')}` : ''}.
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Coupon Name *</label>
