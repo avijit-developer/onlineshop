@@ -13,6 +13,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import api from '../utils/api';
+import { EXPO_PUBLIC_FREE_SHIPPING_MIN, EXPO_PUBLIC_SHIPPING_COST } from '@env';
 
 const CartScreen = () => {
   const navigation = useNavigation();
@@ -241,7 +242,9 @@ const CartScreen = () => {
   );
 
   const subtotal = getCartTotal();
-  const shipping = subtotal > 50 ? 0 : 9.99;
+  const FREE_SHIPPING_MIN = Number(EXPO_PUBLIC_FREE_SHIPPING_MIN || process.env?.EXPO_PUBLIC_FREE_SHIPPING_MIN || 50);
+  const BASE_SHIPPING = Number(EXPO_PUBLIC_SHIPPING_COST || process.env?.EXPO_PUBLIC_SHIPPING_COST || 9.99);
+  const shipping = (cartCoupon?.freeShipping || subtotal >= FREE_SHIPPING_MIN) ? 0 : BASE_SHIPPING;
   const tax = subtotal * 0.08;
   const discount = cartCoupon?.discountAmount || 0;
   const total = Math.max(0, subtotal + shipping + tax - discount);
@@ -362,9 +365,7 @@ const CartScreen = () => {
               {shipping > 0 && (
                 <View style={styles.freeShippingNote}>
                   <Icon name="information-circle-outline" size={16} color="#f7ab18" />
-                  <Text style={styles.freeShippingText}>
-                    Add ₹{(50 - subtotal).toFixed(2)} more for free shipping
-                  </Text>
+                  <Text style={styles.freeShippingText}>Add ₹{Math.max(0, (FREE_SHIPPING_MIN - subtotal)).toFixed(2)} more for free shipping</Text>
                 </View>
               )}
             </View>
