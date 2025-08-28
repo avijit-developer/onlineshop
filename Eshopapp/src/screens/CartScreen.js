@@ -52,6 +52,12 @@ const CartScreen = () => {
     }
   };
 
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
+
   useFocusEffect(
     React.useCallback(() => {
       refreshCart();
@@ -297,22 +303,33 @@ const CartScreen = () => {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Coupon</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <TextInput
-                  style={[styles.textInput, { flex: 1 }]}
-                  value={couponCode}
-                  onChangeText={setCouponCode}
-                  placeholder="Enter coupon"
-                  autoCapitalize="characters"
-                />
-                <TouchableOpacity style={styles.applyButton} onPress={handleApplyCoupon} disabled={validating}>
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>{validating ? 'Checking...' : (appliedCoupon ? 'Update' : 'Apply')}</Text>
-                </TouchableOpacity>
-              </View>
-              {appliedCoupon && (
-                <View style={[styles.summaryRow, { justifyContent: 'space-between' }]}>
-                  <Text style={[styles.summaryLabel, { color: '#4caf50' }]}>Applied: {appliedCoupon.couponCode}</Text>
-                  <Text style={[styles.summaryValue, { color: '#4caf50' }]}>- ₹{String(appliedCoupon.discountAmount.toFixed(2))}</Text>
+              {!appliedCoupon ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <TextInput
+                    style={[styles.textInput, { flex: 1 }]}
+                    value={couponCode}
+                    onChangeText={setCouponCode}
+                    placeholder="Enter coupon"
+                    autoCapitalize="characters"
+                  />
+                  <TouchableOpacity style={styles.applyButton} onPress={handleApplyCoupon} disabled={validating}>
+                    <Text style={{ color: '#fff', fontWeight: '600' }}>{validating ? 'Checking...' : 'Apply'}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  backgroundColor: '#e8f5e9', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8
+                }}>
+                  <Text style={{ color: '#2e7d32', fontWeight: '600' }}>Applied: {appliedCoupon.couponCode}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Text style={{ color: '#2e7d32', fontWeight: '700' }}>- ₹{String(appliedCoupon.discountAmount.toFixed(2))}</Text>
+                    <TouchableOpacity onPress={handleRemoveCoupon} accessibilityLabel="Remove coupon" style={{
+                      width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#c8e6c9', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff'
+                    }}>
+                      <Text style={{ color: '#666', fontSize: 14 }}>×</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
               {/* Intentionally not showing error message in UI; logging to console instead */}
