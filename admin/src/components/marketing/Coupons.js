@@ -142,6 +142,34 @@ const Coupons = () => {
     setFormData(prev => ({ ...prev, productIds: (prev.productIds || []).filter(pid => String(pid) !== String(id)) }));
   };
 
+  // Load selected products details for edit modal
+  const loadSelectedProducts = async (ids) => {
+    try {
+      const tokenHeaders = getAuthHeaders();
+      const requests = ids.map(async (pid) => {
+        try {
+          const res = await fetch(`${API_BASE}/api/v1/products/${pid}`, { headers: tokenHeaders });
+          const json = await res.json();
+          if (res.ok && json?.success && json?.data) {
+            const p = json.data;
+            return { id: p._id || p.id, name: p.name, image: (p.images && p.images[0]) };
+          }
+        } catch (_) {}
+        return null;
+      });
+      const results = (await Promise.all(requests)).filter(Boolean);
+      setProductPicker(prev => ({ ...prev, selected: results }));
+    } catch (_) {}
+  };
+
+  // When opening edit modal, populate selected product chips from productIds
+  useEffect(() => {
+    if (showModal && formData.appliesTo === 'product' && Array.isArray(formData.productIds) && formData.productIds.length > 0) {
+      loadSelectedProducts(formData.productIds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModal, formData.appliesTo]);
+
   const generateSampleCoupons = () => {
     return [
       {
