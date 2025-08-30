@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, 
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import api from '../utils/api';
 import { useUser } from '../contexts/UserContext';
+import { useNavigation } from '@react-navigation/native';
 
 const ProductReviews = ({ productId, onReviewPress }) => {
   const [reviews, setReviews] = useState([]);
@@ -10,6 +11,12 @@ const ProductReviews = ({ productId, onReviewPress }) => {
   const [error, setError] = useState(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const { user, isLoading } = useUser();
+  const navigation = useNavigation();
+
+  const handleWriteReview = () => {
+    if (onReviewPress) return onReviewPress();
+    navigation.navigate('ReviewForm', { productId });
+  };
 
   useEffect(() => {
     if (productId) {
@@ -88,14 +95,19 @@ const ProductReviews = ({ productId, onReviewPress }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.sectionTitle}>Customer Reviews</Text>
-        {reviews.length > 0 && (
-          <View style={styles.ratingSummary}>
-            <Text style={styles.ratingText}>
-              {(reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)}
-            </Text>
-            <Text style={styles.ratingCount}>({reviews.length} reviews)</Text>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {reviews.length > 0 && (
+            <View style={styles.ratingSummary}>
+              <Text style={styles.ratingText}>
+                {(reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)}
+              </Text>
+              <Text style={styles.ratingCount}>({reviews.length} reviews)</Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.writeBtnHeader} onPress={handleWriteReview}>
+            <Text style={styles.writeBtnHeaderText}>Write a Review</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {reviews.length === 0 ? (
@@ -103,7 +115,7 @@ const ProductReviews = ({ productId, onReviewPress }) => {
           {renderEmptyState()}
           <TouchableOpacity
             style={styles.writeReviewButton}
-            onPress={() => onReviewPress?.()}
+            onPress={handleWriteReview}
           >
             <Text style={styles.writeReviewText}>Write a Review</Text>
           </TouchableOpacity>
@@ -136,7 +148,7 @@ const ProductReviews = ({ productId, onReviewPress }) => {
           
           <TouchableOpacity
             style={styles.writeReviewButton}
-            onPress={() => onReviewPress?.()}
+            onPress={handleWriteReview}
           >
             <Text style={styles.writeReviewText}>Write a Review</Text>
           </TouchableOpacity>
@@ -283,6 +295,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     borderRadius: 8,
+  },
+  writeBtnHeader: {
+    marginLeft: 12,
+    backgroundColor: '#f1f5ff',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  writeBtnHeaderText: {
+    color: '#1976d2',
+    fontWeight: '700',
+    fontSize: 12,
   },
   writeReviewText: {
     fontSize: 14,
