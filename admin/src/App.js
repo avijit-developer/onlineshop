@@ -63,6 +63,10 @@ function App() {
         <Toaster position="top-right" />
         <Routes>
           <Route 
+            path="/admin" 
+            element={<Navigate to="/login" replace />} 
+          />
+          <Route 
             path="/login" 
             element={
               !isAuthenticated ? (
