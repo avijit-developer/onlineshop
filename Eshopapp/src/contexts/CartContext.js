@@ -176,7 +176,12 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = async (product, quantity = 1, selectedAttributes = null) => {
     try {
-      if (!isAuthenticated) {
+      // Ensure authentication is synced with stored token on first interaction
+      const storedToken = await AsyncStorage.getItem('authToken');
+      if (!isAuthenticated && storedToken) {
+        setIsAuthenticated(true);
+      }
+      if (!isAuthenticated && !storedToken) {
         console.log('User not authenticated, cannot add to cart');
         return { success: false, error: 'Not authenticated' };
       }

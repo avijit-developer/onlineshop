@@ -65,10 +65,8 @@ const ViewCartFooter = () => {
     return { total, itemsCount, displayItems };
   }, [cartItems, getCartTotal, getCartItemsCount]);
 
-  // Don't return null, always render but control visibility with animation
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Avoid changing hooks order; render empty placeholder if not authenticated
+  const hidden = !isAuthenticated;
 
   const handleViewCart = () => {
     navigation.navigate('Cart');
@@ -83,6 +81,9 @@ const ViewCartFooter = () => {
         }
       ]}
     >
+      {hidden ? (
+        <View style={{ height: 0 }} />
+      ) : (
       <View style={styles.cartInfo}>
         <ScrollView
           horizontal
@@ -132,6 +133,7 @@ const ViewCartFooter = () => {
         <Text style={styles.viewCartText}>View Cart</Text>
         <Icon name="arrow-forward-outline" size={16} color="#fff" />
       </TouchableOpacity>
+      )}
     </Animated.View>
   );
 };
