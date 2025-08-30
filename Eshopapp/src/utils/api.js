@@ -31,7 +31,8 @@ class ApiError extends Error {
 
 const api = {
   async request(endpoint, options = {}) {
-    const url = `${API_BASE}${endpoint}`;
+    const initialBase = API_BASE;
+    let url = `${initialBase}${endpoint}`;
     
     // Ensure headers are merged correctly and not overwritten by spreading options
     const { headers: optionHeaders, ...restOptions } = options || {};
@@ -46,21 +47,36 @@ const api = {
 
     try {
       const response = await fetch(url, config);
-      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new ApiError(
-          errorData.message || `HTTP error! status: ${response.status}`,
-          response.status
-        );
+        throw new ApiError(errorData.message || `HTTP error! status: ${response.status}`, response.status);
       }
-      
       const json = await response.json();
       return json;
     } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
+      // If pure network error, try one fallback using Metro host-derived base
+      const isNetwork = !(error instanceof ApiError);
+      if (isNetwork) {
+        const altBase = resolveDevBase();
+        const usedDefaultEmuBase = initialBase.includes('localhost') || initialBase.includes('10.0.2.2');
+        const shouldRetry = altBase && altBase !== initialBase && usedDefaultEmuBase;
+        if (shouldRetry) {
+          try {
+            const altUrl = `${altBase}${endpoint}`;
+            const response = await fetch(altUrl, config);
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new ApiError(errorData.message || `HTTP error! status: ${response.status}`, response.status);
+            }
+            const json = await response.json();
+            return json;
+          } catch (_) {
+            // fall-through to final error
+          }
+        }
       }
+      if (error instanceof ApiError) throw error;
+      console.warn('[API] Network error. Base:', initialBase, 'Endpoint:', endpoint);
       throw new ApiError('Network error. Please check your connection.', 0);
     }
   },
