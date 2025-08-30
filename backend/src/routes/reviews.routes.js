@@ -5,6 +5,38 @@ const { authenticate, requireRole, requireAdmin, requireAnyPermission } = requir
 
 const router = express.Router();
 
+// Customer: create a review
+router.post('/', authenticate, requireRole(['customer']), async (req, res) => {
+  try {
+    const { product, rating, title = '', comment = '', images = [] } = req.body || {};
+    if (!product) return res.status(400).json({ success: false, message: 'product is required' });
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ success: false, message: 'rating must be 1-5' });
+    const prod = await Product.findById(product).select('_id vendor enabled status').lean();
+    if (!prod || !prod.enabled || prod.status === 'rejected') return res.status(404).json({ success: false, message: 'Product not available' });
+    const payload = {
+      product,
+      user: req.user.id,
+      vendor: prod.vendor,
+      rating: Number(rating),
+      title: String(title).trim(),
+      comment: String(comment).trim(),
+      images: Array.isArray(images) ? images.slice(0, 5) : []
+    };
+    let created;
+    try {
+      created = await Review.create(payload);
+    } catch (e) {
+      if (e && e.code === 11000) {
+        return res.status(409).json({ success: false, message: 'You have already reviewed this product' });
+      }
+      throw e;
+    }
+    res.status(201).json({ success: true, data: created });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to submit review' });
+  }
+});
+
 // Admin/Vendor: list reviews with filters
 router.get('/', authenticate, requireRole(['admin','vendor']), async (req, res) => {
   try {

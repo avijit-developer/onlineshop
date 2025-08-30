@@ -17,6 +17,7 @@ import WishlistScreen from '../screens/WishlistScreen';
 import AddressListScreen from '../screens/AddressListScreen';
 import AddressDetailsScreen from '../screens/AddressDetailsScreen';
 import VendorApplyScreen from '../screens/VendorApplyScreen';
+import ReviewFormScreen from '../screens/ReviewFormScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +41,7 @@ const AppNavigator = () => {
       <Stack.Screen name="AddressList" component={AddressListScreen} />
       <Stack.Screen name="AddressDetails" component={AddressDetailsScreen} />
       <Stack.Screen name="VendorApply" component={VendorApplyScreen} />
+      <Stack.Screen name="ReviewForm" component={ReviewFormScreen} />
     </Stack.Navigator>
   );
 };

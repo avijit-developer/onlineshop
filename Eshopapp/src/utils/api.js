@@ -346,6 +346,16 @@ const api = {
     return this.request(`/api/v1/products/${productId}/reviews/public${qs}`);
   },
 
+  async submitProductReview(productId, { rating, title, comment, images = [] }) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/reviews', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ product: productId, rating, title, comment, images })
+    });
+  },
+
   // Address management functions (auto-token)
   async getUserAddresses() {
     const token = await this.getStoredToken();

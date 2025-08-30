@@ -602,8 +602,7 @@ export default function ProductDetailsScreen() {
                 <ProductReviews 
                     productId={productId}
                     onReviewPress={() => {
-                        // Navigate to review form or show review modal
-                        Alert.alert('Write Review', 'Review functionality coming soon!');
+                        navigation.navigate('ReviewForm', { productId, productName: product?.name });
                     }}
                 />
 
