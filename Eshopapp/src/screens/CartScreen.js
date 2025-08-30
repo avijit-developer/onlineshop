@@ -216,14 +216,14 @@ const CartScreen = () => {
 
   const renderEmptyCart = () => (
     <View style={styles.emptyContainer}>
-      <Icon name="bag-outline" size={80} color="#ddd" />
-      <Text style={styles.emptyTitle}>Your cart is empty</Text>
-      <Text style={styles.emptySubtitle}>Add some items to get started</Text>
+      <Icon name="cart-outline" size={84} color="#ccc" />
+      <Text style={styles.emptyTitle}>Your Cart is Empty</Text>
+      <Text style={styles.emptyMessage}>Add some products to get started</Text>
       <TouchableOpacity
         style={styles.shopButton}
         onPress={() => navigation.navigate('Home')}
       >
-        <Text style={styles.shopButtonText}>Continue Shopping</Text>
+        <Text style={styles.shopButtonText}>Start Shopping</Text>
       </TouchableOpacity>
     </View>
   );
