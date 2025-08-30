@@ -308,33 +308,23 @@ const Settings = () => {
 
           {/* Payment Settings removed */}
 
-          {/* Shipping Settings */}
+          {/* Shipping Settings */
+          }
           {activeTab === 'shipping' && (
             <div className="settings-section">
               <div className="section-header">
                 <h2>Shipping Settings</h2>
-                <p>Configure shipping zones and costs</p>
+                <p>Configure flat shipping fees</p>
               </div>
               
               <div className="settings-form">
                 <div className="form-grid">
                   <div className="form-group">
-                    <label>Free Shipping Threshold ($)</label>
+                    <label>Flat Shipping Fee ($)</label>
                     <input
                       type="number"
-                      value={settings.shipping.freeShippingThreshold}
-                      onChange={(e) => handleInputChange('shipping', 'freeShippingThreshold', parseFloat(e.target.value))}
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Default Shipping Cost ($)</label>
-                    <input
-                      type="number"
-                      value={settings.shipping.defaultShippingCost}
-                      onChange={(e) => handleInputChange('shipping', 'defaultShippingCost', parseFloat(e.target.value))}
+                      value={settings.shipping.flatShippingFee || 0}
+                      onChange={(e) => handleInputChange('shipping', 'flatShippingFee', parseFloat(e.target.value))}
                       min="0"
                       step="0.01"
                     />
