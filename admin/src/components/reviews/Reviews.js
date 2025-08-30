@@ -246,6 +246,10 @@ const Reviews = () => {
     return distribution;
   };
 
+  const handleToggleVisible = async (reviewId, enabled) => {
+    await handleStatusChange(reviewId, enabled ? 'approved' : 'rejected');
+  };
+
   if (loading) {
     return <div className="loading">Loading reviews...</div>;
   }
@@ -355,6 +359,7 @@ const Reviews = () => {
               <th>Product</th>
               <th>Vendor</th>
               <th>Rating</th>
+              <th>Visible</th>
               <th>Title</th>
               <th>Status</th>
               <th>Date</th>
@@ -382,10 +387,19 @@ const Reviews = () => {
                   </div>
                 </td>
                 <td>
-                  <div className="rating-display">
-                    {renderStars(review.rating)}
-                    <span className="rating-text">{review.rating}/5</span>
+                  <div className="rating-compact">
+                    <span className="rating-badge">{review.rating}</span>
                   </div>
+                </td>
+                <td>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={review.status === 'approved'}
+                      onChange={(e) => handleToggleVisible(review.id, e.target.checked)}
+                    />
+                    <span className="slider" />
+                  </label>
                 </td>
                 <td>
                   <div className="review-title">
