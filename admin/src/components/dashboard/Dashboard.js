@@ -43,7 +43,17 @@ const Dashboard = () => {
         if (resp.ok) {
           const json = await resp.json();
           if (json?.success) {
-            setData({ dashboard: json.data, orders: json.data.recentOrders, products: json.data.topProducts, vendors: [], users: [] });
+            let vendorsList = [];
+            if (isVendor) {
+              try {
+                const vres = await fetch((process.env.REACT_APP_API_URL || '') + '/api/v1/vendors?page=1&limit=100', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                if (vres.ok) {
+                  const vjson = await vres.json();
+                  vendorsList = (vjson?.data || []).map(v => ({ id: v._id || v.id, companyName: v.companyName, status: v.status, enabled: v.enabled }));
+                }
+              } catch (_) {}
+            }
+            setData({ dashboard: json.data, orders: json.data.recentOrders, products: json.data.topProducts, vendors: vendorsList, users: [] });
             return;
           }
         }
@@ -205,6 +215,26 @@ const Dashboard = () => {
       </div>
 
       <div className="row">
+        {isVendor && (
+          <div className="col-6">
+            <div className="card">
+              <h3>Your Businesses</h3>
+              <div className="pending-approvals">
+                {(data.vendors || []).map(vendor => (
+                  <div key={vendor.id} className="approval-item">
+                    <div className="approval-info">
+                      <strong>{vendor.companyName}</strong>
+                      <span>{vendor.enabled === false ? 'Disabled' : vendor.status}</span>
+                    </div>
+                  </div>
+                ))}
+                {(data.vendors || []).length === 0 && (
+                  <div className="approval-item"><div className="approval-info"><span>No approved vendors assigned</span></div></div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Top Products */}
         <div className="col-6">
           <div className="card">
