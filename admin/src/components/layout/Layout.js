@@ -45,6 +45,13 @@ const Layout = ({ children, user, onLogout }) => {
   const userPerms = isVendor && realTimePermissions.size > 0
     ? realTimePermissions
     : new Set((user?.permissions || []));
+  const marketplaceMenu = !isVendor ? [
+    { path: '/coupons', label: 'Coupon', icon: '🎁' },
+    { path: '/banners', label: 'Banner', icon: '🖼️' },
+    { path: '/reviews', label: 'Review', icon: '⭐' },
+    { path: '/homepage', label: 'Home page', icon: '🏠' },
+  ] : [];
+
   const allMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     !isVendor && { path: '/customers', label: 'Customers', icon: '👥' },
@@ -56,10 +63,8 @@ const Layout = ({ children, user, onLogout }) => {
     (!isVendor || userPerms.has('orders.view')) && { path: '/orders', label: 'Orders', icon: '🛒' },
     !isVendor && { path: '/inventory', label: 'Inventory', icon: '📋' },
     !isVendor && { path: '/payments', label: 'Payments', icon: '💰' },
-    !isVendor && { path: '/coupons', label: 'Coupons', icon: '🎁' },
-    !isVendor && { path: '/banners', label: 'Banners', icon: '🖼️' },
-    !isVendor && { path: '/homepage', label: 'Homepage', icon: '🏠' },
-    !isVendor && { path: '/reviews', label: 'Reviews', icon: '⭐' },
+    // Marketplace collapsible placeholder marker
+    !isVendor && { path: '#marketplace', label: 'Marketplace', icon: '🛍️', children: marketplaceMenu },
     !isVendor && { path: '/settings', label: 'Settings', icon: '⚙️' },
   ].filter(Boolean);
 
@@ -82,17 +87,42 @@ const Layout = ({ children, user, onLogout }) => {
         </div>
         
         <nav className="sidebar-nav">
-          {allMenuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span className="nav-label">{item.label}</span>
-            </Link>
-          ))}
+          {allMenuItems.map((item) => {
+            if (item.children && item.children.length > 0) {
+              return (
+                <div key={item.label} className="nav-group">
+                  <div className="nav-item nav-group-header">
+                    <span className="nav-icon">{item.icon}</span>
+                    <span className="nav-label">{item.label}</span>
+                  </div>
+                  <div className="nav-group-children">
+                    {item.children.map(child => (
+                      <Link
+                        key={child.path}
+                        to={child.path}
+                        className={`nav-item ${isActive(child.path) ? 'active' : ''}`}
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <span className="nav-icon">{child.icon}</span>
+                        <span className="nav-label">{child.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
       </div>
 

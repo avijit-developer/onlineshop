@@ -146,20 +146,7 @@ const Settings = () => {
               <span className="nav-icon">🌍</span>
               Localization
             </button>
-            <button
-              className={`nav-item ${activeTab === 'email' ? 'active' : ''}`}
-              onClick={() => setActiveTab('email')}
-            >
-              <span className="nav-icon">📧</span>
-              Email Settings
-            </button>
-            <button
-              className={`nav-item ${activeTab === 'payment' ? 'active' : ''}`}
-              onClick={() => setActiveTab('payment')}
-            >
-              <span className="nav-icon">💳</span>
-              Payment Gateway
-            </button>
+            {/* Email and Payment sections removed */}
             <button
               className={`nav-item ${activeTab === 'shipping' ? 'active' : ''}`}
               onClick={() => setActiveTab('shipping')}
@@ -238,35 +225,7 @@ const Settings = () => {
                     />
                   </div>
                   
-                  <div className="form-group">
-                    <label>Site Logo</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileUpload('siteLogo', e)}
-                      className="file-input"
-                    />
-                    {settings.general.siteLogo && (
-                      <div className="image-preview">
-                        <img src={settings.general.siteLogo} alt="Logo" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Favicon</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileUpload('favicon', e)}
-                      className="file-input"
-                    />
-                    {settings.general.favicon && (
-                      <div className="image-preview">
-                        <img src={settings.general.favicon} alt="Favicon" />
-                      </div>
-                    )}
-                  </div>
+                  {/* Site Logo and Favicon removed (integrate with API) */}
                 </div>
                 
                 <div className="form-actions">
@@ -292,22 +251,7 @@ const Settings = () => {
               
               <div className="settings-form">
                 <div className="form-grid">
-                  <div className="form-group">
-                    <label>Timezone *</label>
-                    <select
-                      value={settings.localization.timezone}
-                      onChange={(e) => handleInputChange('localization', 'timezone', e.target.value)}
-                    >
-                      <option value="UTC">UTC</option>
-                      <option value="America/New_York">Eastern Time</option>
-                      <option value="America/Chicago">Central Time</option>
-                      <option value="America/Denver">Mountain Time</option>
-                      <option value="America/Los_Angeles">Pacific Time</option>
-                      <option value="Europe/London">London</option>
-                      <option value="Europe/Paris">Paris</option>
-                      <option value="Asia/Tokyo">Tokyo</option>
-                    </select>
-                  </div>
+                  {/* Timezone removed (integrate with API) */}
                   
                   <div className="form-group">
                     <label>Date Format *</label>
@@ -367,23 +311,7 @@ const Settings = () => {
                     />
                   </div>
                   
-                  <div className="form-group">
-                    <label>Language *</label>
-                    <select
-                      value={settings.localization.language}
-                      onChange={(e) => handleInputChange('localization', 'language', e.target.value)}
-                    >
-                      <option value="en">English</option>
-                      <option value="es">Spanish</option>
-                      <option value="fr">French</option>
-                      <option value="de">German</option>
-                      <option value="it">Italian</option>
-                      <option value="pt">Portuguese</option>
-                      <option value="ja">Japanese</option>
-                      <option value="ko">Korean</option>
-                      <option value="zh">Chinese</option>
-                    </select>
-                  </div>
+                  {/* Language removed (integrate with API) */}
                 </div>
                 
                 <div className="form-actions">
@@ -399,244 +327,9 @@ const Settings = () => {
             </div>
           )}
 
-          {/* Email Settings */}
-          {activeTab === 'email' && (
-            <div className="settings-section">
-              <div className="section-header">
-                <h2>Email Settings</h2>
-                <p>Configure SMTP settings and email preferences</p>
-              </div>
-              
-              <div className="settings-form">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>SMTP Host *</label>
-                    <input
-                      type="text"
-                      value={settings.email.smtpHost}
-                      onChange={(e) => handleInputChange('email', 'smtpHost', e.target.value)}
-                      placeholder="smtp.gmail.com"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>SMTP Port *</label>
-                    <input
-                      type="number"
-                      value={settings.email.smtpPort}
-                      onChange={(e) => handleInputChange('email', 'smtpPort', e.target.value)}
-                      placeholder="587"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>SMTP Username</label>
-                    <input
-                      type="text"
-                      value={settings.email.smtpUsername}
-                      onChange={(e) => handleInputChange('email', 'smtpUsername', e.target.value)}
-                      placeholder="your-email@gmail.com"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>SMTP Password</label>
-                    <input
-                      type="password"
-                      value={settings.email.smtpPassword}
-                      onChange={(e) => handleInputChange('email', 'smtpPassword', e.target.value)}
-                      placeholder="Your password"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>From Email *</label>
-                    <input
-                      type="email"
-                      value={settings.email.fromEmail}
-                      onChange={(e) => handleInputChange('email', 'fromEmail', e.target.value)}
-                      placeholder="noreply@yourstore.com"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>From Name *</label>
-                    <input
-                      type="text"
-                      value={settings.email.fromName}
-                      onChange={(e) => handleInputChange('email', 'fromName', e.target.value)}
-                      placeholder="Your Store Name"
-                    />
-                  </div>
-                </div>
-                
-                <div className="email-preferences">
-                  <h3>Email Preferences</h3>
-                  <div className="checkbox-group">
-                    <input
-                      type="checkbox"
-                      id="emailVerification"
-                      checked={settings.email.emailVerification}
-                      onChange={(e) => handleInputChange('email', 'emailVerification', e.target.checked)}
-                    />
-                    <label htmlFor="emailVerification">Require email verification for new accounts</label>
-                  </div>
-                  
-                  <div className="checkbox-group">
-                    <input
-                      type="checkbox"
-                      id="orderNotifications"
-                      checked={settings.email.orderNotifications}
-                      onChange={(e) => handleInputChange('email', 'orderNotifications', e.target.checked)}
-                    />
-                    <label htmlFor="orderNotifications">Send order notifications</label>
-                  </div>
-                  
-                  <div className="checkbox-group">
-                    <input
-                      type="checkbox"
-                      id="marketingEmails"
-                      checked={settings.email.marketingEmails}
-                      onChange={(e) => handleInputChange('email', 'marketingEmails', e.target.checked)}
-                    />
-                    <label htmlFor="marketingEmails">Allow marketing emails</label>
-                  </div>
-                </div>
-                
-                <div className="form-actions">
-                  <button
-                    onClick={() => handleSave('Email')}
-                    disabled={saving}
-                    className="btn btn-primary"
-                  >
-                    {saving ? 'Saving...' : 'Save Email Settings'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Email Settings removed */}
 
-          {/* Payment Settings */}
-          {activeTab === 'payment' && (
-            <div className="settings-section">
-              <div className="section-header">
-                <h2>Payment Gateway Settings</h2>
-                <p>Configure payment gateways and commission settings</p>
-              </div>
-              
-              <div className="settings-form">
-                <div className="payment-gateways">
-                  <h3>Stripe Configuration</h3>
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Enable Stripe</label>
-                      <div className="checkbox-group">
-                        <input
-                          type="checkbox"
-                          id="stripeEnabled"
-                          checked={settings.payment.stripeEnabled}
-                          onChange={(e) => handleInputChange('payment', 'stripeEnabled', e.target.checked)}
-                        />
-                        <label htmlFor="stripeEnabled">Enable Stripe payments</label>
-                      </div>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Publishable Key</label>
-                      <input
-                        type="text"
-                        value={settings.payment.stripePublishableKey}
-                        onChange={(e) => handleInputChange('payment', 'stripePublishableKey', e.target.value)}
-                        placeholder="pk_test_..."
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Secret Key</label>
-                      <input
-                        type="password"
-                        value={settings.payment.stripeSecretKey}
-                        onChange={(e) => handleInputChange('payment', 'stripeSecretKey', e.target.value)}
-                        placeholder="sk_test_..."
-                      />
-                    </div>
-                  </div>
-                  
-                  <h3>PayPal Configuration</h3>
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Enable PayPal</label>
-                      <div className="checkbox-group">
-                        <input
-                          type="checkbox"
-                          id="paypalEnabled"
-                          checked={settings.payment.paypalEnabled}
-                          onChange={(e) => handleInputChange('payment', 'paypalEnabled', e.target.checked)}
-                        />
-                        <label htmlFor="paypalEnabled">Enable PayPal payments</label>
-                      </div>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Client ID</label>
-                      <input
-                        type="text"
-                        value={settings.payment.paypalClientId}
-                        onChange={(e) => handleInputChange('payment', 'paypalClientId', e.target.value)}
-                        placeholder="Your PayPal Client ID"
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Secret</label>
-                      <input
-                        type="password"
-                        value={settings.payment.paypalSecret}
-                        onChange={(e) => handleInputChange('payment', 'paypalSecret', e.target.value)}
-                        placeholder="Your PayPal Secret"
-                      />
-                    </div>
-                  </div>
-                  
-                  <h3>Commission Settings</h3>
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Commission Rate (%)</label>
-                      <input
-                        type="number"
-                        value={settings.payment.commissionRate}
-                        onChange={(e) => handleInputChange('payment', 'commissionRate', parseFloat(e.target.value))}
-                        min="0"
-                        max="100"
-                        step="0.1"
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Minimum Payout ($)</label>
-                      <input
-                        type="number"
-                        value={settings.payment.minimumPayout}
-                        onChange={(e) => handleInputChange('payment', 'minimumPayout', parseFloat(e.target.value))}
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="form-actions">
-                  <button
-                    onClick={() => handleSave('Payment')}
-                    disabled={saving}
-                    className="btn btn-primary"
-                  >
-                    {saving ? 'Saving...' : 'Save Payment Settings'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Payment Settings removed */}
 
           {/* Shipping Settings */}
           {activeTab === 'shipping' && (
@@ -671,20 +364,7 @@ const Settings = () => {
                   </div>
                 </div>
                 
-                <div className="shipping-zones">
-                  <h3>Shipping Zones</h3>
-                  <div className="zones-list">
-                    {settings.shipping.shippingZones.map((zone, index) => (
-                      <div key={index} className="zone-item">
-                        <div className="zone-header">
-                          <h4>{zone.name}</h4>
-                          <span className="zone-cost">${zone.cost}</span>
-                        </div>
-                        <p className="zone-countries">Countries: {zone.countries.join(', ')}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* Shipping Zones removed (integrate with API) */}
                 
                 <div className="form-actions">
                   <button
@@ -699,101 +379,7 @@ const Settings = () => {
             </div>
           )}
 
-          {/* Vendor Settings */}
-          {activeTab === 'vendor' && (
-            <div className="settings-section">
-              <div className="section-header">
-                <h2>Vendor Settings</h2>
-                <p>Configure vendor registration and management settings</p>
-              </div>
-              
-              <div className="settings-form">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Auto-approve Vendors</label>
-                    <div className="checkbox-group">
-                      <input
-                        type="checkbox"
-                        id="autoApproval"
-                        checked={settings.vendor.autoApproval}
-                        onChange={(e) => handleInputChange('vendor', 'autoApproval', e.target.checked)}
-                      />
-                      <label htmlFor="autoApproval">Automatically approve new vendor registrations</label>
-                    </div>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Require Verification</label>
-                    <div className="checkbox-group">
-                      <input
-                        type="checkbox"
-                        id="requireVerification"
-                        checked={settings.vendor.requireVerification}
-                        onChange={(e) => handleInputChange('vendor', 'requireVerification', e.target.checked)}
-                      />
-                      <label htmlFor="requireVerification">Require vendor verification documents</label>
-                    </div>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Commission Rate (%)</label>
-                    <input
-                      type="number"
-                      value={settings.vendor.commissionRate}
-                      onChange={(e) => handleInputChange('vendor', 'commissionRate', parseFloat(e.target.value))}
-                      min="0"
-                      max="100"
-                      step="0.1"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Minimum Balance ($)</label>
-                    <input
-                      type="number"
-                      value={settings.vendor.minimumBalance}
-                      onChange={(e) => handleInputChange('vendor', 'minimumBalance', parseFloat(e.target.value))}
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Max Products per Vendor</label>
-                    <input
-                      type="number"
-                      value={settings.vendor.maxProducts}
-                      onChange={(e) => handleInputChange('vendor', 'maxProducts', parseInt(e.target.value))}
-                      min="1"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Allow Withdrawals</label>
-                    <div className="checkbox-group">
-                      <input
-                        type="checkbox"
-                        id="allowWithdrawals"
-                        checked={settings.vendor.allowWithdrawals}
-                        onChange={(e) => handleInputChange('vendor', 'allowWithdrawals', e.target.checked)}
-                      />
-                      <label htmlFor="allowWithdrawals">Allow vendors to request withdrawals</label>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="form-actions">
-                  <button
-                    onClick={() => handleSave('Vendor')}
-                    disabled={saving}
-                    className="btn btn-primary"
-                  >
-                    {saving ? 'Saving...' : 'Save Vendor Settings'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Vendor Settings removed */}
         </div>
       </div>
     </div>
