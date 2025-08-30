@@ -72,16 +72,16 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const loadCart = async () => {
+  const loadCart = async (force = false) => {
     // Prevent multiple simultaneous cart loads using ref
     if (isLoadingCartRef.current) {
       console.log('Cart load already in progress (ref), skipping...');
       return;
     }
     
-    // Throttle cart loads to prevent excessive API calls
+    // Throttle cart loads to prevent excessive API calls unless forced
     const now = Date.now();
-    if (now - lastCartLoadTime.current < CART_LOAD_THROTTLE) {
+    if (!force && (now - lastCartLoadTime.current < CART_LOAD_THROTTLE)) {
       return;
     }
     
@@ -221,7 +221,7 @@ export const CartProvider = ({ children }) => {
       console.log('Adding to cart via database:', product?.name || normalizedProduct._id, quantity, selectedAttributes);
       const response = await api.addToUserCart(normalizedProduct, quantity, selectedAttributes);
       if (response && response.success) {
-        await loadCart();
+        await loadCart(true);
         return { success: true };
       } else {
         const message = response?.message || 'Failed to add item to cart in database';
@@ -245,7 +245,7 @@ export const CartProvider = ({ children }) => {
       console.log('Removing item from cart via database:', cartId);
       const response = await api.removeFromUserCart(cartId);
       if (response && response.success) {
-        await loadCart();
+        await loadCart(true);
       } else {
         console.log('Failed to remove item from cart in database');
       }
@@ -270,7 +270,7 @@ export const CartProvider = ({ children }) => {
       console.log('Updating quantity via database:', cartId, quantity);
       const response = await api.updateUserCartItem(cartId, quantity);
       if (response && response.success) {
-        await loadCart();
+        await loadCart(true);
       } else {
         console.log('Failed to update quantity in database');
       }

@@ -23,10 +23,16 @@ const ProductCard = ({ item }) => {
     }
   };
 
-  const handleBuyNow = (e) => {
+  const handleBuyNow = async (e) => {
     e.stopPropagation();
-    addToCart(item, 1);
-    navigation.navigate('Cart');
+    if (adding) return;
+    setAdding(true);
+    try {
+      await addToCart(item, 1);
+      navigation.navigate('Cart');
+    } finally {
+      setAdding(false);
+    }
   };
 
   const handleProductPress = () => {
