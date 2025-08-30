@@ -338,6 +338,8 @@ export const CartProvider = ({ children }) => {
       setCartItems([]);
       setCartCoupon(null);
       console.log('Cart cleared (local state updated)');
+      // Force a reload to sync any other subscribers and server state
+      await loadCart(true);
       
     } catch (error) {
       console.log('Error clearing cart:', error);
