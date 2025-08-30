@@ -95,7 +95,7 @@ const Layout = ({ children, user, onLogout }) => {
                   <button type="button" className="nav-item nav-group-header" onClick={() => setMarketplaceOpen(v => !v)}>
                     <span className="nav-icon">{item.icon}</span>
                     <span className="nav-label">{item.label}</span>
-                    <span style={{ marginLeft: 'auto' }}>{marketplaceOpen ? '▾' : '▸'}</span>
+                    <span style={{ marginLeft: 'auto', opacity: 0.9 }}>{marketplaceOpen ? '▾' : '▸'}</span>
                   </button>
                   <div className="nav-group-children" style={{ display: marketplaceOpen ? 'block' : 'none' }}>
                     {item.children.map(child => (
