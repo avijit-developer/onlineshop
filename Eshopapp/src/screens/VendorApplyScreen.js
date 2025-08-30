@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import api from '../utils/api';
+import api, { API_BASE } from '../utils/api';
 
 const VendorApplyScreen = ({ navigation }) => {
 	const [form, setForm] = useState({
@@ -27,7 +27,7 @@ const VendorApplyScreen = ({ navigation }) => {
 		setSubmitting(true);
 		try {
 			const token = await api.getStoredToken?.();
-			const res = await fetch(`${api.API_BASE || ''}/api/v1/vendors/apply`, {
+			const res = await fetch(`${API_BASE}/api/v1/vendors/apply`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
