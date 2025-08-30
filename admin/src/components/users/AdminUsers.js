@@ -14,6 +14,7 @@ const AdminUsers = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [selectedVendorIds, setSelectedVendorIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
@@ -73,6 +74,7 @@ const AdminUsers = () => {
   const openAdd = () => {
     setEditingItem(null);
     reset();
+    setSelectedVendorIds([]);
     setShowModal(true);
   };
 
@@ -97,7 +99,9 @@ const AdminUsers = () => {
         } else if (item.vendors) {
           vendorIds = Array.isArray(item.vendors) ? item.vendors.map(v => v._id || v) : [item.vendors];
         }
-        setValue('vendors', vendorIds);
+        const vendorIdsStr = (vendorIds || []).map(v => String(v));
+        setValue('vendors', vendorIdsStr);
+        setSelectedVendorIds(vendorIdsStr);
         // Role
         let roleId = '';
         if (item.roleRef) {
@@ -408,7 +412,19 @@ const AdminUsers = () => {
                           <div className="vendor-checkboxes">
                             {vendors.map(v => (
                               <label key={v.id} className="checkbox-label">
-                                <input type="checkbox" value={v.id} {...register('vendors')} /> {v.name}
+                                <input
+                                  type="checkbox"
+                                  value={v.id}
+                                  checked={selectedVendorIds.includes(String(v.id))}
+                                  onChange={(e) => {
+                                    const id = String(v.id);
+                                    const next = e.target.checked
+                                      ? Array.from(new Set([...selectedVendorIds, id]))
+                                      : selectedVendorIds.filter(x => x !== id);
+                                    setSelectedVendorIds(next);
+                                    setValue('vendors', next);
+                                  }}
+                                /> {v.name}
                               </label>
                             ))}
                           </div>
