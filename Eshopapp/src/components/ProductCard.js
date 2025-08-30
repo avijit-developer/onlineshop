@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
@@ -8,11 +8,19 @@ import { useWishlist } from '../contexts/WishlistContext';
 const ProductCard = ({ item }) => {
   const navigation = useNavigation();
   const { addToCart } = useCart();
+  const [adding, setAdding] = React.useState(false);
   const { toggleWishlist, isInWishlist } = useWishlist();
 
-  const handleAddToCart = (e) => {
+  const handleAddToCart = async (e) => {
     e.stopPropagation();
-    addToCart(item, 1);
+    if (adding) return;
+    setAdding(true);
+    try {
+      const res = await addToCart(item, 1);
+      // Optionally handle errors here
+    } finally {
+      setAdding(false);
+    }
   };
 
   const handleBuyNow = (e) => {
@@ -87,9 +95,15 @@ const ProductCard = ({ item }) => {
         
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
-            <Icon name="add-outline" size={14} color="#f7ab18" />
-            <Text style={styles.addToCartText}>Add</Text>
+          <TouchableOpacity style={[styles.addToCartButton, adding && styles.addToCartButtonDisabled]} onPress={handleAddToCart} disabled={adding}>
+            {adding ? (
+              <ActivityIndicator size="small" color="#f7ab18" />
+            ) : (
+              <>
+                <Icon name="add-outline" size={14} color="#f7ab18" />
+                <Text style={styles.addToCartText}>Add</Text>
+              </>
+            )}
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
