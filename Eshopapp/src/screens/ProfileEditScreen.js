@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
-import ImagePicker from 'react-native-image-crop-picker';
+// import ImagePicker from 'react-native-image-crop-picker';
 
 const ProfileEditScreen = () => {
   const navigation = useNavigation();
@@ -145,27 +145,27 @@ const ProfileEditScreen = () => {
                 return;
               }
 
-              const result = await ImagePicker.openCamera({
-                width: 800,
-                height: 800,
-                cropping: true,
-                cropperCircleOverlay: true,
-                compressImageMaxWidth: 800,
-                compressImageMaxHeight: 800,
-                compressImageQuality: 0.8,
-                includeBase64: false,
-                saveToPhotos: true,
-              });
+              // const result = await ImagePicker.openCamera({
+              //   width: 800,
+              //   height: 800,
+              //   cropping: true,
+              //   cropperCircleOverlay: true,
+              //   compressImageMaxWidth: 800,
+              //   compressImageMaxHeight: 800,
+              //   compressImageQuality: 0.8,
+              //   includeBase64: false,
+              //   saveToPhotos: true,
+              // });
 
-              setFormData(prev => ({
-                ...prev,
-                avatar: result.path,
-                selectedImageFile: {
-                  uri: result.path,
-                  type: result.mime || 'image/jpeg',
-                  name: result.filename || 'profile.jpg'
-                }
-              }));
+              // setFormData(prev => ({
+              //   ...prev,
+              //   avatar: result.path,
+              //   selectedImageFile: {
+              //     uri: result.path,
+              //     type: result.mime || 'image/jpeg',
+              //     name: result.filename || 'profile.jpg'
+              //   }
+              // }));
             } catch (error) {
               console.error('Error taking photo:', error);
               if (error.code !== 'E_PICKER_CANCELLED') {
