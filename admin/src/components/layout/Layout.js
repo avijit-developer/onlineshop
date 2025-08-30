@@ -54,19 +54,19 @@ const Layout = ({ children, user, onLogout }) => {
   ] : [];
 
   const allMenuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-    !isVendor && { path: '/customers', label: 'Customers', icon: '👥' },
+    { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
+    !isVendor && { path: '/admin/customers', label: 'Customers', icon: '👥' },
     !isVendor && { path: '/admin-users', label: 'Admin Users', icon: '👤' },
-    (!isVendor || userPerms.has('vendor.view') || userPerms.has('vendor.edit')) && { path: '/vendors', label: 'Vendors', icon: '🏪' },
-    (!isVendor || userPerms.has('products.view')) && { path: '/products', label: 'Products', icon: '📦' },
-    !isVendor && { path: '/categories', label: 'Categories', icon: '📁' },
-    !isVendor && { path: '/brands', label: 'Brands', icon: '🏷️' },
-    (!isVendor || userPerms.has('orders.view')) && { path: '/orders', label: 'Orders', icon: '🛒' },
-    !isVendor && { path: '/inventory', label: 'Inventory', icon: '📋' },
-    !isVendor && { path: '/payments', label: 'Payments', icon: '💰' },
+    (!isVendor || userPerms.has('vendor.view') || userPerms.has('vendor.edit')) && { path: '/admin/vendors', label: 'Vendors', icon: '🏪' },
+    (!isVendor || userPerms.has('products.view')) && { path: '/admin/products', label: 'Products', icon: '📦' },
+    !isVendor && { path: '/admin/categories', label: 'Categories', icon: '📁' },
+    !isVendor && { path: '/admin/brands', label: 'Brands', icon: '🏷️' },
+    (!isVendor || userPerms.has('orders.view')) && { path: '/admin/orders', label: 'Orders', icon: '🛒' },
+    !isVendor && { path: '/admin/inventory', label: 'Inventory', icon: '📋' },
+    !isVendor && { path: '/admin/payments', label: 'Payments', icon: '💰' },
     // Marketplace collapsible placeholder marker
-    !isVendor && { path: '#marketplace', label: 'Marketplace', icon: '🛍️', children: marketplaceMenu },
-    !isVendor && { path: '/settings', label: 'Settings', icon: '⚙️' },
+    !isVendor && { path: '#marketplace', label: 'Marketplace', icon: '🛍️', children: marketplaceMenu.map(m => ({ ...m, path: `/admin${m.path}` })) },
+    !isVendor && { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
   ].filter(Boolean);
 
   const isActive = (path) => {

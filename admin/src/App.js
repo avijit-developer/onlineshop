@@ -62,220 +62,70 @@ function App() {
       <div className="App">
         <Toaster position="top-right" />
         <Routes>
+          {/* root -> /admin */}
+          <Route path="/" element={<Navigate to="/admin" replace />} />
+
+          {/* legacy redirects */}
+          <Route path="/login" element={<Navigate to="/admin/login" replace />} />
+          <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
+
+          {/* admin base */}
           <Route 
             path="/admin" 
             element={
               isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
+                <Navigate to="/admin/dashboard" replace />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/admin/login" replace />
               )
             } 
           />
           <Route 
-            path="/login" 
+            path="/admin/login" 
             element={
               !isAuthenticated ? (
                 <Login onLogin={login} />
               ) : (
-                <Navigate to="/dashboard" replace />
+                <Navigate to="/admin/dashboard" replace />
               )
             } 
           />
           <Route 
-            path="/forgot-password" 
+            path="/admin/forgot-password" 
             element={
               !isAuthenticated ? (
                 <ForgotPassword />
               ) : (
-                <Navigate to="/dashboard" replace />
+                <Navigate to="/admin/dashboard" replace />
               )
             } 
           />
           <Route 
-            path="/" 
-            element={<Navigate to="/admin" replace />} 
-          />
-          <Route 
-            path="/dashboard" 
+            path="/admin/dashboard" 
             element={
               isAuthenticated ? (
                 <Layout user={user} onLogout={logout}>
                   <Dashboard />
                 </Layout>
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/admin/login" replace />
               )
             } 
           />
-          <Route 
-            path="/customers" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Customers />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/admin-users" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <AdminUsers />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/vendors" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Vendors />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/products" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Products />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/categories" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Categories />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/brands" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Brands />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/orders" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Orders />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/inventory" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Inventory />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/payments" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Payments />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/coupons" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Coupons />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/banners" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Banners />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/homepage" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <HomePageManager />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/reviews" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Reviews />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/settings" 
-            element={
-              isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
-                  <Settings />
-                </Layout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
+          <Route path="/admin/customers" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Customers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/admin-users" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><AdminUsers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/vendors" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Vendors /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/products" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Products /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/categories" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Categories /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/brands" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Brands /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/orders" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Orders /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/inventory" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Inventory /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/payments" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Payments /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/coupons" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Coupons /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/banners" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Banners /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/homepage" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><HomePageManager /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/reviews" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Reviews /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/settings" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Settings /></Layout>) : (<Navigate to="/admin/login" replace />)} />
         </Routes>
       </div>
     </Router>
