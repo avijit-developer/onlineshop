@@ -41,12 +41,22 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 		if (!Array.isArray(items) || items.length === 0) {
 			return res.status(400).json({ success: false, message: 'No items to place order' });
 		}
-		// Enrich items with vendor to support admin listing
+		// Enrich items with vendor and compute commission
 		try {
 			const ids = items.map(i => i.product).filter(Boolean);
 			const prods = await Product.find({ _id: { $in: ids } }).select('_id vendor').lean();
 			const idToVendor = new Map(prods.map(p => [String(p._id), String(p.vendor)]));
-			items = items.map(i => ({ ...i, vendor: idToVendor.get(String(i.product)) }));
+			const vendorIds = Array.from(new Set(prods.map(p => String(p.vendor))));
+			const Vendor = require('../models/Vendor');
+			const vendorDocs = await Vendor.find({ _id: { $in: vendorIds } }).select('_id commission').lean();
+			const idToCommission = new Map(vendorDocs.map(v => [String(v._id), Number(v.commission || 0)]));
+			items = items.map(i => {
+				const vendorId = idToVendor.get(String(i.product));
+				const commissionRate = idToCommission.get(String(vendorId)) || 0;
+				const lineTotal = Number(i.price || 0) * Number(i.quantity || 0);
+				const commissionAmount = (lineTotal * commissionRate) / 100;
+				return { ...i, vendor: vendorId, commissionRate, commissionAmount };
+			});
 		} catch (_) {}
 		// Compute discount via coupon if provided (enforce rules and free shipping/payment method)
 		let discountAmount = 0; let appliedCouponCode = null; let effectiveShippingCost = Number(shippingCost || 0);
@@ -194,3 +204,48 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 });
 
 module.exports = router;
+// Vendor user: list orders scoped to assigned vendors (items filtered)
+router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) => {
+    try {
+        const vendorIds = Array.isArray(req.user.vendors) && req.user.vendors.length > 0
+            ? req.user.vendors.map(String)
+            : (req.user.vendorId ? [String(req.user.vendorId)] : []);
+        if (vendorIds.length === 0) return res.json({ success: true, data: [], meta: { total: 0 } });
+
+        const { page = 1, limit = 20 } = req.query;
+        const p = Math.max(parseInt(page, 10) || 1, 1);
+        const l = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+
+        // Find orders that have at least one item for these vendors
+        const query = { 'items.vendor': { $in: vendorIds } };
+        const [orders, total] = await Promise.all([
+            Order.find(query).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
+            Order.countDocuments(query)
+        ]);
+
+        // For each order, filter items to only this vendor set and compute vendor totals
+        const mapped = orders.map(o => {
+            const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
+            const vendorSubtotal = vendorItems.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+            const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
+            const vendorNet = vendorSubtotal - vendorCommission;
+            return {
+                id: o._id,
+                orderNumber: o.orderNumber,
+                createdAt: o.createdAt,
+                status: o.status,
+                customer: { id: o.user },
+                items: vendorItems,
+                vendorItemCount: vendorItems.length,
+                vendorSubtotal,
+                vendorCommission,
+                vendorNet
+            };
+        });
+
+        res.json({ success: true, data: mapped, meta: { total, page: p, limit: l } });
+    } catch (err) {
+        console.error('Vendor orders error:', err);
+        res.status(500).json({ success: false, message: 'Failed to list vendor orders' });
+    }
+});

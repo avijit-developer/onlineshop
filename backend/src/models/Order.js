@@ -9,6 +9,8 @@ const orderItemSchema = new mongoose.Schema({
 	image: { type: String },
 	selectedAttributes: { type: Map, of: String, default: {} },
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+    commissionRate: { type: Number, default: 0 },
+    commissionAmount: { type: Number, default: 0 },
 });
 
 const statusHistorySchema = new mongoose.Schema({

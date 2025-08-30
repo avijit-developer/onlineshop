@@ -44,6 +44,7 @@ const Dashboard = () => {
           const json = await resp.json();
           if (json?.success) {
             let vendorsList = [];
+            let vendorOrders = [];
             if (isVendor) {
               try {
                 const vres = await fetch((process.env.REACT_APP_API_URL || '') + '/api/v1/vendors?page=1&limit=100', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
@@ -51,9 +52,14 @@ const Dashboard = () => {
                   const vjson = await vres.json();
                   vendorsList = (vjson?.data || []).map(v => ({ id: v._id || v.id, companyName: v.companyName, status: v.status, enabled: v.enabled }));
                 }
+                const ores = await fetch((process.env.REACT_APP_API_URL || '') + '/api/v1/orders/vendor?page=1&limit=5', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                if (ores.ok) {
+                  const ojson = await ores.json();
+                  vendorOrders = ojson?.data || [];
+                }
               } catch (_) {}
             }
-            setData({ dashboard: json.data, orders: json.data.recentOrders, products: json.data.topProducts, vendors: vendorsList, users: [] });
+            setData({ dashboard: json.data, orders: json.data.recentOrders, products: json.data.topProducts, vendors: vendorsList, vendorOrders, users: [] });
             return;
           }
         }
@@ -196,19 +202,35 @@ const Dashboard = () => {
           <div className="card">
             <h3>Recent Orders</h3>
             <div className="recent-orders">
-              {(Array.isArray(recentOrders) ? recentOrders : (Array.isArray(data.orders) ? data.orders : [])).map((order) => (
-                <div key={order._id || order.id} className="order-item">
-                  <div className="order-info">
-                    <strong>{order.orderNumber || order.id}</strong>
-                    <span className="order-amount">${Number(order.total || 0).toFixed(2)}</span>
+              {isVendor ? (
+                (data.vendorOrders || []).map((order) => (
+                  <div key={order.id} className="order-item">
+                    <div className="order-info">
+                      <strong>{order.orderNumber}</strong>
+                      <span className="order-amount">${Number(order.vendorSubtotal || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="order-status">
+                      <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}`}>
+                        {order.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="order-status">
-                    <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}`}>
-                      {order.status}
-                    </span>
+                ))
+              ) : (
+                (Array.isArray(recentOrders) ? recentOrders : (Array.isArray(data.orders) ? data.orders : [])).map((order) => (
+                  <div key={order._id || order.id} className="order-item">
+                    <div className="order-info">
+                      <strong>{order.orderNumber || order.id}</strong>
+                      <span className="order-amount">${Number(order.total || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="order-status">
+                      <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}`}>
+                        {order.status}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
