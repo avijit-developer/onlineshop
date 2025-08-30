@@ -20,6 +20,7 @@ const Categories = () => {
   const [expandedCategories, setExpandedCategories] = useState(new Set());
   const [filterEnabled, setFilterEnabled] = useState('all'); // all | enabled | disabled
   const [filterFeatured, setFilterFeatured] = useState('all'); // all | featured | not
+  const [groupByParent, setGroupByParent] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -659,12 +660,66 @@ const Categories = () => {
     const featuredOk = filterFeatured === 'all' || (filterFeatured === 'featured' ? cat.featured : !cat.featured);
     return enabledOk && featuredOk;
   });
-  const pagesCount = Math.max(1, Math.ceil(total / itemsPerPage));
+  // Build a flattened, logically grouped list (DFS by parent)
+  const sourceAll = (allCategories && allCategories.length > 0) ? allCategories : categories;
+  const idToNode = new Map(sourceAll.map(c => [c.id, { ...c, children: [] }]));
+  idToNode.forEach((node) => {
+    if (node.parentId && idToNode.has(node.parentId)) {
+      idToNode.get(node.parentId).children.push(node);
+    }
+  });
+  const sortNodes = (nodes) => nodes.sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0) || a.name.localeCompare(b.name));
+  idToNode.forEach(n => sortNodes(n.children));
+
+  const matchesFilters = (cat) => {
+    const enabledOk = filterEnabled === 'all' || (filterEnabled === 'enabled' ? cat.enabled : !cat.enabled);
+    const featuredOk = filterFeatured === 'all' || (filterFeatured === 'featured' ? cat.featured : !cat.featured);
+    const searchOk = !searchTerm || (cat.name?.toLowerCase().includes(searchTerm.toLowerCase()) || (cat.description||'').toLowerCase().includes(searchTerm.toLowerCase()));
+    return enabledOk && featuredOk && searchOk;
+  };
+
+  const includeSet = new Set();
+  if (groupByParent) {
+    // Mark nodes matching filters and include their ancestors to preserve logical structure
+    sourceAll.forEach(cat => {
+      if (matchesFilters(cat)) {
+        let cur = cat;
+        while (cur) {
+          includeSet.add(cur.id);
+          cur = cur.parentId ? idToNode.get(cur.parentId) : null;
+        }
+      }
+    });
+  }
+
+  const roots = [];
+  idToNode.forEach(node => {
+    const isRoot = !node.parentId || !idToNode.has(node.parentId);
+    if (isRoot) roots.push(node);
+  });
+  sortNodes(roots);
+
+  const flattened = [];
+  const dfs = (node, depth) => {
+    const shouldInclude = groupByParent ? includeSet.has(node.id) : matchesFilters(node);
+    if (shouldInclude) flattened.push({ ...node, displayDepth: depth });
+    node.children.forEach(child => dfs(child, depth + 1));
+  };
+  roots.forEach(r => dfs(r, 0));
+
+  const displayTotal = flattened.length;
+  const pagesCount = Math.max(1, Math.ceil(displayTotal / itemsPerPage));
 
   // Build display list with placeholders to keep consistent row count
   const displayCategories = (() => {
-    const rows = [...filteredCategories];
-    const deficit = Math.max(0, itemsPerPage - rows.length);
+    const start = (currentPage - 1) * itemsPerPage;
+    const rows = groupByParent ? flattened.slice(start, start + itemsPerPage) : (() => {
+      const tmp = [...filteredCategories];
+      const deficit = Math.max(0, itemsPerPage - tmp.length);
+      for (let i = 0; i < deficit; i++) { tmp.push({ id: `placeholder-${i}`, isPlaceholder: true }); }
+      return tmp;
+    })();
+    const deficit = groupByParent ? 0 : Math.max(0, itemsPerPage - rows.length);
     for (let i = 0; i < deficit; i++) {
       rows.push({ id: `placeholder-${i}`, isPlaceholder: true });
     }
@@ -694,6 +749,12 @@ const Categories = () => {
               Hierarchy View
             </button>
           </div>
+          {viewMode === 'table' && (
+            <label className="group-toggle">
+              <input type="checkbox" checked={groupByParent} onChange={e => { setGroupByParent(e.target.checked); setCurrentPage(1); }} />
+              <span>Group by parent</span>
+            </label>
+          )}
           <button onClick={handleAddCategory} className="btn btn-primary">
             Add Category
           </button>
@@ -774,6 +835,7 @@ const Categories = () => {
               <thead>
                 <tr>
                   <th>Category</th>
+                  <th>Type</th>
                   <th>Level</th>
                   <th>Parent</th>
                   <th>Path</th>
@@ -792,7 +854,7 @@ const Categories = () => {
                         {!category.isPlaceholder ? (
                           <>
                             <img src={category.image || '/default-category.png'} alt={category.name} className="category-image" />
-                            <div>
+                            <div style={{ paddingLeft: (category.displayDepth || 0) * 16 }}>
                               <strong>{category.name}</strong>
                               <small>{category.description}</small>
                             </div>
@@ -801,6 +863,13 @@ const Categories = () => {
                           <div className="placeholder-bar" />
                         )}
                       </div>
+                    </td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
+                      {!category.isPlaceholder ? (
+                        <span className={`type-badge ${category.parentId ? 'sub' : 'parent'}`}>
+                          {category.parentId ? 'Sub' : 'Parent'}
+                        </span>
+                      ) : ''}
                     </td>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
                       {!category.isPlaceholder ? (
