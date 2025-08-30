@@ -13,7 +13,11 @@ const VendorApplyScreen = ({ navigation }) => {
 		address2: '',
 		city: '',
 		zip: '',
-		address: ''
+		address: '',
+		useExistingVendorUser: false,
+		vendorUserEmail: '',
+		vendorUserName: '',
+		vendorUserPassword: ''
 	});
 	const [submitting, setSubmitting] = useState(false);
 
@@ -96,6 +100,39 @@ const VendorApplyScreen = ({ navigation }) => {
 						<Text style={styles.label}>Additional Address Info</Text>
 						<TextInput style={styles.input} value={form.address} onChangeText={v => update('address', v)} placeholder="Landmark, notes" />
 					</View>
+					<Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>Vendor User Link</Text>
+					<View style={styles.formGroup}>
+						<Text style={styles.label}>Use Existing Vendor User?</Text>
+						<View style={{ flexDirection: 'row', gap: 12 }}>
+							<TouchableOpacity onPress={() => update('useExistingVendorUser', true)} style={[styles.choice, form.useExistingVendorUser && styles.choiceActive]}>
+								<Text style={[styles.choiceText, form.useExistingVendorUser && styles.choiceTextActive]}>YES</Text>
+							</TouchableOpacity>
+							<TouchableOpacity onPress={() => update('useExistingVendorUser', false)} style={[styles.choice, !form.useExistingVendorUser && styles.choiceActive]}>
+								<Text style={[styles.choiceText, !form.useExistingVendorUser && styles.choiceTextActive]}>NO</Text>
+							</TouchableOpacity>
+						</View>
+					</View>
+					{form.useExistingVendorUser ? (
+						<View style={styles.formGroup}>
+							<Text style={styles.label}>Existing Vendor User Email *</Text>
+							<TextInput style={styles.input} value={form.vendorUserEmail} onChangeText={v => update('vendorUserEmail', v)} placeholder="existing@vendor.com" autoCapitalize="none" keyboardType="email-address" />
+						</View>
+					) : (
+						<>
+							<View style={styles.formGroup}>
+								<Text style={styles.label}>New Vendor User Name *</Text>
+								<TextInput style={styles.input} value={form.vendorUserName} onChangeText={v => update('vendorUserName', v)} placeholder="Contact Person Name" />
+							</View>
+							<View style={styles.formGroup}>
+								<Text style={styles.label}>New Vendor User Email *</Text>
+								<TextInput style={styles.input} value={form.vendorUserEmail} onChangeText={v => update('vendorUserEmail', v)} placeholder="user@company.com" autoCapitalize="none" keyboardType="email-address" />
+							</View>
+							<View style={styles.formGroup}>
+								<Text style={styles.label}>New Vendor User Password *</Text>
+								<TextInput style={styles.input} value={form.vendorUserPassword} onChangeText={v => update('vendorUserPassword', v)} placeholder="Minimum 8 characters" secureTextEntry />
+							</View>
+						</>
+					)}
 				</View>
 				<TouchableOpacity style={[styles.submitButton, submitting && { opacity: 0.7 }]} onPress={submit} disabled={submitting}>
 					<Text style={styles.submitText}>{submitting ? 'Submitting...' : 'Submit Application'}</Text>
@@ -118,6 +155,11 @@ const styles = StyleSheet.create({
 	input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff' },
 	submitButton: { backgroundColor: '#f7ab18', marginTop: 20, marginBottom: 30, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
 	submitText: { color: '#fff', fontWeight: '700' }
+,
+	choice: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#fff' },
+	choiceActive: { backgroundColor: '#fff9e6', borderColor: '#f7ab18' },
+	choiceText: { color: '#666', fontWeight: '600' },
+	choiceTextActive: { color: '#f7ab18' }
 });
 
 export default VendorApplyScreen;

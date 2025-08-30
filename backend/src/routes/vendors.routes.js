@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const { authenticate, requireAdmin, requireRole, requireAnyPermission, requirePermission } = require('../middleware/auth');
 const Vendor = require('../models/Vendor');
 const router = express.Router();
+const VendorUser = require('../models/VendorUser');
+const bcrypt = require('bcryptjs');
 // Public: customer can submit vendor application (creates pending vendor)
 router.post('/apply', authenticate, async (req, res) => {
   try {
@@ -20,7 +22,11 @@ router.post('/apply', authenticate, async (req, res) => {
       city,
       zip,
       address,
-      commission
+      commission,
+      useExistingVendorUser,
+      vendorUserEmail,
+      vendorUserName,
+      vendorUserPassword
     } = req.body || {};
 
     const applicantEmail = (email || req.user.email || '').trim().toLowerCase();
@@ -53,6 +59,36 @@ router.post('/apply', authenticate, async (req, res) => {
       status: 'pending',
       enabled: false
     });
+
+    // Handle vendor user association/creation logic
+    const wantsExisting = String(useExistingVendorUser || '').toLowerCase() === 'true' || useExistingVendorUser === true;
+    if (wantsExisting) {
+      const vuEmail = String(vendorUserEmail || '').trim().toLowerCase();
+      if (!isValidEmail(vuEmail)) {
+        res.status(400);
+        throw new Error('Valid vendor user email is required when using existing vendor user');
+      }
+      let vu = await VendorUser.findOne({ email: vuEmail });
+      if (vu) {
+        // assign vendor to existing vendor user
+        vu.vendors = Array.from(new Set([...(vu.vendors || []), created._id]));
+        if (!vu.vendor) vu.vendor = created._id; // legacy single vendor field if empty
+        await vu.save();
+      } else {
+        // create new vendor user if sufficient details provided
+        if (!vendorUserName || !vendorUserPassword || String(vendorUserPassword).length < 8) {
+          res.status(400);
+          throw new Error('Vendor user not found. Provide name and a password (min 8 chars) to create one.');
+        }
+        const passwordHash = await bcrypt.hash(String(vendorUserPassword), 10);
+        await VendorUser.create({
+          name: String(vendorUserName).trim(),
+          email: vuEmail,
+          passwordHash,
+          vendors: [created._id],
+        });
+      }
+    }
 
     res.status(201).json({ success: true, data: created });
   } catch (e) {
