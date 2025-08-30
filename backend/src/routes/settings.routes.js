@@ -1,5 +1,7 @@
 const express = require('express');
 const Coupon = require('../models/Coupon');
+const Settings = require('../models/Settings');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -33,4 +35,24 @@ router.get('/shipping/public', async (req, res) => {
 });
 
 module.exports = router;
+// Admin: get full settings
+router.get('/', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const doc = await Settings.findOne();
+    res.json({ success: true, data: doc || {} });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to load settings' });
+  }
+});
+
+// Admin: upsert settings
+router.put('/', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const updated = await Settings.findOneAndUpdate({}, payload, { new: true, upsert: true, setDefaultsOnInsert: true });
+    res.json({ success: true, data: updated });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to save settings' });
+  }
+});
 

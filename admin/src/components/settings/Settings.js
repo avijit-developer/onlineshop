@@ -35,10 +35,15 @@ const Settings = () => {
 
   const fetchSettings = async () => {
     try {
-      // Simulate API call
-      setTimeout(() => {
-        setLoading(false);
-      }, 1000);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch((process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api/v1/settings', {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data) setSettings(prev => ({ ...prev, ...json.data }));
+      }
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching settings:', error);
       toast.error('Failed to load settings');
@@ -49,8 +54,16 @@ const Settings = () => {
   const handleSave = async (category) => {
     setSaving(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch((process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api/v1/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify(settings)
+      });
+      if (!res.ok) throw new Error('Save failed');
       toast.success(`${category} settings saved successfully`);
     } catch (error) {
       console.error('Error saving settings:', error);
