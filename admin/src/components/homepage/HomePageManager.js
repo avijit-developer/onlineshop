@@ -27,7 +27,8 @@ const HomePageManager = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSections(data.data);
+        const cleaned = (data.data || []).filter(s => String(s.title).toLowerCase() !== 'new arrivals');
+        setSections(cleaned);
       }
     } catch (error) {
       toast.error('Failed to load sections');
@@ -202,7 +203,7 @@ const HomePageManager = () => {
       )}
 
       <div className="sections-grid">
-        {sections.map(section => (
+        {sections.filter(s => String(s.title).toLowerCase() !== 'new arrivals').map(section => (
           <div key={section._id} className="section-card">
             <div className="section-header">
               <div className="section-info">
