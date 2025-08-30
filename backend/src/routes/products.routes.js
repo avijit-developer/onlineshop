@@ -245,6 +245,25 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
   res.json({ success: true, data: updated });
 });
 
+// Inventory: Update stock and low stock threshold (admin/vendor)
+router.patch('/:id/inventory', authenticate, requireRole(['admin','vendor']), requireAnyPermission(['products.edit','products.view']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stock, lowStockAlert } = req.body || {};
+    const product = await Product.findById(id);
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+    if (req.user.role === 'vendor' && String(product.vendor) !== String(req.user.vendorId)) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+    if (stock != null) product.stock = Number(stock);
+    if (lowStockAlert != null) product.lowStockAlert = Number(lowStockAlert);
+    await product.save();
+    res.json({ success: true, data: { id: product._id, stock: product.stock, lowStockAlert: product.lowStockAlert || 10 } });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to update inventory' });
+  }
+});
+
 // DELETE /products/:id
 router.delete('/:id', authenticate, requireRole(['admin','vendor']), requirePermission('products.delete'), async (req, res) => {
   const { id } = req.params;

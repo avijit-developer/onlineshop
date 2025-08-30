@@ -31,11 +31,30 @@ const Inventory = () => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/data.json');
-      const data = await response.json();
-      setProducts(data.products || []);
-      setCategories(data.categories || []);
-      setVendors(data.vendors || []);
+      const token = localStorage.getItem('adminToken');
+      const base = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const [prodRes, catRes, venRes] = await Promise.all([
+        fetch(`${base}/api/v1/products?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
+        fetch(`${base}/api/v1/categories?parent=all&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
+        fetch(`${base}/api/v1/vendors?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+      ]);
+      const [prodJson, catJson, venJson] = await Promise.all([prodRes.json(), catRes.json(), venRes.json()]);
+      if (!prodRes.ok) throw new Error(prodJson?.message || 'Failed to load products');
+      const prods = (prodJson.data || []).map(p => ({
+        id: p._id || p.id,
+        name: p.name,
+        sku: p.sku,
+        images: p.images || [],
+        categoryId: p.category?._id || p.category || null,
+        vendorId: p.vendor?._id || p.vendor || null,
+        regularPrice: p.regularPrice,
+        specialPrice: p.specialPrice,
+        stock: p.stock || 0,
+        lowStockAlert: p.lowStockAlert || 10
+      }));
+      setProducts(prods);
+      if (catRes.ok) setCategories((catJson.data || []).map(c => ({ id: c._id || c.id, name: c.name })));
+      if (venRes.ok) setVendors((venJson.data || []).map(v => ({ id: v._id || v.id, companyName: v.companyName })));
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -92,44 +111,53 @@ const Inventory = () => {
     setShowStockModal(true);
   };
 
-  const updateStock = () => {
-    if (selectedProduct) {
-      const updatedProducts = products.map(product =>
-        product.id === selectedProduct.id 
-          ? { 
-              ...product, 
-              stock: parseInt(stockUpdate.quantity),
-              lowStockAlert: parseInt(stockUpdate.lowStockAlert),
-              updatedAt: new Date().toISOString()
-            }
-          : product
-      );
-      setProducts(updatedProducts);
+  const updateStock = async () => {
+    if (!selectedProduct) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const base = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${base}/api/v1/products/${selectedProduct.id}/inventory`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ stock: Number(stockUpdate.quantity), lowStockAlert: Number(stockUpdate.lowStockAlert) })
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) throw new Error(json?.message || 'Failed to update');
+      setProducts(prev => prev.map(p => p.id === selectedProduct.id ? { ...p, stock: Number(stockUpdate.quantity), lowStockAlert: Number(stockUpdate.lowStockAlert) } : p));
       setShowStockModal(false);
       toast.success('Stock updated successfully');
+    } catch (e) {
+      toast.error(e?.message || 'Failed to update stock');
     }
   };
 
-  const bulkUpdateStock = (action, value) => {
-    const updatedProducts = products.map(product => {
-      let newStock = product.stock;
-      switch (action) {
-        case 'add':
-          newStock = product.stock + parseInt(value);
-          break;
-        case 'subtract':
-          newStock = Math.max(0, product.stock - parseInt(value));
-          break;
-        case 'set':
-          newStock = parseInt(value);
-          break;
-        default:
-          break;
-      }
-      return { ...product, stock: newStock, updatedAt: new Date().toISOString() };
-    });
-    setProducts(updatedProducts);
-    toast.success('Bulk stock update completed');
+  const bulkUpdateStock = async (action, value) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const base = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const updates = products.map(p => {
+        let newStock = p.stock;
+        const qty = Number(value);
+        if (action === 'add') newStock = p.stock + qty;
+        else if (action === 'subtract') newStock = Math.max(0, p.stock - qty);
+        else if (action === 'set') newStock = qty;
+        return { id: p.id, stock: newStock, lowStockAlert: p.lowStockAlert || 10 };
+      });
+      await Promise.all(updates.map(async u => {
+        const res = await fetch(`${base}/api/v1/products/${u.id}/inventory`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+          body: JSON.stringify({ stock: u.stock, lowStockAlert: u.lowStockAlert })
+        });
+        if (!res.ok) throw new Error('Failed one of updates');
+      }));
+      setProducts(prev => prev.map(p => {
+        const u = updates.find(x => x.id === p.id);
+        return u ? { ...p, stock: u.stock } : p;
+      }));
+      toast.success('Bulk stock update completed');
+    } catch (e) {
+      toast.error(e?.message || 'Bulk update failed');
+    }
   };
 
   const exportInventory = () => {

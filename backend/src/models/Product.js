@@ -7,6 +7,7 @@ const variantSchema = new mongoose.Schema(
     price: { type: Number },
     specialPrice: { type: Number },
     stock: { type: Number, default: 0 },
+    lowStockAlert: { type: Number, default: 10 },
     images: { type: [String], default: [] },
     imagePublicIds: { type: [String], default: [] }
   },
