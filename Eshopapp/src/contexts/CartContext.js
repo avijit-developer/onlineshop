@@ -288,15 +288,19 @@ export const CartProvider = ({ children }) => {
       }
 
       console.log('Clearing cart via database');
-      const response = await api.clearUserCart();
-      if (response && response.success) {
-        // Immediately clear the local state for instant UI update
-        setCartItems([]);
-        setCartCoupon(null);
-        console.log('Cart cleared successfully, local state updated');
-      } else {
-        console.log('Failed to clear cart in database');
+      try {
+        const response = await api.clearUserCart();
+        if (!response || !response.success) {
+          console.log('Clear cart response not successful, proceeding to clear local state');
+        }
+      } catch (e) {
+        // Treat 404 or network issues as idempotent success for local UI
+        console.log('Clear cart API error treated as success:', e?.message || e);
       }
+      // Immediately clear the local state for instant UI update
+      setCartItems([]);
+      setCartCoupon(null);
+      console.log('Cart cleared (local state updated)');
       
     } catch (error) {
       console.log('Error clearing cart:', error);

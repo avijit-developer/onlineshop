@@ -211,11 +211,15 @@ router.delete('/me', authenticate, requireRole(['customer']), async (req, res) =
   try {
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) {
-      return res.status(404).json({ success: false, message: 'Cart not found' });
+      // Idempotent: nothing to clear
+      return res.json({ success: true, data: { items: [], couponCode: null, couponDiscount: 0, freeShippingApplied: false } });
     }
 
     // Clear cart using the model method
     cart.clearCart();
+    cart.couponCode = null;
+    cart.couponDiscount = 0;
+    cart.freeShippingApplied = false;
     await cart.save();
 
     res.json({ success: true, data: cart });
