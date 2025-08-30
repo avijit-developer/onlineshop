@@ -319,10 +319,16 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     try {
-      if (!isAuthenticated) {
-        console.log('User not authenticated, cannot clear cart');
-        return;
+      // Proceed if either context auth is true OR a stored token exists
+      let canProceed = isAuthenticated;
+      if (!canProceed) {
+        const storedToken = await AsyncStorage.getItem('authToken');
+        if (storedToken) {
+          setIsAuthenticated(true);
+          canProceed = true;
+        }
       }
+      if (!canProceed) { console.log('User not authenticated, cannot clear cart'); return; }
 
       console.log('Clearing cart via database');
       try {
