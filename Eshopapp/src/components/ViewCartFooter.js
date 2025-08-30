@@ -78,14 +78,11 @@ const ViewCartFooter = () => {
         styles.container,
         {
           transform: [{ translateY: slideAnim }]
-        }
+        },
+        hidden && { height: 0, opacity: 0, pointerEvents: 'none' }
       ]}
     >
-      {hidden ? (
-        <View style={{ height: 0 }} />
-      ) : (
-      <>
-      <View style={styles.cartInfo}>
+      <View style={[styles.cartInfo, hidden && { display: 'none' }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -130,12 +127,10 @@ const ViewCartFooter = () => {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
+      <TouchableOpacity style={[styles.viewCartButton, hidden && { display: 'none' }]} onPress={handleViewCart}>
         <Text style={styles.viewCartText}>View Cart</Text>
         <Icon name="arrow-forward-outline" size={16} color="#fff" />
       </TouchableOpacity>
-      </>
-      )}
     </Animated.View>
   );
 };
