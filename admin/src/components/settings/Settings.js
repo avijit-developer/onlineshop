@@ -10,59 +10,22 @@ const Settings = () => {
   // Settings state
   const [settings, setSettings] = useState({
     general: {
-      siteName: 'MultiVendor Store',
-      siteDescription: 'Your trusted multi-vendor marketplace',
-      siteLogo: '',
-      favicon: '',
-      contactEmail: 'admin@multivendor.com',
-      contactPhone: '+1 (555) 123-4567',
-      address: '123 Commerce St, Business City, BC 12345'
+      siteName: '',
+      siteDescription: '',
+      contactEmail: '',
+      contactPhone: '',
+      address: ''
     },
     localization: {
-      timezone: 'UTC',
       dateFormat: 'MM/DD/YYYY',
       timeFormat: '12',
-      currency: 'USD',
-      currencySymbol: '$',
-      language: 'en',
+      currency: 'INR',
+      currencySymbol: '₹',
       decimalPlaces: 2
-    },
-    email: {
-      smtpHost: 'smtp.gmail.com',
-      smtpPort: '587',
-      smtpUsername: '',
-      smtpPassword: '',
-      fromEmail: 'noreply@multivendor.com',
-      fromName: 'MultiVendor Store',
-      emailVerification: true,
-      orderNotifications: true,
-      marketingEmails: false
-    },
-    payment: {
-      stripeEnabled: true,
-      stripePublishableKey: '',
-      stripeSecretKey: '',
-      paypalEnabled: true,
-      paypalClientId: '',
-      paypalSecret: '',
-      commissionRate: 10,
-      minimumPayout: 50
     },
     shipping: {
       freeShippingThreshold: 100,
-      defaultShippingCost: 10,
-      shippingZones: [
-        { name: 'Local', cost: 5, countries: ['US'] },
-        { name: 'International', cost: 25, countries: ['CA', 'MX', 'UK'] }
-      ]
-    },
-    vendor: {
-      autoApproval: false,
-      commissionRate: 10,
-      minimumBalance: 50,
-      maxProducts: 1000,
-      requireVerification: true,
-      allowWithdrawals: true
+      defaultShippingCost: 10
     }
   });
 
@@ -287,6 +250,7 @@ const Settings = () => {
                       <option value="GBP">British Pound (£)</option>
                       <option value="CAD">Canadian Dollar (C$)</option>
                       <option value="JPY">Japanese Yen (¥)</option>
+                      <option value="INR">Indian Rupee (₹)</option>
                     </select>
                   </div>
                   
@@ -296,7 +260,7 @@ const Settings = () => {
                       type="text"
                       value={settings.localization.currencySymbol}
                       onChange={(e) => handleInputChange('localization', 'currencySymbol', e.target.value)}
-                      placeholder="$"
+                      placeholder={settings.localization.currency === 'INR' ? '₹' : '$'}
                     />
                   </div>
                   

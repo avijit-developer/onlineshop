@@ -6,6 +6,7 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Layout = ({ children, user, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [marketplaceOpen, setMarketplaceOpen] = useState(true);
   const [realTimePermissions, setRealTimePermissions] = useState(new Set());
   const [loadingPermissions, setLoadingPermissions] = useState(false);
   const location = useLocation();
@@ -91,11 +92,12 @@ const Layout = ({ children, user, onLogout }) => {
             if (item.children && item.children.length > 0) {
               return (
                 <div key={item.label} className="nav-group">
-                  <div className="nav-item nav-group-header">
+                  <button type="button" className="nav-item nav-group-header" onClick={() => setMarketplaceOpen(v => !v)}>
                     <span className="nav-icon">{item.icon}</span>
                     <span className="nav-label">{item.label}</span>
-                  </div>
-                  <div className="nav-group-children">
+                    <span style={{ marginLeft: 'auto' }}>{marketplaceOpen ? '▾' : '▸'}</span>
+                  </button>
+                  <div className="nav-group-children" style={{ display: marketplaceOpen ? 'block' : 'none' }}>
                     {item.children.map(child => (
                       <Link
                         key={child.path}
