@@ -47,17 +47,8 @@ export default function Header() {
 
       {/* Icons */}
       <View style={styles.iconContainer}>
-        {/* <TouchableOpacity style={styles.iconWrapper}>
-          <Icon name="reader-outline" size={18} color="#3F3F3F" />
-        </TouchableOpacity> */}
-        <TouchableOpacity style={styles.iconWrapper}>
-          <View>
-            <Icon name="list-outline" size={18} color="#3F3F3F" />
-            <View style={styles.dot} />
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.iconWrapper}>
-          <Icon name="settings-outline" size={18} color="#3F3F3F" />
+        <TouchableOpacity style={styles.iconWrapper} onPress={() => navigation.navigate('OrderList')}>
+          <Icon name="receipt-outline" size={18} color="#3F3F3F" />
         </TouchableOpacity>
       </View>
     </View>
