@@ -39,6 +39,11 @@ const Orders = () => {
     fetchData();
   }, []);
 
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem('adminUser') || 'null'); } catch { return null; }
+  })();
+  const isVendor = currentUser?.role === 'vendor';
+
   const getAuthHeaders = () => {
     const token = localStorage.getItem('adminToken');
     return { Authorization: token ? `Bearer ${token}` : '' };
@@ -54,13 +59,15 @@ const Orders = () => {
       const token = localStorage.getItem('adminToken');
       let loadedFromBackend = false;
       try {
+        const ordersEndpoint = isVendor ? `${baseUrl}/api/v1/orders/vendor?page=1&limit=1000` : `${baseUrl}/api/v1/orders`;
         const [resp, venRes] = await Promise.all([
-          fetch(`${baseUrl}/api/v1/orders`, { headers: getAuthHeaders() }),
+          fetch(ordersEndpoint, { headers: getAuthHeaders() }),
           fetch(`${baseUrl}/api/v1/vendors?page=1&limit=1000`, { headers: getAuthHeaders() }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
         ]);
         if (resp.ok) {
           const json = await resp.json();
           if (json?.success) {
+            // Vendor API returns mapped objects with id and vendor totals
             setOrders(json.data || []);
             loadedFromBackend = true;
           }
@@ -240,11 +247,16 @@ const Orders = () => {
   };
 
   const getCustomerName = (order) => {
-    if (order.user && (order.user.name || order.user.email)) {
-      return order.user.name || order.user.email;
-    }
-    const customer = customers.find(c => c.id === order.customerId);
-    return customer ? customer.name : 'Unknown Customer';
+    try {
+      if (order.user && (order.user.name || order.user.email)) {
+        return order.user.name || order.user.email;
+      }
+      if (order.customer && (order.customer.name || order.customer.email)) {
+        return order.customer.name || order.customer.email;
+      }
+    } catch (_) {}
+    const customer = customers.find(c => (c.id === order.customerId));
+    return customer ? customer.name : (order.customerEmail || 'Unknown Customer');
   };
 
   const getVendorName = (order) => {
@@ -280,9 +292,15 @@ const Orders = () => {
   };
 
   const calculateOrderTotal = (order) => {
-    const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const tax = (subtotal * order.tax) / 100;
-    const shipping = order.shippingCost || 0;
+    if (isVendor) {
+      // Use vendorSubtotal if present (from vendor endpoint), otherwise fallback compute
+      const subtotal = Number(order.vendorSubtotal || 0);
+      const shipping = Number(order.vendorShipping || 0);
+      return subtotal + shipping; // taxeshandledplatform-wide; keep simple for vendor view
+    }
+    const subtotal = (order.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+    const tax = (subtotal * Number(order.tax || 0)) / 100;
+    const shipping = Number(order.shippingCost || 0);
     return subtotal + tax + shipping;
   };
 
@@ -409,11 +427,11 @@ const Orders = () => {
           </thead>
           <tbody>
             {currentOrders.map((order) => (
-              <tr key={order.id}>
+              <tr key={order._id || order.id}>
                 <td>
                   <div className="order-info">
-                    <strong>#{order.orderNumber}</strong>
-                    <small>{order.paymentMethod}</small>
+                    <strong>#{order.orderNumber || order.id}</strong>
+                    <small>{order.paymentMethod || ''}</small>
                   </div>
                 </td>
                 <td>
@@ -425,7 +443,7 @@ const Orders = () => {
                 <td>{getVendorName(order)}</td>
                 <td>
                   <span className="items-count">
-                    {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                    {(order.items || []).length} item{(order.items || []).length !== 1 ? 's' : ''}
                   </span>
                 </td>
                 <td>
@@ -438,8 +456,8 @@ const Orders = () => {
                 </td>
                 <td>
                   <div className="date-info">
-                    <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                    <small>{new Date(order.createdAt).toLocaleTimeString()}</small>
+                    <span>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''}</span>
+                    <small>{order.createdAt ? new Date(order.createdAt).toLocaleTimeString() : ''}</small>
                   </div>
                 </td>
                 <td>
