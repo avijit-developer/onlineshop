@@ -64,7 +64,13 @@ function App() {
         <Routes>
           <Route 
             path="/admin" 
-            element={<Navigate to="/login" replace />} 
+            element={
+              isAuthenticated ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } 
           />
           <Route 
             path="/login" 
@@ -88,13 +94,7 @@ function App() {
           />
           <Route 
             path="/" 
-            element={
-              isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
+            element={<Navigate to="/admin" replace />} 
           />
           <Route 
             path="/dashboard" 
