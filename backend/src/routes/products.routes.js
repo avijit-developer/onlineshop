@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
+const Review = require('../models/Review');
 const Category = require('../models/Category');
 const Brand = require('../models/Brand');
 const Vendor = require('../models/Vendor');
@@ -859,6 +860,34 @@ router.get('/:id/public', async (req, res) => {
     res.json({ success: true, data: product });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to fetch product' });
+  }
+});
+
+// Public: Get product reviews (approved only)
+router.get('/:id/reviews/public', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 10, rating } = req.query;
+    const filters = { product: id, status: 'approved' };
+    if (rating) filters.rating = Number(rating);
+    const p = Math.max(parseInt(page, 10) || 1, 1);
+    const l = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
+    const [items, total] = await Promise.all([
+      Review.find(filters).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email').lean(),
+      Review.countDocuments(filters)
+    ]);
+    const mapped = items.map(r => ({
+      id: r._id,
+      reviewerName: r.user?.name || r.user?.email || 'Customer',
+      rating: r.rating,
+      title: r.title,
+      comment: r.comment,
+      createdAt: r.createdAt,
+      images: r.images || []
+    }));
+    res.json({ success: true, data: mapped, meta: { total, page: p, limit: l } });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to load product reviews' });
   }
 });
 

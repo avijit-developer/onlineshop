@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
+import api from '../utils/api';
 
 const ProductReviews = ({ productId, onReviewPress }) => {
   const [reviews, setReviews] = useState([]);
@@ -10,43 +11,23 @@ const ProductReviews = ({ productId, onReviewPress }) => {
 
   useEffect(() => {
     if (productId) {
-      loadMockReviews();
+      loadReviews();
     }
   }, [productId]);
 
-  const loadMockReviews = () => {
-    setLoading(true);
-    // Simulate API call delay
-    setTimeout(() => {
-      const mockReviews = [
-        {
-          id: '1',
-          reviewerName: 'John Doe',
-          rating: 5,
-          title: 'Excellent Product!',
-          comment: 'This product exceeded my expectations. Great quality and fast delivery. Highly recommended!',
-          createdAt: new Date('2024-08-20')
-        },
-        {
-          id: '2',
-          reviewerName: 'Sarah Smith',
-          rating: 4,
-          title: 'Very Good Quality',
-          comment: 'Good product with nice features. The only minor issue is the packaging could be better.',
-          createdAt: new Date('2024-08-18')
-        },
-        {
-          id: '3',
-          reviewerName: 'Mike Johnson',
-          rating: 5,
-          title: 'Perfect for my needs',
-          comment: 'Exactly what I was looking for. Great value for money and excellent customer service.',
-          createdAt: new Date('2024-08-15')
-        }
-      ];
-      setReviews(mockReviews);
+  const loadReviews = async () => {
+    try {
+      setLoading(true);
+      const res = await api.getProductReviewsPublic(productId, { page: 1, limit: 20 });
+      const items = res?.data || [];
+      // Normalize createdAt to Date objects for display
+      const mapped = items.map(r => ({ ...r, createdAt: new Date(r.createdAt) }));
+      setReviews(mapped);
+    } catch (e) {
+      setReviews([]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const renderReviewItem = ({ item }) => (

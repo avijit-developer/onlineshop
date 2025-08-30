@@ -23,13 +23,39 @@ const Reviews = () => {
 
   const fetchReviews = async () => {
     try {
-      // Generate sample reviews data
-      const sampleReviews = generateSampleReviews();
-      setReviews(sampleReviews);
-      setLoading(false);
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams();
+      if (filterStatus !== 'all') params.append('status', filterStatus);
+      if (filterRating !== 'all') params.append('rating', filterRating);
+      if (searchTerm) params.append('q', searchTerm);
+      const resp = await fetch(`${baseUrl}/api/v1/reviews?${params.toString()}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (!resp.ok) throw new Error('Failed');
+      const json = await resp.json();
+      if (json?.success) {
+        const items = (json.data || []).map(r => ({
+          id: r._id || r.id,
+          customerName: r.user?.name || r.user?.email || 'Customer',
+          customerEmail: r.user?.email || '',
+          productName: r.product?.name || 'Product',
+          vendorName: (r.product?.vendor?.companyName) || r.vendorName || 'Vendor',
+          rating: r.rating,
+          title: r.title,
+          comment: r.comment,
+          status: r.status,
+          isVerified: r.isVerified,
+          helpfulCount: r.helpfulCount || 0,
+          createdAt: r.createdAt,
+          images: r.images || []
+        }));
+        setReviews(items);
+      } else {
+        throw new Error('Failed');
+      }
     } catch (error) {
       console.error('Error fetching reviews:', error);
       toast.error('Failed to load reviews');
+    } finally {
       setLoading(false);
     }
   };
@@ -114,21 +140,36 @@ const Reviews = () => {
     ];
   };
 
-  const handleStatusChange = (reviewId, newStatus) => {
-    const updatedReviews = reviews.map(review => 
-      review.id === reviewId 
-        ? { ...review, status: newStatus }
-        : review
-    );
-    setReviews(updatedReviews);
-    toast.success(`Review ${newStatus} successfully`);
+  const handleStatusChange = async (reviewId, newStatus) => {
+    try {
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/reviews/${reviewId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const json = await resp.json();
+      if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed');
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, status: newStatus } : r));
+      toast.success(`Review ${newStatus} successfully`);
+    } catch (e) {
+      toast.error('Failed to update review status');
+    }
   };
 
-  const handleDelete = (reviewId) => {
-    if (window.confirm('Are you sure you want to delete this review?')) {
-      const updatedReviews = reviews.filter(review => review.id !== reviewId);
-      setReviews(updatedReviews);
+  const handleDelete = async (reviewId) => {
+    if (!window.confirm('Are you sure you want to delete this review?')) return;
+    try {
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/reviews/${reviewId}`, { method: 'DELETE', headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const json = await resp.json();
+      if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed');
+      setReviews(prev => prev.filter(review => review.id !== reviewId));
       toast.success('Review deleted successfully');
+    } catch (e) {
+      toast.error('Failed to delete review');
     }
   };
 
