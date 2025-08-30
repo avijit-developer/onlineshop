@@ -243,11 +243,27 @@ export const CartProvider = ({ children }) => {
       }
 
       console.log('Removing item from cart via database:', cartId);
-      const response = await api.removeFromUserCart(cartId);
-      if (response && response.success) {
-        await loadCart(true);
-      } else {
-        console.log('Failed to remove item from cart in database');
+      // Optimistic UI update
+      const prevItems = cartItems;
+      const prevCoupon = cartCoupon;
+      setCartItems(prev => prev.filter(item => item.cartId === cartId ? false : true));
+      // Invalidate coupon locally to mirror backend behavior on cart changes
+      setCartCoupon(null);
+
+      try {
+        const response = await api.removeFromUserCart(cartId);
+        if (response && response.success) {
+          await loadCart(true);
+        } else {
+          console.log('Failed to remove item from cart in database');
+          // Revert on failure
+          setCartItems(prevItems);
+          setCartCoupon(prevCoupon);
+        }
+      } catch (e) {
+        // Revert on error
+        setCartItems(prevItems);
+        setCartCoupon(prevCoupon);
       }
       
     } catch (error) {
@@ -268,11 +284,27 @@ export const CartProvider = ({ children }) => {
       }
 
       console.log('Updating quantity via database:', cartId, quantity);
-      const response = await api.updateUserCartItem(cartId, quantity);
-      if (response && response.success) {
-        await loadCart(true);
-      } else {
-        console.log('Failed to update quantity in database');
+      // Optimistic UI update
+      const prevItems = cartItems;
+      const prevCoupon = cartCoupon;
+      setCartItems(prev => prev.map(item => item.cartId === cartId ? { ...item, quantity } : item));
+      // Invalidate coupon locally to mirror backend behavior
+      setCartCoupon(null);
+
+      try {
+        const response = await api.updateUserCartItem(cartId, quantity);
+        if (response && response.success) {
+          await loadCart(true);
+        } else {
+          console.log('Failed to update quantity in database');
+          // Revert on failure
+          setCartItems(prevItems);
+          setCartCoupon(prevCoupon);
+        }
+      } catch (e) {
+        // Revert on error
+        setCartItems(prevItems);
+        setCartCoupon(prevCoupon);
       }
       
     } catch (error) {
