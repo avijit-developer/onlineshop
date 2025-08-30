@@ -146,6 +146,7 @@
   font-size: 14px;
   color: #333;
 }
+.path-text { color: #64748b; }
 
 .category-info small {
   font-size: 12px;
@@ -952,6 +953,14 @@
   display: inline-flex;
   gap: 8px;
   align-items: center;
+}
+.quick-filter-select {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 13px;
 }
 
 .placeholder-cell {

@@ -18,6 +18,8 @@ const Categories = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'hierarchy'
   const [expandedCategories, setExpandedCategories] = useState(new Set());
+  const [filterEnabled, setFilterEnabled] = useState('all'); // all | enabled | disabled
+  const [filterFeatured, setFilterFeatured] = useState('all'); // all | featured | not
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -235,6 +237,21 @@ const Categories = () => {
       name: '',
       description: '',
       parentId: '',
+      image: '',
+      featured: false,
+      sortOrder: 0,
+      enabled: true
+    });
+    setImageFile(null);
+    setShowAddModal(true);
+  };
+
+  const handleAddChild = (parentCategory) => {
+    setSelectedCategory(null);
+    setFormData({
+      name: '',
+      description: '',
+      parentId: parentCategory?.id || '',
       image: '',
       featured: false,
       sortOrder: 0,
@@ -637,11 +654,16 @@ const Categories = () => {
   };
 
   const currentCategories = categories;
+  const filteredCategories = currentCategories.filter(cat => {
+    const enabledOk = filterEnabled === 'all' || (filterEnabled === 'enabled' ? cat.enabled : !cat.enabled);
+    const featuredOk = filterFeatured === 'all' || (filterFeatured === 'featured' ? cat.featured : !cat.featured);
+    return enabledOk && featuredOk;
+  });
   const pagesCount = Math.max(1, Math.ceil(total / itemsPerPage));
 
   // Build display list with placeholders to keep consistent row count
   const displayCategories = (() => {
-    const rows = [...currentCategories];
+    const rows = [...filteredCategories];
     const deficit = Math.max(0, itemsPerPage - rows.length);
     for (let i = 0; i < deficit; i++) {
       rows.push({ id: `placeholder-${i}`, isPlaceholder: true });
@@ -689,6 +711,26 @@ const Categories = () => {
               {searchTerm && (
                 <button className="btn btn-secondary" onClick={() => { setPendingSearch(''); setSearchTerm(''); setCurrentPage(1); }}>Clear</button>
               )}
+              <select
+                value={filterEnabled}
+                onChange={(e) => { setFilterEnabled(e.target.value); setCurrentPage(1); }}
+                className="quick-filter-select"
+                title="Filter by status"
+              >
+                <option value="all">All Status</option>
+                <option value="enabled">Enabled</option>
+                <option value="disabled">Disabled</option>
+              </select>
+              <select
+                value={filterFeatured}
+                onChange={(e) => { setFilterFeatured(e.target.value); setCurrentPage(1); }}
+                className="quick-filter-select"
+                title="Filter by featured"
+              >
+                <option value="all">All</option>
+                <option value="featured">Featured</option>
+                <option value="not">Not Featured</option>
+              </select>
             </div>
           </div>
         </div>
@@ -734,7 +776,7 @@ const Categories = () => {
                   <th>Category</th>
                   <th>Level</th>
                   <th>Parent</th>
-                  <th>Products</th>
+                  <th>Path</th>
                   <th>Subcategories</th>
                   <th>Featured</th>
                   <th>Enabled</th>
@@ -770,7 +812,11 @@ const Categories = () => {
                       )}
                     </td>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? getParentName(category.parentId) : ''}</td>
-                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? getProductCount(category.id) : ''}</td>
+                    <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
+                      {!category.isPlaceholder ? (
+                        <small className="path-text">{getCategoryPath(category.id)}</small>
+                      ) : ''}
+                    </td>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? getSubcategories(category.id).length : ''}</td>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
                       {!category.isPlaceholder ? (
@@ -781,9 +827,17 @@ const Categories = () => {
                     </td>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
                       {!category.isPlaceholder ? (
-                        <span className={`enabled-badge ${category.enabled ? 'enabled' : 'disabled'}`}>
-                          {category.enabled ? 'Enabled' : 'Disabled'}
-                        </span>
+                        <div className="toggle-container">
+                          <label className="toggle-switch">
+                            <input
+                              type="checkbox"
+                              checked={category.enabled}
+                              onChange={() => toggleEnabled(category.id)}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                          <span className="toggle-label">{category.enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
                       ) : ''}
                     </td>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>{!category.isPlaceholder ? (category.sortOrder || 0) : ''}</td>
@@ -796,17 +850,12 @@ const Categories = () => {
                           >
                             Edit
                           </button>
-                          <div className="toggle-container">
-                            <label className="toggle-switch">
-                              <input
-                                type="checkbox"
-                                checked={category.enabled}
-                                onChange={() => toggleEnabled(category.id)}
-                              />
-                              <span className="toggle-slider"></span>
-                            </label>
-                            <span className="toggle-label">{category.enabled ? 'Enabled' : 'Disabled'}</span>
-                          </div>
+                          <button
+                            onClick={() => handleAddChild(category)}
+                            className="btn btn-primary btn-sm"
+                          >
+                            Add Sub
+                          </button>
                           <button
                             onClick={() => handleDeleteCategory(category.id)}
                             className="btn btn-danger btn-sm"
