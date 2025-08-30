@@ -10,8 +10,7 @@ import {
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || 'http://10.0.2.2:5000';
+import api, { API_BASE } from '../utils/api';
 
 const ITEM_WIDTH = width * 0.9;
 
