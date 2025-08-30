@@ -144,10 +144,16 @@ router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit'
   
   // If user is a vendor, only show their own vendor information
   if (req.user.role === 'vendor') {
-    // For now, keep the single vendorId logic, but we'll need to update this for multi-vendor support
-    filters._id = new mongoose.Types.ObjectId(req.user.vendorId);
-    console.log('Vendor user - filtering to own vendor:', req.user.vendorId);
-    console.log('Vendor user - full user object:', req.user);
+    const vendorIds = Array.isArray(req.user.vendors) && req.user.vendors.length > 0
+      ? req.user.vendors
+      : (req.user.vendorId ? [req.user.vendorId] : []);
+    if (vendorIds.length > 0) {
+      filters._id = { $in: vendorIds.map(id => new mongoose.Types.ObjectId(id)) };
+    } else {
+      // No vendors associated; return empty
+      filters._id = { $in: [] };
+    }
+    console.log('Vendor user - filtering to own vendors:', vendorIds);
   }
   
   if (status !== 'all') filters.status = status;
