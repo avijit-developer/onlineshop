@@ -88,6 +88,25 @@ router.post('/apply', authenticate, async (req, res) => {
           vendors: [created._id],
         });
       }
+    } else {
+      // NO to using existing vendor user: create a new vendor user WITHOUT vendors/role
+      const vuEmail = String(vendorUserEmail || '').trim().toLowerCase();
+      if (isValidEmail(vuEmail)) {
+        let vu = await VendorUser.findOne({ email: vuEmail });
+        if (!vu) {
+          if (!vendorUserName || !vendorUserPassword || String(vendorUserPassword).length < 8) {
+            // optional: silently skip creation if insufficient data
+          } else {
+            const passwordHash = await bcrypt.hash(String(vendorUserPassword), 10);
+            await VendorUser.create({
+              name: String(vendorUserName).trim(),
+              email: vuEmail,
+              passwordHash,
+              vendors: []
+            });
+          }
+        }
+      }
     }
 
     res.status(201).json({ success: true, data: created });
