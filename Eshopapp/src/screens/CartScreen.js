@@ -25,7 +25,8 @@ const CartScreen = () => {
     try {
       setValidating(true);
       setCouponError('');
-      const res = await api.applyCouponToCart(couponCode.trim(), 'cart');
+      // Apply without enforcing a payment method at cart stage
+      const res = await api.applyCouponToCart(couponCode.trim(), undefined);
       if (res?.success && res?.data) {
         await refreshCart();
         console.log('[Coupon] Applied and saved to cart:', res.data);

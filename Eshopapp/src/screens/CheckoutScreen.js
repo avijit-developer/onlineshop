@@ -487,6 +487,8 @@ const CheckoutScreen = () => {
       if (res?.success && res?.data) {
         // server is source of truth; rehydrated via cartCoupon
         console.log('[Coupon] Applied and saved to cart (checkout):', res.data);
+        // Ensure UI reflects latest cart-coupon from backend
+        try { const refreshed = await api.getUserCart(); } catch (_) {}
       } else {
         setAppliedCoupon(null);
         const reason = res?.message || 'Invalid coupon';
@@ -507,6 +509,7 @@ const CheckoutScreen = () => {
     setAppliedCoupon(null);
     setCouponCode('');
     setCouponError('');
+    try { const refreshed = await api.getUserCart(); } catch (_) {}
   };
 
   return (
