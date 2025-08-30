@@ -3,6 +3,63 @@ const mongoose = require('mongoose');
 const { authenticate, requireAdmin, requireRole, requireAnyPermission, requirePermission } = require('../middleware/auth');
 const Vendor = require('../models/Vendor');
 const router = express.Router();
+// Public: customer can submit vendor application (creates pending vendor)
+router.post('/apply', authenticate, async (req, res) => {
+  try {
+    if (!req.user || (req.user.role !== 'customer' && req.user.role !== 'vendor')) {
+      res.status(403);
+      throw new Error('Only customers can apply to become a vendor');
+    }
+    const {
+      name,
+      companyName,
+      phone,
+      email,
+      address1,
+      address2,
+      city,
+      zip,
+      address,
+      commission
+    } = req.body || {};
+
+    const applicantEmail = (email || req.user.email || '').trim().toLowerCase();
+    if (!companyName || !applicantEmail || !phone) {
+      res.status(400);
+      throw new Error('companyName, email and phone are required');
+    }
+    if (!isValidEmail(applicantEmail)) {
+      res.status(400);
+      throw new Error('Invalid email format');
+    }
+
+    const exists = await Vendor.findOne({ email: applicantEmail }).lean();
+    if (exists) {
+      res.status(409);
+      throw new Error('A vendor with this email already exists');
+    }
+
+    const created = await Vendor.create({
+      name: String(name || req.user?.name || '').trim() || 'Applicant',
+      companyName: String(companyName).trim(),
+      email: applicantEmail,
+      phone: String(phone).trim(),
+      address1: address1 ? String(address1).trim() : '',
+      address2: address2 ? String(address2).trim() : '',
+      city: city ? String(city).trim() : '',
+      zip: zip ? String(zip).trim() : '',
+      address: address ? String(address).trim() : '',
+      commission: commission !== undefined ? Number(commission) : undefined,
+      status: 'pending',
+      enabled: false
+    });
+
+    res.status(201).json({ success: true, data: created });
+  } catch (e) {
+    res.status(res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+    throw e;
+  }
+});
 
 function isValidEmail(email) {
   return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

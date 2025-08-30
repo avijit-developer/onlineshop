@@ -97,6 +97,13 @@ const ProfileScreen = () => {
       icon: 'information-circle-outline',
       onPress: () => Alert.alert('About', 'EShop App v1.0.0\nBuilt with React Native'),
     },
+    {
+      id: 'become-vendor',
+      title: 'Become a Vendor',
+      subtitle: 'Apply to open your shop',
+      icon: 'briefcase-outline',
+      onPress: () => navigation.navigate('VendorApply'),
+    },
   ];
 
   const handleEditProfile = () => {

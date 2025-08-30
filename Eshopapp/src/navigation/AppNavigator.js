@@ -16,6 +16,7 @@ import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 import AddressListScreen from '../screens/AddressListScreen';
 import AddressDetailsScreen from '../screens/AddressDetailsScreen';
+import VendorApplyScreen from '../screens/VendorApplyScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,6 +39,7 @@ const AppNavigator = () => {
       <Stack.Screen name="Wishlist" component={WishlistScreen} />
       <Stack.Screen name="AddressList" component={AddressListScreen} />
       <Stack.Screen name="AddressDetails" component={AddressDetailsScreen} />
+      <Stack.Screen name="VendorApply" component={VendorApplyScreen} />
     </Stack.Navigator>
   );
 };
