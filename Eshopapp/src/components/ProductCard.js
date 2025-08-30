@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
@@ -13,7 +13,6 @@ const ProductCard = ({ item }) => {
   const handleAddToCart = (e) => {
     e.stopPropagation();
     addToCart(item, 1);
-    Alert.alert('Added to Cart', `${item.name} has been added to your cart`);
   };
 
   const handleBuyNow = (e) => {
