@@ -94,10 +94,10 @@ const AdminUsers = () => {
         setValue('password', '');
         // Vendors
         let vendorIds = [];
-        if (item.vendor) {
+        if (Array.isArray(item.vendors) && item.vendors.length > 0) {
+          vendorIds = item.vendors.map(v => v._id || v);
+        } else if (item.vendor) {
           vendorIds = [item.vendor._id || item.vendor];
-        } else if (item.vendors) {
-          vendorIds = Array.isArray(item.vendors) ? item.vendors.map(v => v._id || v) : [item.vendors];
         }
         const vendorIdsStr = (vendorIds || []).map(v => String(v));
         setValue('vendors', vendorIdsStr);
