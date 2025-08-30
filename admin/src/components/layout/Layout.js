@@ -56,7 +56,7 @@ const Layout = ({ children, user, onLogout }) => {
   const allMenuItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
     !isVendor && { path: '/admin/customers', label: 'Customers', icon: '👥' },
-    !isVendor && { path: '/admin-users', label: 'Admin Users', icon: '👤' },
+    !isVendor && { path: '/admin/admin-users', label: 'Admin Users', icon: '👤' },
     (!isVendor || userPerms.has('vendor.view') || userPerms.has('vendor.edit')) && { path: '/admin/vendors', label: 'Vendors', icon: '🏪' },
     (!isVendor || userPerms.has('products.view')) && { path: '/admin/products', label: 'Products', icon: '📦' },
     !isVendor && { path: '/admin/categories', label: 'Categories', icon: '📁' },
