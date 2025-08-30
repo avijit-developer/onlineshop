@@ -711,13 +711,15 @@ const Categories = () => {
   };
   roots.forEach(r => dfsVisible(r, 0));
 
-  const displayTotal = groupByParent ? visibleFlattened.length : filteredCategories.length;
+  // For grouped view, paginate by included roots
+  const includedRoots = roots.filter(r => includeSet.has(r.id));
+  const displayTotal = groupByParent ? includedRoots.length : filteredCategories.length;
   const pagesCount = Math.max(1, Math.ceil(displayTotal / itemsPerPage));
 
   // Build display list with placeholders to keep consistent row count
   const displayCategories = (() => {
     const start = (currentPage - 1) * itemsPerPage;
-    const rows = groupByParent ? visibleFlattened.slice(start, start + itemsPerPage) : (() => {
+    const rows = groupByParent ? includedRoots.slice(start, start + itemsPerPage).map(r => ({ ...r, displayDepth: 0 })) : (() => {
       const tmp = [...filteredCategories];
       const deficit = Math.max(0, itemsPerPage - tmp.length);
       for (let i = 0; i < deficit; i++) { tmp.push({ id: `placeholder-${i}`, isPlaceholder: true }); }
@@ -751,6 +753,40 @@ const Categories = () => {
   };
 
   const collapseAll = () => setExpandedTableIds(new Set());
+
+  // Render subgroup inside a full-width row under parent
+  const renderSubgroup = (parentNode) => {
+    const lines = [];
+    const walk = (node, depth) => {
+      const include = includeSet.has(node.id);
+      if (node.id !== parentNode.id && include) {
+        lines.push(
+          <div key={node.id} className="subitem" style={{ marginLeft: depth * 16 }}>
+            <img src={node.image || '/default-category.png'} alt={node.name} className="category-image" />
+            <div className="subitem-info">
+              <strong>{node.name}</strong>
+              {node.description && <small>{node.description}</small>}
+            </div>
+            <span className={`level-badge level-${node.level}`}>L{node.level}</span>
+            {node.featured && <span className="featured-indicator">★</span>}
+            <div className="toggle-container" style={{ marginLeft: 'auto' }}>
+              <label className="toggle-switch">
+                <input type="checkbox" checked={!!node.enabled} onChange={() => toggleEnabled(node.id)} />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={() => handleAddChild(node)}>Add Sub</button>
+            <button className="btn btn-info btn-sm" onClick={() => handleEditCategory(node)}>Edit</button>
+            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteCategory(node.id)}>Delete</button>
+          </div>
+        );
+      }
+      node.children.forEach(child => walk(child, depth + 1));
+    };
+    walk(parentNode, 0);
+    if (lines.length === 0) return <div className="subitem empty">No subcategories</div>;
+    return <div className="subgroup-container">{lines}</div>;
+  };
 
   if (loading) {
     return <div className="loading">Loading categories...</div>;
@@ -880,7 +916,8 @@ const Categories = () => {
               </thead>
               <tbody>
                 {displayCategories.map((category) => (
-                  <tr key={category.id}>
+                  <React.Fragment key={category.id}>
+                  <tr>
                     <td className={category.isPlaceholder ? 'placeholder-cell' : ''}>
                       <div className="category-info">
                         {!category.isPlaceholder ? (
@@ -977,6 +1014,14 @@ const Categories = () => {
                       ) : null}
                     </td>
                   </tr>
+                  {groupByParent && expandedTableIds.has(category.id) && (idToNode.get(category.id)?.children?.length > 0) && (
+                    <tr className="subgroup-row">
+                      <td colSpan={10}>
+                        {renderSubgroup(idToNode.get(category.id))}
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

@@ -73,6 +73,15 @@
 .type-badge.parent { background: #e0f2fe; color: #0369a1; }
 .type-badge.sub { background: #f1f5f9; color: #334155; }
 
+.subgroup-row td {
+  background: #f8fafc;
+  padding: 0 15px 15px 60px;
+}
+.subgroup-container { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; }
+.subitem { display: flex; align-items: center; gap: 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; }
+.subitem .subitem-info { display: flex; flex-direction: column; gap: 2px; }
+.subitem.empty { background: #fff; color: #64748b; border: 1px dashed #cbd5e1; padding: 12px; border-radius: 6px; }
+
 .stat-card {
   background: white;
   padding: 20px;
