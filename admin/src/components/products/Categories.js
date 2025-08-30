@@ -22,6 +22,7 @@ const Categories = () => {
   const [filterFeatured, setFilterFeatured] = useState('all'); // all | featured | not
   const [groupByParent, setGroupByParent] = useState(true);
   const [expandedTableIds, setExpandedTableIds] = useState(new Set());
+  const [expandedSubIds, setExpandedSubIds] = useState(new Set());
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -757,11 +758,32 @@ const Categories = () => {
   // Render subgroup inside a full-width row under parent
   const renderSubgroup = (parentNode) => {
     const lines = [];
+    const toggleSub = (id) => {
+      const next = new Set(expandedSubIds);
+      next.has(id) ? next.delete(id) : next.add(id);
+      setExpandedSubIds(next);
+    };
     const walk = (node, depth) => {
       const include = includeSet.has(node.id);
-      if (node.id !== parentNode.id && include) {
+      const isParent = node.id === parentNode.id;
+      if (!isParent && include) {
+        const hasChildren = (node.children || []).some(ch => includeSet.has(ch.id));
+        const isLevel2 = (node.level === (parentNode.level + 1));
+        const canToggle = isLevel2 && hasChildren;
+        const expanded = expandedSubIds.has(node.id);
         lines.push(
-          <div key={node.id} className="subitem" style={{ marginLeft: depth * 16 }}>
+          <div key={node.id} className={`subitem depth-${depth}`} style={{ marginLeft: depth * 16 }}>
+            {canToggle && (
+              <button
+                type="button"
+                className={`expand-btn ${expanded ? 'expanded' : ''}`}
+                onClick={() => toggleSub(node.id)}
+                title={expanded ? 'Collapse' : 'Expand'}
+              >
+                {expanded ? '▼' : '▶'}
+              </button>
+            )}
+            {!canToggle && <span style={{ width: 20 }} />}
             <img src={node.image || '/default-category.png'} alt={node.name} className="category-image" />
             <div className="subitem-info">
               <strong>{node.name}</strong>
@@ -780,12 +802,22 @@ const Categories = () => {
             <button className="btn btn-danger btn-sm" onClick={() => handleDeleteCategory(node.id)}>Delete</button>
           </div>
         );
+        if (canToggle && !expanded) {
+          return; // hide deeper levels until expanded
+        }
       }
       node.children.forEach(child => walk(child, depth + 1));
     };
+    const count = (parentNode.children || []).filter(ch => includeSet.has(ch.id)).length;
     walk(parentNode, 0);
-    if (lines.length === 0) return <div className="subitem empty">No subcategories</div>;
-    return <div className="subgroup-container">{lines}</div>;
+    return (
+      <div className="subgroup-wrap">
+        <div className="subgroup-header">
+          <span>Subcategories ({count})</span>
+        </div>
+        <div className="subgroup-container">{lines.length ? lines : <div className="subitem empty">No subcategories</div>}</div>
+      </div>
+    );
   };
 
   if (loading) {
