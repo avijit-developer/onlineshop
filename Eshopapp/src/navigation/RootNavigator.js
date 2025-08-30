@@ -20,6 +20,7 @@ import AddressListScreen from '../screens/AddressListScreen';
 import AddressDetailsScreen from '../screens/AddressDetailsScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 import VendorApplyScreen from '../screens/VendorApplyScreen';
+import ReviewFormScreen from '../screens/ReviewFormScreen';
 import SignupScreen from '../screens/SignupScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import SplashScreen from '../screens/SplashScreen';
@@ -54,6 +55,7 @@ const RootNavigator = () => {
       <Stack.Screen name="VendorApply" component={VendorApplyScreen} />
       <Stack.Screen name="AddressSelection" component={AddressSelectionScreen} />
       <Stack.Screen name="Filter" component={FilterScreen} />
+      <Stack.Screen name="ReviewForm" component={ReviewFormScreen} />
     </Stack.Navigator>
   );
 };
