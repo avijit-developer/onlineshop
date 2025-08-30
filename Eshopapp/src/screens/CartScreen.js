@@ -132,21 +132,7 @@ const CartScreen = () => {
   }
 
   // Show empty cart message if authenticated but no items
-  if (cartItems.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Icon name="cart-outline" size={64} color="#ccc" />
-        <Text style={styles.emptyTitle}>Your Cart is Empty</Text>
-        <Text style={styles.emptyMessage}>Add some products to get started</Text>
-        <TouchableOpacity 
-          style={styles.shopButton}
-          onPress={() => navigation.navigate('Home')}
-        >
-          <Text style={styles.shopButtonText}>Start Shopping</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  // Avoid changing hooks order; render empty state via conditional content
 
   const renderCartItem = ({ item }) => (
     <View style={styles.cartItem}>
