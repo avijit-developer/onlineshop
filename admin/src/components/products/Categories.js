@@ -21,6 +21,7 @@ const Categories = () => {
   const [filterEnabled, setFilterEnabled] = useState('all'); // all | enabled | disabled
   const [filterFeatured, setFilterFeatured] = useState('all'); // all | featured | not
   const [groupByParent, setGroupByParent] = useState(true);
+  const [expandedTableIds, setExpandedTableIds] = useState(new Set());
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -699,21 +700,24 @@ const Categories = () => {
   });
   sortNodes(roots);
 
-  const flattened = [];
-  const dfs = (node, depth) => {
+  const visibleFlattened = [];
+  const dfsVisible = (node, depth) => {
     const shouldInclude = groupByParent ? includeSet.has(node.id) : matchesFilters(node);
-    if (shouldInclude) flattened.push({ ...node, displayDepth: depth });
-    node.children.forEach(child => dfs(child, depth + 1));
+    if (!shouldInclude) return;
+    visibleFlattened.push({ ...node, displayDepth: depth });
+    const isExpanded = expandedTableIds.has(node.id);
+    if (groupByParent && !isExpanded) return; // collapsed: do not show children
+    node.children.forEach(child => dfsVisible(child, depth + 1));
   };
-  roots.forEach(r => dfs(r, 0));
+  roots.forEach(r => dfsVisible(r, 0));
 
-  const displayTotal = flattened.length;
+  const displayTotal = groupByParent ? visibleFlattened.length : filteredCategories.length;
   const pagesCount = Math.max(1, Math.ceil(displayTotal / itemsPerPage));
 
   // Build display list with placeholders to keep consistent row count
   const displayCategories = (() => {
     const start = (currentPage - 1) * itemsPerPage;
-    const rows = groupByParent ? flattened.slice(start, start + itemsPerPage) : (() => {
+    const rows = groupByParent ? visibleFlattened.slice(start, start + itemsPerPage) : (() => {
       const tmp = [...filteredCategories];
       const deficit = Math.max(0, itemsPerPage - tmp.length);
       for (let i = 0; i < deficit; i++) { tmp.push({ id: `placeholder-${i}`, isPlaceholder: true }); }
@@ -725,6 +729,28 @@ const Categories = () => {
     }
     return rows;
   })();
+
+  const toggleRowExpanded = (id) => {
+    const next = new Set(expandedTableIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setExpandedTableIds(next);
+  };
+
+  const expandAllVisible = () => {
+    const next = new Set();
+    // expand every node that has children and is included by filters
+    idToNode.forEach((n) => {
+      const include = groupByParent ? includeSet.has(n.id) : matchesFilters(n);
+      if (include && n.children && n.children.length > 0) next.add(n.id);
+    });
+    setExpandedTableIds(next);
+  };
+
+  const collapseAll = () => setExpandedTableIds(new Set());
 
   if (loading) {
     return <div className="loading">Loading categories...</div>;
@@ -754,6 +780,12 @@ const Categories = () => {
               <input type="checkbox" checked={groupByParent} onChange={e => { setGroupByParent(e.target.checked); setCurrentPage(1); }} />
               <span>Group by parent</span>
             </label>
+          )}
+          {viewMode === 'table' && groupByParent && (
+            <div className="group-toggle" style={{ marginLeft: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={expandAllVisible}>Expand All</button>
+              <button className="btn btn-secondary btn-sm" onClick={collapseAll}>Collapse All</button>
+            </div>
           )}
           <button onClick={handleAddCategory} className="btn btn-primary">
             Add Category
@@ -854,7 +886,17 @@ const Categories = () => {
                         {!category.isPlaceholder ? (
                           <>
                             <img src={category.image || '/default-category.png'} alt={category.name} className="category-image" />
-                            <div style={{ paddingLeft: (category.displayDepth || 0) * 16 }}>
+                            <div style={{ paddingLeft: (category.displayDepth || 0) * 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {groupByParent && (idToNode.get(category.id)?.children?.length > 0) && (
+                                <button
+                                  type="button"
+                                  className={`expand-btn ${expandedTableIds.has(category.id) ? 'expanded' : ''}`}
+                                  onClick={() => toggleRowExpanded(category.id)}
+                                  title={expandedTableIds.has(category.id) ? 'Collapse' : 'Expand'}
+                                >
+                                  {expandedTableIds.has(category.id) ? '▼' : '▶'}
+                                </button>
+                              )}
                               <strong>{category.name}</strong>
                               <small>{category.description}</small>
                             </div>
