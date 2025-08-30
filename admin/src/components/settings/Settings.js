@@ -323,7 +323,7 @@ const Settings = () => {
                     <label>Flat Shipping Fee ($)</label>
                     <input
                       type="number"
-                      value={settings.shipping.flatShippingFee || 0}
+                      value={(settings.shipping && typeof settings.shipping.flatShippingFee === 'number') ? settings.shipping.flatShippingFee : 0}
                       onChange={(e) => handleInputChange('shipping', 'flatShippingFee', parseFloat(e.target.value))}
                       min="0"
                       step="0.01"
