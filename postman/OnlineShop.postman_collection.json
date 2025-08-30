@@ -1,0 +1,156 @@
+{
+  "info": {
+    "_postman_id": "a9a1c1c2-3d2c-4b5c-9a1e-111111111111",
+    "name": "OnlineShop API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000" },
+    { "key": "auth_token", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [ { "key": "token", "value": "{{auth_token}}", "type": "string" } ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/api/v1/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/api/v1/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}" }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users - Addresses",
+      "item": [
+        { "name": "List My Addresses", "request": { "method": "GET", "url": "{{base_url}}/api/v1/users/me/addresses" } },
+        { "name": "Add Address", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/users/me/addresses", "body": { "mode": "raw", "raw": "{\n  \"label\": \"Home\",\n  \"name\": \"John Doe\",\n  \"phone\": \"+123456789\",\n  \"address\": \"123 Main St\",\n  \"city\": \"NYC\",\n  \"state\": \"NY\",\n  \"zipCode\": \"10001\",\n  \"country\": \"US\"\n}" } } },
+        { "name": "Update Address", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/users/me/addresses/:addressId", "body": { "mode": "raw", "raw": "{\n  \"label\": \"Office\"\n}" } } },
+        { "name": "Delete Address", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/users/me/addresses/:addressId" } },
+        { "name": "Set Default Address", "request": { "method": "PATCH", "url": "{{base_url}}/api/v1/users/me/addresses/:addressId/default" } }
+      ]
+    },
+    {
+      "name": "Products - Public",
+      "item": [
+        { "name": "List Products (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/products/public?q=&page=1&limit=20" } },
+        { "name": "Get Product (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/products/:productId/public" } },
+        { "name": "Related Products (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/products/:productId/related/public" } },
+        { "name": "Product Reviews (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/products/:productId/reviews/public?page=1&limit=10" } }
+      ]
+    },
+    {
+      "name": "Products - Admin/Vendor",
+      "item": [
+        { "name": "List Products", "request": { "method": "GET", "url": "{{base_url}}/api/v1/products?page=1&limit=10" } },
+        { "name": "Create Product", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/products", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sample\",\n  \"category\": \"<categoryId>\",\n  \"vendor\": \"<vendorId>\",\n  \"regularPrice\": 100\n}" } } },
+        { "name": "Update Product", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/products/:productId", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated\"\n}" } } },
+        { "name": "Delete Product", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/products/:productId" } }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        { "name": "List Categories (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/categories/public" } },
+        { "name": "List Categories (admin)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/categories?page=1&limit=50" } }
+      ]
+    },
+    {
+      "name": "Brands",
+      "item": [
+        { "name": "List Brands", "request": { "method": "GET", "url": "{{base_url}}/api/v1/brands?page=1&limit=50" } }
+      ]
+    },
+    {
+      "name": "Vendors",
+      "item": [
+        { "name": "List Vendors (admin/vendor)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/vendors?page=1&limit=20" } },
+        { "name": "Apply Become Vendor (customer)", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/vendors/apply", "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"Acme Ltd\",\n  \"email\": \"v@example.com\",\n  \"phone\": \"+1 234 567\",\n  \"address1\": \"Line1\",\n  \"city\": \"NYC\",\n  \"zip\": \"10001\",\n  \"useExistingVendorUser\": false,\n  \"vendorUserName\": \"Vendor User\",\n  \"vendorUserEmail\": \"vu@example.com\",\n  \"vendorUserPassword\": \"password123\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Homepage",
+      "item": [
+        { "name": "Sections (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/homepage/sections/public" } },
+        { "name": "Section Products (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/homepage/sections/featured/products/public?page=1&limit=10" } }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        { "name": "Get My Cart", "request": { "method": "GET", "url": "{{base_url}}/api/v1/cart/me" } },
+        { "name": "Add Item", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/cart/me/items", "body": { "mode": "raw", "raw": "{\n  \"product\": \"<productId>\",\n  \"quantity\": 1\n}" } } },
+        { "name": "Update Item Qty", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/cart/me/items/:cartItemId", "body": { "mode": "raw", "raw": "{\n  \"quantity\": 2\n}" } } },
+        { "name": "Remove Item", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/cart/me/items/:cartItemId" } },
+        { "name": "Clear Cart", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/cart/me" } },
+        { "name": "Apply Coupon", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/cart/me/coupon", "body": { "mode": "raw", "raw": "{\n  \"couponCode\": \"WELCOME10\"\n}" } } },
+        { "name": "Remove Coupon", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/cart/me/coupon" } }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        { "name": "Create Order (customer)", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/orders/me", "body": { "mode": "raw", "raw": "{\n  \"shippingAddress\": \"John, 123 Street, City\",\n  \"paymentMethod\": \"cod\"\n}" } } },
+        { "name": "My Orders (customer)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/orders/me" } },
+        { "name": "Orders (admin)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/orders?page=1&limit=20" } },
+        { "name": "Vendor Orders (vendor user)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/orders/vendor?page=1&limit=20" } },
+        { "name": "Update Status (admin)", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/orders/:orderId/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"shipped\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Coupons",
+      "item": [
+        { "name": "Validate Coupon", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/coupons/validate", "body": { "mode": "raw", "raw": "{\n  \"couponCode\": \"WELCOME10\",\n  \"items\": []\n}" } } }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        { "name": "Get Settings (admin)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/settings" } },
+        { "name": "Update Settings (admin)", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/settings", "body": { "mode": "raw", "raw": "{\n  \"general\": { \"siteName\": \"My Store\" },\n  \"localization\": { \"currency\": \"INR\", \"currencySymbol\": \"₹\" },\n  \"shipping\": { \"flatShippingFee\": 10 }\n}" } } },
+        { "name": "Shipping (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/settings/shipping/public" } }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        { "name": "Submit Review (customer)", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/reviews", "body": { "mode": "raw", "raw": "{\n  \"product\": \"<productId>\",\n  \"rating\": 5,\n  \"title\": \"Great!\",\n  \"comment\": \"Loved it\"\n}" } } },
+        { "name": "List Reviews (admin/vendor)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/reviews?page=1&limit=20" } },
+        { "name": "Update Review Status (admin/vendor)", "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": "{{base_url}}/api/v1/reviews/:reviewId/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\"\n}" } } },
+        { "name": "Delete Review (admin/vendor)", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/reviews/:reviewId" } },
+        { "name": "Product Reviews (public)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/reviews/product/:productId/public?page=1&limit=10" } }
+      ]
+    },
+    {
+      "name": "Admin Dashboard",
+      "item": [
+        { "name": "Dashboard (admin)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/admin/dashboard" } },
+        { "name": "Dashboard (vendor)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/admin/dashboard/vendor" } }
+      ]
+    }
+  ]
+}
+
