@@ -89,22 +89,29 @@ router.post('/apply', authenticate, async (req, res) => {
         });
       }
     } else {
-      // NO to using existing vendor user: create a new vendor user WITHOUT vendors/role
+      // NO to using existing vendor user: ensure we create/assign a vendor user if email provided
       const vuEmail = String(vendorUserEmail || '').trim().toLowerCase();
       if (isValidEmail(vuEmail)) {
         let vu = await VendorUser.findOne({ email: vuEmail });
-        if (!vu) {
+        if (vu) {
+          // Assign the newly created vendor to this user
+          vu.vendors = Array.from(new Set([...(vu.vendors || []), created._id]));
+          if (!vu.vendor) vu.vendor = created._id; // legacy single vendor field if empty
+          await vu.save();
+        } else {
+          // Create a new vendor user AND assign the vendor
           if (!vendorUserName || !vendorUserPassword || String(vendorUserPassword).length < 8) {
-            // optional: silently skip creation if insufficient data
-          } else {
-            const passwordHash = await bcrypt.hash(String(vendorUserPassword), 10);
-            await VendorUser.create({
-              name: String(vendorUserName).trim(),
-              email: vuEmail,
-              passwordHash,
-              vendors: []
-            });
+            res.status(400);
+            throw new Error('To create a new vendor user, provide name and a password (min 8 chars)');
           }
+          const passwordHash = await bcrypt.hash(String(vendorUserPassword), 10);
+          await VendorUser.create({
+            name: String(vendorUserName).trim(),
+            email: vuEmail,
+            passwordHash,
+            vendor: created._id,
+            vendors: [created._id]
+          });
         }
       }
     }
