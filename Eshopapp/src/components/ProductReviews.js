@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import api from '../utils/api';
+import { useUser } from '../contexts/UserContext';
 
 const ProductReviews = ({ productId, onReviewPress }) => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const { user, isLoading } = useUser();
 
   useEffect(() => {
     if (productId) {
@@ -97,7 +99,15 @@ const ProductReviews = ({ productId, onReviewPress }) => {
       </View>
 
       {reviews.length === 0 ? (
-        renderEmptyState()
+        <>
+          {renderEmptyState()}
+          <TouchableOpacity
+            style={styles.writeReviewButton}
+            onPress={() => onReviewPress?.()}
+          >
+            <Text style={styles.writeReviewText}>Write a Review</Text>
+          </TouchableOpacity>
+        </>
       ) : (
         <>
           <FlatList
