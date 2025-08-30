@@ -84,6 +84,7 @@ const ViewCartFooter = () => {
       {hidden ? (
         <View style={{ height: 0 }} />
       ) : (
+      <>
       <View style={styles.cartInfo}>
         <ScrollView
           horizontal
@@ -133,6 +134,7 @@ const ViewCartFooter = () => {
         <Text style={styles.viewCartText}>View Cart</Text>
         <Icon name="arrow-forward-outline" size={16} color="#fff" />
       </TouchableOpacity>
+      </>
       )}
     </Animated.View>
   );
