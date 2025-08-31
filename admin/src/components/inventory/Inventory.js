@@ -32,7 +32,7 @@ const Inventory = () => {
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const base = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const base = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
       const [prodRes, catRes, venRes] = await Promise.all([
         fetch(`${base}/api/v1/products?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
         fetch(`${base}/api/v1/categories?parent=all&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
@@ -115,7 +115,7 @@ const Inventory = () => {
     if (!selectedProduct) return;
     try {
       const token = localStorage.getItem('adminToken');
-      const base = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const base = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
       const res = await fetch(`${base}/api/v1/products/${selectedProduct.id}/inventory`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
@@ -134,7 +134,7 @@ const Inventory = () => {
   const bulkUpdateStock = async (action, value) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const base = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const base = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
       const updates = products.map(p => {
         let newStock = p.stock;
         const qty = Number(value);

@@ -55,7 +55,7 @@ const Orders = () => {
 
   const fetchData = async () => {
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const baseUrl = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
       const token = localStorage.getItem('adminToken');
       let loadedFromBackend = false;
       try {
@@ -99,7 +99,7 @@ const Orders = () => {
 
   const deleteOrder = async (orderId) => {
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const baseUrl = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
       const token = localStorage.getItem('adminToken');
       const resp = await fetch(`${baseUrl}/api/v1/orders/${orderId}`, {
         method: 'DELETE',

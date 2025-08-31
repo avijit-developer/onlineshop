@@ -36,7 +36,8 @@ const Settings = () => {
   const fetchSettings = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch((process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api/v1/settings', {
+      const BASE = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+      const res = await fetch(BASE + '/api/v1/settings', {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       if (res.ok) {
@@ -55,7 +56,8 @@ const Settings = () => {
     setSaving(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch((process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api/v1/settings', {
+      const BASE = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+      const res = await fetch(BASE + '/api/v1/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
