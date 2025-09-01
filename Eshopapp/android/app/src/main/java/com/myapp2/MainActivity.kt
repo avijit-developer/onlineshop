@@ -1,4 +1,4 @@
-package com.Eshopapp
+package com.trahimart
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

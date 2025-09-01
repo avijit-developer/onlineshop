@@ -78,9 +78,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.Eshopapp"
+    namespace "com.trahimart"
          defaultConfig {
-         applicationId "com.Eshopapp"
+         applicationId "com.trahimart"
          minSdkVersion rootProject.ext.minSdkVersion
          targetSdkVersion rootProject.ext.targetSdkVersion
          versionCode 1

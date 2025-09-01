@@ -1,4 +1,4 @@
-package com.Eshopapp
+package com.trahimart
 
 import android.app.Application
 import com.facebook.react.PackageList
