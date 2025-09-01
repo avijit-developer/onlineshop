@@ -36,7 +36,8 @@ const Settings = () => {
   const fetchSettings = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const BASE = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const res = await fetch(BASE + '/api/v1/settings', {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
@@ -56,7 +57,8 @@ const Settings = () => {
     setSaving(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const BASE = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const res = await fetch(BASE + '/api/v1/settings', {
         method: 'PUT',
         headers: {

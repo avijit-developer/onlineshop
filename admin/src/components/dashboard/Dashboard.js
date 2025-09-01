@@ -49,12 +49,12 @@ const Dashboard = () => {
             let vendorOrders = [];
             if (isVendor) {
               try {
-                const vres = await fetch((process.env.REACT_APP_API_URL || '') + '/api/v1/vendors?page=1&limit=100', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                const vres = await fetch(`${BASE}/api/v1/vendors?page=1&limit=100`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
                 if (vres.ok) {
                   const vjson = await vres.json();
                   vendorsList = (vjson?.data || []).map(v => ({ id: v._id || v.id, companyName: v.companyName, status: v.status, enabled: v.enabled }));
                 }
-                const ores = await fetch((process.env.REACT_APP_API_URL || '') + '/api/v1/orders/vendor?page=1&limit=5', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                const ores = await fetch(`${BASE}/api/v1/orders/vendor?page=1&limit=5`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
                 if (ores.ok) {
                   const ojson = await ores.json();
                   vendorOrders = ojson?.data || [];

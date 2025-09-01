@@ -143,7 +143,8 @@ const Reviews = () => {
 
   const handleStatusChange = async (reviewId, newStatus) => {
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
       const resp = await fetch(`${baseUrl}/api/v1/reviews/${reviewId}/status`, {
         method: 'PATCH',
@@ -162,7 +163,8 @@ const Reviews = () => {
   const handleDelete = async (reviewId) => {
     if (!window.confirm('Are you sure you want to delete this review?')) return;
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
       const resp = await fetch(`${baseUrl}/api/v1/reviews/${reviewId}`, { method: 'DELETE', headers: { Authorization: token ? `Bearer ${token}` : '' } });
       const json = await resp.json();
