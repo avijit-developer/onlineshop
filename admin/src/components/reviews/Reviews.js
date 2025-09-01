@@ -23,7 +23,8 @@ const Reviews = () => {
 
   const fetchReviews = async () => {
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
       const params = new URLSearchParams();
       if (filterStatus !== 'all') params.append('status', filterStatus);

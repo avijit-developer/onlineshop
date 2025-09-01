@@ -3,7 +3,8 @@ import { toast } from 'react-hot-toast';
 import './Vendors.css';
 import defaultVendor from '../../assets/default-vendor.png';
 
-const API_BASE = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
 
 const Vendors = () => {
   const [vendors, setVendors] = useState([]);

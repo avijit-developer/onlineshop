@@ -39,7 +39,8 @@ const Dashboard = () => {
     try {
       try {
         const token = localStorage.getItem('adminToken');
-        const BASE = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+        const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+        const BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || ''));
         const resp = await fetch(`${BASE}/api/v1/admin/dashboard`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (resp.ok) {
           const json = await resp.json();

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Coupons.css';
 
-const API_BASE = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
 
 const Coupons = () => {
   const [coupons, setCoupons] = useState([]);
