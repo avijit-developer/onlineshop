@@ -17,7 +17,8 @@ const VendorProductDetails = ({ route, navigation }) => {
           const vtok = await api.getVendorToken?.();
           const headers = vtok ? { Authorization: `Bearer ${vtok}` } : {};
           const res = await api.request(`/api/v1/products/${productId}`, { headers });
-          if (res?.data) setProduct(res.data);
+          const payload = (res && (res.data || res.product || (res.data && res.data.product))) || null;
+          if (payload) setProduct(payload);
         } catch (_) {}
         finally { setLoading(false); }
       }
