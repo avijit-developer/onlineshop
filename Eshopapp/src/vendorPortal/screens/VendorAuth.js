@@ -37,15 +37,15 @@ const VendorAuth = ({ navigation }) => {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity style={{ position: 'absolute', left: 16, top: 28 }} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={{ position: 'absolute', left: 16, top: 28 }} onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}>
           <Text style={{ color: '#f7ab18', fontWeight: '700' }}>{'< Back'}</Text>
         </TouchableOpacity>
         <Image source={require('../../assets/logo.jpg')} style={styles.logo} />
         <Text style={styles.title}>Vendor Login</Text>
         <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" value={email} onChangeText={setEmail} autoCapitalize="none" />
-        <View style={{ width: '100%' }}>
-          <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
-          <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, top: 12 }}>
+        <View style={{ width: '100%', position: 'relative' }}>
+          <TextInput style={[styles.input, { paddingRight: 42 }]} placeholder="Password" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
+          <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, height: 48, top: '50%', marginTop: -24, justifyContent: 'center' }}>
             <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
           </TouchableOpacity>
         </View>
