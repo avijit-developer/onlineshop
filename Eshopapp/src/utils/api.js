@@ -511,6 +511,15 @@ const api = {
     });
   },
 
+  async getVendorProfile() {
+    const token = await this.getVendorToken();
+    if (!token) throw new Error('No authentication token');
+    // Reuse auth/me with vendor token; backend should return the current user profile
+    return this.request('/api/v1/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
   async getVendorSummary() {
     // Compute summary from orders response client-side for now
     const res = await this.getVendorOrders({ page: 1, limit: 100 });
