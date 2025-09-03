@@ -19,6 +19,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { requestLocation, isLoading: locationLoading } = useLocation();
+  const [showPw, setShowPw] = useState(false);
   const { login } = useUser();
 
   const handleLogin = async () => {
@@ -86,12 +87,15 @@ const LoginScreen = ({ navigation }) => {
             placeholderTextColor="#777"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={showPw !== true}
             autoCapitalize="none"
             returnKeyType="done"
             selectionColor="#333"
             cursorColor="#333"
           />
+          <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 30, top: 244 }}>
+            <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.loginButton, (isLoggingIn || locationLoading) && styles.disabledButton]}

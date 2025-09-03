@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../utils/api';
 
@@ -34,12 +34,24 @@ const VendorAuth = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={{ position: 'absolute', left: 16, top: 28 }} onPress={() => navigation.goBack()}>
+        <Text style={{ color: '#f7ab18', fontWeight: '700' }}>{'< Back'}</Text>
+      </TouchableOpacity>
+      <Image source={require('../../src/assets/logo.jpg')} style={{ width: 80, height: 80, marginBottom: 12 }} />
       <Text style={styles.title}>Vendor Login</Text>
       <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" value={email} onChangeText={setEmail} autoCapitalize="none" />
       <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
       <TouchableOpacity style={styles.btn} onPress={loginVendor} disabled={loading}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Login</Text>}
       </TouchableOpacity>
+      <View style={{ flexDirection: 'row', marginTop: 12, gap: 16 }}>
+        <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+          <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Create Account</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+          <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Forgot Password?</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };

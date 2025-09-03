@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
 import { useLocation } from '../contexts/LocationContext';
@@ -26,6 +27,8 @@ const SignupScreen = ({ navigation }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [showPw1, setShowPw1] = useState(false);
+  const [showPw2, setShowPw2] = useState(false);
   const { register } = useUser();
   const { loadUserDefaultAddress } = useLocation();
 
@@ -202,12 +205,13 @@ const SignupScreen = ({ navigation }) => {
               placeholderTextColor="#999"
               value={formData.password}
               onChangeText={(value) => updateFormData('password', value)}
-              secureTextEntry
+              secureTextEntry={!showPw1}
               autoCapitalize="none"
               autoCorrect={false}
-              selectionColor="#333"
-              cursorColor="#333"
             />
+            <TouchableOpacity onPress={() => setShowPw1(v => !v)} style={{ position: 'absolute', right: 10, top: 36 }}>
+              <Icon name={showPw1 ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+            </TouchableOpacity>
             <Text style={styles.passwordHint}>
               Password must be at least 6 characters
             </Text>
@@ -221,12 +225,13 @@ const SignupScreen = ({ navigation }) => {
               placeholderTextColor="#999"
               value={formData.confirmPassword}
               onChangeText={(value) => updateFormData('confirmPassword', value)}
-              secureTextEntry
+              secureTextEntry={!showPw2}
               autoCapitalize="none"
               autoCorrect={false}
-              selectionColor="#333"
-              cursorColor="#333"
             />
+            <TouchableOpacity onPress={() => setShowPw2(v => !v)} style={{ position: 'absolute', right: 10, top: 36 }}>
+              <Icon name={showPw2 ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
