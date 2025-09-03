@@ -75,9 +75,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <Text style={styles.headerTitle}>Order Details</Text>
         <View style={{ width: 22 }} />
       </View>
-      <View style={{ alignItems: 'center', marginBottom: 8 }}>
-        <Text style={{ color: '#8791a1', fontSize: 12 }}>UI Updated</Text>
-      </View>
+      
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
       {/* Customer quick info */}
       <View style={styles.infoCard}>
@@ -202,19 +200,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
         </View>
       )}
 
-      {/* Additional Details */}
-      {otherEntries.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Additional Details</Text>
-          <View style={styles.divider} />
-          {otherEntries.map(([k, v]) => (
-            <View key={k} style={styles.kvRow}>
-              <Text style={styles.kvLabel}>{formatKey(k)}</Text>
-              <Text style={styles.kvValue}>{String(v)}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      
       <View style={{ height: 20 }} />
       </ScrollView>
     </View>
