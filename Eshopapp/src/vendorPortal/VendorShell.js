@@ -38,6 +38,12 @@ const VendorShell = ({ navigation }) => {
     );
   };
 
+  const onMenuLogoutPress = async () => {
+    setMenuOpen(false);
+    // allow menu close animation to settle before resetting navigator
+    setTimeout(() => { logout(); }, 10);
+  };
+
   const goMainLogout = async () => {
     await logout();
   };
@@ -85,7 +91,7 @@ const VendorShell = ({ navigation }) => {
           <Text style={[styles.menuText, active==='reports' && styles.menuTextActive]}>Reports</Text>
         </TouchableOpacity>
         <View style={{ height: 1, backgroundColor: '#eee', marginVertical: 8 }} />
-        <TouchableOpacity style={styles.menuItem} onPress={logout}>
+        <TouchableOpacity style={styles.menuItem} onPress={onMenuLogoutPress}>
           <Icon name="log-out-outline" size={18} color="#f00" />
           <Text style={[styles.menuText, { color: '#f00', fontWeight: '700' }]}>Logout</Text>
         </TouchableOpacity>
