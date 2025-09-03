@@ -11,7 +11,16 @@ const VendorOrderDetails = ({ route, navigation }) => {
 
   const items = Array.isArray(order.items) ? order.items : [];
   const customer = order.user || order.customer || {};
-  const shipping = order.shippingAddress || order.address || {};
+  const shippingString = typeof order.shippingAddress === 'string' ? order.shippingAddress : null;
+  const shipping = shippingString ? {} : (order.shippingAddress || order.address || {});
+  const totals = {
+    subtotal: order.subtotal,
+    tax: order.tax,
+    shipping: order.shippingCost,
+    discount: order.discountAmount,
+    total: order.total,
+    coupon: order.couponCode
+  };
   const vendor = order.vendor || order.vendorInfo || (items.find(i => i?.product?.vendor) ? items.find(i => i.product.vendor).product.vendor : {});
   const status = String(order.status || '').toUpperCase();
 
@@ -47,12 +56,14 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <View style={styles.divider} />
         <KV label="Name" value={customer.name || '-'} />
         <KV label="Email" value={customer.email || '-'} />
-        {customer.phone ? <KV label="Phone" value={customer.phone} /> : null}
-        {(shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
+        {order.customerPhone ? <KV label="Phone" value={order.customerPhone} /> : null}
+        {shippingString ? (
+          <KV label="Shipping" value={shippingString} />
+        ) : (shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
           <KV label="Shipping" value={formatAddress(shipping)} />
         ) : null}
-        {order.paymentMethod ? <KV label="Payment" value={String(order.paymentMethod)} /> : null}
-        {order.notes ? <KV label="Notes" value={String(order.notes)} /> : null}
+        {order.paymentMethod ? <KV label="Payment" value={String(order.paymentMethod).toUpperCase()} /> : null}
+        {order.orderNote ? <KV label="Note" value={String(order.orderNote)} /> : null}
       </View>
 
       {/* Vendor details */}
@@ -86,6 +97,11 @@ const VendorOrderDetails = ({ route, navigation }) => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemName} numberOfLines={1}>{item.product?.name || item.name}</Text>
                 {!!item.sku && <Text style={styles.itemMeta}>SKU: {item.sku}</Text>}
+                {item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0 && (
+                  <Text style={styles.itemMeta}>Attrs: {Object.entries(item.selectedAttributes).map(([k,v]) => `${k}:${v}`).join(', ')}</Text>
+                )}
+                {!!item.vendor && <Text style={styles.itemMeta}>Vendor: {String(item.vendor)}</Text>}
+                {item.commissionRate != null && <Text style={styles.itemMeta}>Commission: {String(item.commissionRate)}% ({currency(item.commissionAmount)})</Text>}
               </View>
               <Text style={styles.itemMeta}>x{item.quantity}</Text>
               <Text style={styles.itemPrice}>{currency(item.price)}</Text>
@@ -94,6 +110,32 @@ const VendorOrderDetails = ({ route, navigation }) => {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       </View>
+
+      {/* Totals */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Totals</Text>
+        <View style={styles.divider} />
+        <KV label="Subtotal" value={currency(totals.subtotal)} />
+        {totals.tax != null && <KV label="Tax" value={currency(totals.tax)} />}
+        {totals.shipping != null && <KV label="Shipping" value={currency(totals.shipping)} />}
+        {totals.discount ? <KV label="Discount" value={currency(totals.discount)} /> : null}
+        {totals.coupon ? <KV label="Coupon" value={String(totals.coupon)} /> : null}
+        <KV label="Total" value={currency(totals.total)} highlight />
+      </View>
+
+      {/* Status History */}
+      {Array.isArray(order.statusHistory) && order.statusHistory.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Status History</Text>
+          <View style={styles.divider} />
+          {order.statusHistory.map((h, idx) => (
+            <View key={idx} style={styles.statusRow}>
+              <Text style={styles.kvValue}>{String(h.status).toUpperCase()}</Text>
+              <Text style={styles.kvLabel}>{formatDate(h.timestamp)} • {h.updatedBy || 'system'}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 };
