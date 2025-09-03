@@ -14,7 +14,9 @@ const VendorProductDetails = ({ route, navigation }) => {
     (async () => {
       if (!product && productId) {
         try {
-          const res = await api.request(`/api/v1/products/${productId}`, { headers: {} });
+          const vtok = await api.getVendorToken?.();
+          const headers = vtok ? { Authorization: `Bearer ${vtok}` } : {};
+          const res = await api.request(`/api/v1/products/${productId}`, { headers });
           if (res?.data) setProduct(res.data);
         } catch (_) {}
         finally { setLoading(false); }
@@ -33,13 +35,18 @@ const VendorProductDetails = ({ route, navigation }) => {
   const primaryImage = images[0];
   const regularPrice = product.regularPrice ?? product.price ?? 0;
   const specialPrice = product.specialPrice != null ? Number(product.specialPrice) : null;
-  const brandName = product.brand?.name || product.brand || '-';
+  const brandName = product.brand?.name || product.brandName || product.brand || '-';
   const categoryName = Array.isArray(product.categories)
     ? product.categories.map(c => c?.name || c).filter(Boolean).join(' / ')
     : (product.category?.name || product.category || '-');
-  const sku = product.sku || '-';
-  const stock = product.stock ?? product.inventory?.stock ?? '-';
+  const sku = product.sku || product.skuCode || '-';
+  const stock = product.stock ?? product.inventory?.stock ?? product.quantity ?? '-';
   const attributes = product.attributes;
+  const barcode = product.barcode || product.ean || product.upc;
+  const weight = product.weight ? `${product.weight}${product.weightUnit ? ' ' + product.weightUnit : ''}` : null;
+  const dimensions = (product.length || product.width || product.height)
+    ? `${product.length || '-'} x ${product.width || '-'} x ${product.height || '-'}`
+    : null;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
@@ -70,6 +77,12 @@ const VendorProductDetails = ({ route, navigation }) => {
         <View style={styles.kvRow}><Text style={styles.kvLabel}>SKU</Text><Text style={styles.kvValue}>{sku}</Text></View>
         <View style={styles.kvRow}><Text style={styles.kvLabel}>Brand</Text><Text style={styles.kvValue}>{brandName}</Text></View>
         <View style={styles.kvRow}><Text style={styles.kvLabel}>Category</Text><Text style={styles.kvValue}>{categoryName}</Text></View>
+        {barcode ? <View style={styles.kvRow}><Text style={styles.kvLabel}>Barcode</Text><Text style={styles.kvValue}>{barcode}</Text></View> : null}
+        {weight ? <View style={styles.kvRow}><Text style={styles.kvLabel}>Weight</Text><Text style={styles.kvValue}>{weight}</Text></View> : null}
+        {dimensions ? <View style={styles.kvRow}><Text style={styles.kvLabel}>Dimensions</Text><Text style={styles.kvValue}>{dimensions}</Text></View> : null}
+        {product.lowStockAlert != null ? (
+          <View style={styles.kvRow}><Text style={styles.kvLabel}>Low Stock Alert</Text><Text style={styles.kvValue}>{String(product.lowStockAlert)}</Text></View>
+        ) : null}
 
         {/* Attributes */}
         {attributes ? (
