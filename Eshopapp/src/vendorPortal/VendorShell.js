@@ -17,13 +17,14 @@ const VendorShell = ({ navigation }) => {
     : VendorReports;
 
   const logout = async () => {
-    await AsyncStorage.removeItem('vendorAuthToken');
-    navigation.reset({ index: 0, routes: [{ name: 'VendorAuth' }] });
+    try {
+      await AsyncStorage.removeItem('vendorAuthToken');
+    } catch (_) {}
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   const goMainLogout = async () => {
-    await AsyncStorage.removeItem('vendorAuthToken');
-    navigation.reset({ index: 0, routes: [{ name: 'Login', params: {} }] });
+    await logout();
   };
 
   return (

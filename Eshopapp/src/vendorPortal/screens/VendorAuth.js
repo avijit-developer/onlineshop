@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../utils/api';
@@ -35,36 +35,39 @@ const VendorAuth = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={{ position: 'absolute', left: 16, top: 28 }} onPress={() => navigation.goBack()}>
-        <Text style={{ color: '#f7ab18', fontWeight: '700' }}>{'< Back'}</Text>
-      </TouchableOpacity>
-      <Image source={require('../../assets/logo.jpg')} style={{ width: 80, height: 80, marginBottom: 12 }} />
-      <Text style={styles.title}>Vendor Login</Text>
-      <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" value={email} onChangeText={setEmail} autoCapitalize="none" />
-      <View style={{ width: '100%' }}>
-        <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
-        <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, top: 12 }}>
-          <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <TouchableOpacity style={{ position: 'absolute', left: 16, top: 28 }} onPress={() => navigation.goBack()}>
+          <Text style={{ color: '#f7ab18', fontWeight: '700' }}>{'< Back'}</Text>
         </TouchableOpacity>
-      </View>
-      <TouchableOpacity style={styles.btn} onPress={loginVendor} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Login</Text>}
-      </TouchableOpacity>
-      <View style={{ flexDirection: 'row', marginTop: 12, gap: 16 }}>
-        <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-          <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Create Account</Text>
+        <Image source={require('../../assets/logo.jpg')} style={styles.logo} />
+        <Text style={styles.title}>Vendor Login</Text>
+        <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" value={email} onChangeText={setEmail} autoCapitalize="none" />
+        <View style={{ width: '100%' }}>
+          <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
+          <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, top: 12 }}>
+            <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.btn} onPress={loginVendor} disabled={loading}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Login</Text>}
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Forgot Password?</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <View style={{ flexDirection: 'row', marginTop: 12, gap: 16 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('VendorApply')}>
+            <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Become a Vendor</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Forgot Password?</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
+  container: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
+  logo: { width: 96, height: 96, marginBottom: 8, resizeMode: 'contain' },
   title: { fontSize: 20, fontWeight: '700', marginBottom: 16, color: '#333' },
   input: { width: '100%', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12, backgroundColor: '#f9f9f9', color: '#000' },
   btn: { width: '100%', backgroundColor: '#f7ab18', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
