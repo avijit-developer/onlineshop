@@ -22,7 +22,6 @@ const AddressForm = ({ address, onSave, onCancel }) => {
     label: '',
     firstName: '',
     lastName: '',
-    email: '',
     phone: '',
     address: '',
     city: '',
@@ -39,7 +38,6 @@ const AddressForm = ({ address, onSave, onCancel }) => {
         label: address.label || '',
         firstName: address.firstName || '',
         lastName: address.lastName || '',
-        email: address.email || '',
         phone: address.phone || '',
         address: address.address || '',
         city: address.city || '',
@@ -59,20 +57,13 @@ const AddressForm = ({ address, onSave, onCancel }) => {
   };
 
   const validateForm = () => {
-    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'state', 'zipCode'];
+    const requiredFields = ['firstName', 'lastName', 'phone', 'address', 'city', 'state', 'zipCode'];
     
     for (const field of requiredFields) {
       if (!formData[field] || formData[field].trim() === '') {
         Alert.alert('Validation Error', `Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
         return false;
       }
-    }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      Alert.alert('Validation Error', 'Please enter a valid email address');
-      return false;
     }
 
     // Phone validation (10 digits)
@@ -204,17 +195,6 @@ const AddressForm = ({ address, onSave, onCancel }) => {
 
           <View style={styles.formRow}>
             <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>Email *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.email}
-                onChangeText={(value) => handleInputChange('email', value)}
-                placeholder="Enter email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-            <View style={styles.halfInput}>
               <Text style={styles.inputLabel}>Phone *</Text>
               <TextInput
                 style={styles.textInput}
@@ -225,6 +205,7 @@ const AddressForm = ({ address, onSave, onCancel }) => {
                 maxLength={10}
               />
             </View>
+            <View style={styles.halfInput} />
           </View>
         </View>
 

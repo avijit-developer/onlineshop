@@ -201,7 +201,7 @@ const AddressListScreen = ({ route }) => {
           {item.country}
         </Text>
         <Text style={styles.contactText}>
-          📧 {item.email} | 📱 {item.phone}
+          📱 {item.phone}
         </Text>
       </View>
 
