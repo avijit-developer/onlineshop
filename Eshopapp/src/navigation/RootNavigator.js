@@ -25,6 +25,7 @@ import SignupScreen from '../screens/SignupScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import SplashScreen from '../screens/SplashScreen';
 import SetupScreen from '../screens/SetupScreen';
+import LegalWebViewScreen from '../screens/LegalWebViewScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +57,7 @@ const RootNavigator = () => {
       <Stack.Screen name="AddressSelection" component={AddressSelectionScreen} />
       <Stack.Screen name="Filter" component={FilterScreen} />
       <Stack.Screen name="ReviewForm" component={ReviewFormScreen} />
+      <Stack.Screen name="LegalWebView" component={LegalWebViewScreen} />
     </Stack.Navigator>
   );
 };

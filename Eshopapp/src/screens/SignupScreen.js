@@ -234,8 +234,24 @@ const SignupScreen = ({ navigation }) => {
             </View>
             <Text style={styles.termsText}>
               I agree to the{' '}
-              <Text style={styles.linkText}>Terms and Conditions</Text> and{' '}
-              <Text style={styles.linkText}>Privacy Policy</Text>
+              <Text
+                style={styles.linkText}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  navigation.navigate('LegalWebView', { title: 'Terms and Conditions', url: 'https://trahimart.com/terms' });
+                }}
+              >
+                Terms and Conditions
+              </Text> and{' '}
+              <Text
+                style={styles.linkText}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  navigation.navigate('LegalWebView', { title: 'Privacy Policy', url: 'https://trahimart.com/privacy' });
+                }}
+              >
+                Privacy Policy
+              </Text>
             </Text>
           </TouchableOpacity>
 
@@ -351,11 +367,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   linkText: {
-    color: '#4A90E2',
-    fontWeight: '500',
+    color: '#f7ab18',
+    fontWeight: '600',
   },
   signupButton: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#f7ab18',
     height: 50,
     borderRadius: 8,
     justifyContent: 'center',
@@ -381,7 +397,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   loginLink: {
-    color: '#4A90E2',
+    color: '#f7ab18',
     fontSize: 16,
     fontWeight: '600',
   },
