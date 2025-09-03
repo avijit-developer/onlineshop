@@ -101,8 +101,8 @@ const VendorShell = ({ navigation }) => {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#333' },
-  overlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.2)' },
-  sideMenu: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 260, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 16, borderRightWidth: 1, borderRightColor: '#eee' },
+  overlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.2)', zIndex: 2 },
+  sideMenu: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 260, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 16, borderRightWidth: 1, borderRightColor: '#eee', zIndex: 3, elevation: 4 },
   menuTitle: { fontWeight: '700', color: '#999', marginBottom: 12 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   menuText: { color: '#666', fontWeight: '600' },
