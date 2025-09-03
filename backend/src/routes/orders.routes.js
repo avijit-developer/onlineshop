@@ -249,3 +249,55 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
         res.status(500).json({ success: false, message: 'Failed to list vendor orders' });
     }
 });
+
+// Vendor user: get a single order scoped to assigned vendors (items filtered)
+router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res) => {
+    try {
+        const vendorIds = Array.isArray(req.user.vendors) && req.user.vendors.length > 0
+            ? req.user.vendors.map(String)
+            : (req.user.vendorId ? [String(req.user.vendorId)] : []);
+        if (vendorIds.length === 0) {
+            return res.status(404).json({ success: false, message: 'Order not found for vendor' });
+        }
+
+        const o = await Order.findById(req.params.id).populate('user', 'name email phone').lean();
+        if (!o) return res.status(404).json({ success: false, message: 'Order not found' });
+
+        const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
+        if (vendorItems.length === 0) {
+            return res.status(404).json({ success: false, message: 'Order not found for vendor' });
+        }
+
+        const vendorSubtotal = vendorItems.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+        const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
+        const vendorNet = vendorSubtotal - vendorCommission;
+
+        const data = {
+            _id: o._id,
+            orderNumber: o.orderNumber,
+            status: o.status,
+            createdAt: o.createdAt,
+            updatedAt: o.updatedAt,
+            user: o.user ? { _id: o.user._id || o.user, name: o.user.name, email: o.user.email, phone: o.user.phone } : undefined,
+            shippingAddress: o.shippingAddress,
+            paymentMethod: o.paymentMethod,
+            tax: o.tax,
+            shippingCost: o.shippingCost,
+            discountAmount: o.discountAmount,
+            couponCode: o.couponCode,
+            subtotal: o.subtotal,
+            total: o.total,
+            orderNote: o.orderNote,
+            statusHistory: o.statusHistory,
+            items: vendorItems,
+            vendorSubtotal,
+            vendorCommission,
+            vendorNet,
+        };
+
+        res.json({ success: true, data });
+    } catch (err) {
+        console.error('Vendor order by id error:', err);
+        res.status(500).json({ success: false, message: 'Failed to get order' });
+    }
+});
