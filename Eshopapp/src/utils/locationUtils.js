@@ -100,8 +100,11 @@ export const reverseGeocode = async (latitude, longitude) => {
         const addr = data?.address || {};
         const area = addr.suburb || addr.neighbourhood || addr.hamlet || addr.village || addr.town || '';
         const city = addr.city || addr.town || addr.village || addr.county || '';
+        const state = addr.state || addr.region || '';
+        const postalCode = addr.postcode || '';
+        const country = addr.country || '';
         const display = data?.display_name || [area, city].filter(Boolean).join(', ');
-        return { area, city, display };
+        return { area, city, state, postalCode, country, display };
       }
     } else {
       // For iOS, try the original service
@@ -110,17 +113,20 @@ export const reverseGeocode = async (latitude, longitude) => {
       );
       const data = await response.json();
       const area = data?.locality || data?.localityInfo?.administrative?.[0]?.name || '';
-      const city = data?.principalSubdivision || data?.city || data?.localityInfo?.administrative?.[1]?.name || '';
+      const city = data?.city || data?.locality || data?.localityInfo?.administrative?.[1]?.name || '';
+      const state = data?.principalSubdivision || data?.localityInfo?.administrative?.[2]?.name || '';
+      const postalCode = data?.postcode || '';
+      const country = data?.countryName || '';
       const display = (data && (data.locality || data.city)) ? `${(data.locality || data.city)}, ${(data.principalSubdivision || data.countryName || '')}`.trim().replace(/,\s*$/, '') : `${area}${city ? ', ' + city : ''}`;
-      return { area, city, display };
+      return { area, city, state, postalCode, country, display };
     }
     
     // Fallback to mock address if API fails
-    return { area: 'Downtown Area', city: 'NY', display: 'Downtown Area, NY' };
+    return { area: 'Downtown Area', city: 'NY', state: '', postalCode: '', country: 'United States', display: 'Downtown Area, NY' };
   } catch (error) {
     console.error('Reverse geocoding error:', error);
     // Return a realistic mock address instead of coordinates
-    return { area: 'Downtown Area', city: 'NY', display: 'Downtown Area, NY' };
+    return { area: 'Downtown Area', city: 'NY', state: '', postalCode: '', country: 'United States', display: 'Downtown Area, NY' };
   }
 };
 
@@ -147,6 +153,9 @@ export const requestLocationAndGetAddress = async () => {
     const geo = await reverseGeocode(location.latitude, location.longitude);
     const area = typeof geo === 'string' ? (geo.split(', ')[0] || '') : (geo.area || '');
     const city = typeof geo === 'string' ? (geo.split(', ')[1] || '') : (geo.city || '');
+    const state = typeof geo === 'string' ? '' : (geo.state || '');
+    const postalCode = typeof geo === 'string' ? '' : (geo.postalCode || '');
+    const country = typeof geo === 'string' ? '' : (geo.country || '');
     const display = typeof geo === 'string' ? geo : (geo.display || [area, city].filter(Boolean).join(', '));
 
     return {
@@ -154,6 +163,9 @@ export const requestLocationAndGetAddress = async () => {
       address: display,
       area,
       city,
+      state,
+      postalCode,
+      country,
     };
   } catch (error) {
     console.error('Location request error:', error);

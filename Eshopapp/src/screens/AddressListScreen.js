@@ -262,11 +262,7 @@ const AddressListScreen = ({ route }) => {
         </View>
       </View>
 
-      {/* Quick action: Use current location to add */}
-      <TouchableOpacity style={styles.geoAddButton} onPress={() => setShowAddModal(true)}>
-        <Icon name="locate-outline" size={16} color="#fff" />
-        <Text style={styles.geoAddText}>Use current location to add address</Text>
-      </TouchableOpacity>
+      
 
       {/* Address List */}
       {addresses.length === 0 ? (
@@ -360,8 +356,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  geoAddButton: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f7ab18', margin: 16, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 },
-  geoAddText: { color: '#fff', fontWeight: '700' },
+  
   addressList: {
     flex: 1,
   },
