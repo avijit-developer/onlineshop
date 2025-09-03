@@ -126,7 +126,6 @@ const AddressForm = ({ address, onSave, onCancel }) => {
         zipCode: loc.postalCode || prev.zipCode,
         country: loc.country || prev.country || 'India',
       }));
-      Alert.alert('Auto-filled', 'We auto-filled fields from your current location. Please review and save.');
     } catch (e) {
       Alert.alert('Location Error', e?.message || 'Could not fetch your current location');
     } finally {

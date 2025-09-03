@@ -108,7 +108,6 @@ const AddressDetailsScreen = ({ route }) => {
         zipCode: prev.zipCode,
         country: prev.country || 'India',
       }));
-      Alert.alert('Location Filled', 'We have auto-filled your address from current location. Please review and save.');
     } catch (e) {
       Alert.alert('Location Error', e?.message || 'Could not fetch your current location');
     } finally {
