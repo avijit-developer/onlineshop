@@ -15,9 +15,11 @@ const VendorProducts = ({ navigation }) => {
           const items = (res.data || []).map(p => ({
             id: p._id || p.id,
             name: p.name,
-            price: p.specialPrice ?? p.regularPrice ?? 0,
+            price: p.specialPrice ?? p.regularPrice ?? p.price ?? 0,
+            oldPrice: p.specialPrice != null ? (p.regularPrice ?? p.price ?? null) : null,
             image: Array.isArray(p.images) ? p.images[0] : p.image,
-            stock: p.stock,
+            stock: p.stock ?? p.inventory?.stock ?? p.quantity ?? p.qty,
+            raw: p,
           }));
           setProducts(items);
         }
@@ -27,7 +29,7 @@ const VendorProducts = ({ navigation }) => {
   }, []);
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorProductDetails', { productId: item.id, product: item })}>
+    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorProductDetails', { productId: item.id, product: item.raw || item })}>
       <Image source={{ uri: item.image }} style={styles.image} />
       <View style={{ flex: 1, marginLeft: 10 }}>
         <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
