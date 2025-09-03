@@ -230,13 +230,14 @@ const AddressForm = ({ address, onSave, onCancel }) => {
 
         {/* Address Information */}
         <View style={styles.section}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={styles.sectionTitle}>Address Information</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.sectionTitle, { flex: 1, marginRight: 8 }]}>Address Information</Text>
             <TouchableOpacity style={styles.geoBtn} onPress={fillFromCurrentLocation} disabled={geoLoading}>
-              <Icon name="locate-outline" size={16} color="#fff" />
-              <Text style={styles.geoBtnText}>{geoLoading ? 'Getting location...' : 'Use current location'}</Text>
+              <Icon name="locate-outline" size={14} color="#fff" />
+              <Text style={styles.geoBtnText}>{geoLoading ? 'Getting…' : 'Use current location'}</Text>
             </TouchableOpacity>
           </View>
+          <Text style={styles.hintText}>Tip: Tap Use current location to auto-fill your address.</Text>
           
           <Text style={styles.inputLabel}>Full Address *</Text>
           <TextInput
@@ -470,8 +471,9 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
-  geoBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f7ab18', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
-  geoBtnText: { color: '#fff', fontWeight: '700', marginLeft: 4 },
+  geoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f7ab18', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 6 },
+  geoBtnText: { color: '#fff', fontWeight: '700', marginLeft: 4, fontSize: 12 },
+  hintText: { color: '#6b7280', fontSize: 12, marginTop: 6 },
 });
 
 export default AddressForm;

@@ -166,11 +166,14 @@ const AddressDetailsScreen = ({ route }) => {
 
           {/* Address Details */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Address</Text>
-            <TouchableOpacity style={styles.geoBtn} onPress={useCurrentLocation} disabled={geoLoading}>
-              <Icon name="locate-outline" size={16} color="#fff" />
-              <Text style={styles.geoBtnText}>{geoLoading ? 'Getting location...' : 'Use current location'}</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.sectionTitle, { flex: 1, marginRight: 8 }]}>Address</Text>
+              <TouchableOpacity style={styles.geoBtn} onPress={useCurrentLocation} disabled={geoLoading}>
+                <Icon name="locate-outline" size={14} color="#fff" />
+                <Text style={styles.geoBtnText}>{geoLoading ? 'Getting…' : 'Use current location'}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.hintText}>Tip: Tap Use current location to auto-fill your address.</Text>
             <TextInput
               style={[styles.input, styles.textarea]}
               placeholder="Street address, house no., area"
@@ -331,8 +334,9 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 30,
   },
-  geoBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#f7ab18', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginBottom: 10 },
-  geoBtnText: { color: '#fff', fontWeight: '700' },
+  geoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#f7ab18', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 6, marginBottom: 6 },
+  geoBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  hintText: { color: '#6b7280', fontSize: 12, marginTop: 6 },
   saveButtonText: {
     color: '#fff',
     fontSize: 18,
