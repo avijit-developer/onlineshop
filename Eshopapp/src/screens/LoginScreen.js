@@ -89,6 +89,8 @@ const LoginScreen = ({ navigation }) => {
             secureTextEntry
             autoCapitalize="none"
             returnKeyType="done"
+            selectionColor="#333"
+            cursorColor="#333"
           />
 
           <TouchableOpacity
@@ -109,6 +111,24 @@ const LoginScreen = ({ navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
               <Text style={styles.linkText}>Create Account</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Vendor login toggle */}
+          <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#eee' }}>
+            <Text style={{ color: '#666', marginBottom: 8, fontWeight: '600' }}>Vendor Portal</Text>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#fff',
+                borderWidth: 1,
+                borderColor: '#f7ab18',
+                borderRadius: 8,
+                paddingVertical: 12,
+                alignItems: 'center'
+              }}
+              onPress={() => navigation.navigate('LegalWebView', { title: 'Vendor Login', url: 'https://trahimart.com/admin/login' })}
+            >
+              <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Login as Vendor</Text>
             </TouchableOpacity>
           </View>
 

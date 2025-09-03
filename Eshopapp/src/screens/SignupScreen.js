@@ -205,6 +205,8 @@ const SignupScreen = ({ navigation }) => {
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
+              selectionColor="#333"
+              cursorColor="#333"
             />
             <Text style={styles.passwordHint}>
               Password must be at least 6 characters
@@ -222,6 +224,8 @@ const SignupScreen = ({ navigation }) => {
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
+              selectionColor="#333"
+              cursorColor="#333"
             />
           </View>
 
