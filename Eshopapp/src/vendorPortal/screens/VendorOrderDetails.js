@@ -1,40 +1,114 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 
+const currency = (n) => `₹${Number(n || 0).toFixed(2)}`;
+const shortId = (id) => (id || '').slice(-6);
+
 const VendorOrderDetails = ({ route }) => {
   const { order } = route.params || {};
   if (!order) return null;
-  const items = order.items || [];
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  const customer = order.user || order.customer || {};
+  const shipping = order.shippingAddress || order.address || {};
+  const status = String(order.status || '').toUpperCase();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Order #{order.orderNumber || (order._id || '').slice(-6)}</Text>
-      <Text style={styles.meta}>Status: {order.status}</Text>
-      <Text style={styles.meta}>Subtotal: ₹{(order.vendorSubtotal || 0).toFixed(2)}</Text>
-      <Text style={styles.meta}>Commission: ₹{(order.vendorCommission || 0).toFixed(2)}</Text>
-      <Text style={styles.meta}>Net: ₹{(order.vendorNet || 0).toFixed(2)}</Text>
-      <View style={{ height: 1, backgroundColor: '#eee', marginVertical: 10 }} />
-      <FlatList
-        data={items}
-        keyExtractor={(it, i) => String(it._id || i)}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <Text style={styles.cell} numberOfLines={1}>{item.product?.name || item.name}</Text>
-            <Text style={styles.cell}>x{item.quantity}</Text>
-            <Text style={styles.cell}>₹{(item.price || 0).toFixed(2)}</Text>
-          </View>
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: '#f0f0f0' }} />}
-      />
+      {/* Header summary */}
+      <View style={styles.card}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.title}>Order #{order.orderNumber || shortId(order._id)}</Text>
+          <Text style={[styles.badge, statusStyles(status)]}>{status}</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.kvGrid}>
+          <KV label="Date" value={formatDate(order.createdAt)} />
+          <KV label="Items" value={String(items.length)} />
+          <KV label="Subtotal" value={currency(order.vendorSubtotal)} />
+          <KV label="Commission" value={currency(order.vendorCommission)} />
+          <KV label="Net" value={currency(order.vendorNet ?? (Number(order.vendorSubtotal||0) - Number(order.vendorCommission||0)))} highlight />
+        </View>
+      </View>
+
+      {/* Customer details */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Customer</Text>
+        <View style={styles.divider} />
+        <KV label="Name" value={customer.name || '-'} />
+        <KV label="Email" value={customer.email || '-'} />
+        {customer.phone ? <KV label="Phone" value={customer.phone} /> : null}
+        {(shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
+          <KV label="Shipping" value={formatAddress(shipping)} />
+        ) : null}
+      </View>
+
+      {/* Items */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Items</Text>
+        <View style={styles.divider} />
+        <FlatList
+          data={items}
+          keyExtractor={(it, i) => String(it._id || i)}
+          renderItem={({ item }) => (
+            <View style={styles.itemRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.itemName} numberOfLines={1}>{item.product?.name || item.name}</Text>
+                {!!item.sku && <Text style={styles.itemMeta}>SKU: {item.sku}</Text>}
+              </View>
+              <Text style={styles.itemMeta}>x{item.quantity}</Text>
+              <Text style={styles.itemPrice}>{currency(item.price)}</Text>
+            </View>
+          )}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+        />
+      </View>
     </View>
   );
 };
 
+const KV = ({ label, value, highlight }) => (
+  <View style={styles.kvRow}>
+    <Text style={styles.kvLabel}>{label}</Text>
+    <Text style={[styles.kvValue, highlight && { color: '#2e7d32', fontWeight: '700' }]} numberOfLines={1}>{value}</Text>
+  </View>
+);
+
+const formatDate = (d) => {
+  try {
+    return new Date(d).toLocaleString();
+  } catch {
+    return '-';
+  }
+};
+
+const formatAddress = (a) => {
+  const parts = [a.address, a.city, a.state, a.zipCode, a.country].filter(Boolean);
+  return parts.join(', ');
+};
+
+const statusStyles = (status) => ({
+  backgroundColor: status === 'COMPLETED' ? '#E6F4EA' : status === 'CANCELLED' ? '#FEECEF' : '#FFF8E1',
+  color: status === 'COMPLETED' ? '#2e7d32' : status === 'CANCELLED' ? '#c62828' : '#b26a00',
+});
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
-  title: { fontWeight: '700', color: '#333', marginBottom: 6 },
-  meta: { color: '#666', marginBottom: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
-  cell: { flex: 1, color: '#333' },
+  container: { flex: 1, backgroundColor: '#f7f8fa', padding: 16, gap: 12 },
+  card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 8 },
+  title: { fontWeight: '800', color: '#333', fontSize: 16 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, overflow: 'hidden', fontWeight: '700' },
+  sectionTitle: { fontWeight: '700', color: '#333' },
+  kvGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  kvRow: { width: '50%', paddingVertical: 6 },
+  kvLabel: { color: '#8791a1', fontSize: 12 },
+  kvValue: { color: '#333', fontWeight: '600' },
+  itemRow: { flexDirection: 'row', alignItems: 'center' },
+  itemName: { color: '#333', fontWeight: '600', marginRight: 8, maxWidth: '60%' },
+  itemMeta: { color: '#8791a1' },
+  itemPrice: { color: '#333', fontWeight: '700', marginLeft: 10 },
+  separator: { height: 1, backgroundColor: '#f5f5f5', marginVertical: 8 },
 });
 
 export default VendorOrderDetails;
