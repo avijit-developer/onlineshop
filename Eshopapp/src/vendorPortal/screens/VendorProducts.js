@@ -27,7 +27,7 @@ const VendorProducts = ({ navigation }) => {
   }, []);
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorProductDetails', { product: item })}>
+    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorProductDetails', { productId: item.id })}>
       <Image source={{ uri: item.image }} style={styles.image} />
       <View style={{ flex: 1, marginLeft: 10 }}>
         <Text style={styles.name} numberOfLines={1}>{item.name}</Text>

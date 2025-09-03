@@ -5,7 +5,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 const currency = (n) => `₹${Number(n || 0).toFixed(2)}`;
 const shortId = (id) => (id || '').slice(-6);
 
-const VendorOrderDetails = ({ route }) => {
+const VendorOrderDetails = ({ route, navigation }) => {
   const { order } = route.params || {};
   if (!order) return null;
 
@@ -18,7 +18,7 @@ const VendorOrderDetails = ({ route }) => {
     <View style={styles.container}>
       {/* Header with back */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => route.params?.navigation?.goBack ? route.params.navigation.goBack() : null}>
+        <TouchableOpacity onPress={() => navigation && navigation.goBack && navigation.goBack()}>
           <Icon name="arrow-back-outline" size={22} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>

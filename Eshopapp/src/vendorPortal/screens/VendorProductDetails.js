@@ -1,17 +1,34 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import api from '../../utils/api';
 
 const currency = (n) => `₹${Number(n || 0).toFixed(2)}`;
 
-const VendorProductDetails = ({ route }) => {
-  const { product } = route.params || {};
+const VendorProductDetails = ({ route, navigation }) => {
+  const { productId, product: fallback } = route.params || {};
+  const [product, setProduct] = useState(fallback || null);
+  const [loading, setLoading] = useState(!fallback && !!productId);
+
+  useEffect(() => {
+    (async () => {
+      if (!product && productId) {
+        try {
+          const res = await api.request(`/api/v1/products/${productId}`, { headers: {} });
+          if (res?.data) setProduct(res.data);
+        } catch (_) {}
+        finally { setLoading(false); }
+      }
+    })();
+  }, [productId]);
+
+  if (loading) return <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator /></View>;
   if (!product) return null;
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       {/* Header with back */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => route.params?.navigation?.goBack ? route.params.navigation.goBack() : null}>
+        <TouchableOpacity onPress={() => navigation && navigation.goBack && navigation.goBack()}>
           <Icon name="arrow-back-outline" size={22} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Product Details</Text>
@@ -32,12 +49,12 @@ const VendorProductDetails = ({ route }) => {
           </View>
         ) : null}
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f8fa', padding: 16 },
+  container: { flex: 1, backgroundColor: '#f7f8fa' },
   card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
   image: { width: '100%', height: 220, borderRadius: 8, backgroundColor: '#f4f4f4' },
   title: { fontWeight: '800', color: '#333', marginTop: 12, fontSize: 16 },
