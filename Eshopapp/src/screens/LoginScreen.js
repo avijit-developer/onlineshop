@@ -83,21 +83,23 @@ const LoginScreen = ({ navigation }) => {
             returnKeyType="next"
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#777"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={showPw !== true}
-            autoCapitalize="none"
-            returnKeyType="done"
-            selectionColor="#333"
-            cursorColor="#333"
-          />
-          <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 30, top: 244 }}>
-            <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
-          </TouchableOpacity>
+          <View style={{ position: 'relative' }}>
+            <TextInput
+              style={[styles.input, { paddingRight: 42 }]}
+              placeholder="Password"
+              placeholderTextColor="#777"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={showPw !== true}
+              autoCapitalize="none"
+              returnKeyType="done"
+              selectionColor="#333"
+              cursorColor="#333"
+            />
+            <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, height: 48, top: '50%', marginTop: -24, justifyContent: 'center' }}>
+              <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.loginButton, (isLoggingIn || locationLoading) && styles.disabledButton]}
