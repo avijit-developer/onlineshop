@@ -12,6 +12,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
   const items = Array.isArray(order.items) ? order.items : [];
   const customer = order.user || order.customer || {};
   const shipping = order.shippingAddress || order.address || {};
+  const vendor = order.vendor || order.vendorInfo || (items.find(i => i?.product?.vendor) ? items.find(i => i.product.vendor).product.vendor : {});
   const status = String(order.status || '').toUpperCase();
 
   return (
@@ -52,6 +53,25 @@ const VendorOrderDetails = ({ route, navigation }) => {
         ) : null}
         {order.paymentMethod ? <KV label="Payment" value={String(order.paymentMethod)} /> : null}
         {order.notes ? <KV label="Notes" value={String(order.notes)} /> : null}
+      </View>
+
+      {/* Vendor details */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Vendor</Text>
+        <View style={styles.divider} />
+        <KV label="Company" value={vendor.companyName || vendor.name || '-'} />
+        <KV label="Email" value={vendor.email || '-'} />
+        {vendor.phone ? <KV label="Phone" value={vendor.phone} /> : null}
+        {vendor.address1 || vendor.address || vendor.city || vendor.zip ? (
+          <KV label="Address" value={[vendor.address1 || vendor.address, vendor.address2, vendor.city, vendor.zip].filter(Boolean).join(', ')} />
+        ) : null}
+        {vendor.status ? <KV label="Status" value={String(vendor.status)} /> : null}
+        {vendor.enabled != null ? <KV label="Enabled" value={vendor.enabled ? 'Yes' : 'No'} /> : null}
+        {vendor.commission != null ? <KV label="Commission" value={String(vendor.commission) + '%'} /> : null}
+        {vendor.balance != null ? <KV label="Balance" value={currency(vendor.balance)} /> : null}
+        {vendor.totalEarnings != null ? <KV label="Total Earnings" value={currency(vendor.totalEarnings)} /> : null}
+        {vendor.createdAt ? <KV label="Created" value={formatDate(vendor.createdAt)} /> : null}
+        {vendor.updatedAt ? <KV label="Updated" value={formatDate(vendor.updatedAt)} /> : null}
       </View>
 
       {/* Items */}
