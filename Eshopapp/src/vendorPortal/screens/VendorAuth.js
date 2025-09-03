@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../utils/api';
 
@@ -7,6 +8,7 @@ const VendorAuth = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   const loginVendor = async () => {
     if (!email || !password) {
@@ -37,10 +39,15 @@ const VendorAuth = ({ navigation }) => {
       <TouchableOpacity style={{ position: 'absolute', left: 16, top: 28 }} onPress={() => navigation.goBack()}>
         <Text style={{ color: '#f7ab18', fontWeight: '700' }}>{'< Back'}</Text>
       </TouchableOpacity>
-      <Image source={require('../../src/assets/logo.jpg')} style={{ width: 80, height: 80, marginBottom: 12 }} />
+      <Image source={require('../../assets/logo.jpg')} style={{ width: 80, height: 80, marginBottom: 12 }} />
       <Text style={styles.title}>Vendor Login</Text>
       <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" value={email} onChangeText={setEmail} autoCapitalize="none" />
-      <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
+      <View style={{ width: '100%' }}>
+        <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
+        <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, top: 12 }}>
+          <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity style={styles.btn} onPress={loginVendor} disabled={loading}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Login</Text>}
       </TouchableOpacity>
