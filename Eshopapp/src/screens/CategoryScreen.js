@@ -62,22 +62,20 @@ const CategoryScreen = () => {
     navigation.navigate('ProductList', { title: category.name, categoryId: category.id });
   };
 
-  const renderCategoryItem = ({ item, index }) => (
+  const renderCategoryItem = ({ item }) => (
     <TouchableOpacity
-      style={[styles.categoryCard, { backgroundColor: '#F8F8F8' }]}
+      activeOpacity={0.85}
+      style={styles.categoryCard}
       onPress={() => handleCategoryPress(item)}
     >
       <Image source={{ uri: item.image || placeholder }} style={styles.categoryImage} />
-      <View style={styles.categoryInfo}>
-        <Text
-          style={styles.categoryName}
-          numberOfLines={(item?.name?.length || 0) > 10 ? 2 : 1}
-        >
-          {item.name}
-        </Text>
-        <Text style={styles.itemCount}>View products</Text>
-      </View>
-      <Icon name="chevron-forward-outline" size={20} color="#666" />
+      <Text
+        style={styles.categoryName}
+        numberOfLines={(item?.name?.length || 0) > 10 ? 2 : 1}
+      >
+        {item.name}
+      </Text>
+      <Text style={styles.itemCount}>View products</Text>
     </TouchableOpacity>
   );
 
@@ -175,36 +173,47 @@ const styles = StyleSheet.create({
   },
   row: {
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   categoryCard: {
     width: '48%',
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     alignItems: 'center',
-    minHeight: 80,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eef2f7',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   categoryImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginBottom: 10,
   },
   categoryInfo: {
     flex: 1,
+    alignItems: 'center',
   },
   categoryName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+    textAlign: 'center',
     marginBottom: 4,
     flexShrink: 1,
     lineHeight: 18,
   },
   itemCount: {
     fontSize: 12,
-    color: '#666',
+    color: '#8791a1',
+    textAlign: 'center',
   },
   featuredSection: {
     marginTop: 30,
@@ -218,13 +227,24 @@ const styles = StyleSheet.create({
   },
   featuredCard: {
     width: 120,
-    marginRight: 16,
+    marginRight: 12,
     alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eef2f7',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
   },
   featuredImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     marginBottom: 8,
   },
   featuredName: {
