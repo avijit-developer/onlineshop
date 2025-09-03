@@ -77,41 +77,31 @@ const VendorOrderDetails = ({ route, navigation }) => {
       </View>
       
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
+      {/* Hero summary */}
+      <View style={styles.heroCard}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.heroTitle}>Order #{pick(order, ['orderNumber', 'order_no', 'number', 'code', '_id', 'id'], shortId(order._id))}</Text>
+          <Text style={[styles.badge, statusStyles(status)]}>{status}</Text>
+        </View>
+        <View style={{ height: 10 }} />
+        <Text style={styles.heroTotal}>{currency(totals.total)}</Text>
+        <View style={{ height: 8 }} />
+        <View style={styles.pillsRow}>
+          <View style={[styles.pillBadge]}><Text style={styles.pillText}>Items: {String(items.length)}</Text></View>
+          {pick(order, ['paymentMethod', 'payment_method']) ? (
+            <View style={[styles.pillBadge]}><Text style={styles.pillText}>Payment: {String(pick(order, ['paymentMethod', 'payment_method'], '')).toUpperCase()}</Text></View>
+          ) : null}
+          {totals.coupon ? (<View style={[styles.pillBadge]}><Text style={styles.pillText}>Coupon: {String(totals.coupon)}</Text></View>) : null}
+        </View>
+        <Text style={styles.dateText}>{formatDate(pick(order, ['createdAt', 'created_at', 'date', 'placedAt'], ''))}</Text>
+      </View>
+
       {/* Customer quick info */}
       <View style={styles.infoCard}>
         <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Customer</Text></View>
         <View style={styles.infoRow}><Text style={styles.infoLabel}>Name</Text><Text style={styles.infoValue}>{customer.name || '-'}</Text></View>
         <View style={styles.infoRow}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{customer.email || '-'}</Text></View>
         <View style={styles.infoRow}><Text style={styles.infoLabel}>Mobile</Text><Text style={styles.infoValue}>{order.customerPhone || customer.phone || '-'}</Text></View>
-      </View>
-      {/* Header summary */}
-      <View style={styles.card}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.title}>Order #{pick(order, ['orderNumber', 'order_no', 'number', 'code', '_id', 'id'], shortId(order._id))}</Text>
-          <Text style={[styles.badge, statusStyles(status)]}>{status}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.kvGrid}>
-          <KV label="Date" value={formatDate(pick(order, ['createdAt', 'created_at', 'date', 'placedAt'], ''))} />
-          <KV label="Items" value={String(items.length)} />
-          <KV label="Subtotal" value={currency(totals.subtotal)} />
-          {totals.tax != null && <KV label="Tax" value={currency(totals.tax)} />}
-          {totals.shipping != null && <KV label="Shipping" value={currency(totals.shipping)} />}
-          {totals.discount ? <KV label="Discount" value={currency(totals.discount)} /> : null}
-          <KV label="Total" value={currency(totals.total)} highlight />
-        </View>
-        <View style={styles.chipsRow}>
-          {pick(order, ['paymentMethod', 'payment_method']) ? (
-            <View style={[styles.chip, { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' }] }>
-              <Text style={[styles.chipText, { color: '#2e7d32' }]}>Payment: {String(pick(order, ['paymentMethod', 'payment_method'], '')).toUpperCase()}</Text>
-            </View>
-          ) : null}
-          {totals.coupon ? (
-            <View style={[styles.chip, { backgroundColor: '#FFF8E1', borderColor: '#FFE082' }] }>
-              <Text style={[styles.chipText, { color: '#8D6E63' }]}>Coupon: {String(totals.coupon)}</Text>
-            </View>
-          ) : null}
-        </View>
       </View>
 
       {/* Customer details */}
@@ -271,6 +261,13 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 8 },
   title: { fontWeight: '800', color: '#333', fontSize: 16 },
+  heroCard: { backgroundColor: '#111827', borderRadius: 14, padding: 16 },
+  heroTitle: { color: '#f3f4f6', fontWeight: '800', fontSize: 16 },
+  heroTotal: { color: '#ffffff', fontWeight: '900', fontSize: 24, letterSpacing: 0.3 },
+  dateText: { color: '#d1d5db', fontSize: 12, marginTop: 6 },
+  pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
+  pillBadge: { backgroundColor: '#1f2937', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  pillText: { color: '#e5e7eb', fontSize: 12, fontWeight: '700' },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, overflow: 'hidden', fontWeight: '700' },
   sectionTitle: { fontWeight: '700', color: '#333' },
   kvGrid: { flexDirection: 'row', flexWrap: 'wrap' },
