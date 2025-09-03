@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import VendorDashboard from './screens/VendorDashboard';
 import VendorOrders from './screens/VendorOrders';
@@ -8,31 +8,34 @@ import VendorProducts from './screens/VendorProducts';
 import VendorReports from './screens/VendorReports';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const VendorTabs = ({ navigation }) => {
+  // Render active screen manually with a simple footer
+  const [active, setActive] = React.useState('VDashboard');
 
-const VendorTabs = () => (
-  <Tab.Navigator
-    screenOptions={({ route }) => ({
-      headerShown: false,
-      tabBarActiveTintColor: '#f7ab18',
-      tabBarInactiveTintColor: '#999',
-      tabBarStyle: { borderTopColor: '#eee' },
-      tabBarIcon: ({ color, size }) => {
-        let name = 'grid-outline';
-        if (route.name === 'VDashboard') name = 'home-outline';
-        else if (route.name === 'VOrders') name = 'list-outline';
-        else if (route.name === 'VProducts') name = 'cube-outline';
-        else if (route.name === 'VReports') name = 'stats-chart-outline';
-        return <Icon name={name} size={size} color={color} />;
-      }
-    })}
-  >
-    <Tab.Screen name="VDashboard" component={VendorDashboard} options={{ title: 'Dashboard' }} />
-    <Tab.Screen name="VOrders" component={VendorOrders} options={{ title: 'Orders' }} />
-    <Tab.Screen name="VProducts" component={VendorProducts} options={{ title: 'Products' }} />
-    <Tab.Screen name="VReports" component={VendorReports} options={{ title: 'Reports' }} />
-  </Tab.Navigator>
-);
+  const Screen = active === 'VDashboard' ? VendorDashboard
+    : active === 'VOrders' ? VendorOrders
+    : active === 'VProducts' ? VendorProducts
+    : VendorReports;
+
+  const FooterButton = ({ id, title, icon }) => (
+    <TouchableOpacity style={styles.tabBtn} onPress={() => setActive(id)}>
+      <Icon name={icon} size={22} color={active === id ? '#f7ab18' : '#999'} />
+      <Text style={[styles.tabText, active === id && { color: '#f7ab18' }]}>{title}</Text>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <Screen navigation={navigation} />
+      <View style={styles.footer}>
+        <FooterButton id="VDashboard" title="Dashboard" icon="home-outline" />
+        <FooterButton id="VOrders" title="Orders" icon="list-outline" />
+        <FooterButton id="VProducts" title="Products" icon="cube-outline" />
+        <FooterButton id="VReports" title="Reports" icon="stats-chart-outline" />
+      </View>
+    </View>
+  );
+};
 
 const VendorPortalNavigator = () => {
   return (
@@ -44,3 +47,9 @@ const VendorPortalNavigator = () => {
 };
 
 export default VendorPortalNavigator;
+
+const styles = StyleSheet.create({
+  footer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#eee', backgroundColor: '#fff' },
+  tabBtn: { alignItems: 'center', gap: 2 },
+  tabText: { fontSize: 11, color: '#999', fontWeight: '600' },
+});
