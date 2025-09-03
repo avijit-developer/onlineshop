@@ -2,26 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, NativeModules } from 'react-native';
 import { EXPO_PUBLIC_API_URL, API_URL } from '@env';
 
-// Prefer env from @env (react-native-dotenv), fallback to process.env, then platform default
-const DEFAULT_BASE = Platform.select({
-  ios: 'http://localhost:5000',
-  android: 'http://10.0.2.2:5000',
-  default: 'http://localhost:5000',
-});
-function resolveDevBase() {
-  try {
-    const scriptURL = NativeModules?.SourceCode?.scriptURL;
-    if (scriptURL) {
-      const { hostname } = new URL(scriptURL);
-      if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-        return `http://${hostname}:5000`;
-      }
-    }
-  } catch (_) {}
-  return DEFAULT_BASE;
-}
+// Prefer env from @env (react-native-dotenv), fallback to process.env
+// Dev (debug) ALWAYS uses http://localhost:5000 across simulator/emulator/physical device.
+// For Android physical/emulator, use: adb reverse tcp:5000 tcp:5000
 const PROD_BASE_FROM_ENV = (EXPO_PUBLIC_API_URL || API_URL || process.env?.EXPO_PUBLIC_API_URL || process.env?.API_URL || 'https://trahimart.com');
-export const API_BASE = __DEV__ ? resolveDevBase() : PROD_BASE_FROM_ENV;
+export const API_BASE = __DEV__ ? 'http://localhost:5000' : PROD_BASE_FROM_ENV;
 if (__DEV__) {
   // eslint-disable-next-line no-console
   console.log('[API] BASE (dev):', API_BASE);
