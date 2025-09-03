@@ -28,18 +28,14 @@ const VendorShell = ({ navigation }) => {
       await AsyncStorage.removeItem('vendorAuthToken');
     } catch (_) {}
     const parent = navigation.getParent && navigation.getParent();
-    if (parent && parent.dispatch) {
-      parent.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'Login' }],
-        })
-      );
-    } else {
-      navigation.dispatch(
-        CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] })
-      );
-    }
+    const root = parent && parent.getParent ? parent.getParent() : null;
+    const dispatcher = (root && root.dispatch) || (parent && parent.dispatch) || navigation.dispatch;
+    dispatcher(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      })
+    );
   };
 
   const goMainLogout = async () => {
