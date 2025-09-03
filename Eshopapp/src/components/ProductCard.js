@@ -123,16 +123,15 @@ const ProductCard = ({ item }) => {
 
 const styles = StyleSheet.create({
   card: {
-      width: '46%',
-    borderRadius: 6,
+    width: '48%',
+    borderRadius: 8,
     backgroundColor: '#fff',
     overflow: 'hidden',
-    elevation: 3,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
-
   },
   image: {
     width: '100%',
@@ -158,6 +157,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#222',
+    lineHeight: 18,
+    height: 18,
   },
   priceWrapper: {
     flexDirection: 'row',

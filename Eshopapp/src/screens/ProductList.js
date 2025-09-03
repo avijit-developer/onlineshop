@@ -406,11 +406,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   listContent: {
-    paddingVertical: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   column: {
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   loadingContainer: {
     paddingVertical: 40,
