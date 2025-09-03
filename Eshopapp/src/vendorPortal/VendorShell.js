@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from 'react-native';
-import { CommonActions } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import VendorDashboard from './screens/VendorDashboard';
@@ -8,18 +8,22 @@ import VendorOrders from './screens/VendorOrders';
 import VendorProducts from './screens/VendorProducts';
 import VendorReports from './screens/VendorReports';
 
-const VendorShell = ({ navigation }) => {
+const VendorShell = () => {
+  const navigation = useNavigation();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [active, setActive] = React.useState('dashboard');
   
   useEffect(() => {
     const handler = () => true; // disable hardware back inside vendor shell
     const sub = BackHandler.addEventListener('hardwareBackPress', handler);
-    const removeBefore = navigation.addListener('beforeRemove', (e) => {
-      if (e.data?.action?.type === 'GO_BACK') {
-        e.preventDefault();
-      }
-    });
+    let removeBefore;
+    if (navigation && navigation.addListener) {
+      removeBefore = navigation.addListener('beforeRemove', (e) => {
+        if (e.data?.action?.type === 'GO_BACK') {
+          e.preventDefault();
+        }
+      });
+    }
     return () => { sub.remove(); removeBefore && removeBefore(); };
   }, [navigation]);
 
