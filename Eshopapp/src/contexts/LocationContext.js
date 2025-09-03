@@ -17,6 +17,8 @@ export const LocationProvider = ({ children }) => {
   const [location, setLocation] = useState(null);
   const [address, setAddress] = useState('Select your location');
   const [isLoading, setIsLoading] = useState(false);
+  const [area, setArea] = useState('');
+  const [city, setCity] = useState('');
 
   // Load user's default address on app start
   useEffect(() => {
@@ -59,6 +61,8 @@ export const LocationProvider = ({ children }) => {
           longitude: locationData.longitude,
         });
         setAddress(locationData.address);
+        if (locationData.area) setArea(locationData.area);
+        if (locationData.city) setCity(locationData.city);
       }
     } catch (error) {
       console.error('Failed to get location:', error);
@@ -74,11 +78,15 @@ export const LocationProvider = ({ children }) => {
   const value = {
     location,
     address,
+    area,
+    city,
     isLoading,
     requestLocation,
     updateAddress,
     setLocation,
     setAddress,
+    setArea,
+    setCity,
     loadUserDefaultAddress,
   };
 

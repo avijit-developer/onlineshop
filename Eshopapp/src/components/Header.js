@@ -7,7 +7,7 @@ import { useUser } from '../contexts/UserContext';
 
 export default function Header() {
   const navigation = useNavigation();
-  const { address } = useLocation();
+  const { address, area, city } = useLocation();
   const { user } = useUser();
 
   const handleAddressPress = () => {
@@ -39,7 +39,7 @@ export default function Header() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.addressWrapper} onPress={handleAddressPress}>
           <Text style={styles.addressText} numberOfLines={1}>
-            {address || 'Select your location'}
+            {(area && city) ? `${area}, ${city}` : (address || 'Select your location')}
           </Text>
           <Icon name="chevron-down-outline" size={14} color="#3F3F3F" style={styles.downIcon} />
         </TouchableOpacity>

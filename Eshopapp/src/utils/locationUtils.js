@@ -83,13 +83,11 @@ export const reverseGeocode = async (latitude, longitude) => {
       
       if (response.ok) {
         const data = await response.json();
-        if (data && data.display_name) {
-          const parts = data.display_name.split(', ');
-          if (parts.length >= 2) {
-            return `${parts[0]}, ${parts[1]}`;
-          }
-          return data.display_name;
-        }
+        const addr = data?.address || {};
+        const area = addr.suburb || addr.neighbourhood || addr.hamlet || addr.village || addr.town || '';
+        const city = addr.city || addr.town || addr.village || addr.county || '';
+        const display = data?.display_name || [area, city].filter(Boolean).join(', ');
+        return { area, city, display };
       }
     } else {
       // For iOS, try the original service
@@ -97,20 +95,18 @@ export const reverseGeocode = async (latitude, longitude) => {
         `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
       );
       const data = await response.json();
-      
-      if (data && data.locality && data.principalSubdivision) {
-        return `${data.locality}, ${data.principalSubdivision}`;
-      } else if (data && data.city) {
-        return `${data.city}, ${data.countryName}`;
-      }
+      const area = data?.locality || data?.localityInfo?.administrative?.[0]?.name || '';
+      const city = data?.principalSubdivision || data?.city || data?.localityInfo?.administrative?.[1]?.name || '';
+      const display = (data && (data.locality || data.city)) ? `${(data.locality || data.city)}, ${(data.principalSubdivision || data.countryName || '')}`.trim().replace(/,\s*$/, '') : `${area}${city ? ', ' + city : ''}`;
+      return { area, city, display };
     }
     
     // Fallback to mock address if API fails
-    return `Downtown Area, NY`;
+    return { area: 'Downtown Area', city: 'NY', display: 'Downtown Area, NY' };
   } catch (error) {
     console.error('Reverse geocoding error:', error);
     // Return a realistic mock address instead of coordinates
-    return 'Downtown Area, NY';
+    return { area: 'Downtown Area', city: 'NY', display: 'Downtown Area, NY' };
   }
 };
 
@@ -123,11 +119,16 @@ export const requestLocationAndGetAddress = async () => {
     }
 
     const location = await getCurrentLocation();
-    const address = await reverseGeocode(location.latitude, location.longitude);
-    
+    const geo = await reverseGeocode(location.latitude, location.longitude);
+    const area = typeof geo === 'string' ? (geo.split(', ')[0] || '') : (geo.area || '');
+    const city = typeof geo === 'string' ? (geo.split(', ')[1] || '') : (geo.city || '');
+    const display = typeof geo === 'string' ? geo : (geo.display || [area, city].filter(Boolean).join(', '));
+
     return {
       ...location,
-      address,
+      address: display,
+      area,
+      city,
     };
   } catch (error) {
     console.error('Location request error:', error);
