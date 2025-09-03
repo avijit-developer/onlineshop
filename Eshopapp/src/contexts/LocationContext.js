@@ -19,6 +19,7 @@ export const LocationProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [area, setArea] = useState('');
   const [city, setCity] = useState('');
+  const [postalCode, setPostalCode] = useState('');
 
   // Load user's default address on app start
   useEffect(() => {
@@ -39,6 +40,8 @@ export const LocationProvider = ({ children }) => {
       if (response.success && response.data && response.data.length > 0) {
         const defaultAddress = response.data.find(addr => addr.isDefault) || response.data[0];
         setAddress(defaultAddress.address);
+        if (defaultAddress.city) setCity(defaultAddress.city);
+        if (defaultAddress.zipCode || defaultAddress.postalCode) setPostalCode(defaultAddress.zipCode || defaultAddress.postalCode);
         if (defaultAddress.location?.coordinates) {
           setLocation({
             latitude: defaultAddress.location.coordinates[1],
@@ -63,6 +66,7 @@ export const LocationProvider = ({ children }) => {
         setAddress(locationData.address);
         if (locationData.area) setArea(locationData.area);
         if (locationData.city) setCity(locationData.city);
+        if (locationData.postalCode) setPostalCode(locationData.postalCode);
       }
     } catch (error) {
       console.error('Failed to get location:', error);
@@ -80,6 +84,7 @@ export const LocationProvider = ({ children }) => {
     address,
     area,
     city,
+    postalCode,
     isLoading,
     requestLocation,
     updateAddress,
@@ -87,6 +92,7 @@ export const LocationProvider = ({ children }) => {
     setAddress,
     setArea,
     setCity,
+    setPostalCode,
     loadUserDefaultAddress,
   };
 
