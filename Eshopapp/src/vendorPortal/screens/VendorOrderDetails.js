@@ -70,8 +70,8 @@ const VendorOrderDetails = ({ route, navigation }) => {
       {/* Header with back */}
       <View style={styles.header}>
         <View style={styles.navSlot}>
-          <TouchableOpacity onPress={() => navigation && navigation.goBack && navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Icon name="arrow-back-outline" size={22} color="#333" />
+          <TouchableOpacity onPress={() => navigation && navigation.goBack && navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Icon name="arrow-back-outline" size={24} color="#333" />
           </TouchableOpacity>
         </View>
         <Text style={styles.headerTitle}>Order Details</Text>
@@ -246,9 +246,9 @@ const statusStyles = (status) => ({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7f8fa' },
   scrollBody: { padding: 16, gap: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  navSlot: { width: 28, alignItems: 'flex-start', justifyContent: 'center' },
-  headerTitle: { fontWeight: '800', color: '#333', fontSize: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', marginBottom: 8 },
+  navSlot: { width: 40, alignItems: 'flex-start', justifyContent: 'center' },
+  headerTitle: { fontWeight: '800', color: '#333', fontSize: 16, textAlign: 'center' },
   infoCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
   infoTitle: { color: '#8791a1', fontSize: 12, marginBottom: 6 },
   sectionHeader: { backgroundColor: '#f9fafb', paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, marginBottom: 8 },
