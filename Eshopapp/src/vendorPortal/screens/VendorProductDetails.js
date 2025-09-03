@@ -28,6 +28,19 @@ const VendorProductDetails = ({ route, navigation }) => {
       <Text style={{ color: '#666' }}>Product not found</Text>
     </View>
   );
+  // Normalize fields
+  const images = Array.isArray(product.images) ? product.images : (product.image ? [product.image] : []);
+  const primaryImage = images[0];
+  const regularPrice = product.regularPrice ?? product.price ?? 0;
+  const specialPrice = product.specialPrice != null ? Number(product.specialPrice) : null;
+  const brandName = product.brand?.name || product.brand || '-';
+  const categoryName = Array.isArray(product.categories)
+    ? product.categories.map(c => c?.name || c).filter(Boolean).join(' / ')
+    : (product.category?.name || product.category || '-');
+  const sku = product.sku || '-';
+  const stock = product.stock ?? product.inventory?.stock ?? '-';
+  const attributes = product.attributes;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       {/* Header with back */}
@@ -39,13 +52,49 @@ const VendorProductDetails = ({ route, navigation }) => {
         <View style={{ width: 22 }} />
       </View>
       <View style={styles.card}>
-        <Image source={{ uri: product.image }} style={styles.image} />
+        {!!primaryImage && <Image source={{ uri: primaryImage }} style={styles.image} />}
         <Text style={styles.title}>{product.name}</Text>
-        <View style={styles.kvRow}><Text style={styles.kvLabel}>Price</Text><Text style={styles.kvValue}>{currency(product.price)}</Text></View>
-        <View style={styles.kvRow}><Text style={styles.kvLabel}>Stock</Text><Text style={styles.kvValue}>{product.stock ?? '-'}</Text></View>
-        {product.sku ? <View style={styles.kvRow}><Text style={styles.kvLabel}>SKU</Text><Text style={styles.kvValue}>{product.sku}</Text></View> : null}
-        {product.brand ? <View style={styles.kvRow}><Text style={styles.kvLabel}>Brand</Text><Text style={styles.kvValue}>{product.brand?.name || product.brand}</Text></View> : null}
-        {product.category ? <View style={styles.kvRow}><Text style={styles.kvLabel}>Category</Text><Text style={styles.kvValue}>{product.category?.name || product.category}</Text></View> : null}
+
+        {/* Pricing */}
+        {specialPrice != null ? (
+          <View style={styles.priceRow}>
+            <Text style={[styles.priceSpecial]}>{currency(specialPrice)}</Text>
+            <Text style={styles.priceRegular}>{currency(regularPrice)}</Text>
+          </View>
+        ) : (
+          <View style={styles.kvRow}><Text style={styles.kvLabel}>Price</Text><Text style={styles.kvValue}>{currency(regularPrice)}</Text></View>
+        )}
+
+        {/* Core info */}
+        <View style={styles.kvRow}><Text style={styles.kvLabel}>Stock</Text><Text style={styles.kvValue}>{stock}</Text></View>
+        <View style={styles.kvRow}><Text style={styles.kvLabel}>SKU</Text><Text style={styles.kvValue}>{sku}</Text></View>
+        <View style={styles.kvRow}><Text style={styles.kvLabel}>Brand</Text><Text style={styles.kvValue}>{brandName}</Text></View>
+        <View style={styles.kvRow}><Text style={styles.kvLabel}>Category</Text><Text style={styles.kvValue}>{categoryName}</Text></View>
+
+        {/* Attributes */}
+        {attributes ? (
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.kvLabel}>Attributes</Text>
+            <View style={{ marginTop: 6 }}>
+              {Array.isArray(attributes) ? (
+                attributes.length > 0 ? attributes.map((a, idx) => (
+                  <View key={idx} style={styles.attrRow}>
+                    <Text style={styles.attrKey}>{a?.name || a?.key || '-'}</Text>
+                    <Text style={styles.attrValue}>{Array.isArray(a?.value) ? a.value.join(', ') : (a?.value ?? '-')}</Text>
+                  </View>
+                )) : <Text style={styles.kvValue}>-</Text>
+              ) : (typeof attributes === 'object' ? (
+                Object.keys(attributes).map((k) => (
+                  <View key={k} style={styles.attrRow}>
+                    <Text style={styles.attrKey}>{k}</Text>
+                    <Text style={styles.attrValue}>{String(attributes[k])}</Text>
+                  </View>
+                ))
+              ) : null)}
+            </View>
+          </View>
+        ) : null}
+
         {product.description ? (
           <View style={{ marginTop: 8 }}>
             <Text style={styles.kvLabel}>Description</Text>
@@ -65,6 +114,12 @@ const styles = StyleSheet.create({
   kvRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
   kvLabel: { color: '#8791a1' },
   kvValue: { color: '#333', fontWeight: '700' },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  priceSpecial: { color: '#e53935', fontWeight: '800', fontSize: 16 },
+  priceRegular: { color: '#8791a1', textDecorationLine: 'line-through', fontWeight: '600' },
+  attrRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  attrKey: { color: '#8791a1' },
+  attrValue: { color: '#333', fontWeight: '600', maxWidth: '60%' },
 });
 
 export default VendorProductDetails;
