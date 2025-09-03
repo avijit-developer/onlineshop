@@ -18,7 +18,7 @@ const VendorOrders = ({ navigation }) => {
   }, []);
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorOrderDetails', { order: item })}>
+    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorOrderDetails', { orderId: item._id || item.id, order: item })}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={styles.orderId}>#{item.orderNumber || item._id?.slice(-6)}</Text>
         <Text style={styles.status}>{String(item.status || '').toUpperCase()}</Text>

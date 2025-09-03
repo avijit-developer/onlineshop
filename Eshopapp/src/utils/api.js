@@ -503,6 +503,14 @@ const api = {
     });
   },
 
+  async getVendorOrderById(orderId) {
+    const token = await this.getVendorToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request(`/api/v1/orders/vendor/${orderId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
   async getVendorSummary() {
     // Compute summary from orders response client-side for now
     const res = await this.getVendorOrders({ page: 1, limit: 100 });

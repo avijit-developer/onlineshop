@@ -1,12 +1,30 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import api from '../../utils/api';
 
 const currency = (n) => `₹${Number(n || 0).toFixed(2)}`;
 const shortId = (id) => (id || '').slice(-6);
 
 const VendorOrderDetails = ({ route, navigation }) => {
-  const { order } = route.params || {};
+  const { orderId, order: fallback } = route.params || {};
+  const [order, setOrder] = useState(fallback || null);
+  const [loading, setLoading] = useState(!fallback && !!orderId);
+
+  useEffect(() => {
+    (async () => {
+      if (!order && orderId) {
+        try {
+          const res = await api.getVendorOrderById(orderId);
+          const payload = (res && (res.data || res.order || (res.data && res.data.order))) || null;
+          if (payload) setOrder(payload);
+        } catch (_) {}
+        finally { setLoading(false); }
+      }
+    })();
+  }, [orderId]);
+
+  if (loading) return <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator /></View>;
   if (!order) return null;
 
   const items = Array.isArray(order.items) ? order.items : [];
