@@ -44,27 +44,8 @@ const api = {
       const json = await response.json();
       return json;
     } catch (error) {
-      // If pure network error, try one fallback using Metro host-derived base
+      // Network error; no alternate base retry (dev uses localhost, release uses prod env)
       const isNetwork = !(error instanceof ApiError);
-      if (isNetwork) {
-        const altBase = resolveDevBase();
-        const usedDefaultEmuBase = initialBase.includes('localhost') || initialBase.includes('10.0.2.2');
-        const shouldRetry = altBase && altBase !== initialBase && usedDefaultEmuBase;
-        if (shouldRetry) {
-          try {
-            const altUrl = `${altBase}${endpoint}`;
-            const response = await fetch(altUrl, config);
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}));
-              throw new ApiError(errorData.message || `HTTP error! status: ${response.status}`, response.status);
-            }
-            const json = await response.json();
-            return json;
-          } catch (_) {
-            // fall-through to final error
-          }
-        }
-      }
       if (error instanceof ApiError) throw error;
       console.warn('[API] Network error. Base:', initialBase, 'Endpoint:', endpoint);
       throw new ApiError('Network error. Please check your connection.', 0);
