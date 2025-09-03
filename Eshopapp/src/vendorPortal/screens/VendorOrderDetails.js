@@ -16,7 +16,8 @@ const VendorOrderDetails = ({ route, navigation }) => {
       if (!order && orderId) {
         try {
           const res = await api.getVendorOrderById(orderId);
-          const payload = (res && (res.data || res.order || (res.data && res.data.order))) || null;
+          // Unwrap common response shapes
+          const payload = res?.order || res?.data?.order || res?.data || res || null;
           if (payload) setOrder(payload);
         } catch (_) {}
         finally { setLoading(false); }
@@ -27,20 +28,36 @@ const VendorOrderDetails = ({ route, navigation }) => {
   if (loading) return <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator /></View>;
   if (!order) return null;
 
-  const items = Array.isArray(order.items) ? order.items : [];
-  const customer = order.user || order.customer || {};
-  const shippingString = typeof order.shippingAddress === 'string' ? order.shippingAddress : null;
-  const shipping = shippingString ? {} : (order.shippingAddress || order.address || {});
-  const totals = {
-    subtotal: order.subtotal,
-    tax: order.tax,
-    shipping: order.shippingCost,
-    discount: order.discountAmount,
-    total: order.total,
-    coupon: order.couponCode
+  // Helpers to pick first available field (supports nested keys like 'summary.total')
+  const pick = (obj, keys, fallback) => {
+    for (const key of keys) {
+      const parts = key.split('.');
+      let cur = obj;
+      let ok = true;
+      for (const p of parts) {
+        if (cur && Object.prototype.hasOwnProperty.call(cur, p)) cur = cur[p];
+        else { ok = false; break; }
+      }
+      if (ok && cur != null && cur !== '') return cur;
+    }
+    return fallback;
   };
-  const vendor = order.vendor || order.vendorInfo || (items.find(i => i?.product?.vendor) ? items.find(i => i.product.vendor).product.vendor : {});
-  const status = String(order.status || '').toUpperCase();
+
+  const items = pick(order, ['items', 'orderItems', 'products'], []);
+  const customer = pick(order, ['user', 'customer', 'customerInfo'], {}) || {};
+  const shippingString = typeof pick(order, ['shippingAddress', 'shipping_address'], '') === 'string' ? (pick(order, ['shippingAddress', 'shipping_address'], '') || null) : null;
+  const shippingObj = pick(order, ['shippingAddress', 'shipping', 'shipping_address', 'address'], {});
+  const shipping = shippingString ? {} : (shippingObj || {});
+  const totals = {
+    subtotal: pick(order, ['subtotal', 'vendorSubtotal', 'summary.subtotal', 'totals.subtotal'], 0),
+    tax: pick(order, ['tax', 'summary.tax', 'totals.tax'], null),
+    shipping: pick(order, ['shippingCost', 'shipping', 'summary.shipping', 'totals.shipping'], null),
+    discount: pick(order, ['discountAmount', 'discount', 'summary.discount', 'totals.discount'], 0),
+    total: pick(order, ['total', 'grandTotal', 'vendorNet', 'summary.total', 'totals.total'], 0),
+    coupon: pick(order, ['couponCode', 'coupon', 'summary.couponCode', 'totals.couponCode'], null),
+  };
+  const vendor = pick(order, ['vendor', 'vendorInfo'], {}) || (Array.isArray(items) && items.find(i => i?.product?.vendor)?.product?.vendor) || {};
+  const status = String(pick(order, ['status', 'orderStatus'], '') || '').toUpperCase();
   const displayed = new Set([
     '_id','id','user','customer','orderNumber','status','items','shippingAddress','address','paymentMethod','tax','shippingCost','discountAmount','couponCode','customerPhone','subtotal','total','orderNote','statusHistory','createdAt','updatedAt','__v','vendor','vendorInfo'
   ]);
@@ -73,12 +90,12 @@ const VendorOrderDetails = ({ route, navigation }) => {
       {/* Header summary */}
       <View style={styles.card}>
         <View style={styles.rowBetween}>
-          <Text style={styles.title}>Order #{order.orderNumber || shortId(order._id)}</Text>
+          <Text style={styles.title}>Order #{pick(order, ['orderNumber', 'order_no', 'number', 'code', '_id', 'id'], shortId(order._id))}</Text>
           <Text style={[styles.badge, statusStyles(status)]}>{status}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.kvGrid}>
-          <KV label="Date" value={formatDate(order.createdAt)} />
+          <KV label="Date" value={formatDate(pick(order, ['createdAt', 'created_at', 'date', 'placedAt'], ''))} />
           <KV label="Items" value={String(items.length)} />
           <KV label="Subtotal" value={currency(totals.subtotal)} />
           {totals.tax != null && <KV label="Tax" value={currency(totals.tax)} />}
@@ -87,13 +104,13 @@ const VendorOrderDetails = ({ route, navigation }) => {
           <KV label="Total" value={currency(totals.total)} highlight />
         </View>
         <View style={styles.chipsRow}>
-          {order.paymentMethod ? (
-            <View style={[styles.chip, { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' }]}>
-              <Text style={[styles.chipText, { color: '#2e7d32' }]}>Payment: {String(order.paymentMethod).toUpperCase()}</Text>
+          {pick(order, ['paymentMethod', 'payment_method']) ? (
+            <View style={[styles.chip, { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' }] }>
+              <Text style={[styles.chipText, { color: '#2e7d32' }]}>Payment: {String(pick(order, ['paymentMethod', 'payment_method'], '')).toUpperCase()}</Text>
             </View>
           ) : null}
           {totals.coupon ? (
-            <View style={[styles.chip, { backgroundColor: '#FFF8E1', borderColor: '#FFE082' }]}>
+            <View style={[styles.chip, { backgroundColor: '#FFF8E1', borderColor: '#FFE082' }] }>
               <Text style={[styles.chipText, { color: '#8D6E63' }]}>Coupon: {String(totals.coupon)}</Text>
             </View>
           ) : null}
@@ -104,16 +121,16 @@ const VendorOrderDetails = ({ route, navigation }) => {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Customer</Text>
         <View style={styles.divider} />
-        <KV label="Name" value={customer.name || '-'} />
-        <KV label="Email" value={customer.email || '-'} />
-        <KV label="Mobile" value={order.customerPhone || customer.phone || '-'} />
+        <KV label="Name" value={pick(customer, ['name', 'fullName'], '-')} />
+        <KV label="Email" value={pick(customer, ['email'], '-')} />
+        <KV label="Mobile" value={pick(order, ['customerPhone', 'phone'], pick(customer, ['phone', 'mobile'], '-'))} />
         {shippingString ? (
           <KV label="Shipping" value={shippingString} />
         ) : (shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
           <KV label="Shipping" value={formatAddress(shipping)} />
         ) : null}
-        {order.paymentMethod ? <KV label="Payment" value={String(order.paymentMethod).toUpperCase()} /> : null}
-        {order.orderNote ? <KV label="Note" value={String(order.orderNote)} /> : null}
+        {pick(order, ['paymentMethod', 'payment_method']) ? <KV label="Payment" value={String(pick(order, ['paymentMethod', 'payment_method'], '')).toUpperCase()} /> : null}
+        {pick(order, ['orderNote', 'note']) ? <KV label="Note" value={String(pick(order, ['orderNote', 'note'], ''))} /> : null}
       </View>
 
       {/* Vendor details */}
@@ -138,21 +155,21 @@ const VendorOrderDetails = ({ route, navigation }) => {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Items</Text>
         <View style={styles.divider} />
-        {items.map((item, idx) => (
+        {(Array.isArray(items) ? items : []).map((item, idx) => (
           <View key={item._id || idx}>
             <View style={styles.itemRow}>
-              {item.image ? <Image source={{ uri: item.image }} style={styles.itemThumb} /> : null}
+              {pick(item, ['image']) ? <Image source={{ uri: pick(item, ['image'], '') }} style={styles.itemThumb} /> : null}
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemName} numberOfLines={1}>{item.product?.name || item.name}</Text>
-                {!!item.sku && <Text style={styles.itemMeta}>SKU: {item.sku}</Text>}
+                <Text style={styles.itemName} numberOfLines={1}>{pick(item, ['product.name'], '') || pick(item, ['name'], '')}</Text>
+                {pick(item, ['sku']) ? <Text style={styles.itemMeta}>SKU: {pick(item, ['sku'], '')}</Text> : null}
                 {item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0 && (
                   <Text style={styles.itemMeta}>Attrs: {Object.entries(item.selectedAttributes).map(([k,v]) => `${k}:${v}`).join(', ')}</Text>
                 )}
-                {!!item.vendor && <Text style={styles.itemMeta}>Vendor: {String(item.vendor)}</Text>}
+                {pick(item, ['vendor']) ? <Text style={styles.itemMeta}>Vendor: {String(pick(item, ['vendor'], ''))}</Text> : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.itemMeta}>x{item.quantity}</Text>
-                <Text style={styles.itemPrice}>{currency(item.price)}</Text>
+                <Text style={styles.itemMeta}>x{pick(item, ['quantity', 'qty'], 0)}</Text>
+                <Text style={styles.itemPrice}>{currency(pick(item, ['price', 'unitPrice'], 0))}</Text>
               </View>
             </View>
             {idx < items.length - 1 && <View style={styles.separator} />}
