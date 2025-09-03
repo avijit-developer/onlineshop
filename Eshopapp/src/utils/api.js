@@ -1,12 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, NativeModules } from 'react-native';
-import { EXPO_PUBLIC_API_URL, API_URL } from '@env';
 
-// Prefer env from @env (react-native-dotenv), fallback to process.env
-// Dev (debug) ALWAYS uses http://localhost:5000 across simulator/emulator/physical device.
-// For Android physical/emulator, use: adb reverse tcp:5000 tcp:5000
-const PROD_BASE_FROM_ENV = (EXPO_PUBLIC_API_URL || API_URL || process.env?.EXPO_PUBLIC_API_URL || process.env?.API_URL || 'https://trahimart.com');
-export const API_BASE = __DEV__ ? 'http://localhost:5000' : PROD_BASE_FROM_ENV;
+// Force ALL builds to use localhost for now.
+// Android physical/emulator: run `adb reverse tcp:5000 tcp:5000` to map device localhost to PC.
+export const API_BASE = 'http://localhost:5000';
 if (__DEV__) {
   // eslint-disable-next-line no-console
   console.log('[API] BASE (dev):', API_BASE);
