@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, BackHandler, Image } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +14,7 @@ const VendorShell = () => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [active, setActive] = React.useState('dashboard');
   const [assigned, setAssigned] = React.useState([]);
+  const [me, setMe] = React.useState(null);
   
   useEffect(() => {
     const handler = () => true; // disable hardware back inside vendor shell
@@ -36,6 +37,10 @@ const VendorShell = () => {
         if (res?.success) {
           setAssigned((res.data || []).map(v => ({ id: v._id || v.id, name: v.companyName })));
         }
+      } catch (_) {}
+      try {
+        const meRes = await api.getVendorProfile();
+        setMe(meRes?.data || meRes || null);
       } catch (_) {}
     })();
   }, []);
@@ -95,6 +100,13 @@ const VendorShell = () => {
 
       {/* Side menu */}
       <View style={[styles.sideMenu, { transform: [{ translateX: menuOpen ? 0 : -260 }] }]}> 
+        <View style={styles.menuHeader}>
+          <View style={styles.avatar}><Text style={styles.avatarText}>{(me?.name || me?.user?.name || 'V').slice(0,1).toUpperCase()}</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.welcome}>Welcome to {(me?.name || me?.user?.name || 'Vendor')}</Text>
+            {me?.email || me?.user?.email ? <Text style={styles.subtle}>{me?.email || me?.user?.email}</Text> : null}
+          </View>
+        </View>
         <Text style={styles.menuTitle}>Menu</Text>
         {assigned.length > 0 && (
           <View style={{ marginBottom: 8 }}>
@@ -135,7 +147,12 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#333' },
   overlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.2)', zIndex: 2 },
   sideMenu: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 260, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 16, borderRightWidth: 1, borderRightColor: '#eee', zIndex: 3, elevation: 4 },
-  menuTitle: { fontWeight: '700', color: '#999', marginBottom: 12 },
+  menuHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#fff', fontWeight: '800' },
+  welcome: { fontWeight: '800', color: '#333' },
+  subtle: { color: '#6b7280', fontSize: 12 },
+  menuTitle: { fontWeight: '700', color: '#999', marginBottom: 12, marginTop: 4 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   menuText: { color: '#666', fontWeight: '600' },
   menuTextActive: { color: '#f7ab18' },
