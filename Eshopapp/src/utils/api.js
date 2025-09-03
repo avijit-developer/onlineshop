@@ -20,7 +20,12 @@ function resolveDevBase() {
   } catch (_) {}
   return DEFAULT_BASE;
 }
-export const API_BASE = (EXPO_PUBLIC_API_URL || API_URL || process.env?.EXPO_PUBLIC_API_URL || process.env?.API_URL || resolveDevBase());
+const PROD_BASE_FROM_ENV = (EXPO_PUBLIC_API_URL || API_URL || process.env?.EXPO_PUBLIC_API_URL || process.env?.API_URL || 'https://trahimart.com');
+export const API_BASE = __DEV__ ? resolveDevBase() : PROD_BASE_FROM_ENV;
+if (__DEV__) {
+  // eslint-disable-next-line no-console
+  console.log('[API] BASE (dev):', API_BASE);
+}
 
 class ApiError extends Error {
   constructor(message, status) {
