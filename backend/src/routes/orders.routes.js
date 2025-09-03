@@ -4,6 +4,7 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const User = require('../models/User');
 const { authenticate, requireRole, requireAdmin } = require('../middleware/auth');
+const Vendor = require('../models/Vendor');
 
 const router = express.Router();
 const { validateAndComputeCoupon } = require('../utils/coupons');
@@ -272,6 +273,20 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
         const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
         const vendorNet = vendorSubtotal - vendorCommission;
 
+        // Fetch vendor info for items involved in this order (usually one)
+        const vendorIdsInOrder = Array.from(new Set(vendorItems.map(it => String(it.vendor)).filter(Boolean)));
+        let vendorInfo = null;
+        let vendorInfos = [];
+        if (vendorIdsInOrder.length > 0) {
+            try {
+                const vdocs = await Vendor.find({ _id: { $in: vendorIdsInOrder } })
+                    .select('_id companyName phone address address1 address2 city zip status enabled commission balance totalEarnings createdAt updatedAt')
+                    .lean();
+                vendorInfos = vdocs;
+                if (vdocs.length === 1) vendorInfo = vdocs[0];
+            } catch (_) {}
+        }
+
         const data = {
             _id: o._id,
             orderNumber: o.orderNumber,
@@ -293,6 +308,8 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
             vendorSubtotal,
             vendorCommission,
             vendorNet,
+            vendorInfo,
+            vendors: vendorInfos,
         };
 
         res.json({ success: true, data });
