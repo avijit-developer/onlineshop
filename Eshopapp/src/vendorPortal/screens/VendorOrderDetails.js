@@ -96,7 +96,6 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <Text style={styles.sectionTitle}>Vendor</Text>
         <View style={styles.divider} />
         <KV label="Company" value={vendor.companyName || vendor.name || '-'} />
-        <KV label="Email" value={vendor.email || '-'} />
         {vendor.phone ? <KV label="Phone" value={vendor.phone} /> : null}
         {vendor.address1 || vendor.address || vendor.city || vendor.zip ? (
           <KV label="Address" value={[vendor.address1 || vendor.address, vendor.address2, vendor.city, vendor.zip].filter(Boolean).join(', ')} />
