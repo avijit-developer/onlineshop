@@ -69,9 +69,11 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <View style={styles.kvGrid}>
           <KV label="Date" value={formatDate(order.createdAt)} />
           <KV label="Items" value={String(items.length)} />
-          <KV label="Subtotal" value={currency(order.vendorSubtotal)} />
-          <KV label="Commission" value={currency(order.vendorCommission)} />
-          <KV label="Net" value={currency(order.vendorNet ?? (Number(order.vendorSubtotal||0) - Number(order.vendorCommission||0)))} highlight />
+          <KV label="Subtotal" value={currency(totals.subtotal)} />
+          {totals.tax != null && <KV label="Tax" value={currency(totals.tax)} />}
+          {totals.shipping != null && <KV label="Shipping" value={currency(totals.shipping)} />}
+          {totals.discount ? <KV label="Discount" value={currency(totals.discount)} /> : null}
+          <KV label="Total" value={currency(totals.total)} highlight />
         </View>
       </View>
 
