@@ -32,11 +32,13 @@ const SplashScreen = ({ navigation }) => {
 
     const decide = async () => {
       try {
-        const token = await AsyncStorage.getItem('authToken');
-        if (token) {
-          navigation.replace('Home');
+        const vendorToken = await AsyncStorage.getItem('vendorAuthToken');
+        if (vendorToken) {
+          navigation.replace('VendorPortal');
           return;
         }
+        const token = await AsyncStorage.getItem('authToken');
+        if (token) { navigation.replace('Home'); return; }
       } catch (e) {}
       navigation.replace('Login');
     };
