@@ -478,7 +478,7 @@ const api = {
 
   // Vendor-scoped APIs
   async getVendorOrders(params = {}) {
-    const token = await this.getStoredToken();
+    const token = await this.getVendorToken();
     if (!token) throw new Error('No authentication token');
     const query = new URLSearchParams();
     if (params.page != null) query.append('page', String(params.page));
@@ -490,7 +490,7 @@ const api = {
   },
 
   async getVendorProducts(params = {}) {
-    const token = await this.getStoredToken();
+    const token = await this.getVendorToken();
     if (!token) throw new Error('No authentication token');
     const query = new URLSearchParams();
     // Attempt commonly supported params
@@ -517,6 +517,16 @@ const api = {
       return acc;
     }, { vendorSubtotal: 0, vendorCommission: 0, vendorNet: 0 });
     return { success: true, data: { ...totals, orderCount: orders.length } };
+  },
+
+  // Vendor token helper
+  async getVendorToken() {
+    try {
+      return await AsyncStorage.getItem('vendorAuthToken');
+    } catch (error) {
+      console.log('Error getting vendor token:', error);
+      return null;
+    }
   },
 
   // Helper function to get stored token
