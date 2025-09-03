@@ -53,6 +53,15 @@ const VendorProductDetails = ({ route, navigation }) => {
   const dimensions = (product.length || product.width || product.height)
     ? `${product.length || '-'} x ${product.width || '-'} x ${product.height || '-'}`
     : null;
+  const displayed = new Set([
+    'name','images','image','price','regularPrice','specialPrice','listPrice','salePrice','discountPrice','offerPrice',
+    'stock','inventory','quantity','qty','sku','skuCode','code','itemCode','brand','brandName','category','categories',
+    'barcode','ean','upc','weight','netWeight','weightUnit','length','width','height','lowStockAlert','description','longDescription','details','content','desc'
+  ]);
+  const otherEntries = Object.entries(product).filter(([k, v]) => {
+    const isScalar = ['string','number','boolean'].includes(typeof v);
+    return isScalar && !displayed.has(k) && String(v).length > 0;
+  });
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
@@ -128,7 +137,17 @@ const VendorProductDetails = ({ route, navigation }) => {
           </View>
         ) : null}
 
-        {/* Chips examples could be added here if backend returns tags/category path */}
+        {otherEntries.length > 0 && (
+          <View style={{ marginTop: 10 }}>
+            <Text style={styles.kvLabel}>Additional Details</Text>
+            {otherEntries.map(([k, v]) => (
+              <View key={k} style={styles.kvRow}>
+                <Text style={styles.kvLabel}>{formatKey(k)}</Text>
+                <Text style={styles.kvValue}>{String(v)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -149,5 +168,14 @@ const styles = StyleSheet.create({
   attrKey: { color: '#8791a1' },
   attrValue: { color: '#333', fontWeight: '600', maxWidth: '60%' },
 });
+
+function formatKey(s) {
+  try {
+    return String(s)
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, m => m.toUpperCase());
+  } catch { return String(s); }
+}
 
 export default VendorProductDetails;
