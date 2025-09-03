@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../../utils/api';
 
@@ -62,6 +62,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
       <View style={{ alignItems: 'center', marginBottom: 8 }}>
         <Text style={{ color: '#8791a1', fontSize: 12 }}>UI Updated</Text>
       </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
       {/* Header summary */}
       <View style={styles.card}>
         <View style={styles.rowBetween}>
@@ -78,6 +79,18 @@ const VendorOrderDetails = ({ route, navigation }) => {
           {totals.discount ? <KV label="Discount" value={currency(totals.discount)} /> : null}
           <KV label="Total" value={currency(totals.total)} highlight />
         </View>
+        <View style={styles.chipsRow}>
+          {order.paymentMethod ? (
+            <View style={[styles.chip, { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' }]}>
+              <Text style={[styles.chipText, { color: '#2e7d32' }]}>Payment: {String(order.paymentMethod).toUpperCase()}</Text>
+            </View>
+          ) : null}
+          {totals.coupon ? (
+            <View style={[styles.chip, { backgroundColor: '#FFF8E1', borderColor: '#FFE082' }]}>
+              <Text style={[styles.chipText, { color: '#8D6E63' }]}>Coupon: {String(totals.coupon)}</Text>
+            </View>
+          ) : null}
+        </View>
       </View>
 
       {/* Customer details */}
@@ -86,7 +99,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <View style={styles.divider} />
         <KV label="Name" value={customer.name || '-'} />
         <KV label="Email" value={customer.email || '-'} />
-        {order.customerPhone ? <KV label="Phone" value={order.customerPhone} /> : null}
+        <KV label="Phone" value={order.customerPhone || customer.phone || '-'} />
         {shippingString ? (
           <KV label="Shipping" value={shippingString} />
         ) : (shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
@@ -118,10 +131,8 @@ const VendorOrderDetails = ({ route, navigation }) => {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Items</Text>
         <View style={styles.divider} />
-        <FlatList
-          data={items}
-          keyExtractor={(it, i) => String(it._id || i)}
-          renderItem={({ item }) => (
+        {items.map((item, idx) => (
+          <View key={item._id || idx}>
             <View style={styles.itemRow}>
               {item.image ? <Image source={{ uri: item.image }} style={styles.itemThumb} /> : null}
               <View style={{ flex: 1 }}>
@@ -131,14 +142,15 @@ const VendorOrderDetails = ({ route, navigation }) => {
                   <Text style={styles.itemMeta}>Attrs: {Object.entries(item.selectedAttributes).map(([k,v]) => `${k}:${v}`).join(', ')}</Text>
                 )}
                 {!!item.vendor && <Text style={styles.itemMeta}>Vendor: {String(item.vendor)}</Text>}
-                {item.commissionRate != null && <Text style={styles.itemMeta}>Commission: {String(item.commissionRate)}% ({currency(item.commissionAmount)})</Text>}
               </View>
-              <Text style={styles.itemMeta}>x{item.quantity}</Text>
-              <Text style={styles.itemPrice}>{currency(item.price)}</Text>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.itemMeta}>x{item.quantity}</Text>
+                <Text style={styles.itemPrice}>{currency(item.price)}</Text>
+              </View>
             </View>
-          )}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-        />
+            {idx < items.length - 1 && <View style={styles.separator} />}
+          </View>
+        ))}
       </View>
 
       {/* Totals */}
@@ -180,6 +192,8 @@ const VendorOrderDetails = ({ route, navigation }) => {
           ))}
         </View>
       )}
+      <View style={{ height: 20 }} />
+      </ScrollView>
     </View>
   );
 };
@@ -219,7 +233,8 @@ const statusStyles = (status) => ({
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f8fa', padding: 16, gap: 12 },
+  container: { flex: 1, backgroundColor: '#f7f8fa' },
+  scrollBody: { padding: 16, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   headerTitle: { fontWeight: '800', color: '#333', fontSize: 16 },
   card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
