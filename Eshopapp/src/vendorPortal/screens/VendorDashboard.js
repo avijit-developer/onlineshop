@@ -35,17 +35,7 @@ const VendorDashboard = ({ navigation }) => {
         </View>
       )}
 
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VendorOrders')}>
-          <Text style={styles.actionText}>View Orders</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VendorProducts')}>
-          <Text style={styles.actionText}>View Products</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VendorReports')}>
-          <Text style={styles.actionText}>Reports</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Actions removed per requirement */}
     </View>
   );
 };

@@ -18,7 +18,7 @@ const VendorOrders = ({ navigation }) => {
   }, []);
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorOrderDetails', { order: item })}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={styles.orderId}>#{item.orderNumber || item._id?.slice(-6)}</Text>
         <Text style={styles.status}>{String(item.status || '').toUpperCase()}</Text>
@@ -26,15 +26,12 @@ const VendorOrders = ({ navigation }) => {
       <Text style={styles.amount}>Subtotal: ₹{(item.vendorSubtotal || 0).toFixed(2)}</Text>
       <Text style={styles.amount}>Commission: ₹{(item.vendorCommission || 0).toFixed(2)}</Text>
       <Text style={styles.amount}>Net: ₹{(item.vendorNet || 0).toFixed(2)}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back-outline" size={22} color="#333" />
-        </TouchableOpacity>
         <Text style={styles.title}>Vendor Orders</Text>
         <View style={{ width: 22 }} />
       </View>

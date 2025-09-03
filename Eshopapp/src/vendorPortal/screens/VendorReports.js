@@ -20,9 +20,6 @@ const VendorReports = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back-outline" size={22} color="#333" />
-        </TouchableOpacity>
         <Text style={styles.title}>Reports</Text>
         <View style={{ width: 22 }} />
       </View>

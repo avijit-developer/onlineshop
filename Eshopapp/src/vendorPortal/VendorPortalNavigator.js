@@ -4,6 +4,8 @@ import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import VendorShell from './VendorShell';
+import VendorOrderDetails from './screens/VendorOrderDetails';
+import VendorProductDetails from './screens/VendorProductDetails';
 
 const Stack = createNativeStackNavigator();
 const VendorTabs = () => <VendorShell />;
@@ -28,6 +30,8 @@ const VendorPortalNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
       <Stack.Screen name="VendorAuth" component={require('./screens/VendorAuth').default} />
       <Stack.Screen name="VendorTabs" component={VendorTabs} />
+      <Stack.Screen name="VendorOrderDetails" component={VendorOrderDetails} />
+      <Stack.Screen name="VendorProductDetails" component={VendorProductDetails} />
     </Stack.Navigator>
   );
 };

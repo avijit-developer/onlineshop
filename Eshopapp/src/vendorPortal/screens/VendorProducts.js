@@ -27,22 +27,19 @@ const VendorProducts = ({ navigation }) => {
   }, []);
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorProductDetails', { product: item })}>
       <Image source={{ uri: item.image }} style={styles.image} />
       <View style={{ flex: 1, marginLeft: 10 }}>
         <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
         <Text style={styles.price}>₹{item.price}</Text>
         <Text style={styles.meta}>Stock: {item.stock ?? '-'}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back-outline" size={22} color="#333" />
-        </TouchableOpacity>
         <Text style={styles.title}>Vendor Products</Text>
         <View style={{ width: 22 }} />
       </View>
