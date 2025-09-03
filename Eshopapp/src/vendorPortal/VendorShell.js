@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import VendorDashboard from './screens/VendorDashboard';
@@ -10,6 +10,12 @@ import VendorReports from './screens/VendorReports';
 const VendorShell = ({ navigation }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [active, setActive] = React.useState('dashboard');
+  
+  useEffect(() => {
+    const handler = () => true; // disable hardware back inside vendor shell
+    BackHandler.addEventListener('hardwareBackPress', handler);
+    return () => BackHandler.removeEventListener('hardwareBackPress', handler);
+  }, []);
 
   const Screen = active === 'dashboard' ? VendorDashboard
     : active === 'orders' ? VendorOrders

@@ -131,7 +131,7 @@ const LoginScreen = ({ navigation }) => {
                 paddingVertical: 12,
                 alignItems: 'center'
               }}
-              onPress={() => navigation.navigate('VendorPortal')}
+              onPress={() => navigation.reset({ index: 0, routes: [{ name: 'VendorPortal' }] })}
             >
               <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Enter Vendor Portal</Text>
             </TouchableOpacity>
