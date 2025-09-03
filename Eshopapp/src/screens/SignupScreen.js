@@ -238,7 +238,7 @@ const SignupScreen = ({ navigation }) => {
                 style={styles.linkText}
                 onPress={(e) => {
                   e.stopPropagation();
-                  navigation.navigate('LegalWebView', { title: 'Terms and Conditions', url: 'https://trahimart.com/terms' });
+                  navigation.navigate('LegalWebView', { title: 'Terms and Conditions', url: 'https://trahimart.com/terms.html' });
                 }}
               >
                 Terms and Conditions
@@ -247,7 +247,7 @@ const SignupScreen = ({ navigation }) => {
                 style={styles.linkText}
                 onPress={(e) => {
                   e.stopPropagation();
-                  navigation.navigate('LegalWebView', { title: 'Privacy Policy', url: 'https://trahimart.com/privacy' });
+                  navigation.navigate('LegalWebView', { title: 'Privacy Policy', url: 'https://trahimart.com/privacy.html' });
                 }}
               >
                 Privacy Policy
