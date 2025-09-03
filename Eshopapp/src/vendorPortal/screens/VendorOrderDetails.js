@@ -9,23 +9,22 @@ const shortId = (id) => (id || '').slice(-6);
 const VendorOrderDetails = ({ route, navigation }) => {
   const { orderId, order: fallback } = route.params || {};
   const [order, setOrder] = useState(fallback || null);
-  const [loading, setLoading] = useState(!fallback && !!orderId);
+  const [hydrating, setHydrating] = useState(!!orderId);
 
   useEffect(() => {
     (async () => {
-      if (!order && orderId) {
-        try {
-          const res = await api.getVendorOrderById(orderId);
-          // Unwrap common response shapes
-          const payload = res?.order || res?.data?.order || res?.data || res || null;
-          if (payload) setOrder(payload);
-        } catch (_) {}
-        finally { setLoading(false); }
-      }
+      if (!orderId) return;
+      setHydrating(true);
+      try {
+        const res = await api.getVendorOrderById(orderId);
+        const payload = res?.order || res?.data?.order || res?.data || res || null;
+        if (payload) setOrder(payload);
+      } catch (_) {}
+      finally { setHydrating(false); }
     })();
   }, [orderId]);
 
-  if (loading) return <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator /></View>;
+  if (!order && hydrating) return <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator /></View>;
   if (!order) return null;
 
   // Helpers to pick first available field (supports nested keys like 'summary.total')
