@@ -7,11 +7,13 @@ import VendorDashboard from './screens/VendorDashboard';
 import VendorOrders from './screens/VendorOrders';
 import VendorProducts from './screens/VendorProducts';
 import VendorReports from './screens/VendorReports';
+import api from '../utils/api';
 
 const VendorShell = () => {
   const navigation = useNavigation();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [active, setActive] = React.useState('dashboard');
+  const [assigned, setAssigned] = React.useState([]);
   
   useEffect(() => {
     const handler = () => true; // disable hardware back inside vendor shell
@@ -26,6 +28,17 @@ const VendorShell = () => {
     }
     return () => { sub.remove(); removeBefore && removeBefore(); };
   }, [navigation]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.getAssignedVendors();
+        if (res?.success) {
+          setAssigned((res.data || []).map(v => ({ id: v._id || v.id, name: v.companyName })));
+        }
+      } catch (_) {}
+    })();
+  }, []);
 
   const Screen = active === 'dashboard' ? VendorDashboard
     : active === 'orders' ? VendorOrders
@@ -83,6 +96,14 @@ const VendorShell = () => {
       {/* Side menu */}
       <View style={[styles.sideMenu, { transform: [{ translateX: menuOpen ? 0 : -260 }] }]}> 
         <Text style={styles.menuTitle}>Menu</Text>
+        {assigned.length > 0 && (
+          <View style={{ marginBottom: 8 }}>
+            <Text style={[styles.menuTitle, { color: '#333' }]}>Assigned Vendors</Text>
+            {assigned.map(v => (
+              <Text key={v.id} style={{ color: '#666', marginBottom: 2 }} numberOfLines={1}>• {v.name}</Text>
+            ))}
+          </View>
+        )}
         <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('dashboard'); setMenuOpen(false); }}>
           <Icon name="home-outline" size={18} color={active==='dashboard' ? '#f7ab18' : '#666'} />
           <Text style={[styles.menuText, active==='dashboard' && styles.menuTextActive]}>Dashboard</Text>
