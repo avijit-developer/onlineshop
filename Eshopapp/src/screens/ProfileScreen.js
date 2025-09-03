@@ -20,13 +20,19 @@ const ProfileScreen = () => {
   const { getCartItemsCount } = useCart();
   const { getWishlistCount, wishlist } = useWishlist();
 
-  // Get user avatar or use default
-  const getUserAvatar = () => {
+  // Render avatar or initials fallback
+  const renderAvatar = () => {
     if (user?.avatar) {
-      return { uri: user.avatar };
+      return <Image source={{ uri: user.avatar }} style={styles.avatar} />;
     }
-    // Return a default avatar
-    return { uri: 'https://i.pravatar.cc/100' };
+    const name = user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+    const [first, last] = (name || '').split(' ');
+    const initials = `${(first || '').charAt(0)}${(last || '').charAt(0)}`.toUpperCase() || 'U';
+    return (
+      <View style={[styles.avatar, styles.avatarFallback]}> 
+        <Text style={styles.avatarText}>{initials}</Text>
+      </View>
+    );
   };
 
   // Get user display name
@@ -182,7 +188,7 @@ const ProfileScreen = () => {
         {/* Profile Info */
         }
         <View style={styles.profileCard}>
-          <Image source={getUserAvatar()} style={styles.avatar} />
+          {renderAvatar()}
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{getUserDisplayName()}</Text>
             <Text style={styles.userEmail}>{user?.email || 'No email available'}</Text>
@@ -273,6 +279,16 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     marginRight: 16,
+  },
+  avatarFallback: {
+    backgroundColor: '#fde68a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#92400e',
+    fontWeight: '800',
+    fontSize: 20,
   },
   userInfo: {
     flex: 1,

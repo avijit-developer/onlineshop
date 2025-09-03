@@ -44,15 +44,20 @@ const ProfileEditScreen = () => {
     }
   }, [user]);
 
-  // Get user avatar or use default
-  const getUserAvatar = () => {
-    if (formData.avatar) {
-      return { uri: formData.avatar };
+  // Render avatar or initials fallback
+  const renderAvatar = () => {
+    const uri = formData.avatar || user?.avatar;
+    if (uri) {
+      return <Image source={{ uri }} style={styles.avatar} />;
     }
-    if (user?.avatar) {
-      return { uri: user.avatar };
-    }
-    return { uri: 'https://i.pravatar.cc/100' };
+    const name = user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+    const [first, last] = (name || '').split(' ');
+    const initials = `${(first || '').charAt(0)}${(last || '').charAt(0)}`.toUpperCase() || 'U';
+    return (
+      <View style={[styles.avatar, { backgroundColor: '#fde68a', alignItems: 'center', justifyContent: 'center' }]}> 
+        <Text style={{ color: '#92400e', fontWeight: '800', fontSize: 28 }}>{initials}</Text>
+      </View>
+    );
   };
 
   const validateForm = () => {
@@ -301,7 +306,7 @@ const ProfileEditScreen = () => {
         {/* Profile Picture Section */}
         <View style={styles.avatarSection}>
           <TouchableOpacity style={styles.avatarContainer} onPress={handleImagePick}>
-            <Image source={getUserAvatar()} style={styles.avatar} />
+            {renderAvatar()}
             <View style={styles.avatarOverlay}>
               <Icon name="camera" size={24} color="#fff" />
             </View>
