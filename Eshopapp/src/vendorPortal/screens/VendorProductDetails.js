@@ -36,17 +36,20 @@ const VendorProductDetails = ({ route, navigation }) => {
     ? product.images.map(i => (typeof i === 'string' ? i : (i?.url || i?.src || i)))
     : (product.image ? [product.image] : []);
   const primaryImage = images && images.length ? images[0] : null;
-  const regularPrice = product.regularPrice ?? product.price ?? 0;
-  const specialPrice = product.specialPrice != null ? Number(product.specialPrice) : null;
-  const brandName = product.brand?.name || product.brandName || product.brand || '-';
-  const categoryName = Array.isArray(product.categories)
-    ? product.categories.map(c => c?.name || c).filter(Boolean).join(' / ')
-    : (product.category?.name || product.category || '-');
-  const sku = product.sku || product.skuCode || '-';
-  const stock = product.stock ?? product.inventory?.stock ?? product.quantity ?? '-';
-  const attributes = product.attributes;
+  const regularPrice = product.regularPrice ?? product.price ?? product.listPrice ?? 0;
+  const specialPrice = (product.specialPrice ?? product.salePrice ?? product.discountPrice ?? product.offerPrice);
+  const displaySpecial = specialPrice != null && specialPrice !== '' && !isNaN(Number(specialPrice)) ? Number(specialPrice) : null;
+  const [brandNameState, setBrandNameState] = useState(product.brand?.name || product.brandName || product.brand || '');
+  const [categoryNameState, setCategoryNameState] = useState(
+    Array.isArray(product.categories)
+      ? product.categories.map(c => c?.name || c).filter(Boolean).join(' / ')
+      : (product.category?.name || product.category || '')
+  );
+  const sku = product.sku || product.skuCode || product.code || product.itemCode || '-';
+  const stock = product.stock ?? product.inventory?.stock ?? product.quantity ?? product.qty ?? '-';
+  const attributes = product.attributes || product.specs || product.options || product.attributesMap;
   const barcode = product.barcode || product.ean || product.upc;
-  const weight = product.weight ? `${product.weight}${product.weightUnit ? ' ' + product.weightUnit : ''}` : null;
+  const weight = (product.weight || product.netWeight) ? `${(product.weight || product.netWeight)}${product.weightUnit ? ' ' + product.weightUnit : ''}` : null;
   const dimensions = (product.length || product.width || product.height)
     ? `${product.length || '-'} x ${product.width || '-'} x ${product.height || '-'}`
     : null;
@@ -73,9 +76,9 @@ const VendorProductDetails = ({ route, navigation }) => {
         <Text style={styles.title}>{product.name}</Text>
 
         {/* Pricing */}
-        {specialPrice != null ? (
+        {displaySpecial != null ? (
           <View style={styles.priceRow}>
-            <Text style={[styles.priceSpecial]}>{currency(specialPrice)}</Text>
+            <Text style={[styles.priceSpecial]}>{currency(displaySpecial)}</Text>
             <Text style={styles.priceRegular}>{currency(regularPrice)}</Text>
           </View>
         ) : (
@@ -85,8 +88,8 @@ const VendorProductDetails = ({ route, navigation }) => {
         {/* Core info */}
         <View style={styles.kvRow}><Text style={styles.kvLabel}>Stock</Text><Text style={styles.kvValue}>{stock}</Text></View>
         <View style={styles.kvRow}><Text style={styles.kvLabel}>SKU</Text><Text style={styles.kvValue}>{sku}</Text></View>
-        <View style={styles.kvRow}><Text style={styles.kvLabel}>Brand</Text><Text style={styles.kvValue}>{brandName}</Text></View>
-        <View style={styles.kvRow}><Text style={styles.kvLabel}>Category</Text><Text style={styles.kvValue}>{categoryName}</Text></View>
+        <View style={styles.kvRow}><Text style={styles.kvLabel}>Brand</Text><Text style={styles.kvValue}>{brandNameState || '-'}</Text></View>
+        <View style={styles.kvRow}><Text style={styles.kvLabel}>Category</Text><Text style={styles.kvValue}>{categoryNameState || '-'}</Text></View>
         {barcode ? <View style={styles.kvRow}><Text style={styles.kvLabel}>Barcode</Text><Text style={styles.kvValue}>{barcode}</Text></View> : null}
         {weight ? <View style={styles.kvRow}><Text style={styles.kvLabel}>Weight</Text><Text style={styles.kvValue}>{weight}</Text></View> : null}
         {dimensions ? <View style={styles.kvRow}><Text style={styles.kvLabel}>Dimensions</Text><Text style={styles.kvValue}>{dimensions}</Text></View> : null}
@@ -121,7 +124,7 @@ const VendorProductDetails = ({ route, navigation }) => {
         {product.description ? (
           <View style={{ marginTop: 8 }}>
             <Text style={styles.kvLabel}>Description</Text>
-            <Text style={[styles.kvValue, { fontWeight: '500' }]}>{product.description}</Text>
+            <Text style={[styles.kvValue, { fontWeight: '500' }]}>{product.description || product.longDescription || product.details || product.content || product.desc}</Text>
           </View>
         ) : null}
 
