@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, BackHandler } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import VendorDashboard from './screens/VendorDashboard';
@@ -26,7 +27,19 @@ const VendorShell = ({ navigation }) => {
     try {
       await AsyncStorage.removeItem('vendorAuthToken');
     } catch (_) {}
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    const parent = navigation.getParent && navigation.getParent();
+    if (parent && parent.dispatch) {
+      parent.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        })
+      );
+    } else {
+      navigation.dispatch(
+        CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] })
+      );
+    }
   };
 
   const goMainLogout = async () => {
