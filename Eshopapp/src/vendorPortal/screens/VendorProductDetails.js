@@ -23,7 +23,11 @@ const VendorProductDetails = ({ route, navigation }) => {
   }, [productId]);
 
   if (loading) return <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator /></View>;
-  if (!product) return null;
+  if (!product) return (
+    <View style={[styles.container, { alignItems: 'center', justifyContent: 'center', padding: 16 }]}> 
+      <Text style={{ color: '#666' }}>Product not found</Text>
+    </View>
+  );
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       {/* Header with back */}
