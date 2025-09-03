@@ -19,12 +19,18 @@ export default function Header() {
   };
 
   // Get user avatar or use default
-  const getUserAvatar = () => {
+  const renderAvatar = () => {
     if (user?.avatar) {
-      return { uri: user.avatar };
+      return <Image source={{ uri: user.avatar }} style={styles.avatar} />;
     }
-    // Return a default avatar or user initials
-    return { uri: 'https://i.pravatar.cc/100' };
+    const name = user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+    const [first, last] = (name || '').split(' ');
+    const initials = `${(first || '').charAt(0)}${(last || '').charAt(0)}`.toUpperCase() || 'U';
+    return (
+      <View style={[styles.avatar, styles.avatarFallback]}>
+        <Text style={styles.avatarText}>{initials}</Text>
+      </View>
+    );
   };
 
   return (
@@ -32,10 +38,7 @@ export default function Header() {
       {/* Profile + My Activity */}
       <View style={styles.leftSection}>
         <TouchableOpacity style={styles.profileWrapper} onPress={handleProfilePress}>
-          <Image
-            source={getUserAvatar()}
-            style={styles.avatar}
-          />
+          {renderAvatar()}
         </TouchableOpacity>
         <TouchableOpacity style={styles.addressWrapper} onPress={handleAddressPress}>
           <Text style={styles.addressText} numberOfLines={1}>
@@ -93,6 +96,16 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+  },
+  avatarFallback: {
+    backgroundColor: '#fde68a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#92400e',
+    fontWeight: '800',
+    fontSize: 14,
   },
 
   addressWrapper: {
