@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const currency = (n) => `₹${Number(n || 0).toFixed(2)}`;
 const shortId = (id) => (id || '').slice(-6);
@@ -15,6 +16,14 @@ const VendorOrderDetails = ({ route }) => {
 
   return (
     <View style={styles.container}>
+      {/* Header with back */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => route.params?.navigation?.goBack ? route.params.navigation.goBack() : null}>
+          <Icon name="arrow-back-outline" size={22} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Order Details</Text>
+        <View style={{ width: 22 }} />
+      </View>
       {/* Header summary */}
       <View style={styles.card}>
         <View style={styles.rowBetween}>
@@ -41,6 +50,8 @@ const VendorOrderDetails = ({ route }) => {
         {(shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
           <KV label="Shipping" value={formatAddress(shipping)} />
         ) : null}
+        {order.paymentMethod ? <KV label="Payment" value={String(order.paymentMethod)} /> : null}
+        {order.notes ? <KV label="Notes" value={String(order.notes)} /> : null}
       </View>
 
       {/* Items */}
@@ -94,6 +105,8 @@ const statusStyles = (status) => ({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7f8fa', padding: 16, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  headerTitle: { fontWeight: '800', color: '#333', fontSize: 16 },
   card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 8 },
