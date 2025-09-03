@@ -13,6 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
+import { requestLocationAndGetAddress } from '../utils/locationUtils';
 
 const AddressDetailsScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -31,6 +32,7 @@ const AddressDetailsScreen = ({ route }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [geoLoading, setGeoLoading] = useState(false);
 
   const addressLabels = ['Home', 'Work', 'Other'];
 
@@ -88,6 +90,32 @@ const AddressDetailsScreen = ({ route }) => {
     }
   };
 
+  const useCurrentLocation = async () => {
+    try {
+      setGeoLoading(true);
+      const loc = await requestLocationAndGetAddress();
+      if (!loc) return;
+      // Attempt to split street/area and city/state if possible
+      const parts = String(loc.address || '').split(',').map(s => s.trim());
+      const guessedCity = loc.city || parts[parts.length - 2] || '';
+      const guessedState = parts[parts.length - 1] || '';
+      const street = parts.slice(0, Math.max(0, parts.length - 2)).join(', ');
+      setFormData(prev => ({
+        ...prev,
+        address: street || prev.address,
+        city: guessedCity || prev.city,
+        state: guessedState || prev.state,
+        zipCode: prev.zipCode,
+        country: prev.country || 'India',
+      }));
+      Alert.alert('Location Filled', 'We have auto-filled your address from current location. Please review and save.');
+    } catch (e) {
+      Alert.alert('Location Error', e?.message || 'Could not fetch your current location');
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.container}>
@@ -140,6 +168,10 @@ const AddressDetailsScreen = ({ route }) => {
           {/* Address Details */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Address</Text>
+            <TouchableOpacity style={styles.geoBtn} onPress={useCurrentLocation} disabled={geoLoading}>
+              <Icon name="locate-outline" size={16} color="#fff" />
+              <Text style={styles.geoBtnText}>{geoLoading ? 'Getting location...' : 'Use current location'}</Text>
+            </TouchableOpacity>
             <TextInput
               style={[styles.input, styles.textarea]}
               placeholder="Street address, house no., area"
@@ -300,6 +332,8 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 30,
   },
+  geoBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#f7ab18', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginBottom: 10 },
+  geoBtnText: { color: '#fff', fontWeight: '700' },
   saveButtonText: {
     color: '#fff',
     fontSize: 18,
