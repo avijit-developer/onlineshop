@@ -79,10 +79,10 @@ const VendorOrderDetails = ({ route, navigation }) => {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
       {/* Customer quick info */}
       <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Customer</Text>
-        <View style={styles.infoRow}><Text style={styles.infoLabel}>Name:</Text><Text style={styles.infoValue}>{customer.name || '-'}</Text></View>
-        <View style={styles.infoRow}><Text style={styles.infoLabel}>Email:</Text><Text style={styles.infoValue}>{customer.email || '-'}</Text></View>
-        <View style={styles.infoRow}><Text style={styles.infoLabel}>Mobile:</Text><Text style={styles.infoValue}>{order.customerPhone || customer.phone || '-'}</Text></View>
+        <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Customer</Text></View>
+        <View style={styles.infoRow}><Text style={styles.infoLabel}>Name</Text><Text style={styles.infoValue}>{customer.name || '-'}</Text></View>
+        <View style={styles.infoRow}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{customer.email || '-'}</Text></View>
+        <View style={styles.infoRow}><Text style={styles.infoLabel}>Mobile</Text><Text style={styles.infoValue}>{order.customerPhone || customer.phone || '-'}</Text></View>
       </View>
       {/* Header summary */}
       <View style={styles.card}>
@@ -132,7 +132,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
 
       {/* Vendor details */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Vendor</Text>
+        <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Vendor</Text></View>
         <View style={styles.divider} />
         <KV label="Company" value={vendor.companyName || vendor.name || '-'} />
         {vendor.phone ? <KV label="Phone" value={vendor.phone} /> : null}
@@ -150,46 +150,60 @@ const VendorOrderDetails = ({ route, navigation }) => {
 
       {/* Items */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Items</Text>
+        <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Items</Text></View>
         <View style={styles.divider} />
-        {(Array.isArray(items) ? items : []).map((item, idx) => (
+        {(Array.isArray(items) ? items : []).map((item, idx) => {
+          const unitPrice = Number(pick(item, ['price', 'unitPrice'], 0));
+          const qty = Number(pick(item, ['quantity', 'qty'], 0));
+          const lineTotal = unitPrice * qty;
+          const imageUri = pick(item, ['image'], '');
+          return (
           <View key={item._id || idx}>
             <View style={styles.itemRow}>
-              {pick(item, ['image']) ? <Image source={{ uri: pick(item, ['image'], '') }} style={styles.itemThumb} /> : null}
+              <View style={{ position: 'relative' }}>
+                {imageUri ? <Image source={{ uri: imageUri }} style={styles.itemThumb} /> : null}
+                {!!qty && (
+                  <View style={styles.qtyBadge}><Text style={styles.qtyBadgeText}>x{qty}</Text></View>
+                )}
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemName} numberOfLines={1}>{pick(item, ['product.name'], '') || pick(item, ['name'], '')}</Text>
                 {pick(item, ['sku']) ? <Text style={styles.itemMeta}>SKU: {pick(item, ['sku'], '')}</Text> : null}
                 {item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0 && (
-                  <Text style={styles.itemMeta}>Attrs: {Object.entries(item.selectedAttributes).map(([k,v]) => `${k}:${v}`).join(', ')}</Text>
+                  <Text style={styles.itemMeta}>Attributes: {Object.entries(item.selectedAttributes).map(([k,v]) => `${k}: ${v}`).join(', ')}</Text>
                 )}
-                {pick(item, ['vendor']) ? <Text style={styles.itemMeta}>Vendor: {String(pick(item, ['vendor'], ''))}</Text> : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.itemMeta}>x{pick(item, ['quantity', 'qty'], 0)}</Text>
-                <Text style={styles.itemPrice}>{currency(pick(item, ['price', 'unitPrice'], 0))}</Text>
+                <Text style={styles.itemLineTotal}>{currency(lineTotal)}</Text>
+                <Text style={styles.itemUnitMeta}>{currency(unitPrice)} × {qty}</Text>
               </View>
             </View>
             {idx < items.length - 1 && <View style={styles.separator} />}
           </View>
-        ))}
+          );
+        })}
       </View>
 
       {/* Totals */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Totals</Text>
+        <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Totals</Text></View>
         <View style={styles.divider} />
         <KV label="Subtotal" value={currency(totals.subtotal)} />
         {totals.tax != null && <KV label="Tax" value={currency(totals.tax)} />}
         {totals.shipping != null && <KV label="Shipping" value={currency(totals.shipping)} />}
-        {totals.discount ? <KV label="Discount" value={currency(totals.discount)} /> : null}
+        {totals.discount ? <KV label="Discount" value={`- ${currency(totals.discount)}`} /> : null}
         {totals.coupon ? <KV label="Coupon" value={String(totals.coupon)} /> : null}
-        <KV label="Total" value={currency(totals.total)} highlight />
+        <View style={styles.divider} />
+        <View style={styles.grandRow}>
+          <Text style={styles.grandLabel}>Grand Total</Text>
+          <Text style={styles.grandValue}>{currency(totals.total)}</Text>
+        </View>
       </View>
 
       {/* Status History */}
       {Array.isArray(order.statusHistory) && order.statusHistory.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Status History</Text>
+          <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Status History</Text></View>
           <View style={styles.divider} />
           {order.statusHistory.map((h, idx) => (
             <View key={idx} style={styles.statusRow}>
@@ -248,6 +262,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontWeight: '800', color: '#333', fontSize: 16 },
   infoCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
   infoTitle: { color: '#8791a1', fontSize: 12, marginBottom: 6 },
+  sectionHeader: { backgroundColor: '#f9fafb', paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, marginBottom: 8 },
+  sectionHeaderText: { color: '#6b7280', fontWeight: '700', fontSize: 12, letterSpacing: 0.3 },
   infoRow: { flexDirection: 'row', marginTop: 2 },
   infoLabel: { color: '#8791a1', fontSize: 12, width: 64 },
   infoValue: { color: '#333', fontSize: 12, fontWeight: '600', flexShrink: 1 },
@@ -266,7 +282,14 @@ const styles = StyleSheet.create({
   itemName: { color: '#333', fontWeight: '600', marginRight: 8, maxWidth: '60%' },
   itemMeta: { color: '#8791a1' },
   itemPrice: { color: '#333', fontWeight: '700', marginLeft: 10 },
+  itemLineTotal: { color: '#111827', fontWeight: '800' },
+  itemUnitMeta: { color: '#6b7280', fontSize: 12 },
+  qtyBadge: { position: 'absolute', right: -6, top: -6, backgroundColor: '#111827', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  qtyBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   separator: { height: 1, backgroundColor: '#f5f5f5', marginVertical: 8 },
+  grandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  grandLabel: { color: '#6b7280', fontWeight: '700' },
+  grandValue: { color: '#111827', fontWeight: '800', fontSize: 18 },
 });
 
 export default VendorOrderDetails;
