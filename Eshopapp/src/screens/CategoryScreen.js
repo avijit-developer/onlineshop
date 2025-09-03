@@ -69,7 +69,12 @@ const CategoryScreen = () => {
     >
       <Image source={{ uri: item.image || placeholder }} style={styles.categoryImage} />
       <View style={styles.categoryInfo}>
-        <Text style={styles.categoryName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+        <Text
+          style={styles.categoryName}
+          numberOfLines={(item?.name?.length || 0) > 10 ? 2 : 1}
+        >
+          {item.name}
+        </Text>
         <Text style={styles.itemCount}>View products</Text>
       </View>
       <Icon name="chevron-forward-outline" size={20} color="#666" />
@@ -115,7 +120,12 @@ const CategoryScreen = () => {
                   onPress={() => handleCategoryPress(item)}
                 >
                   <Image source={{ uri: item.image || placeholder }} style={styles.featuredImage} />
-                  <Text style={styles.featuredName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                  <Text
+                    style={styles.featuredName}
+                    numberOfLines={(item?.name?.length || 0) > 10 ? 2 : 1}
+                  >
+                    {item.name}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -190,6 +200,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 4,
     flexShrink: 1,
+    lineHeight: 18,
   },
   itemCount: {
     fontSize: 12,
@@ -221,6 +232,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
     textAlign: 'center',
+    lineHeight: 16,
   },
 });
 
