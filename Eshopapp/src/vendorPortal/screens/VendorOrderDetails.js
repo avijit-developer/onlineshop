@@ -59,6 +59,9 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <Text style={styles.headerTitle}>Order Details</Text>
         <View style={{ width: 22 }} />
       </View>
+      <View style={{ alignItems: 'center', marginBottom: 8 }}>
+        <Text style={{ color: '#8791a1', fontSize: 12 }}>UI Updated</Text>
+      </View>
       {/* Header summary */}
       <View style={styles.card}>
         <View style={styles.rowBetween}>
