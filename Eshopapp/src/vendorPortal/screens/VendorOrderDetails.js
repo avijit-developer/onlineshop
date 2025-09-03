@@ -182,6 +182,15 @@ const formatAddress = (a) => {
   return parts.join(', ');
 };
 
+function formatKey(s) {
+  try {
+    return String(s)
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, m => m.toUpperCase());
+  } catch { return String(s); }
+}
+
 const statusStyles = (status) => ({
   backgroundColor: status === 'COMPLETED' ? '#E6F4EA' : status === 'CANCELLED' ? '#FEECEF' : '#FFF8E1',
   color: status === 'COMPLETED' ? '#2e7d32' : status === 'CANCELLED' ? '#c62828' : '#b26a00',
