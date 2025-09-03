@@ -126,9 +126,9 @@ const LoginScreen = ({ navigation }) => {
                 paddingVertical: 12,
                 alignItems: 'center'
               }}
-              onPress={() => navigation.navigate('LegalWebView', { title: 'Vendor Login', url: 'https://trahimart.com/admin/login' })}
+              onPress={() => navigation.navigate('VendorPortal')}
             >
-              <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Login as Vendor</Text>
+              <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Enter Vendor Portal</Text>
             </TouchableOpacity>
           </View>
 

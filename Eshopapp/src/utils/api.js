@@ -476,6 +476,49 @@ const api = {
     });
   },
 
+  // Vendor-scoped APIs
+  async getVendorOrders(params = {}) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    const query = new URLSearchParams();
+    if (params.page != null) query.append('page', String(params.page));
+    if (params.limit != null) query.append('limit', String(params.limit));
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request(`/api/v1/orders/vendor${qs}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
+  async getVendorProducts(params = {}) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    const query = new URLSearchParams();
+    // Attempt commonly supported params
+    query.append('vendor', 'me');
+    if (params.page != null) query.append('page', String(params.page));
+    if (params.limit != null) query.append('limit', String(params.limit));
+    const qs = `?${query.toString()}`;
+    return this.request(`/api/v1/products${qs}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
+  async getVendorSummary() {
+    // Compute summary from orders response client-side for now
+    const res = await this.getVendorOrders({ page: 1, limit: 100 });
+    const orders = res?.data || [];
+    const totals = orders.reduce((acc, o) => {
+      const sub = Number(o.vendorSubtotal || 0);
+      const com = Number(o.vendorCommission || 0);
+      const net = Number(o.vendorNet || (sub - com));
+      acc.vendorSubtotal += sub;
+      acc.vendorCommission += com;
+      acc.vendorNet += net;
+      return acc;
+    }, { vendorSubtotal: 0, vendorCommission: 0, vendorNet: 0 });
+    return { success: true, data: { ...totals, orderCount: orders.length } };
+  },
+
   // Helper function to get stored token
   async getStoredToken() {
     try {

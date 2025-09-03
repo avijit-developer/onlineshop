@@ -333,6 +333,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+    color: '#000',
   },
   passwordHint: {
     fontSize: 12,
