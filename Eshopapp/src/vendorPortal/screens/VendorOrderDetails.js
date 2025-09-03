@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const currency = (n) => `₹${Number(n || 0).toFixed(2)}`;
@@ -23,6 +23,13 @@ const VendorOrderDetails = ({ route, navigation }) => {
   };
   const vendor = order.vendor || order.vendorInfo || (items.find(i => i?.product?.vendor) ? items.find(i => i.product.vendor).product.vendor : {});
   const status = String(order.status || '').toUpperCase();
+  const displayed = new Set([
+    '_id','id','user','customer','orderNumber','status','items','shippingAddress','address','paymentMethod','tax','shippingCost','discountAmount','couponCode','customerPhone','subtotal','total','orderNote','statusHistory','createdAt','updatedAt','__v','vendor','vendorInfo'
+  ]);
+  const otherEntries = Object.entries(order).filter(([k, v]) => {
+    const isScalar = ['string','number','boolean'].includes(typeof v);
+    return isScalar && !displayed.has(k) && String(v).length > 0;
+  });
 
   return (
     <View style={styles.container}>
@@ -94,6 +101,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
           keyExtractor={(it, i) => String(it._id || i)}
           renderItem={({ item }) => (
             <View style={styles.itemRow}>
+              {item.image ? <Image source={{ uri: item.image }} style={styles.itemThumb} /> : null}
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemName} numberOfLines={1}>{item.product?.name || item.name}</Text>
                 {!!item.sku && <Text style={styles.itemMeta}>SKU: {item.sku}</Text>}
@@ -132,6 +140,20 @@ const VendorOrderDetails = ({ route, navigation }) => {
             <View key={idx} style={styles.statusRow}>
               <Text style={styles.kvValue}>{String(h.status).toUpperCase()}</Text>
               <Text style={styles.kvLabel}>{formatDate(h.timestamp)} • {h.updatedBy || 'system'}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Additional Details */}
+      {otherEntries.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Additional Details</Text>
+          <View style={styles.divider} />
+          {otherEntries.map(([k, v]) => (
+            <View key={k} style={styles.kvRow}>
+              <Text style={styles.kvLabel}>{formatKey(k)}</Text>
+              <Text style={styles.kvValue}>{String(v)}</Text>
             </View>
           ))}
         </View>
@@ -180,6 +202,7 @@ const styles = StyleSheet.create({
   kvLabel: { color: '#8791a1', fontSize: 12 },
   kvValue: { color: '#333', fontWeight: '600' },
   itemRow: { flexDirection: 'row', alignItems: 'center' },
+  itemThumb: { width: 44, height: 44, borderRadius: 6, backgroundColor: '#f4f4f4', marginRight: 10 },
   itemName: { color: '#333', fontWeight: '600', marginRight: 8, maxWidth: '60%' },
   itemMeta: { color: '#8791a1' },
   itemPrice: { color: '#333', fontWeight: '700', marginLeft: 10 },
