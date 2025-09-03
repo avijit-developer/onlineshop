@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { CommonActions } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -131,7 +132,7 @@ const LoginScreen = ({ navigation }) => {
                 paddingVertical: 12,
                 alignItems: 'center'
               }}
-              onPress={() => navigation.reset({ index: 0, routes: [{ name: 'VendorPortal' }] })}
+              onPress={() => navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'VendorPortal' }] }))}
             >
               <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Enter Vendor Portal</Text>
             </TouchableOpacity>

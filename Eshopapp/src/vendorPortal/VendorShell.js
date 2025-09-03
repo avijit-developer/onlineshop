@@ -14,9 +14,14 @@ const VendorShell = ({ navigation }) => {
   
   useEffect(() => {
     const handler = () => true; // disable hardware back inside vendor shell
-    BackHandler.addEventListener('hardwareBackPress', handler);
-    return () => BackHandler.removeEventListener('hardwareBackPress', handler);
-  }, []);
+    const sub = BackHandler.addEventListener('hardwareBackPress', handler);
+    const removeBefore = navigation.addListener('beforeRemove', (e) => {
+      if (e.data?.action?.type === 'GO_BACK') {
+        e.preventDefault();
+      }
+    });
+    return () => { sub.remove(); removeBefore && removeBefore(); };
+  }, [navigation]);
 
   const Screen = active === 'dashboard' ? VendorDashboard
     : active === 'orders' ? VendorOrders
