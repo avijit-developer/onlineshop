@@ -31,8 +31,10 @@ const VendorProductDetails = ({ route, navigation }) => {
     </View>
   );
   // Normalize fields
-  const images = Array.isArray(product.images) ? product.images : (product.image ? [product.image] : []);
-  const primaryImage = images[0];
+  const images = Array.isArray(product.images)
+    ? product.images.map(i => (typeof i === 'string' ? i : (i?.url || i?.src || i)))
+    : (product.image ? [product.image] : []);
+  const primaryImage = images && images.length ? images[0] : null;
   const regularPrice = product.regularPrice ?? product.price ?? 0;
   const specialPrice = product.specialPrice != null ? Number(product.specialPrice) : null;
   const brandName = product.brand?.name || product.brandName || product.brand || '-';
@@ -60,6 +62,13 @@ const VendorProductDetails = ({ route, navigation }) => {
       </View>
       <View style={styles.card}>
         {!!primaryImage && <Image source={{ uri: primaryImage }} style={styles.image} />}
+        {images.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+            {images.slice(1).map((img, idx) => (
+              <Image key={idx} source={{ uri: img }} style={{ width: 64, height: 64, borderRadius: 6, backgroundColor: '#f4f4f4', marginRight: 8 }} />
+            ))}
+          </ScrollView>
+        )}
         <Text style={styles.title}>{product.name}</Text>
 
         {/* Pricing */}
@@ -114,6 +123,8 @@ const VendorProductDetails = ({ route, navigation }) => {
             <Text style={[styles.kvValue, { fontWeight: '500' }]}>{product.description}</Text>
           </View>
         ) : null}
+
+        {/* Chips examples could be added here if backend returns tags/category path */}
       </View>
     </ScrollView>
   );
