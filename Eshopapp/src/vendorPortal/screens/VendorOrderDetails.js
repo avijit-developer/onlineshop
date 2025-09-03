@@ -63,6 +63,13 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <Text style={{ color: '#8791a1', fontSize: 12 }}>UI Updated</Text>
       </View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
+      {/* Customer quick info */}
+      <View style={styles.infoCard}>
+        <Text style={styles.infoTitle}>Customer</Text>
+        <View style={styles.infoRow}><Text style={styles.infoLabel}>Name:</Text><Text style={styles.infoValue}>{customer.name || '-'}</Text></View>
+        <View style={styles.infoRow}><Text style={styles.infoLabel}>Email:</Text><Text style={styles.infoValue}>{customer.email || '-'}</Text></View>
+        <View style={styles.infoRow}><Text style={styles.infoLabel}>Mobile:</Text><Text style={styles.infoValue}>{order.customerPhone || customer.phone || '-'}</Text></View>
+      </View>
       {/* Header summary */}
       <View style={styles.card}>
         <View style={styles.rowBetween}>
@@ -99,7 +106,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <View style={styles.divider} />
         <KV label="Name" value={customer.name || '-'} />
         <KV label="Email" value={customer.email || '-'} />
-        <KV label="Phone" value={order.customerPhone || customer.phone || '-'} />
+        <KV label="Mobile" value={order.customerPhone || customer.phone || '-'} />
         {shippingString ? (
           <KV label="Shipping" value={shippingString} />
         ) : (shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
@@ -237,6 +244,11 @@ const styles = StyleSheet.create({
   scrollBody: { padding: 16, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   headerTitle: { fontWeight: '800', color: '#333', fontSize: 16 },
+  infoCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
+  infoTitle: { color: '#8791a1', fontSize: 12, marginBottom: 6 },
+  infoRow: { flexDirection: 'row', marginTop: 2 },
+  infoLabel: { color: '#8791a1', fontSize: 12, width: 64 },
+  infoValue: { color: '#333', fontSize: 12, fontWeight: '600', flexShrink: 1 },
   card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 8 },
