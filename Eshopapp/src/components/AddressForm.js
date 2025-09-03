@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAddress } from '../contexts/AddressContext';
+import { requestLocationAndGetAddress } from '../utils/locationUtils';
 
 const AddressForm = ({ address, onSave, onCancel }) => {
   const { addAddress, updateAddress } = useAddress();
@@ -30,6 +31,7 @@ const AddressForm = ({ address, onSave, onCancel }) => {
     country: 'India',
     isDefault: false,
   });
+  const [geoLoading, setGeoLoading] = useState(false);
 
   useEffect(() => {
     if (address) {
@@ -104,6 +106,31 @@ const AddressForm = ({ address, onSave, onCancel }) => {
       onSave(formData);
     } catch (error) {
       Alert.alert('Error', 'Failed to save address. Please try again.');
+    }
+  };
+
+  const fillFromCurrentLocation = async () => {
+    try {
+      setGeoLoading(true);
+      const loc = await requestLocationAndGetAddress();
+      if (!loc) return;
+      const parts = String(loc.address || '').split(',').map(s => s.trim());
+      const guessedCity = loc.city || parts[parts.length - 2] || '';
+      const guessedState = loc.state || parts[parts.length - 1] || '';
+      const street = parts.slice(0, Math.max(0, parts.length - 2)).join(', ');
+      setFormData(prev => ({
+        ...prev,
+        address: street || prev.address,
+        city: guessedCity || prev.city,
+        state: guessedState || prev.state,
+        zipCode: loc.postalCode || prev.zipCode,
+        country: loc.country || prev.country || 'India',
+      }));
+      Alert.alert('Auto-filled', 'We auto-filled fields from your current location. Please review and save.');
+    } catch (e) {
+      Alert.alert('Location Error', e?.message || 'Could not fetch your current location');
+    } finally {
+      setGeoLoading(false);
     }
   };
 
@@ -204,7 +231,13 @@ const AddressForm = ({ address, onSave, onCancel }) => {
 
         {/* Address Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Address Information</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={styles.sectionTitle}>Address Information</Text>
+            <TouchableOpacity style={styles.geoBtn} onPress={fillFromCurrentLocation} disabled={geoLoading}>
+              <Icon name="locate-outline" size={16} color="#fff" />
+              <Text style={styles.geoBtnText}>{geoLoading ? 'Getting location...' : 'Use current location'}</Text>
+            </TouchableOpacity>
+          </View>
           
           <Text style={styles.inputLabel}>Full Address *</Text>
           <TextInput
@@ -438,6 +471,8 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
+  geoBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f7ab18', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
+  geoBtnText: { color: '#fff', fontWeight: '700', marginLeft: 4 },
 });
 
 export default AddressForm;
