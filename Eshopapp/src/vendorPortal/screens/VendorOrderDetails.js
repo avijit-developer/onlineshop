@@ -69,11 +69,13 @@ const VendorOrderDetails = ({ route, navigation }) => {
     <View style={styles.container}>
       {/* Header with back */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation && navigation.goBack && navigation.goBack()}>
-          <Icon name="arrow-back-outline" size={22} color="#333" />
-        </TouchableOpacity>
+        <View style={styles.navSlot}>
+          <TouchableOpacity onPress={() => navigation && navigation.goBack && navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Icon name="arrow-back-outline" size={22} color="#333" />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.headerTitle}>Order Details</Text>
-        <View style={{ width: 22 }} />
+        <View style={styles.navSlot} />
       </View>
       
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
@@ -112,9 +114,9 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <KV label="Email" value={pick(customer, ['email'], '-')} />
         <KV label="Mobile" value={pick(order, ['customerPhone', 'phone'], pick(customer, ['phone', 'mobile'], '-'))} />
         {shippingString ? (
-          <KV label="Shipping" value={shippingString} />
+          <KVWrap label="Shipping" value={shippingString} />
         ) : (shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
-          <KV label="Shipping" value={formatAddress(shipping)} />
+          <KVWrap label="Shipping" value={formatAddress(shipping)} />
         ) : null}
         {pick(order, ['paymentMethod', 'payment_method']) ? <KV label="Payment" value={String(pick(order, ['paymentMethod', 'payment_method'], '')).toUpperCase()} /> : null}
         {pick(order, ['orderNote', 'note']) ? <KV label="Note" value={String(pick(order, ['orderNote', 'note'], ''))} /> : null}
@@ -124,18 +126,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
       <View style={styles.card}>
         <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Vendor</Text></View>
         <View style={styles.divider} />
-        <KV label="Company" value={vendor.companyName || vendor.name || '-'} />
-        {vendor.phone ? <KV label="Phone" value={vendor.phone} /> : null}
-        {vendor.address1 || vendor.address || vendor.city || vendor.zip ? (
-          <KV label="Address" value={[vendor.address1 || vendor.address, vendor.address2, vendor.city, vendor.zip].filter(Boolean).join(', ')} />
-        ) : null}
-        {vendor.status ? <KV label="Status" value={String(vendor.status)} /> : null}
-        {vendor.enabled != null ? <KV label="Enabled" value={vendor.enabled ? 'Yes' : 'No'} /> : null}
-        {vendor.commission != null ? <KV label="Commission" value={String(vendor.commission) + '%'} /> : null}
-        {vendor.balance != null ? <KV label="Balance" value={currency(vendor.balance)} /> : null}
-        {vendor.totalEarnings != null ? <KV label="Total Earnings" value={currency(vendor.totalEarnings)} /> : null}
-        {vendor.createdAt ? <KV label="Created" value={formatDate(vendor.createdAt)} /> : null}
-        {vendor.updatedAt ? <KV label="Updated" value={formatDate(vendor.updatedAt)} /> : null}
+        <KV label="Name" value={vendor.companyName || vendor.name || '-'} />
       </View>
 
       {/* Items */}
@@ -218,6 +209,13 @@ const KV = ({ label, value, highlight }) => (
   </View>
 );
 
+const KVWrap = ({ label, value }) => (
+  <View style={[styles.kvRow, { width: '100%' }]}>
+    <Text style={styles.kvLabel}>{label}</Text>
+    <Text style={[styles.kvValue, { flexShrink: 1 }]}>{value}</Text>
+  </View>
+);
+
 const formatDate = (d) => {
   try {
     return new Date(d).toLocaleString();
@@ -249,6 +247,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7f8fa' },
   scrollBody: { padding: 16, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  navSlot: { width: 28, alignItems: 'flex-start', justifyContent: 'center' },
   headerTitle: { fontWeight: '800', color: '#333', fontSize: 16 },
   infoCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
   infoTitle: { color: '#8791a1', fontSize: 12, marginBottom: 6 },
