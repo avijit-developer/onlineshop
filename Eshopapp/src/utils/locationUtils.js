@@ -13,13 +13,18 @@ export const requestLocationPermission = async () => {
       permission = PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
     }
 
-    const result = await request(permission);
+    let result = await request(permission);
     
     switch (result) {
       case RESULTS.UNAVAILABLE:
         Alert.alert('Location Error', 'Location services are not available on this device');
         return false;
       case RESULTS.DENIED:
+        // Try coarse on Android as a fallback
+        if (Platform.OS === 'android') {
+          const coarse = await request(PERMISSIONS.ANDROID.ACCESS_COARSE_LOCATION);
+          if (coarse === RESULTS.GRANTED || coarse === RESULTS.LIMITED) return true;
+        }
         Alert.alert('Permission Denied', 'Location permission was denied');
         return false;
       case RESULTS.LIMITED:
@@ -47,6 +52,8 @@ export const requestLocationPermission = async () => {
 // Get current position
 export const getCurrentLocation = () => {
   return new Promise((resolve, reject) => {
+    const optsHigh = { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 };
+    const optsLow = { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 };
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -54,13 +61,20 @@ export const getCurrentLocation = () => {
       },
       (error) => {
         console.error('Geolocation error:', error);
-        reject(error);
+        // Retry once with lower accuracy if high accuracy fails
+        Geolocation.getCurrentPosition(
+          (p2) => {
+            const { latitude, longitude } = p2.coords;
+            resolve({ latitude, longitude });
+          },
+          (e2) => {
+            console.error('Geolocation retry error:', e2);
+            reject(error);
+          },
+          optsLow
+        );
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 10000,
-      }
+      optsHigh
     );
   });
 };
@@ -118,7 +132,18 @@ export const requestLocationAndGetAddress = async () => {
       return null;
     }
 
-    const location = await getCurrentLocation();
+    let location;
+    try {
+      location = await getCurrentLocation();
+    } catch (e) {
+      // Fallback: use IP-based geolocation (approximate city/region)
+      const ipRes = await fetch('https://ipapi.co/json/').then(r => r.ok ? r.json() : null).catch(() => null);
+      if (ipRes && ipRes.latitude && ipRes.longitude) {
+        location = { latitude: ipRes.latitude, longitude: ipRes.longitude };
+      } else {
+        throw e;
+      }
+    }
     const geo = await reverseGeocode(location.latitude, location.longitude);
     const area = typeof geo === 'string' ? (geo.split(', ')[0] || '') : (geo.area || '');
     const city = typeof geo === 'string' ? (geo.split(', ')[1] || '') : (geo.city || '');
