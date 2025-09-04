@@ -89,9 +89,6 @@ const OrderListScreen = () => {
       </View>
 
       <View style={styles.orderActions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>Track Order</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.reorderButton}>
           <Text style={styles.reorderButtonText}>Reorder</Text>
         </TouchableOpacity>
