@@ -11,6 +11,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
+import api from '../utils/api';
 import { useCart } from '../contexts/CartContext';
 
 const OrderDetailsScreen = ({ route }) => {
@@ -20,6 +21,15 @@ const OrderDetailsScreen = ({ route }) => {
   const { orderId } = route.params;
   
   const order = orders.find(o => String(o._id || o.id) === String(orderId));
+  const [freshOrder, setFreshOrder] = React.useState(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try { const res = await api.getMyOrderById(orderId); if (mounted && res?.success) setFreshOrder(res.data); } catch (_) {}
+    })();
+    return () => { mounted = false; };
+  }, [orderId]);
 
   if (!order) {
     return (
@@ -102,11 +112,21 @@ const OrderDetailsScreen = ({ route }) => {
     </View>
   );
 
+  const normalizeStatus = (s) => {
+    const v = String(s || '').toLowerCase();
+    if (['cancelled','canceled'].includes(v)) return 'Cancelled';
+    if (['delivered','completed'].includes(v)) return 'Delivered';
+    if (['shipped','out_for_delivery','out-for-delivery','dispatched','in_transit'].includes(v)) return 'Shipped';
+    if (['processing','confirmed','packed','pending'].includes(v)) return 'Processing';
+    return 'Processing';
+  };
+  const current = freshOrder || order;
+  const status = normalizeStatus(current.status);
   const orderProgress = [
-    { step: 'Order Placed', completed: true, date: order.date },
-    { step: 'Processing', completed: order.status !== 'Cancelled', date: order.status === 'Processing' ? 'Current' : order.date },
-    { step: 'Shipped', completed: ['Shipped', 'Delivered'].includes(order.status), date: order.status === 'Shipped' ? 'Current' : '' },
-    { step: 'Delivered', completed: order.status === 'Delivered', date: order.status === 'Delivered' ? 'Current' : '' },
+    { step: 'Order Placed', completed: true, date: current.createdAt ? new Date(current.createdAt).toLocaleDateString() : '' },
+    { step: 'Processing', completed: ['Processing','Shipped','Delivered'].includes(status), date: status === 'Processing' ? 'Current' : '' },
+    { step: 'Shipped', completed: ['Shipped','Delivered'].includes(status), date: status === 'Shipped' ? 'Current' : '' },
+    { step: 'Delivered', completed: status === 'Delivered', date: status === 'Delivered' ? 'Current' : '' },
   ];
 
   return (
@@ -126,13 +146,13 @@ const OrderDetailsScreen = ({ route }) => {
         {/* Order Status */}
         <View style={styles.statusCard}>
           <View style={styles.statusHeader}>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
-              <Icon name={getStatusIcon(order.status)} size={16} color="#fff" />
-              <Text style={styles.statusText}>{order.status}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) }]}>
+              <Icon name={getStatusIcon(status)} size={16} color="#fff" />
+              <Text style={styles.statusText}>{status}</Text>
             </View>
-            <Text style={styles.orderId}>#{order.orderNumber || (order._id || order.id)}</Text>
+            <Text style={styles.orderId}>#{current.orderNumber || (current._id || current.id)}</Text>
           </View>
-          <Text style={styles.orderDate}>Placed on {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''}</Text>
+          <Text style={styles.orderDate}>Placed on {current.createdAt ? new Date(current.createdAt).toLocaleDateString() : ''}</Text>
         </View>
 
         {/* Order Progress */}
@@ -175,8 +195,8 @@ const OrderDetailsScreen = ({ route }) => {
 
         {/* Order Items */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Items ({order.items.length})</Text>
-          {order.items.map((it, idx) => (
+          <Text style={styles.sectionTitle}>Items ({current.items.length})</Text>
+          {current.items.map((it, idx) => (
             <View key={idx} style={styles.orderItem}>
               <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
               <View style={styles.itemInfo}>
@@ -194,7 +214,12 @@ const OrderDetailsScreen = ({ route }) => {
           <Text style={styles.sectionTitle}>Shipping Address</Text>
           <View style={styles.addressCard}>
             <Icon name="location-outline" size={20} color="#f7ab18" />
-            <Text style={styles.addressText}>{order.shippingAddress}</Text>
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.addressText}>{current.shippingAddress}</Text>
+              {!!(current?.customerPhone || current?.user?.phone) && (
+                <Text style={[styles.addressText, { marginTop: 6, color: '#555' }]}>📱 {current?.customerPhone || current?.user?.phone}</Text>
+              )}
+            </View>
           </View>
         </View>
 
@@ -203,7 +228,7 @@ const OrderDetailsScreen = ({ route }) => {
           <Text style={styles.sectionTitle}>Payment Method</Text>
           <View style={styles.paymentCard}>
             <Icon name="card-outline" size={20} color="#f7ab18" />
-            <Text style={styles.paymentText}>{order.paymentMethod}</Text>
+            <Text style={styles.paymentText}>{current.paymentMethod}</Text>
           </View>
         </View>
 
@@ -213,36 +238,31 @@ const OrderDetailsScreen = ({ route }) => {
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>₹{Number(order.subtotal || 0).toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>₹{Number(current.subtotal || 0).toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Shipping</Text>
-              <Text style={styles.summaryValue}>₹{Number(order.shippingCost || 0).toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>₹{Number(current.shippingCost || 0).toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Tax</Text>
-              <Text style={styles.summaryValue}>{Number(order.tax || 0)}%</Text>
+              <Text style={styles.summaryValue}>{Number(current.tax || 0)}%</Text>
             </View>
-            {Number(order.discountAmount || 0) > 0 && (
+            {Number(current.discountAmount || 0) > 0 && (
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Discount</Text>
-                <Text style={styles.summaryValue}>- ₹{Number(order.discountAmount || 0).toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>- ₹{Number(current.discountAmount || 0).toFixed(2)}</Text>
               </View>
             )}
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>₹{order.total.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>₹{Number(current.total || 0).toFixed(2)}</Text>
             </View>
           </View>
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.trackButton} onPress={handleTrackOrder}>
-            <Icon name="location-outline" size={16} color="#fff" />
-            <Text style={styles.trackButtonText}>Track Order</Text>
-          </TouchableOpacity>
-          
           <TouchableOpacity style={styles.reorderButton} onPress={handleReorder}>
             <Icon name="refresh-outline" size={16} color="#f7ab18" />
             <Text style={styles.reorderButtonText}>Reorder</Text>
