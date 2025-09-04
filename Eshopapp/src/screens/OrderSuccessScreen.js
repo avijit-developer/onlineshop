@@ -14,7 +14,7 @@ import api from '../utils/api';
 
 const OrderSuccessScreen = ({ route }) => {
   const navigation = useNavigation();
-  const { orders } = useUser();
+  const { orders, refreshOrders } = useUser();
   const { orderId } = route.params;
   
   const [order, setOrder] = React.useState(null);
@@ -22,6 +22,7 @@ const OrderSuccessScreen = ({ route }) => {
     let mounted = true;
     (async () => {
       try {
+        try { await refreshOrders(); } catch (_) {}
         const res = await api.getMyOrderById(orderId);
         if (mounted && res?.success) setOrder(res.data);
       } catch (_) {}

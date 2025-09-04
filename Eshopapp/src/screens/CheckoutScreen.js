@@ -22,7 +22,7 @@ const CheckoutScreen = () => {
   const route = useRoute();
   const { cartItems, getCartTotal, clearCart, cartCoupon } = useCart();
   const { addresses, getDefaultAddress, addAddress, refreshAddresses, isLoading } = useAddress();
-  const { addOrder } = useUser();
+  const { addOrder, refreshOrders } = useUser();
 
   // Get selected address from navigation params or use default
   const selectedAddressFromParams = route.params?.selectedAddress;
@@ -210,6 +210,7 @@ const CheckoutScreen = () => {
       }
 
       await clearCart();
+      try { await refreshOrders(); } catch (_) {}
       navigation.replace('OrderSuccess', { orderId: response.data._id });
     } catch (error) {
       Alert.alert('Error', 'Failed to place order. Please try again.');

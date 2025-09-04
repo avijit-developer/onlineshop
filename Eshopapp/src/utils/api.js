@@ -463,17 +463,33 @@ const api = {
   async getMyOrders() {
     const token = await this.getStoredToken();
     if (!token) throw new Error('No authentication token');
-    return this.request('/api/v1/orders/me', {
+    const res = await this.request('/api/v1/orders/me', {
       headers: { 'Authorization': `Bearer ${token}` },
     });
+    // Normalize various backend response shapes
+    if (Array.isArray(res)) {
+      return { success: true, data: res };
+    }
+    if (res && res.success) {
+      return res;
+    }
+    if (res && (Array.isArray(res.data) || Array.isArray(res.orders))) {
+      return { success: true, data: res.data || res.orders };
+    }
+    return { success: true, data: [] };
   },
 
   async getMyOrderById(orderId) {
     const token = await this.getStoredToken();
     if (!token) throw new Error('No authentication token');
-    return this.request(`/api/v1/orders/me/${orderId}`, {
+    const res = await this.request(`/api/v1/orders/me/${orderId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
+    if (res && res.success) return res;
+    if (res && (res.data || res.order)) {
+      return { success: true, data: res.data || res.order };
+    }
+    return { success: false, message: 'Order not found' };
   },
 
   // Vendor-scoped APIs
