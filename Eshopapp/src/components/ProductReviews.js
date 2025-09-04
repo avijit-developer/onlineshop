@@ -104,8 +104,8 @@ const ProductReviews = ({ productId, onReviewPress }) => {
               <Text style={styles.ratingCount}>({reviews.length} reviews)</Text>
             </View>
           )}
-          <TouchableOpacity style={styles.writeBtnHeader} onPress={handleWriteReview}>
-            <Text style={styles.writeBtnHeaderText}>Write a Review</Text>
+          <TouchableOpacity style={[styles.writeBtnHeader, { backgroundColor: '#f7ab18' }]} onPress={handleWriteReview}>
+            <Text style={[styles.writeBtnHeaderText, { color: '#fff' }]}>Write a Review</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -114,10 +114,10 @@ const ProductReviews = ({ productId, onReviewPress }) => {
         <>
           {renderEmptyState()}
           <TouchableOpacity
-            style={styles.writeReviewButton}
+            style={[styles.writeReviewButton, { backgroundColor: '#f7ab18' }]}
             onPress={handleWriteReview}
           >
-            <Text style={styles.writeReviewText}>Write a Review</Text>
+            <Text style={[styles.writeReviewText, { color: '#fff' }]}>Write a Review</Text>
           </TouchableOpacity>
         </>
       ) : (
@@ -147,10 +147,10 @@ const ProductReviews = ({ productId, onReviewPress }) => {
           )}
           
           <TouchableOpacity
-            style={styles.writeReviewButton}
+            style={[styles.writeReviewButton, { backgroundColor: '#f7ab18' }]}
             onPress={handleWriteReview}
           >
-            <Text style={styles.writeReviewText}>Write a Review</Text>
+            <Text style={[styles.writeReviewText, { color: '#fff' }]}>Write a Review</Text>
           </TouchableOpacity>
         </>
       )}

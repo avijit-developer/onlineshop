@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import api from '../utils/api';
@@ -34,6 +34,8 @@ export default function ReviewFormScreen() {
   };
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -76,6 +78,8 @@ export default function ReviewFormScreen() {
         {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Submit Review</Text>}
       </TouchableOpacity>
     </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -88,7 +92,7 @@ const styles = StyleSheet.create({
   starsRow: { flexDirection: 'row', gap: 8 },
   input: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#000' },
   textArea: { minHeight: 120, textAlignVertical: 'top' },
-  submitBtn: { backgroundColor: '#1976d2', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 20 },
+  submitBtn: { backgroundColor: '#f7ab18', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 20 },
   submitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
 
