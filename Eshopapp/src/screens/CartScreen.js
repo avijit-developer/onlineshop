@@ -331,83 +331,83 @@ const CartScreen = () => {
             style={styles.cartList}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          />
-
-          {/* Order Summary */}
-          <View style={styles.summaryContainer}>
-            <View style={styles.summaryHeader}>
-              <Icon name="receipt-outline" size={20} color="#f7ab18" />
-              <Text style={styles.summaryTitle}>Order Summary</Text>
-            </View>
-            
-            <View style={styles.summaryContent}>
-              {/* Coupon */}
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Coupon</Text>
-              </View>
-              {!cartCoupon ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <TextInput
-                    style={[styles.textInput, { flex: 1 }]}
-                    value={couponCode}
-                    onChangeText={setCouponCode}
-                    placeholder="Enter coupon"
-                    autoCapitalize="characters"
-                  />
-                  <TouchableOpacity style={styles.applyButton} onPress={handleApplyCoupon} disabled={validating}>
-                    <Text style={{ color: '#fff', fontWeight: '600' }}>{validating ? 'Checking...' : 'Apply'}</Text>
-                  </TouchableOpacity>
+            contentContainerStyle={{ paddingBottom: 180 }}
+            ListFooterComponent={() => (
+              <View style={styles.summaryContainer}>
+                <View style={styles.summaryHeader}>
+                  <Icon name="receipt-outline" size={20} color="#f7ab18" />
+                  <Text style={styles.summaryTitle}>Order Summary</Text>
                 </View>
-              ) : (
-                <View style={{
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                  backgroundColor: '#e8f5e9', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8
-                }}>
-                  <Text style={{ color: '#2e7d32', fontWeight: '600' }}>Applied: {cartCoupon.couponCode}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Text style={{ color: '#2e7d32', fontWeight: '700' }}>- ₹{String((cartCoupon.discountAmount || 0).toFixed(2))}</Text>
-                    <TouchableOpacity onPress={handleRemoveCoupon} accessibilityLabel="Remove coupon" style={{
-                      width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#c8e6c9', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff'
-                    }}>
-                      <Text style={{ color: '#666', fontSize: 14 }}>×</Text>
-                    </TouchableOpacity>
+                
+                <View style={styles.summaryContent}>
+                  {/* Coupon */}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Coupon</Text>
                   </View>
-                </View>
-              )}
-              {!!couponError && (
-                <Text style={{ color: '#d32f2f', fontSize: 12, marginBottom: 8 }}>{couponError}</Text>
-              )}
-              {/* Intentionally not showing error message in UI; logging to console instead */}
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Subtotal</Text>
-                <Text style={styles.summaryValue}>₹{subtotal.toFixed(2)}</Text>
-              </View>
-              
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Shipping</Text>
-                <Text style={[styles.summaryValue, shipping === 0 && styles.freeShipping]}>
-                  {shipping === 0 ? 'FREE' : `₹${shipping.toFixed(2)}`}
-                </Text>
-              </View>
-              
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Tax ({taxRate}%)</Text>
-                <Text style={styles.summaryValue}>₹{tax.toFixed(2)}</Text>
-              </View>
-              
-              <View style={[styles.summaryRow, styles.totalRow]}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>₹{total.toFixed(2)}</Text>
-              </View>
+                  {!cartCoupon ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <TextInput
+                        style={[styles.textInput, { flex: 1 }]}
+                        value={couponCode}
+                        onChangeText={setCouponCode}
+                        placeholder="Enter coupon"
+                        autoCapitalize="characters"
+                      />
+                      <TouchableOpacity style={styles.applyButton} onPress={handleApplyCoupon} disabled={validating}>
+                        <Text style={{ color: '#fff', fontWeight: '600' }}>{validating ? 'Checking...' : 'Apply'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      backgroundColor: '#e8f5e9', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8
+                    }}>
+                      <Text style={{ color: '#2e7d32', fontWeight: '600' }}>Applied: {cartCoupon.couponCode}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <Text style={{ color: '#2e7d32', fontWeight: '700' }}>- ₹{String((cartCoupon.discountAmount || 0).toFixed(2))}</Text>
+                        <TouchableOpacity onPress={handleRemoveCoupon} accessibilityLabel="Remove coupon" style={{
+                          width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#c8e6c9', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff'
+                        }}>
+                          <Text style={{ color: '#666', fontSize: 14 }}>×</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                  {!!couponError && (
+                    <Text style={{ color: '#d32f2f', fontSize: 12, marginBottom: 8 }}>{couponError}</Text>
+                  )}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Subtotal</Text>
+                    <Text style={styles.summaryValue}>₹{subtotal.toFixed(2)}</Text>
+                  </View>
+                  
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Shipping</Text>
+                    <Text style={[styles.summaryValue, shipping === 0 && styles.freeShipping]}>
+                      {shipping === 0 ? 'FREE' : `₹${shipping.toFixed(2)}`}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Tax ({taxRate}%)</Text>
+                    <Text style={styles.summaryValue}>₹{tax.toFixed(2)}</Text>
+                  </View>
+                  
+                  <View style={[styles.summaryRow, styles.totalRow]}>
+                    <Text style={styles.totalLabel}>Total</Text>
+                    <Text style={styles.totalValue}>₹{total.toFixed(2)}</Text>
+                  </View>
 
-              {(shipping > 0 && FREE_SHIPPING_MIN != null && subtotal < FREE_SHIPPING_MIN) && (
-                <View style={styles.freeShippingNote}>
-                  <Icon name="information-circle-outline" size={16} color="#f7ab18" />
-                  <Text style={styles.freeShippingText}>Add ₹{Math.max(0, (FREE_SHIPPING_MIN - subtotal)).toFixed(2)} more for free shipping</Text>
+                  {(shipping > 0 && FREE_SHIPPING_MIN != null && subtotal < FREE_SHIPPING_MIN) && (
+                    <View style={styles.freeShippingNote}>
+                      <Icon name="information-circle-outline" size={16} color="#f7ab18" />
+                      <Text style={styles.freeShippingText}>Add ₹{Math.max(0, (FREE_SHIPPING_MIN - subtotal)).toFixed(2)} more for free shipping</Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-          </View>
+              </View>
+            )}
+          />
 
           {/* Checkout Button */}
           <View style={styles.checkoutBar}>
