@@ -639,12 +639,12 @@ export default function ProductDetailsScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    style={[styles.buyNowButton, outOfStock && styles.buttonDisabled]} 
-                    onPress={handleBuyNow}
-                    disabled={outOfStock}
+                    style={[styles.viewCartButton, outOfStock && styles.buttonDisabled]} 
+                    onPress={() => navigation.navigate('Cart')}
+                    disabled={false}
                 >
-                    <Text style={[styles.buyNowText, outOfStock && styles.buttonTextDisabled]}>
-                        {outOfStock ? 'Out of Stock' : 'Buy Now'}
+                    <Text style={[styles.viewCartText]}>
+                        View Cart
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -882,10 +882,10 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: 16,
     },
-    buyNowButton: {
+    viewCartButton: {
         flex: 1,
         height: 44,
-        backgroundColor: '#007bff',
+        backgroundColor: '#f7ab18',
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowRadius: 2,
     },
-    buyNowText: {
+    viewCartText: {
         color: '#fff',
         fontWeight: '600',
         fontSize: 16,
