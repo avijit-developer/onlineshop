@@ -34,7 +34,31 @@ const MostPopularSection = ({ navigation }) => {
         console.log('MostPopularSection: Found section:', mostPopularSection);
         if (mostPopularSection && mostPopularSection.isActive) {
           setSectionConfig(mostPopularSection);
-          setProducts(mostPopularSection.products || []);
+          const baseProducts = mostPopularSection.products || [];
+          setProducts(baseProducts);
+          // Enrich ratings if missing
+          try {
+            const enriched = await Promise.all(
+              baseProducts.map(async (p) => {
+                const hasRating = (p && (p.rating != null || p.avgRating != null || p.averageRating != null || p.ratingsAverage != null));
+                if (!hasRating && (p && (p._id || p.id))) {
+                  try {
+                    const res = await api.getProductPublic(p._id || p.id);
+                    const d = res?.data || res;
+                    if (d) {
+                      return {
+                        ...p,
+                        rating: d.rating ?? d.avgRating ?? d.averageRating ?? d.ratingsAverage ?? p.rating,
+                        reviewsCount: d.reviewsCount ?? d.reviewCount ?? d.numReviews ?? p.reviewsCount,
+                      };
+                    }
+                  } catch (_) {}
+                }
+                return p;
+              })
+            );
+            setProducts(enriched);
+          } catch (_) {}
           console.log('MostPopularSection: Set products:', mostPopularSection.products?.length || 0);
         }
       }
