@@ -74,11 +74,10 @@ const MostPopularSection = ({ navigation }) => {
         </TouchableOpacity>
         <View style={styles.cardBody}>
           <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
-          <View style={styles.ratingRow}>
-            <Ionicons name={rating ? 'star' : 'star-outline'} size={12} color="#FFA726" />
-            {!!rating && <Text style={styles.ratingText}>{rating.toFixed(1)}{ratingCount ? ` (${ratingCount})` : ''}</Text>}
-          </View>
-          <View style={styles.priceRow}>
+          <View style={styles.metaRow}>
+            {rating > 0 ? (
+              <Text style={styles.ratingBadge}>★ {rating.toFixed(1)}{ratingCount ? ` (${ratingCount})` : ''}</Text>
+            ) : <View />}
             {sectionConfig?.settings?.showPrice && (
               item.specialPrice != null ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -196,9 +195,9 @@ const styles = StyleSheet.create({
   },
   cardBody: { padding: 8 },
   name: { fontSize: 13, fontWeight: '600', color: '#222', height: 34, marginBottom: 2 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 0, gap: 4 },
-  ratingText: { marginLeft: 6, fontSize: 11, color: '#555' },
-  priceRow: { marginTop: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  ratingBadge: { fontSize: 12, color: '#333', fontWeight: '600' },
+  priceRow: { },
   price: { fontSize: 14, fontWeight: '700', color: '#f7ab18' },
   oldPrice: { fontSize: 12, color: '#888', textDecorationLine: 'line-through' },
   cardFooter: {
