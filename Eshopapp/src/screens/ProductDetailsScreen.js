@@ -427,7 +427,7 @@ export default function ProductDetailsScreen() {
 
     return (
         <>
-            <ScrollView style={styles.container}>
+            <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
                 {/* Header */}
                 <TouchableOpacity style={styles.header} onPress={() => navigation.goBack()}>
                     <AntDesign name="arrowleft" size={24} color="black" />
@@ -829,6 +829,10 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     actionsContainer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
