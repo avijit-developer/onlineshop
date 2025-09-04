@@ -258,15 +258,17 @@ const CartScreen = () => {
     }
     return fallback;
   };
-  const FREE_SHIPPING_MIN = Number(pickDeep(shippingSettings, [
+  const freeShipThresholdRaw = pickDeep(shippingSettings, [
     ['freeShippingThreshold'], ['free_shipping_threshold'], ['freeShippingMin'], ['freeMin'],
     ['settings','freeShippingThreshold'], ['config','freeShippingThreshold'], ['data','freeShippingThreshold']
-  ], null));
-  const BASE_SHIPPING = Number(pickDeep(shippingSettings, [
+  ], null);
+  const FREE_SHIPPING_MIN = (freeShipThresholdRaw != null ? Number(freeShipThresholdRaw) : null);
+  const baseShippingRaw = pickDeep(shippingSettings, [
     ['flatShippingFee'], ['flat_rate'], ['flat'], ['price'], ['amount'],
     ['defaultShippingCost'], ['settings','flatShippingFee'], ['config','flatShippingFee'], ['data','flatShippingFee']
-  ], 0)) || 0;
-  const meetsFree = (FREE_SHIPPING_MIN != null && subtotal >= FREE_SHIPPING_MIN);
+  ], 0);
+  const BASE_SHIPPING = Number(baseShippingRaw || 0);
+  const meetsFree = (FREE_SHIPPING_MIN != null && subtotal >= Number(FREE_SHIPPING_MIN));
   const shipping = (cartCoupon?.freeShipping || meetsFree) ? 0 : BASE_SHIPPING;
   const tax = 0;
   const discount = cartCoupon?.discountAmount || 0;
