@@ -11,16 +11,21 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
+import api from '../utils/api';
 
 const ViewCartFooter = () => {
   const navigation = useNavigation();
-  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart, isAuthenticated } = useCart();
+  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart, isAuthenticated, cartCoupon } = useCart();
   const [isExpanded, setIsExpanded] = useState(false);
   const slideAnim = React.useRef(new Animated.Value(100)).current;
+  const [shippingSettings, setShippingSettings] = useState({});
 
   // Refresh cart data when component mounts (only once)
   useEffect(() => {
     refreshCart();
+    (async () => {
+      try { const res = await api.getShippingSettings(); setShippingSettings((res?.data || res || {})); } catch (_) {}
+    })();
   }, []); // run once on mount
 
   // Auto-expand when cart has items
@@ -57,13 +62,34 @@ const ViewCartFooter = () => {
     if (cartItems.length === 0) {
       return { total: 0, itemsCount: 0, displayItems: [] };
     }
-
-    const total = getCartTotal();
+    const subtotal = getCartTotal();
+    const pickDeep = (obj, paths, fallback) => {
+      for (const path of paths) {
+        let cur = obj; let ok = true;
+        for (const key of path) { if (cur && Object.prototype.hasOwnProperty.call(cur, key)) cur = cur[key]; else { ok = false; break; } }
+        if (ok && cur != null && cur !== '') return cur;
+      }
+      return fallback;
+    };
+    const freeShipThresholdRaw = pickDeep(shippingSettings, [
+      ['freeShippingThreshold'], ['free_shipping_threshold'], ['freeShippingMin'], ['freeMin'],
+      ['settings','freeShippingThreshold'], ['config','freeShippingThreshold'], ['data','freeShippingThreshold']
+    ], null);
+    const FREE_SHIPPING_MIN = (freeShipThresholdRaw != null ? Number(freeShipThresholdRaw) : null);
+    const baseShippingRaw = pickDeep(shippingSettings, [
+      ['flatShippingFee'], ['flat_rate'], ['flat'], ['price'], ['amount'], ['defaultShippingCost'],
+      ['settings','flatShippingFee'], ['config','flatShippingFee'], ['data','flatShippingFee']
+    ], 0);
+    const BASE_SHIPPING = Number(baseShippingRaw || 0);
+    const meetsFree = (FREE_SHIPPING_MIN != null && subtotal >= Number(FREE_SHIPPING_MIN));
+    const shipping = (cartCoupon?.freeShipping || meetsFree) ? 0 : BASE_SHIPPING;
+    const discount = cartCoupon?.discountAmount || 0;
+    const total = Math.max(0, subtotal + shipping - discount);
     const itemsCount = getCartItemsCount();
     const displayItems = cartItems.slice(0, 5);
 
     return { total, itemsCount, displayItems };
-  }, [cartItems, getCartTotal, getCartItemsCount]);
+  }, [cartItems, cartCoupon, shippingSettings, getCartTotal, getCartItemsCount]);
 
   // Avoid changing hooks order; render empty placeholder if not authenticated
   const hidden = !isAuthenticated;
