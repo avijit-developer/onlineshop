@@ -137,7 +137,7 @@ const WishlistScreen = ({ navigation }) => {
             renderItem={renderWishlistItem}
             keyExtractor={(item) => item._id}
             numColumns={2}
-            contentContainerStyle={styles.wishlistGrid}
+            contentContainerStyle={[styles.wishlistGrid, { paddingBottom: 90 }]}
             columnWrapperStyle={styles.wishlistRow}
             showsVerticalScrollIndicator={false}
           />
