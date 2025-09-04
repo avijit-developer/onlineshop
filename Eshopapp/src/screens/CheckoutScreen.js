@@ -58,6 +58,19 @@ const CheckoutScreen = () => {
   }, [cartCoupon]);
   const [couponError, setCouponError] = useState('');
   const [validating, setValidating] = useState(false);
+  const [shippingSettings, setShippingSettings] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.getShippingSettings();
+        const data = res?.data || res;
+        setShippingSettings(data || {});
+      } catch (_) {
+        setShippingSettings(null);
+      }
+    })();
+  }, []);
 
   // Refresh addresses when screen is focused
   useFocusEffect(
@@ -75,9 +88,22 @@ const CheckoutScreen = () => {
     }
   }, [selectedAddressFromParams]);
 
-  // Calculate totals
+  // Helpers to read settings safely
+  const pick = (obj, keys, fallback) => {
+    for (const k of keys) {
+      if (obj && Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null && obj[k] !== '') {
+        return obj[k];
+      }
+    }
+    return fallback;
+  };
+
+  // Calculate totals using admin shipping settings (flat fee + optional threshold)
   const subtotal = getCartTotal();
-  const shipping = subtotal > 50 ? 0 : 9.99;
+  const flatShipping = pick(shippingSettings || {}, ['flatShippingFee','flatRate','flat','price','amount'], 0) || 0;
+  const freeShipThreshold = pick(shippingSettings || {}, ['freeShippingThreshold','free_shipping_threshold','freeShippingMin','freeMin'], null);
+  const computedShipping = (freeShipThreshold != null && subtotal >= Number(freeShipThreshold)) ? 0 : Number(flatShipping);
+  const shipping = (cartCoupon?.freeShipping ? 0 : computedShipping);
   const tax = subtotal * 0.08;
   const discount = appliedCoupon?.discountAmount || 0;
   const total = Math.max(0, subtotal + shipping + tax - discount);
@@ -466,11 +492,11 @@ const CheckoutScreen = () => {
           <Text style={styles.totalValue}>₹{String(total.toFixed(2))}</Text>
         </View>
 
-        {shipping > 0 && (
+        {shipping > 0 && freeShipThreshold != null && (
           <View style={styles.freeShippingNote}>
             <Icon name="information-circle-outline" size={16} color="#f7ab18" />
             <Text style={styles.freeShippingText}>
-              Add ₹{String((50 - subtotal).toFixed(2))} more for free shipping
+              Add ₹{String((Number(freeShipThreshold) - subtotal).toFixed(2))} more for free shipping
             </Text>
           </View>
         )}
