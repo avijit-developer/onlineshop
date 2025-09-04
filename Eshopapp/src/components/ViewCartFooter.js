@@ -163,8 +163,6 @@ const styles = StyleSheet.create({
   },
   itemsRow: {
     maxWidth: 150,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   itemImage: {
     width: 36,
