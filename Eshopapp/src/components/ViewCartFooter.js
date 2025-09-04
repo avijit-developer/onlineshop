@@ -42,9 +42,9 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
   }, [cartItems.length, isExpanded, slideAnim]);
 
   // Memoize calculations to prevent unnecessary re-renders
-  const { total, itemsCount, displayItems } = useMemo(() => {
+  const { total, itemsCount, displayItems, availableCount } = useMemo(() => {
     if (cartItems.length === 0) {
-      return { total: 0, itemsCount: 0, displayItems: [] };
+      return { total: 0, itemsCount: 0, displayItems: [], availableCount: 0 };
     }
     const availableItems = cartItems.filter(ci => (ci.enabled !== false) && ((ci.variantInfo?.stock || ci.stock || 0) > 0));
     const subtotal = availableItems.reduce((sum, it) => sum + getItemTotal(it), 0);
@@ -68,11 +68,16 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     const BASE_SHIPPING = Number(baseShippingRaw || 0);
     const meetsFree = (FREE_SHIPPING_MIN != null && subtotal >= Number(FREE_SHIPPING_MIN));
     const shipping = (cartCoupon?.freeShipping || meetsFree) ? 0 : BASE_SHIPPING;
+    const taxRateRaw = pickDeep(shippingSettings, [
+      ['taxRate'], ['settings','taxRate'], ['config','taxRate'], ['data','taxRate']
+    ], 0);
+    const TAX_RATE = Number(taxRateRaw || 0);
+    const tax = Math.max(0, subtotal * (TAX_RATE / 100));
     const discount = cartCoupon?.discountAmount || 0;
-    const total = Math.max(0, subtotal + shipping - discount);
+    const total = Math.max(0, subtotal + shipping + tax - discount);
     const itemsCount = availableItems.reduce((sum, it) => sum + (it.quantity || 0), 0);
     const displayItems = availableItems.slice(0, 4);
-    return { total, itemsCount, displayItems };
+    return { total, itemsCount, displayItems, availableCount: availableItems.length };
   }, [cartItems, cartCoupon, shippingSettings, getCartTotal, getCartItemsCount, getItemTotal]);
 
   const hidden = !isAuthenticated || cartItems.length === 0;
@@ -92,7 +97,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
       ]}
     >
       <View style={styles.cartInfo}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.itemsScroll}>
+        <View style={styles.itemsRow}>
           {displayItems.map((item, index) => {
             const imageUri = getItemImage(item);
             if (!imageUri) {
@@ -110,12 +115,12 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
               />
             );
           })}
-          {cartItems.length > displayItems.length && (
+          {availableCount > displayItems.length && (
             <View style={styles.moreItemsIndicator}>
-              <Text style={styles.moreItemsText}>+{cartItems.length - displayItems.length}</Text>
+              <Text style={styles.moreItemsText}>+{availableCount - displayItems.length}</Text>
             </View>
           )}
-        </ScrollView>
+        </View>
         
         <View style={styles.cartDetails}>
           <Text style={styles.itemCount}>{itemsCount} item{itemsCount > 1 ? 's' : ''}</Text>
@@ -156,8 +161,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  itemsScroll: {
+  itemsRow: {
     maxWidth: 150,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   itemImage: {
     width: 36,
