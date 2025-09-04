@@ -12,7 +12,6 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useCart } from '../contexts/CartContext';
-import ViewCartFooter from '../components/ViewCartFooter';
 
 const WishlistScreen = ({ navigation }) => {
   const { wishlist, isLoading, removeFromWishlist } = useWishlist();
@@ -143,7 +142,7 @@ const WishlistScreen = ({ navigation }) => {
           />
         </>
       )}
-      <ViewCartFooter />
+      
     </View>
   );
 };

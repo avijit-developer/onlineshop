@@ -14,7 +14,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
-import ViewCartFooter from '../components/ViewCartFooter';
 import { useCart } from '../contexts/CartContext';
 // import ProductFilters from '../components/ProductFilters';
 // import FilterButton from '../components/FilterButton';

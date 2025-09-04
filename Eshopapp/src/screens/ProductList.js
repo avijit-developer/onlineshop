@@ -12,7 +12,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import ProductCard from '../components/ProductCard';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import api from '../utils/api';
-import ViewCartFooter from '../components/ViewCartFooter';
 import ProductFilters from '../components/ProductFilters';
 import FilterButton from '../components/FilterButton';
 import FilterSummary from '../components/FilterSummary';
@@ -360,7 +359,7 @@ const ProductList = () => {
         loading={filterLoading}
       />
       
-      <ViewCartFooter />
+      
     </View>
   );
 };
