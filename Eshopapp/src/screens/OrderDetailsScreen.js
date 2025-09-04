@@ -123,10 +123,10 @@ const OrderDetailsScreen = ({ route }) => {
   };
   const current = freshOrder || order;
   const status = normalizeStatus(current.status);
-  const intermediateLabel = status === 'Confirmed' ? 'Confirmed' : 'Processing';
   const orderProgress = [
     { step: 'Order Placed', completed: true, date: current.createdAt ? new Date(current.createdAt).toLocaleDateString() : '' },
-    { step: intermediateLabel, completed: ['Confirmed','Processing','Shipped','Delivered'].includes(status), date: ['Confirmed','Processing'].includes(status) ? 'Current' : '' },
+    { step: 'Confirmed', completed: ['Confirmed','Processing','Shipped','Delivered'].includes(status), date: status === 'Confirmed' ? 'Current' : '' },
+    { step: 'Processing', completed: ['Processing','Shipped','Delivered'].includes(status), date: status === 'Processing' ? 'Current' : '' },
     { step: 'Shipped', completed: ['Shipped','Delivered'].includes(status), date: status === 'Shipped' ? 'Current' : '' },
     { step: 'Delivered', completed: status === 'Delivered', date: status === 'Delivered' ? 'Current' : '' },
   ];
