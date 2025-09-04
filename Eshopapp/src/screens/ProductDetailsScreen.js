@@ -8,7 +8,6 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import LottieView from 'lottie-react-native';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
-import ViewCartFooter from '../components/ViewCartFooter';
 import api from '../utils/api';
 
 export default function ProductDetailsScreen() {
