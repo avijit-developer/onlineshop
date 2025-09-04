@@ -9,13 +9,14 @@ import {
   Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import api from '../utils/api';
 
 const ViewCartFooter = ({ bottomOffset = 0 }) => {
   const navigation = useNavigation();
   const { cartItems, getCartTotal, getCartItemsCount, getItemImage, getItemTotal, refreshCart, isAuthenticated, cartCoupon } = useCart();
+  const route = useRoute();
   const [isExpanded, setIsExpanded] = useState(false);
   const slideAnim = React.useRef(new Animated.Value(100)).current;
   const [shippingSettings, setShippingSettings] = useState({});
@@ -80,7 +81,8 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     return { total, itemsCount, displayItems, availableCount: availableItems.length };
   }, [cartItems, cartCoupon, shippingSettings, getCartTotal, getCartItemsCount, getItemTotal]);
 
-  const hidden = !isAuthenticated || cartItems.length === 0;
+  const isCartScreen = route?.name === 'Cart';
+  const hidden = !isAuthenticated || cartItems.length === 0 || isCartScreen;
 
   const handleViewCart = () => { navigation.navigate('Cart'); };
 
