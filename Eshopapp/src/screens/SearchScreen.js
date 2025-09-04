@@ -448,8 +448,7 @@ const SearchScreen = () => {
       
       {/* Product Filters Modal removed */}
       
-      {/* View Cart Footer */}
-      <ViewCartFooter />
+      
     </View>
   );
 };

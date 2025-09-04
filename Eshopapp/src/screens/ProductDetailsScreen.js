@@ -662,7 +662,7 @@ export default function ProductDetailsScreen() {
                     </View>
                 </View>
             </Modal>
-            <ViewCartFooter />
+            
         </>
     );
 }
