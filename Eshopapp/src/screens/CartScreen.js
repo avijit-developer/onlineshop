@@ -296,7 +296,7 @@ const CartScreen = () => {
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Icon name="arrow-back-outline" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.title}>Shopping Cart ({cartItems.length})</Text>
+          <Text style={styles.title}>Shopping Cart</Text>
           <View style={styles.headerActions}>
             {cartItems.length > 0 && (
               <TouchableOpacity
@@ -308,15 +308,12 @@ const CartScreen = () => {
             )}
           </View>
         </View>
-        
+
         {cartItems.length > 0 && (
-          <View style={styles.headerBottom}>
-            <TouchableOpacity
-              style={styles.continueShoppingButton}
-              onPress={() => navigation.navigate('Home')}
-            >
-              <Icon name="add-circle-outline" size={16} color="#f7ab18" />
-              <Text style={styles.continueShoppingText}>Continue Shopping</Text>
+          <View style={styles.metaBar}>
+            <Text style={styles.metaText}>{availableItems.length} items • Subtotal ₹{subtotal.toFixed(2)}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+              <Text style={styles.metaLink}>Continue shopping</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -412,13 +409,17 @@ const CartScreen = () => {
           </View>
 
           {/* Checkout Button */}
-          <TouchableOpacity style={[styles.checkoutButton, (availableItems.length === 0) && { opacity: 0.6 }]} onPress={handleCheckout} disabled={availableItems.length === 0}>
-            <Icon name="card-outline" size={20} color="#fff" />
-            <Text style={styles.checkoutButtonText}>
-              Proceed to Checkout
-            </Text>
-            <Text style={styles.checkoutAmount}>₹{total.toFixed(2)}</Text>
-          </TouchableOpacity>
+          <View style={styles.checkoutBar}>
+            <View style={styles.checkoutInfo}>
+              <Text style={styles.checkoutLabel}>Total</Text>
+              <Text style={styles.checkoutTotal}>₹{total.toFixed(2)}</Text>
+              <Text style={styles.checkoutNote}>Incl. tax and shipping</Text>
+            </View>
+            <TouchableOpacity style={[styles.checkoutCta, (availableItems.length === 0) && { opacity: 0.6 }]} onPress={handleCheckout} disabled={availableItems.length === 0}>
+              <Icon name="card-outline" size={20} color="#fff" />
+              <Text style={styles.checkoutCtaText}>Checkout</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
     </View>
@@ -443,12 +444,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingTop: 20,
   },
-  headerBottom: {
+  metaBar: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff8e6',
+    borderTopWidth: 1,
+    borderTopColor: '#f0e3c2',
   },
+  metaText: { color: '#333', fontSize: 13, fontWeight: '600' },
+  metaLink: { color: '#f7ab18', fontSize: 13, fontWeight: '600' },
   backButton: {
     padding: 8,
   },
@@ -722,25 +729,30 @@ const styles = StyleSheet.create({
     color: '#f7ab18',
     marginLeft: 5,
   },
-  checkoutButton: {
-    backgroundColor: '#f7ab18',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
+  checkoutBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
-  checkoutButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  checkoutInfo: { flexDirection: 'column' },
+  checkoutLabel: { color: '#666', fontSize: 12 },
+  checkoutTotal: { color: '#333', fontSize: 18, fontWeight: '700' },
+  checkoutNote: { color: '#777', fontSize: 11 },
+  checkoutCta: {
+    backgroundColor: '#f7ab18',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  checkoutAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
+  checkoutCtaText: { color: '#fff', fontSize: 16, fontWeight: '700', marginLeft: 8 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
