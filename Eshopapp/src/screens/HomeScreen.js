@@ -29,12 +29,12 @@ const HomeScreen = ({ navigation }) => {
   const [prevScrollY, setPrevScrollY] = useState(0);
   const { getWishlistCount, toggleWishlist, isInWishlist } = useWishlist();
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const onRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
-      // Trigger children to refetch by any means available
-      // If sections expose refresh via context or events, call them here.
-      // As a fallback, briefly unmount/mount SliderBanner to refetch internally.
+      // Trigger children to refetch by remounting via key
+      setRefreshKey((k) => k + 1);
     } finally {
       setTimeout(() => setRefreshing(false), 600);
     }
@@ -72,16 +72,16 @@ const HomeScreen = ({ navigation }) => {
       >
 
        
-        <Header />
+        <Header key={`Header-${refreshKey}`} />
         
         {/* Removed test wishlist button */}
         
-        <SliderBanner />
-        <AllCategories />
-        <MostPopularSection navigation={navigation} />
-        <BestSellerSection navigation={navigation} />
-        <CategoriesGrid navigation={navigation} />
-        <JustForYou navigation={navigation} />
+        <SliderBanner key={`SliderBanner-${refreshKey}`} />
+        <AllCategories key={`AllCategories-${refreshKey}`} />
+        <MostPopularSection key={`MostPopular-${refreshKey}`} navigation={navigation} />
+        <BestSellerSection key={`BestSeller-${refreshKey}`} navigation={navigation} />
+        <CategoriesGrid key={`CategoriesGrid-${refreshKey}`} navigation={navigation} />
+        <JustForYou key={`JustForYou-${refreshKey}`} navigation={navigation} />
       </ScrollView>
 
       <Animated.View
