@@ -120,9 +120,12 @@ const CheckoutScreen = () => {
     ['settings','freeShippingThreshold'], ['config','freeShippingThreshold'], ['data','freeShippingThreshold']
   ], null);
   const freeShipThreshold = freeShipThresholdRaw != null ? Number(freeShipThresholdRaw) : null;
+  const taxRate = Number(pickDeep(shippingSettings || {}, [
+    ['taxRate'], ['tax_rate'], ['settings','taxRate'], ['config','taxRate'], ['data','taxRate']
+  ], 0)) || 0;
   const computedShipping = (freeShipThreshold != null && subtotal >= Number(freeShipThreshold)) ? 0 : Number(flatShipping);
   const shipping = (cartCoupon?.freeShipping ? 0 : computedShipping);
-  const tax = 0;
+  const tax = 0; // UI shows no tax in summary per requirement; order payload uses admin taxRate
   const discount = appliedCoupon?.discountAmount || 0;
   const total = Math.max(0, subtotal + shipping - discount);
 
@@ -199,7 +202,7 @@ const CheckoutScreen = () => {
         })),
         shippingAddress: shippingAddressStr,
         paymentMethod,
-        tax: 8,
+        tax: taxRate,
         shippingCost: appliedCoupon?.freeShipping ? 0 : shipping,
         couponCode: (appliedCoupon?.couponCode || couponCode.trim()) || undefined,
         orderNote: orderNote.trim() || undefined,

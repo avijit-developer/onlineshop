@@ -19,6 +19,9 @@ const SettingsSchema = new mongoose.Schema({
 		freeShippingThreshold: { type: Number, default: 100 },
 		defaultShippingCost: { type: Number, default: 10 },
 		flatShippingFee: { type: Number, default: 0 }
+	},
+	tax: {
+		rate: { type: Number, default: 0 }
 	}
 }, { timestamps: true });
 

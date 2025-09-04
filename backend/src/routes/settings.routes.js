@@ -10,8 +10,9 @@ router.get('/shipping/public', async (req, res) => {
   try {
     const doc = await Settings.findOne().lean();
     const flatShippingFee = doc?.shipping?.flatShippingFee ?? Number(process.env.FLAT_SHIPPING_FEE || 0);
-    // Return ONLY the flat fee to avoid legacy fields overriding UI
-    res.json({ success: true, data: { flatShippingFee } });
+    const taxRate = doc?.tax?.rate ?? Number(process.env.DEFAULT_TAX_RATE || 0);
+    // Return fee and tax rate for client consumption
+    res.json({ success: true, data: { flatShippingFee, taxRate } });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to load shipping settings' });
   }
