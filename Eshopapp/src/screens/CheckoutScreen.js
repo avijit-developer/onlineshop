@@ -20,7 +20,7 @@ import { useUser } from '../contexts/UserContext';
 const CheckoutScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { cartItems, getCartTotal, clearCart, cartCoupon } = useCart();
+  const { cartItems, getCartTotal, getItemTotal, clearCart, cartCoupon } = useCart();
   const { addresses, getDefaultAddress, addAddress, refreshAddresses, isLoading } = useAddress();
   const { addOrder, refreshOrders } = useUser();
 
@@ -110,7 +110,8 @@ const CheckoutScreen = () => {
   };
 
   // Calculate totals using admin shipping settings (flat fee + optional threshold)
-  const subtotal = getCartTotal();
+  const availableItems = (cartItems || []).filter(ci => (ci.enabled !== false) && ((ci.variantInfo?.stock || ci.stock || 0) > 0));
+  const subtotal = availableItems.reduce((sum, it) => sum + getItemTotal(it), 0);
   const flatShipping = Number(pickDeep(shippingSettings || {}, [
     ['flatShippingFee'], ['flat_rate'], ['flat'], ['price'], ['amount'],
     ['settings','flatShippingFee'], ['config','flatShippingFee'], ['data','flatShippingFee']
@@ -191,7 +192,7 @@ const CheckoutScreen = () => {
       // Create order via API
       const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
       const response = await api.createOrder({
-        items: cartItems.map(ci => ({
+        items: availableItems.map(ci => ({
           product: ci.id,
           name: ci.name,
           sku: ci.variantInfo?.sku || ci.sku || '',

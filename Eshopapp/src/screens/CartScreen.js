@@ -147,7 +147,9 @@ const CartScreen = () => {
   // Show empty cart message if authenticated but no items
   // Avoid changing hooks order; render empty state via conditional content
 
-  const renderCartItem = ({ item }) => (
+  const renderCartItem = ({ item }) => {
+    const isUnavailable = (item.enabled === false) || ((item.variantInfo?.stock || item.stock || 0) <= 0);
+    return (
     <View style={styles.cartItem}>
       <View style={styles.itemImageContainer}>
         <Image 
@@ -216,8 +218,8 @@ const CartScreen = () => {
         
         {/* Additional info section */}
         <View style={styles.additionalInfo}>
-          {item.enabled === false ? (
-            <Text style={[styles.stockInfo, { color: '#d32f2f' }]}>Disabled by admin</Text>
+          {isUnavailable ? (
+            <Text style={[styles.stockInfo, { color: '#d32f2f' }]}>Not available</Text>
           ) : (
             <Text style={styles.stockInfo}>
               Stock: {String(item.variantInfo?.stock || item.stock || 0)} available
@@ -228,8 +230,14 @@ const CartScreen = () => {
           </Text>
         </View>
       </View>
+
+      {isUnavailable && (
+        <View style={styles.unavailableOverlay} pointerEvents="none">
+          <Text style={styles.unavailableText}>Not available</Text>
+        </View>
+      )}
     </View>
-  );
+  ); };
 
   const renderEmptyCart = () => (
     <View style={styles.emptyContainer}>
@@ -495,6 +503,21 @@ const styles = StyleSheet.create({
   itemImage: {
     width: '100%',
     height: '100%',
+  },
+  unavailableOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unavailableText: {
+    color: '#fff',
+    fontWeight: '700',
   },
   itemDetails: {
     flex: 1,
