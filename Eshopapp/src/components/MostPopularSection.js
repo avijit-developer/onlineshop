@@ -11,11 +11,13 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import api from '../utils/api';
+import { useWishlist } from '../contexts/WishlistContext';
 
 const MostPopularSection = ({ navigation }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sectionConfig, setSectionConfig] = useState(null);
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   useEffect(() => {
     fetchSectionData();
@@ -47,6 +49,7 @@ const MostPopularSection = ({ navigation }) => {
     const price = (item.specialPrice ?? item.regularPrice ?? item.price);
     const rating = Number(item.rating || 0);
     const ratingCount = Number(item.reviewsCount || item.reviews || 0);
+    const wishlisted = isInWishlist(item._id);
     return (
     <View style={{ marginBottom: 8 }}>
       <TouchableOpacity 
@@ -59,17 +62,20 @@ const MostPopularSection = ({ navigation }) => {
           style={styles.image}
           defaultSource={require('../assets/Placeholder_01.png')}
         />
-        <View style={styles.favicon}>
-          <AntDesign name={item.isWishlisted ? 'heart' : 'hearto'} size={14} color={item.isWishlisted ? '#e53935' : '#FFA726'} />
-        </View>
+        <TouchableOpacity
+          style={styles.favicon}
+          activeOpacity={0.8}
+          onPress={async (e) => {
+            e.stopPropagation();
+            try { await toggleWishlist(item._id); } catch (_) {}
+          }}
+        >
+          <AntDesign name={wishlisted ? 'heart' : 'hearto'} size={14} color={wishlisted ? '#e53935' : '#FFA726'} />
+        </TouchableOpacity>
         <View style={styles.cardBody}>
           <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
           <View style={styles.ratingRow}>
-            <Ionicons name={rating >= 1 ? 'star' : (rating > 0 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
-            <Ionicons name={rating >= 2 ? 'star' : (rating > 1 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
-            <Ionicons name={rating >= 3 ? 'star' : (rating > 2 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
-            <Ionicons name={rating >= 4 ? 'star' : (rating > 3 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
-            <Ionicons name={rating >= 5 ? 'star' : (rating > 4 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
+            <Ionicons name={rating ? 'star' : 'star-outline'} size={12} color="#FFA726" />
             {!!rating && <Text style={styles.ratingText}>{rating.toFixed(1)}{ratingCount ? ` (${ratingCount})` : ''}</Text>}
           </View>
           <View style={styles.priceRow}>
@@ -189,8 +195,8 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   cardBody: { padding: 8 },
-  name: { fontSize: 13, fontWeight: '600', color: '#222', height: 36 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 2 },
+  name: { fontSize: 13, fontWeight: '600', color: '#222', height: 34, marginBottom: 2 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 0, gap: 4 },
   ratingText: { marginLeft: 6, fontSize: 11, color: '#555' },
   priceRow: { marginTop: 6 },
   price: { fontSize: 14, fontWeight: '700', color: '#f7ab18' },
