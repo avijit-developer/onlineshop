@@ -45,11 +45,14 @@ const MostPopularSection = ({ navigation }) => {
 
   const renderItem = ({ item }) => {
     const price = (item.specialPrice ?? item.regularPrice ?? item.price);
+    const rating = Number(item.rating || 0);
+    const ratingCount = Number(item.reviewsCount || item.reviews || 0);
     return (
-    <View style={{ marginBottom: 5 }}>
+    <View style={{ marginBottom: 8 }}>
       <TouchableOpacity 
         style={styles.card}
         onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
+        activeOpacity={0.9}
       >
         <Image 
           source={{ uri: item.images && item.images[0] }} 
@@ -59,28 +62,28 @@ const MostPopularSection = ({ navigation }) => {
         <View style={styles.favicon}>
           <AntDesign name={item.isWishlisted ? 'heart' : 'hearto'} size={14} color={item.isWishlisted ? '#e53935' : '#FFA726'} />
         </View>
-        <View style={styles.cardFooter}>
-          <View style={styles.likes}>
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <Ionicons
-                key={`mp-star-${item._id}-${idx}`}
-                name={(item.rating || 0) >= idx + 1 ? 'star' : ((item.rating || 0) > idx ? 'star-half' : 'star-outline')}
-                size={12}
-                color="#FFA726"
-              />
-            ))}
-            {!!item.rating && <Text style={styles.likesText}>{Number(item.rating).toFixed(1)}</Text>}
+        <View style={styles.cardBody}>
+          <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
+          <View style={styles.ratingRow}>
+            <Ionicons name={rating >= 1 ? 'star' : (rating > 0 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
+            <Ionicons name={rating >= 2 ? 'star' : (rating > 1 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
+            <Ionicons name={rating >= 3 ? 'star' : (rating > 2 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
+            <Ionicons name={rating >= 4 ? 'star' : (rating > 3 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
+            <Ionicons name={rating >= 5 ? 'star' : (rating > 4 ? 'star-half' : 'star-outline')} size={12} color="#FFA726" />
+            {!!rating && <Text style={styles.ratingText}>{rating.toFixed(1)}{ratingCount ? ` (${ratingCount})` : ''}</Text>}
           </View>
-          {sectionConfig?.settings?.showPrice && (
-            item.specialPrice != null ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.tag, { color: '#e53935', fontWeight: '700' }]}>₹{item.specialPrice}</Text>
-                <Text style={[styles.tag, { textDecorationLine: 'line-through', color: '#888' }]}>₹{item.regularPrice}</Text>
-              </View>
-            ) : (
-              price != null && <Text style={styles.tag}>₹{price}</Text>
-            )
-          )}
+          <View style={styles.priceRow}>
+            {sectionConfig?.settings?.showPrice && (
+              item.specialPrice != null ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.price, { color: '#e53935' }]}>₹{item.specialPrice}</Text>
+                  <Text style={styles.oldPrice}>₹{item.regularPrice}</Text>
+                </View>
+              ) : (
+                price != null && <Text style={styles.price}>₹{price}</Text>
+              )
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     </View>
@@ -170,8 +173,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    width: 140,
-    borderRadius: 6,
+    width: 160,
+    borderRadius: 10,
     backgroundColor: '#fff',
     overflow: 'hidden',
     elevation: 3,
@@ -182,9 +185,16 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 120,
+    height: 130,
     resizeMode: 'cover',
   },
+  cardBody: { padding: 8 },
+  name: { fontSize: 13, fontWeight: '600', color: '#222', height: 36 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 2 },
+  ratingText: { marginLeft: 6, fontSize: 11, color: '#555' },
+  priceRow: { marginTop: 6 },
+  price: { fontSize: 14, fontWeight: '700', color: '#f7ab18' },
+  oldPrice: { fontSize: 12, color: '#888', textDecorationLine: 'line-through' },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
