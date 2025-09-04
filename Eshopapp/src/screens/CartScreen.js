@@ -205,9 +205,9 @@ const CartScreen = () => {
             <Text style={styles.quantity}>{item.quantity}</Text>
             
             <TouchableOpacity
-              style={[styles.quantityButton, item.quantity >= (item.variantInfo?.stock || item.stock) && styles.quantityButtonDisabled]}
+              style={[styles.quantityButton, (item.quantity >= (item.variantInfo?.stock || item.stock) || item.enabled === false) && styles.quantityButtonDisabled]}
               onPress={() => handleQuantityChange(item.cartId, 1)}
-              disabled={item.quantity >= (item.variantInfo?.stock || item.stock)}
+              disabled={item.quantity >= (item.variantInfo?.stock || item.stock) || item.enabled === false}
             >
               <Icon name="add-outline" size={16} color={item.quantity >= (item.variantInfo?.stock || item.stock) ? "#ccc" : "#333"} />
             </TouchableOpacity>
@@ -216,9 +216,13 @@ const CartScreen = () => {
         
         {/* Additional info section */}
         <View style={styles.additionalInfo}>
-          <Text style={styles.stockInfo}>
-            Stock: {String(item.variantInfo?.stock || item.stock || 0)} available
-          </Text>
+          {item.enabled === false ? (
+            <Text style={[styles.stockInfo, { color: '#d32f2f' }]}>Disabled by admin</Text>
+          ) : (
+            <Text style={styles.stockInfo}>
+              Stock: {String(item.variantInfo?.stock || item.stock || 0)} available
+            </Text>
+          )}
           <Text style={styles.itemTotal}>
             Total: ₹{String(getItemTotal(item))}
           </Text>
@@ -241,7 +245,8 @@ const CartScreen = () => {
     </View>
   );
 
-  const subtotal = getCartTotal();
+  const availableItems = cartItems.filter(ci => (ci.enabled !== false) && (ci.stock > 0 || (ci.variantInfo?.stock || 0) > 0));
+  const subtotal = availableItems.reduce((sum, it) => sum + getItemTotal(it), 0);
   const [shippingSettings, setShippingSettings] = React.useState({});
   React.useEffect(() => {
     let mounted = true;
@@ -399,7 +404,7 @@ const CartScreen = () => {
           </View>
 
           {/* Checkout Button */}
-          <TouchableOpacity style={styles.checkoutButton} onPress={handleCheckout}>
+          <TouchableOpacity style={[styles.checkoutButton, (availableItems.length === 0) && { opacity: 0.6 }]} onPress={handleCheckout} disabled={availableItems.length === 0}>
             <Icon name="card-outline" size={20} color="#fff" />
             <Text style={styles.checkoutButtonText}>
               Proceed to Checkout

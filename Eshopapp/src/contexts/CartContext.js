@@ -124,7 +124,9 @@ export const CartProvider = ({ children }) => {
             regularPrice: item.product.regularPrice,
             specialPrice: item.product.specialPrice,
             stock: item.product.stock,
-            sku: item.product.sku
+            sku: item.product.sku,
+            enabled: (typeof item.product.enabled === 'boolean') ? item.product.enabled : true,
+            status: item.product.status
           };
         });
         setCartItems(transformedItems);
