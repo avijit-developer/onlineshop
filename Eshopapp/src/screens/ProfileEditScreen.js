@@ -12,6 +12,7 @@ import {
   PermissionsAndroid,
   ToastAndroid,
 } from 'react-native';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
@@ -151,10 +152,7 @@ const ProfileEditScreen = () => {
                 );
                 return;
               }
-              try {
-                const ImagePicker = require('react-native-image-picker');
-                const { launchCamera } = ImagePicker;
-                launchCamera({ mediaType: 'photo', cameraType: 'front', saveToPhotos: true }, (response) => {
+              launchCamera({ mediaType: 'photo', cameraType: 'front', saveToPhotos: true }, (response) => {
                   if (response?.didCancel) return;
                   if (response?.errorCode) {
                     Alert.alert('Error', response.errorMessage || 'Failed to open camera');
@@ -172,9 +170,6 @@ const ProfileEditScreen = () => {
                     }
                   }));
                 });
-              } catch (err) {
-                Alert.alert('Setup Needed', 'Image picker not installed. Please add react-native-image-picker.');
-              }
             } catch (error) {
               console.error('Error taking photo:', error);
               if (error.code !== 'E_PICKER_CANCELLED') {
@@ -187,10 +182,7 @@ const ProfileEditScreen = () => {
           text: 'Gallery',
           onPress: async () => {
             try {
-              try {
-                const ImagePicker = require('react-native-image-picker');
-                const { launchImageLibrary } = ImagePicker;
-                launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 }, (response) => {
+              launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 }, (response) => {
                   if (response?.didCancel) return;
                   if (response?.errorCode) {
                     Alert.alert('Error', response.errorMessage || 'Failed to pick image');
@@ -208,9 +200,6 @@ const ProfileEditScreen = () => {
                     }
                   }));
                 });
-              } catch (err) {
-                Alert.alert('Setup Needed', 'Image picker not installed. Please add react-native-image-picker.');
-              }
             } catch (error) {
               console.error('Error picking image:', error);
               if (error.code !== 'E_PICKER_CANCELLED') {
