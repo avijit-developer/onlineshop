@@ -47,14 +47,27 @@ const MostPopularSection = ({ navigation }) => {
 
   const renderItem = ({ item }) => {
     const price = (item.specialPrice ?? item.regularPrice ?? item.price);
-    const rating = Number(item.rating || 0);
-    const ratingCount = Number(item.reviewsCount || item.reviews || 0);
-    const wishlisted = isInWishlist(item._id);
+    const getNumeric = (val) => {
+      if (typeof val === 'number') return val;
+      if (typeof val === 'string') {
+        const n = parseFloat(val);
+        return isNaN(n) ? 0 : n;
+      }
+      return 0;
+    };
+    const rating = getNumeric(
+      item.rating ?? item.avgRating ?? item.averageRating ?? item.ratingAverage ?? item.ratingsAverage ?? item.ratingValue ?? 0
+    );
+    const ratingCount = getNumeric(
+      item.reviewsCount ?? item.reviews ?? item.numReviews ?? item.reviewCount ?? 0
+    );
+    const productId = item._id || item.id;
+    const wishlisted = isInWishlist(productId);
     return (
     <View style={{ marginBottom: 8 }}>
       <TouchableOpacity 
         style={styles.card}
-        onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
+        onPress={() => navigation.navigate('ProductDetails', { productId })}
         activeOpacity={0.9}
       >
         <Image 
@@ -67,7 +80,7 @@ const MostPopularSection = ({ navigation }) => {
           activeOpacity={0.8}
           onPress={async (e) => {
             e.stopPropagation();
-            try { await toggleWishlist(item._id); } catch (_) {}
+            try { await toggleWishlist(productId); } catch (_) {}
           }}
         >
           <AntDesign name={wishlisted ? 'heart' : 'hearto'} size={14} color={wishlisted ? '#e53935' : '#FFA726'} />
