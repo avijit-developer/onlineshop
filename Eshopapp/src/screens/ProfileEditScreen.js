@@ -10,6 +10,7 @@ import {
   TextInput,
   Platform,
   PermissionsAndroid,
+  ToastAndroid,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -28,6 +29,7 @@ const ProfileEditScreen = () => {
     avatar: null,
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [notice, setNotice] = useState('');
   const [errors, setErrors] = useState({});
 
   // Initialize form data when component mounts
@@ -253,9 +255,13 @@ const ProfileEditScreen = () => {
         }
       }
       
-      Alert.alert('Success', 'Profile updated successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Profile updated successfully', ToastAndroid.SHORT);
+        navigation.goBack();
+      } else {
+        setNotice('Profile updated successfully');
+        setTimeout(() => { setNotice(''); navigation.goBack(); }, 1000);
+      }
     } catch (error) {
       console.log('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
@@ -303,6 +309,11 @@ const ProfileEditScreen = () => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {notice ? (
+          <View style={styles.noticeBar}>
+            <Text style={styles.noticeText}>{notice}</Text>
+          </View>
+        ) : null}
         {/* Profile Picture Section */}
         <View style={styles.avatarSection}>
           <TouchableOpacity style={styles.avatarContainer} onPress={handleImagePick}>
@@ -428,6 +439,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
+  noticeBar: {
+    backgroundColor: '#e8f5e9',
+    borderColor: '#c8e6c9',
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    marginBottom: 4,
+    alignSelf: 'center',
+  },
+  noticeText: { color: '#2e7d32', fontWeight: '700' },
   avatarSection: {
     alignItems: 'center',
     marginTop: 20,
