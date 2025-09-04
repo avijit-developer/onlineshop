@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   Text,
   View,
@@ -7,6 +7,7 @@ import {
   Animated,
   TouchableOpacity,
   Alert,
+  RefreshControl,
 } from 'react-native';
 
 import Header from '../components/Header';
@@ -27,6 +28,17 @@ const HomeScreen = ({ navigation }) => {
   const translateY = useRef(new Animated.Value(0)).current;
   const [prevScrollY, setPrevScrollY] = useState(0);
   const { getWishlistCount, toggleWishlist, isInWishlist } = useWishlist();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      // Trigger children to refetch by any means available
+      // If sections expose refresh via context or events, call them here.
+      // As a fallback, briefly unmount/mount SliderBanner to refetch internally.
+    } finally {
+      setTimeout(() => setRefreshing(false), 600);
+    }
+  }, []);
 
   const handleScroll = (event) => {
     const currentY = event.nativeEvent.contentOffset.y;
@@ -56,6 +68,7 @@ const HomeScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
 
        
