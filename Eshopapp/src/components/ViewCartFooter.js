@@ -97,7 +97,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
       ]}
     >
       <View style={styles.cartInfo}>
-        <ScrollView style={styles.itemsRow} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center' }} horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView style={styles.itemsRow} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', paddingRight: 6 }} horizontal showsHorizontalScrollIndicator={false}>
           {displayItems.map((item, index) => {
             const imageUri = getItemImage(item);
             if (!imageUri) {
@@ -121,6 +121,9 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
             </View>
           )}
         </ScrollView>
+        {(availableCount > displayItems.length) && (
+          <Icon name="chevron-forward-outline" size={16} color="#999" />
+        )}
         
         <View style={styles.cartDetails}>
           <Text style={styles.itemCount}>{itemsCount} item{itemsCount > 1 ? 's' : ''}</Text>
@@ -162,7 +165,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemsRow: {
-    maxWidth: 150,
+    maxWidth: 220,
   },
   itemImage: {
     width: 36,
