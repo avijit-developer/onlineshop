@@ -57,11 +57,19 @@ const MostPopularSection = ({ navigation }) => {
           defaultSource={require('../assets/Placeholder_01.png')}
         />
         <View style={styles.favicon}>
-          <AntDesign name="heart" size={14} color="#FFA726" />
+          <AntDesign name={item.isWishlisted ? 'heart' : 'hearto'} size={14} color={item.isWishlisted ? '#e53935' : '#FFA726'} />
         </View>
         <View style={styles.cardFooter}>
           <View style={styles.likes}>
-            <Text style={styles.likesText}>{item.rating || 0}</Text>
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <Ionicons
+                key={`mp-star-${item._id}-${idx}`}
+                name={(item.rating || 0) >= idx + 1 ? 'star' : ((item.rating || 0) > idx ? 'star-half' : 'star-outline')}
+                size={12}
+                color="#FFA726"
+              />
+            ))}
+            {!!item.rating && <Text style={styles.likesText}>{Number(item.rating).toFixed(1)}</Text>}
           </View>
           {sectionConfig?.settings?.showPrice && (
             item.specialPrice != null ? (

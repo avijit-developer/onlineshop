@@ -90,12 +90,15 @@ const ProductCard = ({ item }) => {
             )}
           </View>
           <View style={styles.ratingWrapper}>
-            <Icon name="star" size={14} color="#FFA726" />
-            <Icon name="star" size={14} color="#FFA726" />
-            <Icon name="star" size={14} color="#FFA726" />
-            <Icon name="star" size={14} color="#FFA726" />
-            <Icon name="star-outline" size={14} color="#FFA726" />
-            <Text style={styles.reviewCount}>({item.reviews})</Text>
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <Icon
+                key={`star-${idx}`}
+                name={(item.rating || 0) >= idx + 1 ? 'star' : ((item.rating || 0) > idx ? 'star-half' : 'star-outline')}
+                size={14}
+                color="#FFA726"
+              />
+            ))}
+            {!!item.rating && <Text style={styles.reviewCount}>{Number(item.rating).toFixed(1)}</Text>}
           </View>
         </TouchableOpacity>
         
