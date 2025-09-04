@@ -70,7 +70,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     const discount = cartCoupon?.discountAmount || 0;
     const total = Math.max(0, subtotal + shipping - discount);
     const itemsCount = getCartItemsCount();
-    const displayItems = cartItems.slice(0, 5);
+    const displayItems = cartItems.slice(0, 4);
 
     return { total, itemsCount, displayItems };
   }, [cartItems, cartCoupon, shippingSettings, getCartTotal, getCartItemsCount]);
@@ -97,7 +97,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
             const imageUri = getItemImage(item);
             if (!imageUri) {
               return (
-                <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -8 }]}>
+                <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -6 }]}>
                   <Icon name="image-outline" size={20} color="#ccc" />
                 </View>
               );
@@ -106,13 +106,13 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
               <Image
                 key={item.cartId}
                 source={{ uri: imageUri }}
-                style={[styles.itemImage, index > 0 && { marginLeft: -8 }]}
+                style={[styles.itemImage, index > 0 && { marginLeft: -6 }]}
               />
             );
           })}
-          {cartItems.length > 5 && (
+          {cartItems.length > displayItems.length && (
             <View style={styles.moreItemsIndicator}>
-              <Text style={styles.moreItemsText}>+{cartItems.length - 5}</Text>
+              <Text style={styles.moreItemsText}>+{cartItems.length - displayItems.length}</Text>
             </View>
           )}
         </ScrollView>
@@ -157,13 +157,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemsScroll: {
-    maxWidth: 180,
+    maxWidth: 150,
   },
   itemImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
     borderColor: '#fff',
   },
   placeholderImage: {
@@ -172,14 +172,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   moreItemsIndicator: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: -8,
-    borderWidth: 2,
+    marginLeft: -6,
+    borderWidth: 1,
     borderColor: '#fff',
   },
   moreItemsText: {
