@@ -97,7 +97,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
       ]}
     >
       <View style={styles.cartInfo}>
-        <View style={styles.itemsRow}>
+        <ScrollView style={styles.itemsRow} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center' }} horizontal showsHorizontalScrollIndicator={false}>
           {displayItems.map((item, index) => {
             const imageUri = getItemImage(item);
             if (!imageUri) {
@@ -120,7 +120,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
               <Text style={styles.moreItemsText}>+{availableCount - displayItems.length}</Text>
             </View>
           )}
-        </View>
+        </ScrollView>
         
         <View style={styles.cartDetails}>
           <Text style={styles.itemCount}>{itemsCount} item{itemsCount > 1 ? 's' : ''}</Text>
