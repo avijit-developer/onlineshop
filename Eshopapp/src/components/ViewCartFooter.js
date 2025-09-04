@@ -15,7 +15,7 @@ import api from '../utils/api';
 
 const ViewCartFooter = ({ bottomOffset = 0 }) => {
   const navigation = useNavigation();
-  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart, isAuthenticated, cartCoupon } = useCart();
+  const { cartItems, getCartTotal, getCartItemsCount, getItemImage, getItemTotal, refreshCart, isAuthenticated, cartCoupon } = useCart();
   const [isExpanded, setIsExpanded] = useState(false);
   const slideAnim = React.useRef(new Animated.Value(100)).current;
   const [shippingSettings, setShippingSettings] = useState({});
@@ -46,7 +46,8 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     if (cartItems.length === 0) {
       return { total: 0, itemsCount: 0, displayItems: [] };
     }
-    const subtotal = getCartTotal();
+    const availableItems = cartItems.filter(ci => (ci.enabled !== false) && ((ci.variantInfo?.stock || ci.stock || 0) > 0));
+    const subtotal = availableItems.reduce((sum, it) => sum + getItemTotal(it), 0);
     const pickDeep = (obj, paths, fallback) => {
       for (const path of paths) {
         let cur = obj; let ok = true;
@@ -69,11 +70,10 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     const shipping = (cartCoupon?.freeShipping || meetsFree) ? 0 : BASE_SHIPPING;
     const discount = cartCoupon?.discountAmount || 0;
     const total = Math.max(0, subtotal + shipping - discount);
-    const itemsCount = getCartItemsCount();
-    const displayItems = cartItems.slice(0, 4);
-
+    const itemsCount = availableItems.reduce((sum, it) => sum + (it.quantity || 0), 0);
+    const displayItems = availableItems.slice(0, 4);
     return { total, itemsCount, displayItems };
-  }, [cartItems, cartCoupon, shippingSettings, getCartTotal, getCartItemsCount]);
+  }, [cartItems, cartCoupon, shippingSettings, getCartTotal, getCartItemsCount, getItemTotal]);
 
   const hidden = !isAuthenticated || cartItems.length === 0;
 
