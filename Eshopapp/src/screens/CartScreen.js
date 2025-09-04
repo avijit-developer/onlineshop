@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,6 +22,7 @@ const CartScreen = () => {
   const [couponCode, setCouponCode] = React.useState('');
   const [couponError, setCouponError] = React.useState('');
   const [validating, setValidating] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
   const handleApplyCoupon = async () => {
     try {
       setValidating(true);
@@ -57,6 +59,17 @@ const CartScreen = () => {
       refreshCart();
     }, [refreshCart])
   );
+
+  const onRefresh = React.useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await refreshCart();
+      // also refetch shipping settings
+      try { const res = await api.getShippingSettings(); if (res?.success) setShippingSettings(res.data || {}); } catch (_) {}
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshCart]);
 
   // Restore applied coupon from backend cart when screen is focused and cart reloads
   React.useEffect(() => {
@@ -229,20 +242,35 @@ const CartScreen = () => {
   );
 
   const subtotal = getCartTotal();
-  const [shippingSettings, setShippingSettings] = React.useState({ freeShippingThreshold: 50, defaultShippingCost: 9.99 });
+  const [shippingSettings, setShippingSettings] = React.useState({});
   React.useEffect(() => {
     let mounted = true;
     (async () => {
-      try { const res = await api.getShippingSettings(); if (mounted && res?.success) setShippingSettings(res.data || {}); } catch (_) {}
+      try { const res = await api.getShippingSettings(); if (mounted) setShippingSettings((res?.data || res || {})); } catch (_) {}
     })();
     return () => { mounted = false; };
   }, []);
-  const FREE_SHIPPING_MIN = Number(shippingSettings.freeShippingThreshold || 50);
-  const BASE_SHIPPING = Number(shippingSettings.defaultShippingCost || 9.99);
-  const shipping = (cartCoupon?.freeShipping || subtotal >= FREE_SHIPPING_MIN) ? 0 : BASE_SHIPPING;
-  const tax = subtotal * 0.08;
+  const pickDeep = (obj, paths, fallback) => {
+    for (const path of paths) {
+      let cur = obj; let ok = true;
+      for (const key of path) { if (cur && Object.prototype.hasOwnProperty.call(cur, key)) cur = cur[key]; else { ok = false; break; } }
+      if (ok && cur != null && cur !== '') return cur;
+    }
+    return fallback;
+  };
+  const FREE_SHIPPING_MIN = Number(pickDeep(shippingSettings, [
+    ['freeShippingThreshold'], ['free_shipping_threshold'], ['freeShippingMin'], ['freeMin'],
+    ['settings','freeShippingThreshold'], ['config','freeShippingThreshold'], ['data','freeShippingThreshold']
+  ], null));
+  const BASE_SHIPPING = Number(pickDeep(shippingSettings, [
+    ['flatShippingFee'], ['flat_rate'], ['flat'], ['price'], ['amount'],
+    ['defaultShippingCost'], ['settings','flatShippingFee'], ['config','flatShippingFee'], ['data','flatShippingFee']
+  ], 0)) || 0;
+  const meetsFree = (FREE_SHIPPING_MIN != null && subtotal >= FREE_SHIPPING_MIN);
+  const shipping = (cartCoupon?.freeShipping || meetsFree) ? 0 : BASE_SHIPPING;
+  const tax = 0;
   const discount = cartCoupon?.discountAmount || 0;
-  const total = Math.max(0, subtotal + shipping + tax - discount);
+  const total = Math.max(0, subtotal + shipping - discount);
 
   return (
     <View style={styles.container}>
@@ -288,6 +316,7 @@ const CartScreen = () => {
             keyExtractor={(item) => item.cartId}
             style={styles.cartList}
             showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           />
 
           {/* Order Summary */}
@@ -347,17 +376,14 @@ const CartScreen = () => {
                 </Text>
               </View>
               
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Tax</Text>
-                <Text style={styles.summaryValue}>₹{tax.toFixed(2)}</Text>
-              </View>
+              {/* Tax removed per request */}
               
               <View style={[styles.summaryRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalValue}>₹{total.toFixed(2)}</Text>
               </View>
 
-              {(shipping > 0 && subtotal < FREE_SHIPPING_MIN) && (
+              {(shipping > 0 && FREE_SHIPPING_MIN != null && subtotal < FREE_SHIPPING_MIN) && (
                 <View style={styles.freeShippingNote}>
                   <Icon name="information-circle-outline" size={16} color="#f7ab18" />
                   <Text style={styles.freeShippingText}>Add ₹{Math.max(0, (FREE_SHIPPING_MIN - subtotal)).toFixed(2)} more for free shipping</Text>
