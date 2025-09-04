@@ -331,7 +331,6 @@ const CartScreen = () => {
             style={styles.cartList}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            contentContainerStyle={{ paddingBottom: 180 }}
             ListFooterComponent={() => (
               <View style={styles.summaryContainer}>
                 <View style={styles.summaryHeader}>
@@ -656,8 +655,8 @@ const styles = StyleSheet.create({
   summaryContainer: {
     backgroundColor: '#f9f9f9',
     padding: 16,
-    margin: 16,
-    borderRadius: 12,
+    margin: 0,
+    borderRadius: 0,
   },
   summaryHeader: {
     flexDirection: 'row',
