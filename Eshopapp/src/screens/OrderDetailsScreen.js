@@ -117,14 +117,16 @@ const OrderDetailsScreen = ({ route }) => {
     if (['cancelled','canceled'].includes(v)) return 'Cancelled';
     if (['delivered','completed'].includes(v)) return 'Delivered';
     if (['shipped','out_for_delivery','out-for-delivery','dispatched','in_transit'].includes(v)) return 'Shipped';
-    if (['processing','confirmed','packed','pending'].includes(v)) return 'Processing';
+    if (['confirmed'].includes(v)) return 'Confirmed';
+    if (['processing','packed','pending'].includes(v)) return 'Processing';
     return 'Processing';
   };
   const current = freshOrder || order;
   const status = normalizeStatus(current.status);
+  const intermediateLabel = status === 'Confirmed' ? 'Confirmed' : 'Processing';
   const orderProgress = [
     { step: 'Order Placed', completed: true, date: current.createdAt ? new Date(current.createdAt).toLocaleDateString() : '' },
-    { step: 'Processing', completed: ['Processing','Shipped','Delivered'].includes(status), date: status === 'Processing' ? 'Current' : '' },
+    { step: intermediateLabel, completed: ['Confirmed','Processing','Shipped','Delivered'].includes(status), date: ['Confirmed','Processing'].includes(status) ? 'Current' : '' },
     { step: 'Shipped', completed: ['Shipped','Delivered'].includes(status), date: status === 'Shipped' ? 'Current' : '' },
     { step: 'Delivered', completed: status === 'Delivered', date: status === 'Delivered' ? 'Current' : '' },
   ];
