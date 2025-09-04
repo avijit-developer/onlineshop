@@ -25,7 +25,11 @@ const Settings = () => {
     },
     shipping: {
       freeShippingThreshold: 100,
-      defaultShippingCost: 10
+      defaultShippingCost: 10,
+      flatShippingFee: 0
+    },
+    tax: {
+      rate: 0
     }
   });
 
@@ -312,19 +316,18 @@ const Settings = () => {
 
           {/* Payment Settings removed */}
 
-          {/* Shipping Settings */
-          }
+          {/* Shipping Settings */}
           {activeTab === 'shipping' && (
             <div className="settings-section">
               <div className="section-header">
-                <h2>Shipping Settings</h2>
-                <p>Configure flat shipping fees</p>
+                <h2>Shipping & Tax</h2>
+                <p>Configure flat shipping fee and tax rate</p>
               </div>
               
               <div className="settings-form">
                 <div className="form-grid">
                   <div className="form-group">
-                    <label>Flat Shipping Fee ($)</label>
+                    <label>Flat Shipping Fee (₹)</label>
                     <input
                       type="number"
                       value={(settings.shipping && typeof settings.shipping.flatShippingFee === 'number') ? settings.shipping.flatShippingFee : 0}
@@ -333,17 +336,25 @@ const Settings = () => {
                       step="0.01"
                     />
                   </div>
+                  <div className="form-group">
+                    <label>Tax Rate (%)</label>
+                    <input
+                      type="number"
+                      value={(settings.tax && typeof settings.tax.rate === 'number') ? settings.tax.rate : 0}
+                      onChange={(e) => setSettings(prev => ({ ...prev, tax: { ...(prev.tax||{}), rate: parseFloat(e.target.value) } }))}
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
-                
-                {/* Shipping Zones removed (integrate with API) */}
                 
                 <div className="form-actions">
                   <button
-                    onClick={() => handleSave('Shipping')}
+                    onClick={() => handleSave('Shipping & Tax')}
                     disabled={saving}
                     className="btn btn-primary"
                   >
-                    {saving ? 'Saving...' : 'Save Shipping Settings'}
+                    {saving ? 'Saving...' : 'Save Shipping & Tax'}
                   </button>
                 </div>
               </div>
