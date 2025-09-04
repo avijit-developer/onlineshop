@@ -13,6 +13,7 @@ import ProductCard from '../components/ProductCard';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import api from '../utils/api';
 import ProductFilters from '../components/ProductFilters';
+import ViewCartFooter from '../components/ViewCartFooter';
 import FilterButton from '../components/FilterButton';
 import FilterSummary from '../components/FilterSummary';
 
@@ -360,6 +361,7 @@ const ProductList = () => {
       />
       
       
+      <ViewCartFooter />
     </View>
   );
 };

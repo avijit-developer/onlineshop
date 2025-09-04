@@ -10,6 +10,7 @@ import {
   FlatList,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import ViewCartFooter from '../components/ViewCartFooter';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useCart } from '../contexts/CartContext';
 
@@ -143,6 +144,7 @@ const WishlistScreen = ({ navigation }) => {
         </>
       )}
       
+      <ViewCartFooter />
     </View>
   );
 };

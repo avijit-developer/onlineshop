@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import api from '../utils/api';
 
-const ViewCartFooter = () => {
+const ViewCartFooter = ({ bottomOffset = 0 }) => {
   const navigation = useNavigation();
   const { cartItems, getCartTotal, getCartItemsCount, getItemImage, refreshCart, isAuthenticated, cartCoupon } = useCart();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -102,6 +102,7 @@ const ViewCartFooter = () => {
     <Animated.View 
       style={[
         styles.container,
+        { bottom: bottomOffset },
         {
           transform: [{ translateY: slideAnim }]
         },

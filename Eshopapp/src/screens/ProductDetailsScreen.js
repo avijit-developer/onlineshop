@@ -5,6 +5,7 @@ import RelatedProducts from '../components/RelatedProducts';
 import ProductSpecifications from '../components/ProductSpecifications';
 import ProductReviews from '../components/ProductReviews';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import ViewCartFooter from '../components/ViewCartFooter';
 import LottieView from 'lottie-react-native';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
@@ -639,12 +640,12 @@ export default function ProductDetailsScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    style={[styles.viewCartButton, outOfStock && styles.buttonDisabled]} 
-                    onPress={() => navigation.navigate('Cart')}
-                    disabled={false}
+                    style={[styles.buyNowButton, outOfStock && styles.buttonDisabled]} 
+                    onPress={handleBuyNow}
+                    disabled={outOfStock}
                 >
-                    <Text style={[styles.viewCartText]}>
-                        View Cart
+                    <Text style={[styles.buyNowText, outOfStock && styles.buttonTextDisabled]}>
+                        {outOfStock ? 'Out of Stock' : 'Buy Now'}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -663,6 +664,7 @@ export default function ProductDetailsScreen() {
                 </View>
             </Modal>
             
+            <ViewCartFooter bottomOffset={84} />
         </>
     );
 }
@@ -882,10 +884,10 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: 16,
     },
-    viewCartButton: {
+    buyNowButton: {
         flex: 1,
         height: 44,
-        backgroundColor: '#f7ab18',
+        backgroundColor: '#007bff',
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
@@ -895,7 +897,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowRadius: 2,
     },
-    viewCartText: {
+    buyNowText: {
         color: '#fff',
         fontWeight: '600',
         fontSize: 16,

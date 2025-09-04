@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import ViewCartFooter from '../components/ViewCartFooter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
 import { useCart } from '../contexts/CartContext';
@@ -449,6 +450,7 @@ const SearchScreen = () => {
       {/* Product Filters Modal removed */}
       
       
+      <ViewCartFooter />
     </View>
   );
 };

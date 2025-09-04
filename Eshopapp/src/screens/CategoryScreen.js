@@ -11,6 +11,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import api from '../utils/api';
+import ViewCartFooter from '../components/ViewCartFooter';
 
 const placeholder = 'https://via.placeholder.com/80x80.png?text=Cat';
 
