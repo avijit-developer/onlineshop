@@ -38,10 +38,7 @@ const OrderSuccessScreen = ({ route }) => {
     navigation.navigate('OrderDetails', { orderId });
   };
 
-  const handleTrackOrder = () => {
-    // In a real app, this would navigate to order tracking
-    navigation.navigate('OrderDetails', { orderId });
-  };
+  // Track order button removed
 
   return (
     <View style={styles.container}>
@@ -61,7 +58,7 @@ const OrderSuccessScreen = ({ route }) => {
         <View style={styles.orderCard}>
           <View style={styles.orderHeader}>
             <Text style={styles.orderTitle}>Order Details</Text>
-            <Text style={styles.orderId}>#{orderId}</Text>
+            <Text style={styles.orderId}>#{(order?.orderNumber || orderId)}</Text>
           </View>
           
           <View style={styles.orderRow}>
@@ -109,10 +106,6 @@ const OrderSuccessScreen = ({ route }) => {
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.secondaryButton} onPress={handleViewOrder}>
             <Text style={styles.secondaryButtonText}>View Order</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.primaryButton} onPress={handleTrackOrder}>
-            <Text style={styles.primaryButtonText}>Track Order</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
