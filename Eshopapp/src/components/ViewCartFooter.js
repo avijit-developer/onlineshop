@@ -30,30 +30,14 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
 
   // Auto-expand when cart has items
   useEffect(() => {
-    console.log('🦶 ViewCartFooter Debug - cartItems.length:', cartItems.length, 'isExpanded:', isExpanded);
-    
     if (cartItems.length > 0) {
       if (!isExpanded) {
-        console.log('🦶 Expanding footer...');
         setIsExpanded(true);
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }).start();
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 100, friction: 8 }).start();
       }
-    } else {
-      if (isExpanded) {
-        console.log('🦶 Collapsing footer...');
-        setIsExpanded(false);
-        Animated.spring(slideAnim, {
-          toValue: 100,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }).start();
-      }
+    } else if (isExpanded) {
+      setIsExpanded(false);
+      Animated.spring(slideAnim, { toValue: 100, useNativeDriver: true, tension: 100, friction: 8 }).start();
     }
   }, [cartItems.length, isExpanded, slideAnim]);
 
@@ -91,35 +75,26 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     return { total, itemsCount, displayItems };
   }, [cartItems, cartCoupon, shippingSettings, getCartTotal, getCartItemsCount]);
 
-  // Avoid changing hooks order; render empty placeholder if not authenticated
-  const hidden = !isAuthenticated;
+  const hidden = !isAuthenticated || cartItems.length === 0;
 
-  const handleViewCart = () => {
-    navigation.navigate('Cart');
-  };
+  const handleViewCart = () => { navigation.navigate('Cart'); };
+
+  if (hidden) {
+    return null;
+  }
 
   return (
     <Animated.View 
       style={[
         styles.container,
         { bottom: bottomOffset },
-        {
-          transform: [{ translateY: slideAnim }]
-        },
-        hidden && { height: 0, opacity: 0, pointerEvents: 'none' }
+        { transform: [{ translateY: slideAnim }] },
       ]}
     >
-      <View style={[styles.cartInfo, hidden && { display: 'none' }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.itemsScroll}
-        >
+      <View style={styles.cartInfo}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.itemsScroll}>
           {displayItems.map((item, index) => {
-            // Get the best available image for this item
             const imageUri = getItemImage(item);
-            
-            // If no image found, show a placeholder
             if (!imageUri) {
               return (
                 <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -8 }]}>
@@ -127,17 +102,11 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
                 </View>
               );
             }
-            
             return (
               <Image
                 key={item.cartId}
                 source={{ uri: imageUri }}
-                style={[
-                  styles.itemImage,
-                  index > 0 && { marginLeft: -8 }
-                ]}
-                onError={() => console.log('Image failed to load for item:', item.name)}
-                onLoad={() => console.log('Image loaded successfully for:', item.name)}
+                style={[styles.itemImage, index > 0 && { marginLeft: -8 }]}
               />
             );
           })}
@@ -154,7 +123,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
         </View>
       </View>
 
-      <TouchableOpacity style={[styles.viewCartButton, hidden && { display: 'none' }]} onPress={handleViewCart}>
+      <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
         <Text style={styles.viewCartText}>View Cart</Text>
         <Icon name="arrow-forward-outline" size={16} color="#fff" />
       </TouchableOpacity>
@@ -188,12 +157,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemsScroll: {
-    maxWidth: 180, // Increased from 120 to accommodate larger images
+    maxWidth: 180,
   },
   itemImage: {
-    width: 48, // Increased from 32 to 48
-    height: 48, // Increased from 32 to 48
-    borderRadius: 24, // Increased from 16 to 24
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: '#fff',
   },
@@ -203,9 +172,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   moreItemsIndicator: {
-    width: 48, // Increased from 32 to 48
-    height: 48, // Increased from 32 to 48
-    borderRadius: 24, // Increased from 16 to 24
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',

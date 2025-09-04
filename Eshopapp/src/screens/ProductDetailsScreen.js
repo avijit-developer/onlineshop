@@ -26,6 +26,7 @@ export default function ProductDetailsScreen() {
     const [quantity, setQuantity] = useState(1);
     const [showAddAnimation, setShowAddAnimation] = useState(false);
     const lastFetchedProductIdRef = useRef(null);
+    const [actionBarHeight, setActionBarHeight] = useState(84);
 
     // Variant handling
     const [attributeOptions, setAttributeOptions] = useState({}); // { Color: ['Red','Blue'], Size: ['M','L'] }
@@ -617,7 +618,10 @@ export default function ProductDetailsScreen() {
                 )}
             </ScrollView>
 
-            <View style={styles.actionsContainer}>
+            <View style={styles.actionsContainer} onLayout={(e) => {
+                const h = e?.nativeEvent?.layout?.height || 0;
+                if (h && h !== actionBarHeight) setActionBarHeight(h);
+            }}>
                 <TouchableOpacity 
                     style={[styles.heartButton, isInWishlist(product._id) && styles.heartButtonActive]} 
                     onPress={handleToggleWishlist}
@@ -664,7 +668,7 @@ export default function ProductDetailsScreen() {
                 </View>
             </Modal>
             
-            <ViewCartFooter bottomOffset={84} />
+            <ViewCartFooter bottomOffset={actionBarHeight + 8} />
         </>
     );
 }
