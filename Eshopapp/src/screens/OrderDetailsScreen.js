@@ -76,15 +76,20 @@ const OrderDetailsScreen = ({ route }) => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Add to Cart',
-          onPress: () => {
-            order.items.forEach(item => {
-              addToCart({
-                id: item.id,
+          onPress: async () => {
+            const src = (current.items || []);
+            for (const item of src) {
+              const productPayload = {
+                id: String(item.product || item._id || item.id),
+                _id: String(item.product || item._id || item.id),
                 name: item.name,
-                price: item.price,
-                image: item.image,
-              }, item.quantity, item.size, item.color);
-            });
+                regularPrice: item.price,
+                specialPrice: undefined,
+                images: item.image ? [item.image] : [],
+                sku: item.sku,
+              };
+              await addToCart(productPayload, item.quantity || 1, item.selectedAttributes || null);
+            }
             Alert.alert('Success', 'Items added to cart!');
           }
         }

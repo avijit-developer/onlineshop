@@ -9,10 +9,12 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import { useCart } from '../contexts/CartContext';
 import { useUser } from '../contexts/UserContext';
 
 const OrderListScreen = () => {
   const navigation = useNavigation();
+  const { addToCart } = useCart();
   const { orders, refreshOrders } = useUser();
   const [selectedFilter, setSelectedFilter] = useState('all');
 
@@ -89,7 +91,29 @@ const OrderListScreen = () => {
       </View>
 
       <View style={styles.orderActions}>
-        <TouchableOpacity style={styles.reorderButton}>
+        <TouchableOpacity
+          style={styles.reorderButton}
+          onPress={async () => {
+            try {
+              for (const it of (item.items || [])) {
+                const productPayload = {
+                  id: String(it.product || it._id || it.id),
+                  _id: String(it.product || it._id || it.id),
+                  name: it.name,
+                  regularPrice: it.price,
+                  specialPrice: undefined,
+                  images: it.image ? [it.image] : [],
+                  sku: it.sku,
+                };
+                await addToCart(productPayload, it.quantity || 1, it.selectedAttributes || null);
+              }
+              Alert.alert('Reorder', 'Items added to cart');
+              navigation.navigate('Cart');
+            } catch (e) {
+              Alert.alert('Reorder', 'Failed to add some items');
+            }
+          }}
+        >
           <Text style={styles.reorderButtonText}>Reorder</Text>
         </TouchableOpacity>
       </View>
