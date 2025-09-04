@@ -19,6 +19,28 @@ const MostPopularSection = ({ navigation }) => {
   const [sectionConfig, setSectionConfig] = useState(null);
   const { toggleWishlist, isInWishlist } = useWishlist();
 
+  const pickValue = (obj, paths, fallback = null) => {
+    for (const path of paths) {
+      let cur = obj;
+      let ok = true;
+      for (const key of path) {
+        if (cur && Object.prototype.hasOwnProperty.call(cur, key)) {
+          cur = cur[key];
+        } else { ok = false; break; }
+      }
+      if (ok && cur != null) return cur;
+    }
+    return fallback;
+  };
+  const toNumber = (val) => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') {
+      const n = parseFloat(val);
+      return isNaN(n) ? 0 : n;
+    }
+    return 0;
+  };
+
   useEffect(() => {
     fetchSectionData();
   }, []);
@@ -34,23 +56,35 @@ const MostPopularSection = ({ navigation }) => {
         console.log('MostPopularSection: Found section:', mostPopularSection);
         if (mostPopularSection && mostPopularSection.isActive) {
           setSectionConfig(mostPopularSection);
-          const baseProducts = mostPopularSection.products || [];
+          const baseProducts = (mostPopularSection.products || []).map((p) => {
+            const ratingRaw = pickValue(p, [
+              ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
+              ['reviews','average'], ['reviews','avg']
+            ], 0);
+            const countRaw = pickValue(p, [
+              ['reviewsCount'], ['reviewCount'], ['numReviews'], ['reviews'], ['ratingsCount']
+            ], 0);
+            return { ...p, rating: toNumber(ratingRaw), reviewsCount: toNumber(countRaw) };
+          });
           setProducts(baseProducts);
           // Enrich ratings if missing
           try {
             const enriched = await Promise.all(
               baseProducts.map(async (p) => {
-                const hasRating = (p && (p.rating != null || p.avgRating != null || p.averageRating != null || p.ratingsAverage != null));
+                const hasRating = (p && toNumber(p.rating) > 0);
                 if (!hasRating && (p && (p._id || p.id))) {
                   try {
                     const res = await api.getProductPublic(p._id || p.id);
                     const d = res?.data || res;
                     if (d) {
-                      return {
-                        ...p,
-                        rating: d.rating ?? d.avgRating ?? d.averageRating ?? d.ratingsAverage ?? p.rating,
-                        reviewsCount: d.reviewsCount ?? d.reviewCount ?? d.numReviews ?? p.reviewsCount,
-                      };
+                      const rRaw = pickValue(d, [
+                        ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
+                        ['reviews','average'], ['reviews','avg']
+                      ], p.rating);
+                      const cRaw = pickValue(d, [
+                        ['reviewsCount'], ['reviewCount'], ['numReviews'], ['ratingsCount'], ['reviews','count']
+                      ], p.reviewsCount);
+                      return { ...p, rating: toNumber(rRaw), reviewsCount: toNumber(cRaw) };
                     }
                   } catch (_) {}
                 }
