@@ -439,38 +439,6 @@ const CheckoutScreen = () => {
         </View>
         {paymentMethod === 'cod' && <Icon name="checkmark-circle" size={24} color="#f7ab18" />}
       </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.paymentOption, paymentMethod === 'card' && styles.paymentOptionSelected]}
-        onPress={() => setPaymentMethod('card')}
-      >
-        <Icon name="card-outline" size={24} color={paymentMethod === 'card' ? '#f7ab18' : '#666'} />
-        <View style={styles.paymentOptionText}>
-          <Text style={[styles.paymentOptionTitle, paymentMethod === 'card' && styles.paymentOptionTitleSelected]}>
-            Credit/Debit Card
-          </Text>
-          <Text style={[styles.paymentOptionSubtitle, paymentMethod === 'card' && styles.paymentOptionSubtitleSelected]}>
-            Secure payment with your card
-          </Text>
-        </View>
-        {paymentMethod === 'card' && <Icon name="checkmark-circle" size={24} color="#f7ab18" />}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.paymentOption, paymentMethod === 'upi' && styles.paymentOptionSelected]}
-        onPress={() => setPaymentMethod('upi')}
-      >
-        <Icon name="phone-portrait-outline" size={24} color={paymentMethod === 'upi' ? '#f7ab18' : '#666'} />
-        <View style={styles.paymentOptionText}>
-          <Text style={[styles.paymentOptionTitle, paymentMethod === 'upi' && styles.paymentOptionTitleSelected]}>
-            UPI Payment
-          </Text>
-          <Text style={[styles.paymentOptionSubtitle, paymentMethod === 'upi' && styles.paymentOptionSubtitleSelected]}>
-            Pay using UPI apps
-          </Text>
-        </View>
-        {paymentMethod === 'upi' && <Icon name="checkmark-circle" size={24} color="#f7ab18" />}
-      </TouchableOpacity>
     </View>
   );
 
