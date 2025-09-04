@@ -97,16 +97,34 @@ const CheckoutScreen = () => {
     }
     return fallback;
   };
+  const pickDeep = (obj, paths, fallback) => {
+    for (const path of paths) {
+      let cur = obj;
+      let ok = true;
+      for (const key of path) {
+        if (cur && Object.prototype.hasOwnProperty.call(cur, key)) cur = cur[key]; else { ok = false; break; }
+      }
+      if (ok && cur != null && cur !== '') return cur;
+    }
+    return fallback;
+  };
 
   // Calculate totals using admin shipping settings (flat fee + optional threshold)
   const subtotal = getCartTotal();
-  const flatShipping = pick(shippingSettings || {}, ['flatShippingFee','flatRate','flat','price','amount'], 0) || 0;
-  const freeShipThreshold = pick(shippingSettings || {}, ['freeShippingThreshold','free_shipping_threshold','freeShippingMin','freeMin'], null);
+  const flatShipping = Number(pickDeep(shippingSettings || {}, [
+    ['flatShippingFee'], ['flat_rate'], ['flat'], ['price'], ['amount'],
+    ['settings','flatShippingFee'], ['config','flatShippingFee'], ['data','flatShippingFee']
+  ], 0)) || 0;
+  const freeShipThresholdRaw = pickDeep(shippingSettings || {}, [
+    ['freeShippingThreshold'], ['free_shipping_threshold'], ['freeShippingMin'], ['freeMin'],
+    ['settings','freeShippingThreshold'], ['config','freeShippingThreshold'], ['data','freeShippingThreshold']
+  ], null);
+  const freeShipThreshold = freeShipThresholdRaw != null ? Number(freeShipThresholdRaw) : null;
   const computedShipping = (freeShipThreshold != null && subtotal >= Number(freeShipThreshold)) ? 0 : Number(flatShipping);
   const shipping = (cartCoupon?.freeShipping ? 0 : computedShipping);
-  const tax = subtotal * 0.08;
+  const tax = 0;
   const discount = appliedCoupon?.discountAmount || 0;
-  const total = Math.max(0, subtotal + shipping + tax - discount);
+  const total = Math.max(0, subtotal + shipping - discount);
 
   // Derive effective address: prefer selected (from params), else default
   const effectiveAddress = selectedAddress || getDefaultAddress();
@@ -482,10 +500,7 @@ const CheckoutScreen = () => {
           </Text>
         </View>
         
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Tax</Text>
-          <Text style={styles.summaryValue}>₹{String(tax.toFixed(2))}</Text>
-        </View>
+        {/* Tax removed per request */}
         
         <View style={[styles.summaryRow, styles.totalRow]}>
           <Text style={styles.totalLabel}>Total</Text>
