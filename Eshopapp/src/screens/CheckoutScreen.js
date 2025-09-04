@@ -125,9 +125,9 @@ const CheckoutScreen = () => {
   ], 0)) || 0;
   const computedShipping = (freeShipThreshold != null && subtotal >= Number(freeShipThreshold)) ? 0 : Number(flatShipping);
   const shipping = (cartCoupon?.freeShipping ? 0 : computedShipping);
-  const tax = 0; // UI shows no tax in summary per requirement; order payload uses admin taxRate
+  const tax = Math.max(0, subtotal * (taxRate / 100));
   const discount = appliedCoupon?.discountAmount || 0;
-  const total = Math.max(0, subtotal + shipping - discount);
+  const total = Math.max(0, subtotal + shipping + tax - discount);
 
   // Derive effective address: prefer selected (from params), else default
   const effectiveAddress = selectedAddress || getDefaultAddress();
@@ -472,7 +472,10 @@ const CheckoutScreen = () => {
           </Text>
         </View>
         
-        {/* Tax removed per request */}
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Tax ({taxRate}%)</Text>
+          <Text style={styles.summaryValue}>₹{String(tax.toFixed(2))}</Text>
+        </View>
         
         <View style={[styles.summaryRow, styles.totalRow]}>
           <Text style={styles.totalLabel}>Total</Text>

@@ -270,9 +270,10 @@ const CartScreen = () => {
   const BASE_SHIPPING = Number(baseShippingRaw || 0);
   const meetsFree = (FREE_SHIPPING_MIN != null && subtotal >= Number(FREE_SHIPPING_MIN));
   const shipping = (cartCoupon?.freeShipping || meetsFree) ? 0 : BASE_SHIPPING;
-  const tax = 0;
+  const taxRate = Number(pickDeep(shippingSettings, [['taxRate'], ['settings','taxRate'], ['config','taxRate'], ['data','taxRate']], 0)) || 0;
+  const tax = Math.max(0, subtotal * (taxRate / 100));
   const discount = cartCoupon?.discountAmount || 0;
-  const total = Math.max(0, subtotal + shipping - discount);
+  const total = Math.max(0, subtotal + shipping + tax - discount);
 
   return (
     <View style={styles.container}>
@@ -378,7 +379,10 @@ const CartScreen = () => {
                 </Text>
               </View>
               
-              {/* Tax removed per request */}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Tax ({taxRate}%)</Text>
+                <Text style={styles.summaryValue}>₹{tax.toFixed(2)}</Text>
+              </View>
               
               <View style={[styles.summaryRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
