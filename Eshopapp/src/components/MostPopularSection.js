@@ -75,15 +75,23 @@ const MostPopularSection = ({ navigation }) => {
                 if (!hasRating && (p && (p._id || p.id))) {
                   try {
                     const res = await api.getProductPublic(p._id || p.id);
-                    const d = res?.data || res;
-                    if (d) {
-                      const rRaw = pickValue(d, [
+                    const rd = res?.data || res;
+                    // Normalize possible nesting
+                    const prod = rd?.product || rd?.data?.product || rd;
+                    if (prod) {
+                      let rRaw = pickValue(prod, [
                         ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
-                        ['reviews','average'], ['reviews','avg']
+                        ['reviewsSummary','average'], ['reviews','average'], ['reviews','avg']
                       ], p.rating);
-                      const cRaw = pickValue(d, [
-                        ['reviewsCount'], ['reviewCount'], ['numReviews'], ['ratingsCount'], ['reviews','count']
+                      let cRaw = pickValue(prod, [
+                        ['reviewsCount'], ['reviewCount'], ['numReviews'], ['ratingsCount'], ['reviewsSummary','count'], ['reviews','count']
                       ], p.reviewsCount);
+                      // Fallback: derive from reviews array
+                      if ((!rRaw || toNumber(rRaw) === 0) && Array.isArray(prod.reviews) && prod.reviews.length > 0) {
+                        const sum = prod.reviews.reduce((s, r) => s + toNumber(r.rating), 0);
+                        rRaw = sum / prod.reviews.length;
+                        cRaw = prod.reviews.length;
+                      }
                       return { ...p, rating: toNumber(rRaw), reviewsCount: toNumber(cRaw) };
                     }
                   } catch (_) {}
