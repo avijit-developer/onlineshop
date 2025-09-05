@@ -91,7 +91,7 @@ const SplashScreen = ({ navigation }) => {
         ]}
       >
         <View style={styles.logoPlaceholder}>
-          <Image source={require('../assets/logo.jpg')} style={styles.logoImage} resizeMode="cover" />
+          <Image source={require('../assets/logo.jpg')} style={styles.logoImage} resizeMode="contain" />
         </View>
         <Text style={styles.appName}>Trahi Mart</Text>
         <Text style={styles.tagline}>Your Shopping Companion</Text>
@@ -143,8 +143,8 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   logoImage: {
-    width: 80,
-    height: 80,
+    width: 110,
+    height: 110,
   },
   appName: {
     fontSize: 32,
