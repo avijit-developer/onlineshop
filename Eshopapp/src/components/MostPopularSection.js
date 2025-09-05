@@ -305,9 +305,9 @@ const styles = StyleSheet.create({
   priceRow: { },
   price: { fontSize: 14, fontWeight: '700', color: '#f7ab18' },
   oldPrice: { fontSize: 12, color: '#888', textDecorationLine: 'line-through' },
-  discountCornerContainer: { position: 'absolute', top: 0, right: 0, width: 54, height: 54, overflow: 'hidden', zIndex: 10 },
-  discountCorner: { position: 'absolute', top: 6, right: -18, backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 40, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
-  discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3, textAlign: 'center' },
+  discountCornerContainer: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
+  discountCorner: { backgroundColor: '#e53935', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10 },
+  discountCornerText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
