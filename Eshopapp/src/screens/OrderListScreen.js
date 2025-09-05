@@ -72,9 +72,33 @@ const OrderListScreen = () => {
     return 'Processing';
   };
 
-  const filteredOrders = selectedFilter === 'all'
+  // Expand multi-vendor orders into per-vendor rows for clarity
+  const expandOrders = (src) => {
+    const out = [];
+    for (const o of (src || [])) {
+      const summaries = Array.isArray(o.vendorSummaries) ? o.vendorSummaries : [];
+      if (summaries.length > 1) {
+        let idx = 0;
+        for (const vs of summaries) {
+          idx += 1;
+          out.push({
+            ...o,
+            _id: `${o._id || o.id}-v${idx}`,
+            items: vs.items || [],
+            status: normalizeStatus(vs.status || o.status),
+            packageLabel: `Package ${idx}`,
+          });
+        }
+      } else {
+        out.push(o);
+      }
+    }
+    return out;
+  };
+
+  const filteredOrders = expandOrders(selectedFilter === 'all'
     ? orders
-    : orders.filter(order => normalizeStatus(order.status) === selectedFilter);
+    : orders.filter(order => normalizeStatus(order.status) === selectedFilter));
 
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity
@@ -84,7 +108,7 @@ const OrderListScreen = () => {
     >
       {/* Header */}
       <View style={styles.orderHeader}>
-        <Text style={styles.orderId}>#{item.orderNumber || (item._id || item.id)}</Text>
+        <Text style={styles.orderId}>#{item.orderNumber || (item._id || item.id)} {item.packageLabel ? `• ${item.packageLabel}` : ''}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
           <Text style={styles.statusText}>{item.status}</Text>
