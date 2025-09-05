@@ -109,7 +109,7 @@ const Banners = () => {
       {
         id: 3,
         title: 'Free Shipping',
-        description: 'Free shipping on orders over $50',
+        description: 'Free shipping on orders over ₹50',
         imageUrl: 'https://via.placeholder.com/800x400/45B7D1/FFFFFF?text=Free+Shipping',
         linkUrl: '/shipping-info',
         linkText: 'Learn More',

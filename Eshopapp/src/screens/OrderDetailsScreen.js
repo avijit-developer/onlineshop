@@ -347,8 +347,10 @@ const OrderDetailsScreen = ({ route }) => {
               <Text style={styles.summaryValue}>₹{Number(current.shippingCost || 0).toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Tax</Text>
-              <Text style={styles.summaryValue}>{Number(current.tax || 0)}%</Text>
+              <Text style={styles.summaryLabel}>Tax {Number(current.tax || 0) ? `(${Number(current.tax || 0)}%)` : ''}</Text>
+              <Text style={styles.summaryValue}>₹{(
+                Number(current.subtotal || 0) * Number(current.tax || 0) / 100
+              ).toFixed(2)}</Text>
             </View>
             {Number(current.discountAmount || 0) > 0 && (
               <View style={styles.summaryRow}>

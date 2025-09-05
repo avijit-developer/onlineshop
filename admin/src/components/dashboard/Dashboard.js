@@ -139,7 +139,7 @@ const Dashboard = () => {
       {/* Stats Cards */}
       <div className="stats-grid">
         <div className="stat-card">
-          <h3>${stats.totalSales.toLocaleString()}</h3>
+          <h3>₹{stats.totalSales.toLocaleString()}</h3>
           <p>Total Sales</p>
         </div>
         <div className="stat-card">
@@ -209,7 +209,7 @@ const Dashboard = () => {
                   <div key={order.id} className="order-item">
                     <div className="order-info">
                       <strong>{order.orderNumber}</strong>
-                      <span className="order-amount">${Number(order.vendorSubtotal || 0).toFixed(2)}</span>
+                      <span className="order-amount">₹{Number(order.vendorSubtotal || 0).toFixed(2)}</span>
                     </div>
                     <div className="order-status">
                       <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}`}>
@@ -223,7 +223,7 @@ const Dashboard = () => {
                   <div key={order._id || order.id} className="order-item">
                     <div className="order-info">
                       <strong>{order.orderNumber || order.id}</strong>
-                      <span className="order-amount">${Number(order.total || 0).toFixed(2)}</span>
+                      <span className="order-amount">₹{Number(order.total || 0).toFixed(2)}</span>
                     </div>
                     <div className="order-status">
                       <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}`}>

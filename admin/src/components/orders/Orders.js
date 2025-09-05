@@ -457,7 +457,7 @@ const Orders = () => {
         </div>
         <div className="stat-card">
           <h3>Total Revenue</h3>
-          <p>${orders.reduce((sum, order) => sum + calculateOrderTotal(order), 0).toLocaleString()}</p>
+          <p>₹{orders.reduce((sum, order) => sum + calculateOrderTotal(order), 0).toLocaleString()}</p>
         </div>
       </div>
 
@@ -497,7 +497,7 @@ const Orders = () => {
                   </span>
                 </td>
                 <td>
-                  <strong>${calculateOrderTotal(order).toFixed(2)}</strong>
+                  <strong>₹{calculateOrderTotal(order).toFixed(2)}</strong>
                 </td>
                 <td>
                   <span className={`status-badge ${getStatusBadgeClass(order.status)}`}>
@@ -647,10 +647,10 @@ const Orders = () => {
                                   <h4>{item.name}</h4>
                                   <p>SKU: {item.sku}</p>
                                   <p>Quantity: {item.quantity}</p>
-                                  <p>Price: ${item.price}</p>
+                                  <p>Price: ₹{item.price}</p>
                                 </div>
                                 <div className="item-total">
-                                  ${(item.price * item.quantity).toFixed(2)}
+                                  ₹{(item.price * item.quantity).toFixed(2)}
                                 </div>
                               </div>
                             ))}
@@ -687,10 +687,10 @@ const Orders = () => {
                                     <h4>{item.name}</h4>
                                     <p>SKU: {item.sku}</p>
                                     <p>Quantity: {item.quantity}</p>
-                                    <p>Price: ${item.price}</p>
+                                    <p>Price: ₹{item.price}</p>
                                   </div>
                                   <div className="item-total">
-                                    ${(item.price * item.quantity).toFixed(2)}
+                                    ₹{(item.price * item.quantity).toFixed(2)}
                                   </div>
                                 </div>
                               ))}
@@ -713,43 +713,43 @@ const Orders = () => {
                       {Number(selectedOrder.discountAmount || 0) > 0 && (
                         <div className="summary-row">
                           <span>Discount:</span>
-                          <span>- ${Number(selectedOrder.discountAmount).toFixed(2)}</span>
+                          <span>- ₹{Number(selectedOrder.discountAmount).toFixed(2)}</span>
                         </div>
                       )}
                       {!isVendor ? (
                         <>
                           <div className="summary-row">
                             <span>Subtotal:</span>
-                            <span>${(selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0).toFixed(2)}</span>
+                            <span>₹{(selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0).toFixed(2)}</span>
                           </div>
                           <div className="summary-row">
                             <span>Tax ({Number(selectedOrder.tax || 0)}%):</span>
-                            <span>${(((selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) * Number(selectedOrder.tax || 0)) / 100).toFixed(2)}</span>
+                            <span>₹{(((selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) * Number(selectedOrder.tax || 0)) / 100).toFixed(2)}</span>
                           </div>
                           <div className="summary-row">
                             <span>Shipping:</span>
-                            <span>${Number(selectedOrder.shippingCost || 0).toFixed(2)}</span>
+                            <span>₹{Number(selectedOrder.shippingCost || 0).toFixed(2)}</span>
                           </div>
                         </>
                       ) : (
                         <>
                           <div className="summary-row">
                             <span>Vendor Subtotal:</span>
-                            <span>${Number(selectedOrder.vendorSubtotal || 0).toFixed(2)}</span>
+                            <span>₹{Number(selectedOrder.vendorSubtotal || 0).toFixed(2)}</span>
                           </div>
                           <div className="summary-row">
                             <span>Vendor Tax Share:</span>
-                            <span>${Number(selectedOrder.vendorTax || selectedOrder.vendorTaxShare || 0).toFixed(2)}</span>
+                            <span>₹{Number(selectedOrder.vendorTax || selectedOrder.vendorTaxShare || 0).toFixed(2)}</span>
                           </div>
                           <div className="summary-row">
                             <span>Vendor Shipping Share:</span>
-                            <span>${Number(selectedOrder.vendorShipping || selectedOrder.vendorShippingShare || 0).toFixed(2)}</span>
+                            <span>₹{Number(selectedOrder.vendorShipping || selectedOrder.vendorShippingShare || 0).toFixed(2)}</span>
                           </div>
                         </>
                       )}
                       <div className="summary-row total">
                         <span>Total:</span>
-                        <span>${calculateOrderTotal(selectedOrder).toFixed(2)}</span>
+                        <span>₹{calculateOrderTotal(selectedOrder).toFixed(2)}</span>
                       </div>
                       {selectedOrder.orderNote && (
                         <div className="summary-row">
