@@ -1,6 +1,7 @@
 const express = require('express');
 const HomePageSection = require('../models/HomePageSection');
 const Product = require('../models/Product');
+const Review = require('../models/Review');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -132,15 +133,28 @@ router.get('/sections/public', async (req, res) => {
 
       console.log(`Homepage: Section "${section.name}" final product count: ${products.length}`);
 
+      // Compute live rating and count from reviews collection for these products
+      const ids = products.map(p => p.productId._id);
+      const reviewAgg = await Review.aggregate([
+        { $match: { product: { $in: ids } } },
+        { $group: { _id: '$product', avgRating: { $avg: '$rating' }, count: { $sum: 1 } } }
+      ]);
+      const idToReview = new Map(reviewAgg.map(r => [String(r._id), { avg: r.avgRating || 0, count: r.count || 0 }]));
+
       return {
         ...section.toObject(),
-        products: products.map(p => ({
-          ...p.productId.toObject(),
-          order: p.order,
-          // Ensure rating and reviewsCount fields exist for clients
-          rating: typeof p.productId.rating === 'number' ? p.productId.rating : 0,
-          reviewsCount: typeof p.productId.reviewsCount === 'number' ? p.productId.reviewsCount : (Array.isArray(p.productId.reviews) ? p.productId.reviews.length : 0),
-        }))
+        products: products.map(p => {
+          const base = p.productId.toObject();
+          const rec = idToReview.get(String(base._id));
+          const rating = rec ? Number(rec.avg) : (typeof base.rating === 'number' ? base.rating : 0);
+          const reviewsCount = rec ? Number(rec.count) : (typeof base.reviewsCount === 'number' ? base.reviewsCount : 0);
+          return {
+            ...base,
+            order: p.order,
+            rating,
+            reviewsCount,
+          };
+        })
       };
     }));
 
