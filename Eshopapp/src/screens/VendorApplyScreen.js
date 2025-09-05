@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api, { API_BASE } from '../utils/api';
 
@@ -52,7 +52,7 @@ const VendorApplyScreen = ({ navigation }) => {
 	};
 
 	return (
-		<View style={styles.container}>
+		<KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.select({ ios: 80, android: 0 })}>
 			<View style={styles.header}>
 				<TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
 					<Icon name="arrow-back-outline" size={24} color="#333" />
@@ -60,7 +60,7 @@ const VendorApplyScreen = ({ navigation }) => {
 				<Text style={styles.title}>Become a Vendor</Text>
 				<View style={{ width: 24 }} />
 			</View>
-			<ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+			<ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 				<Text style={styles.sectionSubtitle}>Tell us about your business</Text>
 				<View style={styles.formGrid}>
 					<View style={styles.formGroup}> 
@@ -144,7 +144,7 @@ const VendorApplyScreen = ({ navigation }) => {
 					<Text style={styles.submitText}>{submitting ? 'Submitting...' : 'Submit Application'}</Text>
 				</TouchableOpacity>
 			</ScrollView>
-		</View>
+		</KeyboardAvoidingView>
 	);
 };
 

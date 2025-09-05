@@ -10,9 +10,10 @@ const { sendMail, buildEmailHtml } = require('../utils/mailer');
 // Make public for app submission; if logged in, we still accept and use req.user when present
 router.post('/apply', async (req, res) => {
   try {
-    if (!req.user || (req.user.role !== 'customer' && req.user.role !== 'vendor')) {
+    // Allow anonymous or logged-in customer/vendor to apply
+    if (req.user && (req.user.role !== 'customer' && req.user.role !== 'vendor')) {
       res.status(403);
-      throw new Error('Only customers can apply to become a vendor');
+      throw new Error('Not allowed');
     }
     const {
       name,
