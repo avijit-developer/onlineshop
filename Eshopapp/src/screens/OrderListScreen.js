@@ -69,64 +69,78 @@ const OrderListScreen = () => {
     <TouchableOpacity
       style={styles.orderCard}
       onPress={() => navigation.navigate('OrderDetails', { orderId: item._id || item.id })}
+      activeOpacity={0.9}
     >
+      {/* Header */}
       <View style={styles.orderHeader}>
-        <View style={styles.orderInfo}>
-          <Text style={styles.orderId}>Order #{item.orderNumber || (item._id || item.id)}</Text>
-          <Text style={styles.orderDate}>{formatDate(item.createdAt)}</Text>
-        </View>
+        <Text style={styles.orderId}>#{item.orderNumber || (item._id || item.id)}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
           <Text style={styles.statusText}>{item.status}</Text>
         </View>
       </View>
 
+      {/* Meta row */}
+      <View style={styles.metaRow}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Icon name="calendar-outline" size={14} color="#888" />
+          <Text style={styles.orderDate}> {formatDate(item.createdAt)}</Text>
+        </View>
+        <Text style={styles.itemCount}>{item.items.length} item{item.items.length > 1 ? 's' : ''}</Text>
+      </View>
+
+      {/* Thumbnails */}
       <View style={styles.orderItems}>
-        {item.items.slice(0, 3).map((orderItem, index) => (
+        {item.items.slice(0, 4).map((orderItem, index) => (
           <Image
             key={index}
             source={{ uri: orderItem.image }}
             style={[styles.itemImage, index > 0 && { marginLeft: -10 }]}
           />
         ))}
-        {item.items.length > 3 && (
+        {item.items.length > 4 && (
           <View style={styles.moreItems}>
-            <Text style={styles.moreItemsText}>+{item.items.length - 3}</Text>
+            <Text style={styles.moreItemsText}>+{item.items.length - 4}</Text>
           </View>
         )}
       </View>
 
-      <View style={styles.orderFooter}>
-        <Text style={styles.itemCount}>{item.items.length} item{item.items.length > 1 ? 's' : ''}</Text>
-        <Text style={styles.orderTotal}>₹{Number(item.total || 0).toFixed(2)}</Text>
-      </View>
-
-      <View style={styles.orderActions}>
-        <TouchableOpacity
-          style={styles.reorderButton}
-          onPress={async () => {
-            try {
-              for (const it of (item.items || [])) {
-                const productPayload = {
-                  id: String(it.product || it._id || it.id),
-                  _id: String(it.product || it._id || it.id),
-                  name: it.name,
-                  regularPrice: it.price,
-                  specialPrice: undefined,
-                  images: it.image ? [it.image] : [],
-                  sku: it.sku,
-                };
-                await addToCart(productPayload, it.quantity || 1, it.selectedAttributes || null);
+      {/* Footer */}
+      <View style={styles.cardDivider} />
+      <View style={styles.footerRow}>
+        <View style={{ flexDirection: 'column' }}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.orderTotal}>₹{Number(item.total || 0).toFixed(2)}</Text>
+        </View>
+        <View style={styles.footerActions}>
+          <TouchableOpacity
+            style={styles.reorderPill}
+            onPress={async (e) => {
+              e.stopPropagation();
+              try {
+                for (const it of (item.items || [])) {
+                  const productPayload = {
+                    id: String(it.product || it._id || it.id),
+                    _id: String(it.product || it._id || it.id),
+                    name: it.name,
+                    regularPrice: it.price,
+                    specialPrice: undefined,
+                    images: it.image ? [it.image] : [],
+                    sku: it.sku,
+                  };
+                  await addToCart(productPayload, it.quantity || 1, it.selectedAttributes || null);
+                }
+                Alert.alert('Reorder', 'Items added to cart');
+                navigation.navigate('Cart');
+              } catch (e) {
+                Alert.alert('Reorder', 'Failed to add some items');
               }
-              Alert.alert('Reorder', 'Items added to cart');
-              navigation.navigate('Cart');
-            } catch (e) {
-              Alert.alert('Reorder', 'Failed to add some items');
-            }
-          }}
-        >
-          <Text style={styles.reorderButtonText}>Reorder</Text>
-        </TouchableOpacity>
+            }}
+          >
+            <Text style={styles.reorderPillText}>Reorder</Text>
+          </TouchableOpacity>
+          <Icon name="chevron-forward-outline" size={20} color="#999" />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -274,17 +288,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   orderInfo: {
     flex: 1,
   },
-  orderId: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
+  orderId: { fontSize: 15, fontWeight: '700', color: '#333' },
   orderDate: {
     fontSize: 12,
     color: '#666',
@@ -305,7 +314,7 @@ const styles = StyleSheet.create({
   orderItems: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   itemImage: {
     width: 40,
@@ -328,25 +337,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
   },
-  orderFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   itemCount: {
     fontSize: 14,
     color: '#666',
   },
-  orderTotal: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f7ab18',
-  },
-  orderActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  totalLabel: { fontSize: 11, color: '#888' },
+  orderTotal: { fontSize: 16, fontWeight: '700', color: '#f7ab18' },
+  cardDivider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 8 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  footerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   actionButton: {
     flex: 1,
     backgroundColor: '#f0f0f0',
@@ -359,18 +359,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
-  reorderButton: {
-    flex: 1,
-    backgroundColor: '#f7ab18',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  reorderButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#fff',
-  },
+  reorderPill: { backgroundColor: '#f7ab18', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 14 },
+  reorderPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
