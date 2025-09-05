@@ -67,7 +67,7 @@ router.post('/sections/init', authenticate, requireAdmin, async (req, res) => {
 router.get('/sections', authenticate, requireAdmin, async (req, res) => {
   try {
     const sections = await HomePageSection.find()
-      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled')
+      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled rating')
       .sort({ order: 1 });
     
     res.json({ success: true, data: sections });
@@ -81,7 +81,7 @@ router.get('/sections/public', async (req, res) => {
   try {
     console.log('Homepage: Fetching public sections...');
     const sections = await HomePageSection.find({ isActive: true })
-      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled')
+      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled rating')
       .sort({ order: 1 });
 
     console.log('Homepage: Found sections:', sections.length);
@@ -136,7 +136,10 @@ router.get('/sections/public', async (req, res) => {
         ...section.toObject(),
         products: products.map(p => ({
           ...p.productId.toObject(),
-          order: p.order
+          order: p.order,
+          // Ensure rating and reviewsCount fields exist for clients
+          rating: typeof p.productId.rating === 'number' ? p.productId.rating : 0,
+          reviewsCount: typeof p.productId.reviewsCount === 'number' ? p.productId.reviewsCount : (Array.isArray(p.productId.reviews) ? p.productId.reviews.length : 0),
         }))
       };
     }));
@@ -172,11 +175,14 @@ router.get('/sections/:name/products/public', async (req, res) => {
       const slice = curated.slice((pageNum - 1) * perPage, (pageNum - 1) * perPage + perPage);
       const ids = slice.map(p => p.productId).filter(Boolean);
       const found = await Product.find({ _id: { $in: ids }, ...baseFilters })
-        .select('name images regularPrice specialPrice rating')
+        .select('name images regularPrice specialPrice rating reviewsCount reviews')
         .lean();
       // Preserve curated order
       const mapById = new Map(found.map(p => [String(p._id), p]));
-      const orderedItems = ids.map(id => mapById.get(String(id))).filter(Boolean);
+      const orderedItems = ids.map(id => mapById.get(String(id))).filter(Boolean).map(p => ({
+        ...p,
+        reviewsCount: typeof p.reviewsCount === 'number' ? p.reviewsCount : (Array.isArray(p.reviews) ? p.reviews.length : 0),
+      }));
       return res.json({ success: true, data: orderedItems, meta: { total, page: pageNum, limit: perPage } });
     }
 
@@ -207,7 +213,7 @@ router.get('/sections/:name/products/public', async (req, res) => {
 
     const [items, total] = await Promise.all([
       Product.find(filters)
-        .select('name images regularPrice specialPrice rating')
+        .select('name images regularPrice specialPrice rating reviewsCount reviews')
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
@@ -215,7 +221,12 @@ router.get('/sections/:name/products/public', async (req, res) => {
       Product.countDocuments(filters)
     ]);
 
-    return res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+    const normalized = items.map(p => ({
+      ...p,
+      reviewsCount: typeof p.reviewsCount === 'number' ? p.reviewsCount : (Array.isArray(p.reviews) ? p.reviews.length : 0),
+    }));
+
+    return res.json({ success: true, data: normalized, meta: { total, page: pageNum, limit: perPage } });
   } catch (error) {
     console.error('Homepage: section products error:', error);
     res.status(500).json({ success: false, message: error?.message || 'Failed to fetch section products' });
