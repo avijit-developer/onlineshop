@@ -199,6 +199,7 @@ const Settings = () => {
                       onChange={(e) => handleInputChange('general', 'minAppVersion', e.target.value)}
                       placeholder="e.g., 0.0.2"
                     />
+                    <small style={{ color: '#666' }}>Update the version into package.json</small>
                   </div>
                   <div className="form-group">
                     <label>Contact Phone</label>
