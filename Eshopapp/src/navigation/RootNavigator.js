@@ -27,6 +27,7 @@ import SplashScreen from '../screens/SplashScreen';
 import SetupScreen from '../screens/SetupScreen';
 import LegalWebViewScreen from '../screens/LegalWebViewScreen';
 import VendorPortalNavigator from '../vendorPortal/VendorPortalNavigator';
+import NetworkErrorScreen from '../screens/NetworkErrorScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,6 +35,7 @@ const RootNavigator = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Splash">
       <Stack.Screen name="Splash" component={SplashScreen} />
+      <Stack.Screen name="NetworkError" component={NetworkErrorScreen} />
       <Stack.Screen name="Setup" component={SetupScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />

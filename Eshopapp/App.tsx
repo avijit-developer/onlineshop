@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef } from '@react-navigation/native';
 import RootNavigator from './src/navigation/RootNavigator';
 import { StatusBar, StyleSheet  } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +9,8 @@ import { CartProvider } from './src/contexts/CartContext';
 import { UserProvider } from './src/contexts/UserContext';
 import { AddressProvider } from './src/contexts/AddressContext';
 import { WishlistProvider } from './src/contexts/WishlistContext';
+
+export const navigationRef = createNavigationContainerRef();
 
 const App = () => {
   return ( 
@@ -24,7 +27,7 @@ const App = () => {
                 translucent={false} // set to true only if you want content under the status bar
               />
               <SafeAreaView style={styles.safeArea}  edges={['top', 'bottom']}>
-              <NavigationContainer>
+              <NavigationContainer ref={navigationRef} onReady={() => { (global as any).__APP_NAV__ = navigationRef; }}>
                 <RootNavigator />
               </NavigationContainer>
               </SafeAreaView>
