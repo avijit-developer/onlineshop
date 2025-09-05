@@ -13,8 +13,9 @@ router.get('/shipping/public', async (req, res) => {
     const taxRate = doc?.tax?.rate ?? Number(process.env.DEFAULT_TAX_RATE || 0);
     const contactEmail = doc?.general?.contactEmail || '';
     const contactPhone = doc?.general?.contactPhone || '';
+    const minAppVersion = doc?.general?.minAppVersion || process.env.MIN_APP_VERSION || '';
     // Return fee, tax rate and general contact for client consumption
-    res.json({ success: true, data: { flatShippingFee, taxRate, contactEmail, contactPhone } });
+    res.json({ success: true, data: { flatShippingFee, taxRate, contactEmail, contactPhone, minAppVersion } });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to load shipping settings' });
   }

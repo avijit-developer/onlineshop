@@ -7,6 +7,8 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import api from '../utils/api';
+import { Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
@@ -30,8 +32,36 @@ const SplashScreen = ({ navigation }) => {
       }),
     ]).start();
 
+    const compareSemver = (a, b) => {
+      const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+      const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const na = pa[i] || 0; const nb = pb[i] || 0;
+        if (na < nb) return -1;
+        if (na > nb) return 1;
+      }
+      return 0;
+    };
+
     const decide = async () => {
       try {
+        // Force update check
+        try {
+          const res = await api.getShippingSettings();
+          const minAppVersion = res?.data?.minAppVersion || '';
+          const current = '0.0.1';
+          if (minAppVersion && compareSemver(current, minAppVersion) < 0) {
+            Alert.alert(
+              'Update Required',
+              'A newer version of Trahi Mart is required to continue.',
+              [
+                { text: 'Update', onPress: () => Linking.openURL('https://play.google.com/store/apps/details?id=trahimart') }
+              ],
+              { cancelable: false }
+            );
+            return;
+          }
+        } catch (_) {}
         const vendorToken = await AsyncStorage.getItem('vendorAuthToken');
         if (vendorToken) {
           navigation.replace('VendorPortal');
