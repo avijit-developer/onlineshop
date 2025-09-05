@@ -33,6 +33,17 @@ const Banners = () => {
 
   useEffect(() => {
     fetchBanners();
+    // Preload categories/products for dropdowns
+    (async () => {
+      try {
+        const [catsRes, prodsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/v1/categories/public?parent=all&limit=1000`).then(r => r.json()).catch(() => ({})),
+          fetch(`${API_BASE}/api/v1/products?q=&page=1&limit=200`, { headers: authHeaders() }).then(r => r.json()).catch(() => ({}))
+        ]);
+        window.__bannerCategories = (catsRes?.data || []).map(c => ({ _id: c._id || c.id, name: c.name }));
+        window.__bannerProducts = (prodsRes?.data || []).map(p => ({ _id: p._id || p.id, name: p.name }));
+      } catch (_) { /* ignore */ }
+    })();
   }, []);
 
   useEffect(() => {
@@ -126,7 +137,7 @@ const Banners = () => {
         title: formData.title,
         description: formData.description,
         imageUrl: formData.imageUrl,
-        linkUrl: formData.linkUrl,
+        linkUrl: formData.targetType === 'page' ? formData.linkUrl : '',
         linkText: formData.linkText,
         position: formData.position,
         startDate: formData.startDate,
@@ -513,15 +524,18 @@ const Banners = () => {
                     </div>
                   )}
                 </div>
-                <div className="form-group">
-                  <label>Link URL</label>
-                  <input
-                    type="url"
-                    value={formData.linkUrl}
-                    onChange={(e) => setFormData({...formData, linkUrl: e.target.value})}
-                    placeholder="https://example.com"
-                  />
-                </div>
+                {/* Link URL removed for non-page; show only when page selected */}
+                {formData.targetType === 'page' && (
+                  <div className="form-group">
+                    <label>Page Link (URL)</label>
+                    <input
+                      type="url"
+                      value={formData.linkUrl}
+                      onChange={(e) => setFormData({...formData, linkUrl: e.target.value})}
+                      placeholder="https://example.com/page"
+                    />
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Link Text</label>
                   <input
@@ -535,7 +549,7 @@ const Banners = () => {
                   <label>Target Type</label>
                   <select
                     value={formData.targetType}
-                    onChange={(e) => setFormData({...formData, targetType: e.target.value})}
+                    onChange={(e) => setFormData({...formData, targetType: e.target.value, targetId: '', linkUrl: ''})}
                   >
                     <option value="none">None</option>
                     <option value="category">Category</option>
@@ -543,6 +557,35 @@ const Banners = () => {
                     <option value="page">Page</option>
                   </select>
                 </div>
+                {/* Conditional target pickers */}
+                {formData.targetType === 'category' && (
+                  <div className="form-group">
+                    <label>Select Category</label>
+                    <select
+                      value={formData.targetId}
+                      onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
+                    >
+                      <option value="">-- Select Category --</option>
+                      {(window.__bannerCategories || []).map(c => (
+                        <option key={c._id} value={c._id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {formData.targetType === 'product' && (
+                  <div className="form-group">
+                    <label>Select Product</label>
+                    <select
+                      value={formData.targetId}
+                      onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
+                    >
+                      <option value="">-- Select Product --</option>
+                      {(window.__bannerProducts || []).map(p => (
+                        <option key={p._id} value={p._id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Start Date *</label>
                   <input

@@ -42,6 +42,8 @@ router.get('/public', async (req, res) => {
       image: 1,
       linkUrl: 1,
       linkText: 1,
+      targetType: 1,
+      targetId: 1,
       position: 1
     })
     .lean();

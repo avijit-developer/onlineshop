@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
+  TouchableOpacity,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -14,10 +15,13 @@ import api, { API_BASE } from '../utils/api';
 
 const ITEM_WIDTH = width * 0.9;
 
+import { useNavigation } from '@react-navigation/native';
+
 const SliderBanner = () => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigation = useNavigation();
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -31,6 +35,9 @@ const SliderBanner = () => {
             subtitle: b.description || '',
             tag: b.linkText || '',
             image: b.image || b.imageUrl,
+            targetType: b.targetType || 'none',
+            targetId: b.targetId || '',
+            linkUrl: b.linkUrl || '',
           }));
           setBanners(items);
         }
@@ -43,8 +50,23 @@ const SliderBanner = () => {
     fetchBanners();
   }, []);
 
+  const handlePress = (item) => {
+    if (item.targetType === 'category' && item.targetId) {
+      navigation.navigate('ProductList', { categoryId: item.targetId, title: item.title || 'Products' });
+      return;
+    }
+    if (item.targetType === 'product' && item.targetId) {
+      navigation.navigate('ProductDetails', { productId: item.targetId });
+      return;
+    }
+    if (item.targetType === 'page' && item.linkUrl) {
+      navigation.navigate('WebViewScreen', { url: item.linkUrl, title: item.title || 'Details' });
+      return;
+    }
+  };
+
   const renderItem = ({ item }) => (
-    <View style={styles.slide}>
+    <TouchableOpacity style={styles.slide} activeOpacity={0.9} onPress={() => handlePress(item)}>
       <Image source={{ uri: item.image }} style={styles.bannerImage} />
       {(item.title || item.subtitle || item.tag) && (
         <View style={styles.overlayTextContainer}>
@@ -53,7 +75,7 @@ const SliderBanner = () => {
           {!!item.tag && <Text style={styles.overlayTag} numberOfLines={1}>{item.tag}</Text>}
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   return (
