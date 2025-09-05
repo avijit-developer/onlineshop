@@ -26,6 +26,7 @@ const Orders = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -193,6 +194,7 @@ const Orders = () => {
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
+      setStatusUpdating(true);
       const ORIGIN4 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN4 && ORIGIN4.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN4 || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
@@ -213,7 +215,7 @@ const Orders = () => {
       }
     } catch (error) {
       toast.error('Failed to update order status');
-    }
+    } finally { setStatusUpdating(false); }
   };
 
   const handleViewDetails = (order) => {
@@ -757,11 +759,13 @@ const Orders = () => {
                     value={selectedOrder.status}
                     onChange={(e) => handleStatusUpdate(selectedOrder._id || selectedOrder.id, e.target.value)}
                     className="filter-select"
+                    disabled={statusUpdating}
                   >
                     {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'].map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
+                  {statusUpdating && <div className="loading" style={{ marginTop: 8 }}>Updating status...</div>}
                 </div>
               </div>
             </div>
