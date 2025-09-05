@@ -198,7 +198,8 @@ const Orders = () => {
       const ORIGIN4 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN4 && ORIGIN4.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN4 || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
-      const resp = await fetch(`${baseUrl}/api/v1/orders/${orderId}/status`, {
+      const endpoint = isVendor ? `${baseUrl}/api/v1/orders/vendor/${orderId}/status` : `${baseUrl}/api/v1/orders/${orderId}/status`;
+      const resp = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify({ status: newStatus })

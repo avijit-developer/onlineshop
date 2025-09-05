@@ -275,6 +275,52 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 });
 
 module.exports = router;
+
+// Vendor: update order status (scoped to vendor's items). Sends customer email with only that vendor's items, without full summary.
+router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async (req, res) => {
+    try {
+        const { status } = req.body || {};
+        if (!status) return res.status(400).json({ success: false, message: 'status is required' });
+
+        const vendorIds = Array.isArray(req.user.vendors) && req.user.vendors.length > 0
+            ? req.user.vendors.map(String)
+            : (req.user.vendorId ? [String(req.user.vendorId)] : []);
+        if (vendorIds.length === 0) return res.status(403).json({ success: false, message: 'No vendor access' });
+
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+        // Check the order contains items for this vendor
+        const vendorItems = (order.items || []).filter(it => vendorIds.includes(String(it.vendor)));
+        if (vendorItems.length === 0) {
+            return res.status(403).json({ success: false, message: 'Order does not contain your items' });
+        }
+
+        order.status = status;
+        order.statusHistory.push({ status, updatedBy: req.user?.email || 'vendor' });
+        await order.save();
+
+        // Email customer with only vendor items (no full summary)
+        try {
+            const u = await User.findById(order.user).select('email name').lean();
+            if (u?.email) {
+                const itemsRows = vendorItems.map(it => `<tr><td>${it.name}</td><td>x ${it.quantity}</td><td>₹${Number(it.price||0).toFixed(2)}</td></tr>`).join('');
+                const html = await buildEmailHtml({
+                    subject: `Your order ${order.orderNumber} is now ${status}`,
+                    contentHtml: `<p>Hi ${u?.name || ''},</p><p>Your order <b>${order.orderNumber}</b> status changed to <b>${status}</b>.</p><p>Items from this vendor are listed below.</p>`,
+                    itemsTableHtml: `<thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead><tbody>${itemsRows}</tbody>`
+                    // No summary rows per requirement
+                });
+                await sendMail({ to: u.email, subject: `Your order ${order.orderNumber} is now ${status}`, html });
+            }
+        } catch (_) {}
+
+        res.json({ success: true, data: order });
+    } catch (err) {
+        console.error('Vendor update status error:', err);
+        res.status(500).json({ success: false, message: 'Failed to update status' });
+    }
+});
 // Vendor user: list orders scoped to assigned vendors (items filtered)
 router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) => {
     try {
