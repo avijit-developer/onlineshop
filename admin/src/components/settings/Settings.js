@@ -74,6 +74,7 @@ const Settings = () => {
       });
       if (!res.ok) throw new Error('Save failed');
       toast.success(`${category} settings saved successfully`);
+      await fetchSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
       toast.error('Failed to save settings');
