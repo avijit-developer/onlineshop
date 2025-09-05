@@ -43,7 +43,7 @@ const CategoryBlockGrid = ({ navigation }) => {
     }, []);
 
     const renderItem = ({ item }) => (
-        <View style={styles.card}>
+        <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => navigation.navigate('ProductList', { categoryId: item.id, title: item.title })}>
             <View style={styles.imageGrid}>
                 {item.images.map((img, idx) => (
                     <Image key={idx} source={ img ? { uri: img } : placeholder } style={styles.gridImage} />
@@ -52,7 +52,7 @@ const CategoryBlockGrid = ({ navigation }) => {
             <View style={styles.footer}>
                 <Text style={styles.title}>{item.title}</Text>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     return (
