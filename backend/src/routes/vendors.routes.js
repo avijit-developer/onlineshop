@@ -7,7 +7,8 @@ const VendorUser = require('../models/VendorUser');
 const bcrypt = require('bcryptjs');
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
 // Public: customer can submit vendor application (creates pending vendor)
-router.post('/apply', authenticate, async (req, res) => {
+// Make public for app submission; if logged in, we still accept and use req.user when present
+router.post('/apply', async (req, res) => {
   try {
     if (!req.user || (req.user.role !== 'customer' && req.user.role !== 'vendor')) {
       res.status(403);
