@@ -298,10 +298,10 @@ const Orders = () => {
 
   const calculateOrderTotal = (order) => {
     if (isVendor) {
-      // Use vendorSubtotal if present (from vendor endpoint), otherwise fallback compute
       const subtotal = Number(order.vendorSubtotal || 0);
-      const shipping = Number(order.vendorShipping || 0);
-      return subtotal + shipping; // taxeshandledplatform-wide; keep simple for vendor view
+      const tax = Number(order.vendorTax || order.vendorTaxShare || 0);
+      const shipping = Number(order.vendorShipping || order.vendorShippingShare || 0);
+      return subtotal + tax + shipping;
     }
     const subtotal = (order.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
     const tax = (subtotal * Number(order.tax || 0)) / 100;
@@ -604,24 +604,43 @@ const Orders = () => {
                           <span>{selectedOrder.couponCode}</span>
                         </div>
                       )}
-                      {selectedOrder.discountAmount > 0 && (
+                      {Number(selectedOrder.discountAmount || 0) > 0 && (
                         <div className="summary-row">
                           <span>Discount:</span>
                           <span>- ${Number(selectedOrder.discountAmount).toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="summary-row">
-                        <span>Subtotal:</span>
-                        <span>${selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</span>
-                      </div>
-                      <div className="summary-row">
-                        <span>Tax ({selectedOrder.tax}%):</span>
-                        <span>${((selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * selectedOrder.tax) / 100).toFixed(2)}</span>
-                      </div>
-                      <div className="summary-row">
-                        <span>Shipping:</span>
-                        <span>${selectedOrder.shippingCost || 0}</span>
-                      </div>
+                      {!isVendor ? (
+                        <>
+                          <div className="summary-row">
+                            <span>Subtotal:</span>
+                            <span>${(selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0).toFixed(2)}</span>
+                          </div>
+                          <div className="summary-row">
+                            <span>Tax ({Number(selectedOrder.tax || 0)}%):</span>
+                            <span>${(((selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) * Number(selectedOrder.tax || 0)) / 100).toFixed(2)}</span>
+                          </div>
+                          <div className="summary-row">
+                            <span>Shipping:</span>
+                            <span>${Number(selectedOrder.shippingCost || 0).toFixed(2)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="summary-row">
+                            <span>Vendor Subtotal:</span>
+                            <span>${Number(selectedOrder.vendorSubtotal || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="summary-row">
+                            <span>Vendor Tax Share:</span>
+                            <span>${Number(selectedOrder.vendorTax || selectedOrder.vendorTaxShare || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="summary-row">
+                            <span>Vendor Shipping Share:</span>
+                            <span>${Number(selectedOrder.vendorShipping || selectedOrder.vendorShippingShare || 0).toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
                       <div className="summary-row total">
                         <span>Total:</span>
                         <span>${calculateOrderTotal(selectedOrder).toFixed(2)}</span>
