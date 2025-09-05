@@ -242,9 +242,11 @@ const CartScreen = () => {
 
   const renderEmptyCart = () => (
     <View style={styles.emptyContainer}>
-      <Icon name="cart-outline" size={84} color="#ccc" />
-      <Text style={styles.emptyTitle}>Your Cart is Empty</Text>
-      <Text style={styles.emptyMessage}>Add some products to get started</Text>
+      <View style={styles.emptyIllustration}>
+        <Icon name="cart-outline" size={72} color="#f7ab18" />
+      </View>
+      <Text style={styles.emptyTitle}>Your cart is empty</Text>
+      <Text style={styles.emptySubtitle}>Discover great deals and add items to your cart.</Text>
       <TouchableOpacity
         style={styles.shopButton}
         onPress={() => navigation.navigate('Home')}
@@ -628,29 +630,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
   },
+  emptyIllustration: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#fff8e6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 6,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 13,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 16,
   },
   shopButton: {
     backgroundColor: '#f7ab18',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 22,
   },
   shopButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
   },
   summaryContainer: {
     backgroundColor: '#f9f9f9',
