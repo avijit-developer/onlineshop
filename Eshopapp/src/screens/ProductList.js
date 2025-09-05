@@ -76,29 +76,93 @@ const ProductList = () => {
         const fetcher = sectionName
           ? () => api.getHomePageSectionProducts(sectionName, { page, limit: 20 })
           : () => api.getProductsPublic({ category: categoryId, page, limit: 20 });
+        const toNumber = (val) => {
+          if (typeof val === 'number') return val;
+          if (typeof val === 'string') { const n = parseFloat(val); return isNaN(n) ? 0 : n; }
+          return 0;
+        };
+        const pickVal = (obj, paths, fallback = 0) => {
+          for (const path of paths) {
+            let cur = obj; let ok = true;
+            for (const k of path) { if (cur && Object.prototype.hasOwnProperty.call(cur, k)) cur = cur[k]; else { ok = false; break; } }
+            if (ok && cur != null) return cur;
+          }
+          return fallback;
+        };
         const res = await fetcher();
-        const items = (res?.data || []).map(p => ({
-          id: p._id || p.id,
-          name: p.name,
-          price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
-          oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
-          regularPrice: p.regularPrice ?? null,
-          specialPrice: p.specialPrice ?? null,
-          tags: Array.isArray(p.tags)
-            ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
-            : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
-          rating: p.rating || 0,
-          reviews: 0,
-          image: (Array.isArray(p.images) && p.images[0]) || placeholder,
-          liked: false,
-        }));
+        const baseItems = (res?.data || []).map(p => {
+          const ratingRaw = pickVal(p, [
+            ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
+            ['reviews','average'], ['reviews','avg']
+          ], 0);
+          const reviewsCountRaw = pickVal(p, [
+            ['reviewsCount'], ['reviewCount'], ['numReviews'], ['ratingsCount'], ['reviews','count']
+          ], 0);
+          return ({
+            id: p._id || p.id,
+            name: p.name,
+            price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
+            oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
+            regularPrice: p.regularPrice ?? null,
+            specialPrice: p.specialPrice ?? null,
+            tags: Array.isArray(p.tags)
+              ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
+              : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
+            rating: toNumber(ratingRaw),
+            reviewsCount: toNumber(reviewsCountRaw),
+            image: (Array.isArray(p.images) && p.images[0]) || placeholder,
+            liked: false,
+          });
+        });
+        setFilteredProducts(prev => page === 1 ? baseItems : [...prev, ...baseItems]);
+        // Enrich ratings if missing
+        try {
+          const itemsNeeding = baseItems.filter(p => !p.rating && (p.id));
+          if (itemsNeeding.length) {
+            const enrichedList = await Promise.all(baseItems.map(async (it) => {
+              if (it.rating > 0 || !it.id) return it;
+              try {
+                const pr = await api.getProductPublic(it.id);
+                const rd = pr?.data || pr;
+                const prod = rd?.product || rd?.data?.product || rd;
+                if (prod) {
+                  const rRaw = pickVal(prod, [
+                    ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
+                    ['reviewsSummary','average'], ['reviews','average'], ['reviews','avg']
+                  ], 0);
+                  let cRaw = pickVal(prod, [
+                    ['reviewsCount'], ['reviewCount'], ['numReviews'], ['ratingsCount'], ['reviewsSummary','count'], ['reviews','count']
+                  ], 0);
+                  // If still zero but reviews array exists
+                  if ((!rRaw || toNumber(rRaw) === 0) && Array.isArray(prod.reviews) && prod.reviews.length > 0) {
+                    const sum = prod.reviews.reduce((s, r) => s + toNumber(r.rating), 0);
+                    it.rating = sum / prod.reviews.length;
+                    it.reviewsCount = prod.reviews.length;
+                    return it;
+                  }
+                  it.rating = toNumber(rRaw);
+                  it.reviewsCount = toNumber(cRaw);
+                }
+              } catch (_) {}
+              return it;
+            }));
+            setFilteredProducts(prev => {
+              // Replace the last page segment with enriched values
+              const start = page === 1 ? 0 : (prev.length - baseItems.length);
+              const next = prev.slice();
+              for (let i = 0; i < enrichedList.length; i++) {
+                next[start + i] = enrichedList[i];
+              }
+              return next;
+            });
+          }
+        } catch (_) {}
         const total = res?.meta?.total ?? 0;
         setTotalAvailable(total);
-        setFilteredProducts(prev => page === 1 ? items : [...prev, ...items]);
-        const newLoaded = page === 1 ? items.length : (loadedCount + items.length);
+        const newLoaded = page === 1 ? baseItems.length : (loadedCount + baseItems.length);
         setLoadedCount(newLoaded);
         setResultCount(total > 0 ? total : newLoaded);
-        setHasMore(newLoaded < total && items.length > 0);
+        setHasMore(newLoaded < total && baseItems.length > 0);
       } catch (_) {
         setHasMore(false);
       } finally {
@@ -176,21 +240,43 @@ const ProductList = () => {
       console.log('📡 ProductList API response:', res);
       
       if (res?.success && res?.data) {
-        const items = res.data.map(p => ({
-          id: p._id || p.id,
-          name: p.name,
-          price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
-          oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
-          regularPrice: p.regularPrice ?? null,
-          specialPrice: p.specialPrice ?? null,
-          tags: Array.isArray(p.tags)
-            ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
-            : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
-          rating: p.rating || 0,
-          reviews: 0,
-          image: (Array.isArray(p.images) && p.images[0]) || placeholder,
-          liked: false,
-        }));
+        const toNumber = (val) => {
+          if (typeof val === 'number') return val;
+          if (typeof val === 'string') { const n = parseFloat(val); return isNaN(n) ? 0 : n; }
+          return 0;
+        };
+        const pickVal = (obj, paths, fallback = 0) => {
+          for (const path of paths) {
+            let cur = obj; let ok = true;
+            for (const k of path) { if (cur && Object.prototype.hasOwnProperty.call(cur, k)) cur = cur[k]; else { ok = false; break; } }
+            if (ok && cur != null) return cur;
+          }
+          return fallback;
+        };
+        const items = res.data.map(p => {
+          const ratingRaw = pickVal(p, [
+            ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
+            ['reviews','average'], ['reviews','avg']
+          ], 0);
+          const reviewsCountRaw = pickVal(p, [
+            ['reviewsCount'], ['reviewCount'], ['numReviews'], ['ratingsCount'], ['reviews','count']
+          ], 0);
+          return ({
+            id: p._id || p.id,
+            name: p.name,
+            price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
+            oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
+            regularPrice: p.regularPrice ?? null,
+            specialPrice: p.specialPrice ?? null,
+            tags: Array.isArray(p.tags)
+              ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
+              : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
+            rating: toNumber(ratingRaw),
+            reviewsCount: toNumber(reviewsCountRaw),
+            image: (Array.isArray(p.images) && p.images[0]) || placeholder,
+            liked: false,
+          });
+        });
         
         console.log('✅ ProductList filtered products:', items.length, 'items');
         console.log('💰 ProductList price ranges in results:', items.map(item => ({
@@ -202,6 +288,39 @@ const ProductList = () => {
         const total = res?.meta?.total ?? 0;
         setTotalAvailable(total);
         setFilteredProducts(items);
+        // Enrich ratings for zero values
+        try {
+          const need = items.filter(p => !p.rating && p.id);
+          if (need.length) {
+            const enriched = await Promise.all(items.map(async (it) => {
+              if (it.rating > 0 || !it.id) return it;
+              try {
+                const pr = await api.getProductPublic(it.id);
+                const rd = pr?.data || pr;
+                const prod = rd?.product || rd?.data?.product || rd;
+                if (prod) {
+                  const rRaw = pickVal(prod, [
+                    ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
+                    ['reviewsSummary','average'], ['reviews','average'], ['reviews','avg']
+                  ], 0);
+                  let cRaw = pickVal(prod, [
+                    ['reviewsCount'], ['reviewCount'], ['numReviews'], ['ratingsCount'], ['reviewsSummary','count'], ['reviews','count']
+                  ], 0);
+                  if ((!rRaw || toNumber(rRaw) === 0) && Array.isArray(prod.reviews) && prod.reviews.length > 0) {
+                    const sum = prod.reviews.reduce((s, r) => s + toNumber(r.rating), 0);
+                    it.rating = sum / prod.reviews.length;
+                    it.reviewsCount = prod.reviews.length;
+                    return it;
+                  }
+                  it.rating = toNumber(rRaw);
+                  it.reviewsCount = toNumber(cRaw);
+                }
+              } catch (_) {}
+              return it;
+            }));
+            setFilteredProducts(enriched);
+          }
+        } catch (_) {}
         setLoadedCount(items.length);
         setResultCount(total > 0 ? total : items.length);
         setHasMore(items.length > 0 && items.length < total);
