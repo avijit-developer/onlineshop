@@ -138,7 +138,31 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 router.get('/me', authenticate, requireRole(['customer']), async (req, res) => {
 	try {
 		const orders = await Order.find({ user: req.user.id }).sort({ createdAt: -1 }).lean();
-		res.json({ success: true, data: orders });
+		// Attach vendorSummaries for each order to support per-vendor display in apps
+		const enhanced = [];
+		for (const o of orders) {
+			const orderSubtotal = Number(o.subtotal || 0);
+			const taxPercent = Number(o.tax || 0);
+			const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
+			const vendorIds = Array.from(new Set((o.items || []).map(it => String(it.vendor)).filter(Boolean)));
+			const summaries = vendorIds.map(vid => {
+				const items = (o.items || []).filter(it => String(it.vendor) === String(vid));
+				const vendorSubtotal = items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+				const share = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
+				const vendorStatus = (o.vendorStatuses && (o.vendorStatuses.get ? o.vendorStatuses.get(String(vid)) : o.vendorStatuses[String(vid)])) || o.status;
+				return {
+					vendor: vid,
+					status: vendorStatus,
+					items,
+					vendorSubtotal,
+					vendorTax: orderTaxAmount * share,
+					vendorShipping: Number(o.shippingCost || 0) * share,
+					vendorTotal: vendorSubtotal + (orderTaxAmount * share) + (Number(o.shippingCost || 0) * share),
+				};
+			});
+			enhanced.push({ ...o, vendorSummaries: summaries });
+		}
+		res.json({ success: true, data: enhanced });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to get orders' });
 	}
