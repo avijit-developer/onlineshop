@@ -14,7 +14,8 @@ const Settings = () => {
       siteDescription: '',
       contactEmail: '',
       contactPhone: '',
-      address: ''
+      address: '',
+      minAppVersion: ''
     },
     localization: {
       dateFormat: 'MM/DD/YYYY',
@@ -189,6 +190,15 @@ const Settings = () => {
                     />
                   </div>
                   
+                  <div className="form-group">
+                    <label>Minimum App Version (force update)</label>
+                    <input
+                      type="text"
+                      value={settings.general.minAppVersion || ''}
+                      onChange={(e) => handleInputChange('general', 'minAppVersion', e.target.value)}
+                      placeholder="e.g., 0.0.2"
+                    />
+                  </div>
                   <div className="form-group">
                     <label>Contact Phone</label>
                     <input
