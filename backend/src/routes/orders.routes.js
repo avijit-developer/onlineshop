@@ -445,11 +445,33 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
             const vendorTaxShare = orderTaxAmount * share;
             const vendorShippingShare = Number(o.shippingCost || 0) * share;
             const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare;
+            // Compute vendor-scoped status across vendors present in this order for this user
+            const vendorIdsInOrder = Array.from(new Set(vendorItems.map(it => String(it.vendor)).filter(Boolean)));
+            let vendorScopedStatus = o.status;
+            try {
+                const vsMap = o.vendorStatuses || {};
+                const norm = (s) => {
+                    const v = String(s || '').toLowerCase();
+                    if (['cancelled','canceled'].includes(v)) return 'Cancelled';
+                    if (['delivered','completed'].includes(v)) return 'Delivered';
+                    if (['shipped','out_for_delivery','out-for-delivery','dispatched','in_transit'].includes(v)) return 'Shipped';
+                    if (['confirmed'].includes(v)) return 'Confirmed';
+                    if (['processing','packed','pending'].includes(v)) return 'Processing';
+                    return 'Processing';
+                };
+                const statuses = vendorIdsInOrder.map(vid => norm(vsMap.get ? vsMap.get(vid) : vsMap[vid] || o.status));
+                const uniq = Array.from(new Set(statuses));
+                if (uniq.length === 1) vendorScopedStatus = uniq[0]; else {
+                    const precedence = ['Cancelled','Delivered','Shipped','Processing','Confirmed','Pending'];
+                    const top = precedence.find(p => uniq.includes(p)) || 'Processing';
+                    vendorScopedStatus = `Partially ${top}`;
+                }
+            } catch (_) {}
             return {
                 id: o._id,
                 orderNumber: o.orderNumber,
                 createdAt: o.createdAt,
-                status: o.status,
+                status: vendorScopedStatus,
                 user: o.user ? { _id: o.user._id || o.user, name: o.user.name, email: o.user.email, phone: o.user.phone } : undefined,
                 shippingAddress: o.shippingAddress,
                 paymentMethod: o.paymentMethod,
@@ -525,9 +547,27 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
         const data = {
             _id: o._id,
             orderNumber: o.orderNumber,
-            // Expose vendor-specific status if present
-            status: (o.vendorStatuses && (o.vendorStatuses.get ? o.vendorStatuses.get(String(vendorIds[0])) : o.vendorStatuses[String(vendorIds[0])])) || o.status,
-            status: (o.vendorStatuses && (o.vendorStatuses.get ? o.vendorStatuses.get(String(vendorIds[0])) : o.vendorStatuses[String(vendorIds[0])])) || o.status,
+            // Expose vendor-specific status if present, aggregated across this vendor's packages
+            status: (() => {
+                try {
+                    const vsMap = o.vendorStatuses || {};
+                    const norm = (s) => {
+                        const v = String(s || '').toLowerCase();
+                        if (['cancelled','canceled'].includes(v)) return 'Cancelled';
+                        if (['delivered','completed'].includes(v)) return 'Delivered';
+                        if (['shipped','out_for_delivery','out-for-delivery','dispatched','in_transit'].includes(v)) return 'Shipped';
+                        if (['confirmed'].includes(v)) return 'Confirmed';
+                        if (['processing','packed','pending'].includes(v)) return 'Processing';
+                        return 'Processing';
+                    };
+                    const statuses = vendorIdsInOrder.map(vid => norm(vsMap.get ? vsMap.get(vid) : vsMap[vid] || o.status));
+                    const uniq = Array.from(new Set(statuses));
+                    if (uniq.length === 1) return uniq[0];
+                    const precedence = ['Cancelled','Delivered','Shipped','Processing','Confirmed','Pending'];
+                    const top = precedence.find(p => uniq.includes(p)) || 'Processing';
+                    return `Partially ${top}`;
+                } catch (_) { return o.status; }
+            })(),
             createdAt: o.createdAt,
             updatedAt: o.updatedAt,
             user: o.user ? { _id: o.user._id || o.user, name: o.user.name, email: o.user.email, phone: o.user.phone } : undefined,
