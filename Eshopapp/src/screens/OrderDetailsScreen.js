@@ -203,17 +203,28 @@ const OrderDetailsScreen = ({ route }) => {
         {/* Order Items */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Items ({current.items.length})</Text>
-          {current.items.map((it, idx) => (
-            <View key={idx} style={styles.orderItem}>
-              <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
-                <Text style={styles.itemVariant}>SKU: {it.sku || ''}</Text>
-                <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
+          {current.items.map((it, idx) => {
+            const attrs = it.selectedAttributes && typeof it.selectedAttributes === 'object' ? it.selectedAttributes : null;
+            const attrEntries = attrs ? Object.entries(attrs) : [];
+            return (
+              <View key={idx} style={styles.orderItem}>
+                <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
+                  {!!it.sku && <Text style={styles.itemVariant}>SKU: {it.sku}</Text>}
+                  {attrEntries.length > 0 && (
+                    <View style={{ marginTop: 2 }}>
+                      {attrEntries.map(([k, v]) => (
+                        <Text key={k} style={styles.itemVariant}>{k}: {String(v)}</Text>
+                      ))}
+                    </View>
+                  )}
+                  <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
+                </View>
+                <Text style={styles.itemPrice}>₹{Number(it.price || 0).toFixed(2)}</Text>
               </View>
-              <Text style={styles.itemPrice}>₹{Number(it.price || 0).toFixed(2)}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* Shipping Address */}
