@@ -47,12 +47,22 @@ const VendorOrderDetails = ({ route, navigation }) => {
   const shippingString = typeof pick(order, ['shippingAddress', 'shipping_address'], '') === 'string' ? (pick(order, ['shippingAddress', 'shipping_address'], '') || null) : null;
   const shippingObj = pick(order, ['shippingAddress', 'shipping', 'shipping_address', 'address'], {});
   const shipping = shippingString ? {} : (shippingObj || {});
+  // Derive vendor-proportional totals if provided; else compute from proportion
+  const vendorSubtotal = Number(pick(order, ['vendorSubtotal'], 0));
+  const orderSubtotal = Number(pick(order, ['subtotal'], 0));
+  const orderTaxPercent = Number(pick(order, ['tax'], 0));
+  const orderShipping = Number(pick(order, ['shippingCost'], 0));
+  const vendorShare = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
+  const vendorTaxShare = Number(pick(order, ['vendorTaxShare'], orderSubtotal > 0 ? ((orderSubtotal * orderTaxPercent / 100) * vendorShare) : 0));
+  const vendorShippingShare = Number(pick(order, ['vendorShippingShare'], orderShipping * vendorShare));
+  const vendorTotalShare = Number(pick(order, ['vendorTotalShare'], vendorSubtotal + vendorTaxShare + vendorShippingShare));
+
   const totals = {
-    subtotal: pick(order, ['subtotal', 'vendorSubtotal', 'summary.subtotal', 'totals.subtotal'], 0),
-    tax: pick(order, ['tax', 'summary.tax', 'totals.tax'], null),
-    shipping: pick(order, ['shippingCost', 'shipping', 'summary.shipping', 'totals.shipping'], null),
-    discount: pick(order, ['discountAmount', 'discount', 'summary.discount', 'totals.discount'], 0),
-    total: pick(order, ['total', 'grandTotal', 'vendorNet', 'summary.total', 'totals.total'], 0),
+    subtotal: vendorSubtotal || Number(pick(order, ['subtotal', 'summary.subtotal', 'totals.subtotal'], 0)),
+    tax: vendorTaxShare,
+    shipping: vendorShippingShare,
+    discount: 0,
+    total: vendorTotalShare || Number(pick(order, ['total', 'grandTotal', 'summary.total', 'totals.total'], 0)),
     coupon: pick(order, ['couponCode', 'coupon', 'summary.couponCode', 'totals.couponCode'], null),
   };
   const vendor = pick(order, ['vendor', 'vendorInfo'], {}) || (Array.isArray(items) && items.find(i => i?.product?.vendor)?.product?.vendor) || {};
