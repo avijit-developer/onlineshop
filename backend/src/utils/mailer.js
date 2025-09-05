@@ -30,6 +30,7 @@ async function buildEmailHtml({ subject, contentHtml, itemsTableHtml, summaryRow
   const contactPhone = s?.general?.contactPhone || '';
   const address = s?.general?.address || '';
   const logo = s?.general?.siteLogo || '';
+  const siteUrl = s?.general?.siteUrl || '';
   const safeSubject = escapeHtml(subject || siteName);
   return `
 <!doctype html>
@@ -75,6 +76,7 @@ async function buildEmailHtml({ subject, contentHtml, itemsTableHtml, summaryRow
           ${contactEmail ? `<div>Email: <a href="mailto:${escapeHtml(contactEmail)}">${escapeHtml(contactEmail)}</a></div>` : ''}
           ${contactPhone ? `<div>Phone: <a href="tel:${escapeHtml(contactPhone)}">${escapeHtml(contactPhone)}</a></div>` : ''}
           ${address ? `<div class="muted">${escapeHtml(address)}</div>` : ''}
+          ${siteUrl ? `<div><a href="${escapeHtml(siteUrl)}" target="_blank">${escapeHtml(siteUrl)}</a></div>` : ''}
         </div>
       </div>
     </div>
