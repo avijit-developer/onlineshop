@@ -14,7 +14,7 @@ const NetworkErrorScreen = ({ onRetry }) => {
       </View>
       <Text style={styles.title}>Connection lost</Text>
       <Text style={styles.subtitle}>Please check your internet and try again.</Text>
-      <TouchableOpacity onPress={() => { if (typeof onRetry === 'function') onRetry(); else navigation.goBack(); }} style={styles.retryBtn}>
+      <TouchableOpacity onPress={() => { global.__NETWORK_ERROR_ACTIVE__ = false; if (typeof onRetry === 'function') onRetry(); else navigation.goBack(); }} style={styles.retryBtn}>
         <Text style={styles.retryText}>Retry</Text>
       </TouchableOpacity>
     </View>

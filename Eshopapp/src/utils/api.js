@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, NativeModules } from 'react-native';
-import { NavigationContainerRefContext } from '@react-navigation/native';
 
 // Force ALL builds to use localhost for now.
 // Android physical/emulator: run `adb reverse tcp:5000 tcp:5000` to map device localhost to PC.
@@ -46,11 +45,15 @@ const api = {
       const isNetwork = !(error instanceof ApiError);
       if (error instanceof ApiError) throw error;
       console.warn('[API] Network error. Base:', initialBase, 'Endpoint:', endpoint);
-      // Surface a global navigation to NetworkError if available
+      // Surface a global navigation to NetworkError if available (guard repeated attempts)
       try {
         const nav = global.__APP_NAV__;
         if (nav && typeof nav.navigate === 'function') {
-          nav.navigate('NetworkError', { retryAt: endpoint });
+          if (!global.__NETWORK_ERROR_ACTIVE__) {
+            global.__NETWORK_ERROR_ACTIVE__ = true;
+            const go = () => { try { nav.navigate('NetworkError', { retryAt: endpoint }); } catch (_) {} };
+            if (typeof nav.isReady === 'function' && !nav.isReady()) { setTimeout(go, 300); } else { go(); }
+          }
         }
       } catch (_) {}
       throw new ApiError('Network error. Please check your connection.', 0);
