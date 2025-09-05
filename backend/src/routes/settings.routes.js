@@ -31,7 +31,6 @@ router.get('/email/public', async (req, res) => {
   }
 });
 
-module.exports = router;
 // Admin: get full settings
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
@@ -53,3 +52,4 @@ router.put('/', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+module.exports = router;
