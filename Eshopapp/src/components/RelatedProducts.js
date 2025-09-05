@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     tagsContainer: { position: 'absolute', top: 8, left: 8 },
     tagRibbon: { backgroundColor: '#2e7d32', paddingVertical: 2, paddingHorizontal: 6, borderTopRightRadius: 6, borderBottomRightRadius: 6, maxWidth: 100 },
     tagRibbonText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-    discountCornerContainer: { position: 'absolute', bottom: 8, left: 8, zIndex: 10 },
+    discountCornerContainer: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
     discountCorner: { backgroundColor: '#e53935', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10 },
     discountCornerText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
     title: {
