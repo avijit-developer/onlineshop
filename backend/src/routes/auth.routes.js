@@ -148,9 +148,10 @@ router.post('/forgot-password', async (req, res) => {
   const { email } = req.body || {};
   if (!email || !isValidEmail(email)) { res.status(400); throw new Error('Valid email is required'); }
   const normalizedEmail = String(email).trim().toLowerCase();
-  // search admin first, then customer
+  // search admin -> vendor user -> customer
   let user = await Admin.findOne({ email: normalizedEmail });
   let userType = 'admin';
+  if (!user) { user = await VendorUser.findOne({ email: normalizedEmail }); userType = 'vendor'; }
   if (!user) { user = await User.findOne({ email: normalizedEmail }); userType = 'customer'; }
   if (!user) { res.status(404); throw new Error('No account found with this email'); }
   const otp = generateOtp();
@@ -171,6 +172,7 @@ router.post('/verify-otp', async (req, res) => {
   const normalizedEmail = String(email).trim().toLowerCase();
   let user = await Admin.findOne({ email: normalizedEmail });
   let userType = 'admin';
+  if (!user) { user = await VendorUser.findOne({ email: normalizedEmail }); userType = 'vendor'; }
   if (!user) { user = await User.findOne({ email: normalizedEmail }); userType = 'customer'; }
   if (!user || !user.resetOtp || !user.resetOtpExpiresAt) { res.status(400); throw new Error('OTP not requested'); }
   if (String(user.resetOtp) !== String(otp)) { res.status(400); throw new Error('Invalid OTP'); }
@@ -185,6 +187,7 @@ router.post('/reset-password', async (req, res) => {
   const normalizedEmail = String(email).trim().toLowerCase();
   let user = await Admin.findOne({ email: normalizedEmail });
   let isAdmin = true;
+  if (!user) { user = await VendorUser.findOne({ email: normalizedEmail }); isAdmin = false; }
   if (!user) { user = await User.findOne({ email: normalizedEmail }); isAdmin = false; }
   if (!user || !user.resetOtp || !user.resetOtpExpiresAt) { res.status(400); throw new Error('OTP not requested'); }
   if (String(user.resetOtp) !== String(otp)) { res.status(400); throw new Error('Invalid OTP'); }
