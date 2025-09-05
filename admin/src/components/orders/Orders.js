@@ -207,8 +207,18 @@ const Orders = () => {
       if (!resp.ok) throw new Error('Failed');
       const json = await resp.json();
       if (json?.success) {
-        setOrders(prev => prev.map(o => (o._id === orderId || o.id === orderId) ? json.data : o));
-        setSelectedOrder(json.data);
+        // If vendor response (scoped), merge into existing order shape
+        const updated = json.data;
+        setOrders(prev => prev.map(o => {
+          if ((o._id === orderId || o.id === orderId)) {
+            if (updated && updated.items && updated.items.length >= 0 && updated.user) {
+              return { ...o, ...updated };
+            }
+            return updated;
+          }
+          return o;
+        }));
+        setSelectedOrder(updated);
         setShowStatusModal(false);
         toast.success(`Order status updated to ${newStatus}`);
       } else {

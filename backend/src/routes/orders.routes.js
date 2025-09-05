@@ -357,11 +357,46 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
         } catch (_) {}
         await order.save();
 
+        // Build vendor-scoped response payload
+        const primaryVendorId = vendorIds[0];
+        const itemsScoped = (order.items || []).filter(it => String(it.vendor) === String(primaryVendorId));
+        const vendorSubtotal = itemsScoped.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+        const orderSubtotal = Number(order.subtotal || 0);
+        const taxPercent = Number(order.tax || 0);
+        const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
+        const share = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
+        const vendorTaxShare = orderTaxAmount * share;
+        const vendorShippingShare = Number(order.shippingCost || 0) * share;
+        const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare;
+        const responseData = {
+            _id: order._id,
+            orderNumber: order.orderNumber,
+            status: status, // vendor-specific status just set
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+            user: await User.findById(order.user).select('name email phone').lean().then(u => (u ? { _id: u._id, name: u.name, email: u.email, phone: u.phone } : undefined)).catch(() => undefined),
+            shippingAddress: order.shippingAddress,
+            paymentMethod: order.paymentMethod,
+            tax: order.tax,
+            shippingCost: order.shippingCost,
+            discountAmount: order.discountAmount,
+            couponCode: order.couponCode,
+            subtotal: order.subtotal,
+            total: order.total,
+            orderNote: order.orderNote,
+            statusHistory: order.statusHistory,
+            items: itemsScoped,
+            vendorSubtotal,
+            vendorTaxShare,
+            vendorShippingShare,
+            vendorTotalShare,
+        };
+
         // Email customer with only vendor items (no full summary)
         try {
             const u = await User.findById(order.user).select('email name').lean();
             if (u?.email) {
-                const itemsRows = vendorItems.map(it => `<tr><td>${it.name}</td><td>x ${it.quantity}</td><td>₹${Number(it.price||0).toFixed(2)}</td></tr>`).join('');
+                const itemsRows = itemsScoped.map(it => `<tr><td>${it.name}</td><td>x ${it.quantity}</td><td>₹${Number(it.price||0).toFixed(2)}</td></tr>`).join('');
                 const html = await buildEmailHtml({
                     subject: `Your order ${order.orderNumber} is now ${status}`,
                     contentHtml: `<p>Hi ${u?.name || ''},</p><p>Your order <b>${order.orderNumber}</b> status changed to <b>${status}</b>.</p><p>Items from this vendor are listed below.</p>`,
@@ -372,7 +407,7 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
             }
         } catch (_) {}
 
-        res.json({ success: true, data: order });
+        res.json({ success: true, data: responseData });
     } catch (err) {
         console.error('Vendor update status error:', err);
         res.status(500).json({ success: false, message: 'Failed to update status' });
