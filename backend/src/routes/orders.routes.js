@@ -7,7 +7,7 @@ const { authenticate, requireRole, requireAdmin } = require('../middleware/auth'
 const Vendor = require('../models/Vendor');
 
 const router = express.Router();
-const { sendMail } = require('../utils/mailer');
+const { sendMail, buildEmailHtml } = require('../utils/mailer');
 const { validateAndComputeCoupon } = require('../utils/coupons');
 
 // Helper to compute totals
@@ -120,11 +120,11 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			const to = u?.email;
 			if (to) {
 				const itemsHtml = (items || []).map(it => `<li>${it.name} x ${it.quantity} — ₹${Number(it.price||0).toFixed(2)}</li>`).join('');
-				await sendMail({
-					to,
+				const html = await buildEmailHtml({
 					subject: `Order Placed - ${orderNumber}`,
-					html: `<p>Hi ${u?.name || ''},</p><p>Thanks for your order <b>${orderNumber}</b>.</p><ul>${itemsHtml}</ul><p>Total: <b>₹${total.toFixed(2)}</b></p>`
+					contentHtml: `<p>Hi ${u?.name || ''},</p><p>Thanks for your order <b>${orderNumber}</b>.</p><ul>${itemsHtml}</ul><p>Total: <b>₹${total.toFixed(2)}</b></p>`
 				});
+				await sendMail({ to, subject: `Order Placed - ${orderNumber}`, html });
 			}
 		} catch (_) {}
 		res.status(201).json({ success: true, data: order });
@@ -205,11 +205,11 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 		try {
 			const u = await User.findById(order.user).select('email name').lean();
 			if (u?.email) {
-				await sendMail({
-					to: u.email,
+				const html = await buildEmailHtml({
 					subject: `Your order ${order.orderNumber} is now ${status}`,
-					html: `<p>Hi ${u?.name || ''},</p><p>Your order <b>${order.orderNumber}</b> status changed to <b>${status}</b>.</p>`
+					contentHtml: `<p>Hi ${u?.name || ''},</p><p>Your order <b>${order.orderNumber}</b> status changed to <b>${status}</b>.</p>`
 				});
+				await sendMail({ to: u.email, subject: `Your order ${order.orderNumber} is now ${status}`, html });
 			}
 		} catch (_) {}
 		res.json({ success: true, data: order });

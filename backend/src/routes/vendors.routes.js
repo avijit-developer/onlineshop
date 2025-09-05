@@ -5,7 +5,7 @@ const Vendor = require('../models/Vendor');
 const router = express.Router();
 const VendorUser = require('../models/VendorUser');
 const bcrypt = require('bcryptjs');
-const { sendMail } = require('../utils/mailer');
+const { sendMail, buildEmailHtml } = require('../utils/mailer');
 // Public: customer can submit vendor application (creates pending vendor)
 router.post('/apply', authenticate, async (req, res) => {
   try {
@@ -119,11 +119,11 @@ router.post('/apply', authenticate, async (req, res) => {
 
     // Notify vendor user via email (best-effort)
     try {
-      await sendMail({
-        to: applicantEmail,
+      const html = await buildEmailHtml({
         subject: 'Vendor Registration Received',
-        html: `<p>Hi ${name || 'there'},</p><p>Your vendor registration for <b>${companyName}</b> has been received and is pending approval.</p>`
+        contentHtml: `<p>Hi ${name || 'there'},</p><p>Your vendor registration for <b>${companyName}</b> has been received and is pending approval.</p>`
       });
+      await sendMail({ to: applicantEmail, subject: 'Vendor Registration Received', html });
     } catch (_) {}
 
     res.status(201).json({ success: true, data: created });
