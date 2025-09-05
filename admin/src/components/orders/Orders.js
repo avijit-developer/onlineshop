@@ -663,7 +663,22 @@ const Orders = () => {
                             <div key={vid} className="package-group">
                               <div className="package-header">
                                 <strong>Package {idx + 1}</strong>
-                                <small>{(() => { const v = vendors.find(v => String(v.id) === String(vid)); return v ? (v.name || v.companyName) : ''; })()}</small>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <small>{(() => { const v = vendors.find(v => String(v.id) === String(vid)); return v ? (v.name || v.companyName) : ''; })()}</small>
+                                  {(() => {
+                                    try {
+                                      const vsMap = selectedOrder.vendorStatuses || {};
+                                      const raw = vsMap[vid] || selectedOrder.status;
+                                      const norm = normalizeStatus(raw);
+                                      const label = norm.charAt(0).toUpperCase() + norm.slice(1);
+                                      return (
+                                        <span className={`status-badge ${getStatusBadgeClass(norm)}`}>
+                                          {label}
+                                        </span>
+                                      );
+                                    } catch (_) { return null; }
+                                  })()}
+                                </div>
                               </div>
                               {byVendor.get(vid).map((item, index) => (
                                 <div key={index} className="order-item">
