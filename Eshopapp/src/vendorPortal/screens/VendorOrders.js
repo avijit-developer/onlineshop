@@ -19,13 +19,12 @@ const VendorOrders = ({ navigation }) => {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('VendorOrderDetails', { orderId: item._id || item.id, order: item })}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={styles.orderId}>#{item.orderNumber || item._id?.slice(-6)}</Text>
-        <Text style={styles.status}>{String(item.status || '').toUpperCase()}</Text>
+        <Text style={styles.status}>{String(item.status || '')}</Text>
       </View>
-      <Text style={styles.amount}>Subtotal: ₹{(item.vendorSubtotal || 0).toFixed(2)}</Text>
-      <Text style={styles.amount}>Commission: ₹{(item.vendorCommission || 0).toFixed(2)}</Text>
-      <Text style={styles.amount}>Net: ₹{(item.vendorNet || 0).toFixed(2)}</Text>
+      <Text style={styles.amount}>Subtotal: ₹{Number(item.vendorSubtotal || 0).toFixed(2)}</Text>
+      <Text style={styles.amount}>Total: ₹{Number(item.vendorTotal || item.vendorTotalShare || 0).toFixed(2)}</Text>
     </TouchableOpacity>
   );
 
