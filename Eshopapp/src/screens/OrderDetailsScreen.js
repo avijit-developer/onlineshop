@@ -100,6 +100,9 @@ const OrderDetailsScreen = ({ route }) => {
   const handleTrackOrder = () => {
     Alert.alert('Order Tracking', `Order ${orderId} is currently ${order.status.toLowerCase()}`);
   };
+  const handleTrackPackage = (pkgLabel, statusText, etaText) => {
+    Alert.alert(`Track ${pkgLabel}`, `${statusText}\n${etaText}`);
+  };
 
   const [contact, setContact] = React.useState({ email: '', phone: '' });
   React.useEffect(() => {
@@ -140,6 +143,38 @@ const OrderDetailsScreen = ({ route }) => {
   const current = freshOrder || order;
   const vendorSummaries = Array.isArray(current.vendorSummaries) ? current.vendorSummaries : [];
   const status = normalizeStatus(current.status);
+  const etaForStatus = (s) => {
+    switch (String(s || '').toLowerCase()) {
+      case 'confirmed': return 'ETA: 3-5 days';
+      case 'processing': return 'ETA: 2-4 days';
+      case 'shipped': return 'ETA: 1-2 days';
+      case 'delivered': return 'Delivered';
+      case 'cancelled': return 'Cancelled';
+      default: return 'ETA: 3-5 days';
+    }
+  };
+  let itemGroups = [];
+  if (vendorSummaries.length > 0) {
+    itemGroups = vendorSummaries.map((vs, i) => ({
+      key: String(vs.vendor || i),
+      label: `Package ${i + 1}`,
+      status: normalizeStatus(vs.status),
+      eta: etaForStatus(vs.status),
+      items: Array.isArray(vs.items) ? vs.items : [],
+    }));
+  } else {
+    const map = new Map();
+    (current.items || []).forEach((it) => {
+      const vid = String(it.vendor || 'unknown');
+      if (!map.has(vid)) map.set(vid, []);
+      map.get(vid).push(it);
+    });
+    let idx = 0;
+    for (const [vid, items] of map.entries()) {
+      idx += 1;
+      itemGroups.push({ key: vid, label: `Package ${idx}`, status: status, eta: etaForStatus(status), items });
+    }
+  }
   const orderProgress = [
     { step: 'Order Placed', completed: true, date: current.createdAt ? new Date(current.createdAt).toLocaleDateString() : '' },
     { step: 'Confirmed', completed: ['Confirmed','Processing','Shipped','Delivered'].includes(status), date: status === 'Confirmed' ? 'Current' : '' },
@@ -174,105 +209,91 @@ const OrderDetailsScreen = ({ route }) => {
           <Text style={styles.orderDate}>Placed on {current.createdAt ? new Date(current.createdAt).toLocaleDateString() : ''}</Text>
         </View>
 
-        {/* Order Progress */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Progress</Text>
-          <View style={styles.progressContainer}>
-            {orderProgress.map((step, index) => (
-              <View key={index} style={styles.progressStep}>
-                <View style={styles.progressLine}>
-                  <View style={[
-                    styles.progressDot,
-                    step.completed && styles.completedDot
-                  ]}>
-                    {step.completed && (
-                      <Icon name="checkmark" size={12} color="#fff" />
+        {/* Order Progress (single-vendor only) */}
+        {itemGroups.length === 1 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Order Progress</Text>
+            <View style={styles.progressContainer}>
+              {orderProgress.map((step, index) => (
+                <View key={index} style={styles.progressStep}>
+                  <View style={styles.progressLine}>
+                    <View style={[
+                      styles.progressDot,
+                      step.completed && styles.completedDot
+                    ]}>
+                      {step.completed && (
+                        <Icon name="checkmark" size={12} color="#fff" />
+                      )}
+                    </View>
+                    {index < orderProgress.length - 1 && (
+                      <View style={[
+                        styles.progressConnector,
+                        step.completed && styles.completedConnector
+                      ]} />
                     )}
                   </View>
-                  {index < orderProgress.length - 1 && (
-                    <View style={[
-                      styles.progressConnector,
-                      step.completed && styles.completedConnector
-                    ]} />
-                  )}
-                </View>
-                <View style={styles.progressContent}>
-                  <Text style={[
-                    styles.progressStepText,
-                    step.completed && styles.completedStepText
-                  ]}>
-                    {step.step}
-                  </Text>
-                  {step.date && (
-                    <Text style={styles.progressDate}>{step.date}</Text>
-                  )}
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Per-vendor status breakdown (for multi-vendor clarity) */}
-        {vendorSummaries.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vendor Status</Text>
-            {vendorSummaries.map((vs, idx) => (
-              <View key={idx} style={{ backgroundColor: '#f9f9f9', borderRadius: 12, padding: 12, marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontWeight: '700', color: '#333' }}>{vs.vendorName || 'Vendor'}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(vs.status && vs.status[0] ? vs.status : vs.status) }]}>
-                    <Icon name={getStatusIcon(vs.status)} size={14} color="#fff" />
-                    <Text style={[styles.statusText, { marginLeft: 6 }]}>{String(vs.status || '').charAt(0).toUpperCase() + String(vs.status || '').slice(1)}</Text>
+                  <View style={styles.progressContent}>
+                    <Text style={[
+                      styles.progressStepText,
+                      step.completed && styles.completedStepText
+                    ]}>
+                      {step.step}
+                    </Text>
+                    {step.date && (
+                      <Text style={styles.progressDate}>{step.date}</Text>
+                    )}
                   </View>
                 </View>
-                <View style={{ height: 8 }} />
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#666' }}>Subtotal</Text>
-                  <Text style={{ color: '#333', fontWeight: '600' }}>₹{Number(vs.vendorSubtotal || 0).toFixed(2)}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#666' }}>Tax Share</Text>
-                  <Text style={{ color: '#333', fontWeight: '600' }}>₹{Number(vs.vendorTax || 0).toFixed(2)}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#666' }}>Shipping Share</Text>
-                  <Text style={{ color: '#333', fontWeight: '600' }}>₹{Number(vs.vendorShipping || 0).toFixed(2)}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 6 }}>
-                  <Text style={{ color: '#333', fontWeight: '700' }}>Vendor Total</Text>
-                  <Text style={{ color: '#111827', fontWeight: '800' }}>₹{Number(vs.vendorTotal || (Number(vs.vendorSubtotal||0)+Number(vs.vendorTax||0)+Number(vs.vendorShipping||0))).toFixed(2)}</Text>
-                </View>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         )}
 
-        {/* Order Items */}
+        {/* Packages grouped by vendor (no vendor names) */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Items ({current.items.length})</Text>
-          {current.items.map((it, idx) => {
-            const attrs = it.selectedAttributes && typeof it.selectedAttributes === 'object' ? it.selectedAttributes : null;
-            const attrEntries = attrs ? Object.entries(attrs) : [];
-            return (
-              <View key={idx} style={styles.orderItem}>
-                <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
-                  {!!it.sku && <Text style={styles.itemVariant}>SKU: {it.sku}</Text>}
-                  {attrEntries.length > 0 && (
-                    <View style={{ marginTop: 2 }}>
-                      {attrEntries.map(([k, v]) => (
-                        <Text key={k} style={styles.itemVariant}>{k}: {String(v)}</Text>
-                      ))}
-                    </View>
-                  )}
-                  <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
+          {itemGroups.map((grp, gidx) => (
+            <View key={grp.key || gidx} style={{ marginBottom: 16 }}>
+              <View style={styles.packageHeader}>
+                <Text style={styles.packageTitle}>{grp.label}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(grp.status) }]}>
+                    <Icon name={getStatusIcon(grp.status)} size={14} color="#fff" />
+                    <Text style={[styles.statusText, { marginLeft: 6 }]}>{grp.status}</Text>
+                  </View>
+                  <Text style={styles.etaText}>{grp.eta}</Text>
+                  <TouchableOpacity style={styles.trackChip} onPress={() => handleTrackPackage(grp.label, `Status: ${grp.status}`, grp.eta)}>
+                    <Icon name="navigate-outline" size={14} color="#f7ab18" />
+                    <Text style={styles.trackChipText}>Track</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.itemPrice}>₹{Number(it.price || 0).toFixed(2)}</Text>
               </View>
-            );
-          })}
+              {grp.items.map((it, idx) => {
+                const attrs = it.selectedAttributes && typeof it.selectedAttributes === 'object' ? it.selectedAttributes : null;
+                const attrEntries = attrs ? Object.entries(attrs) : [];
+                return (
+                  <View key={idx} style={styles.orderItem}>
+                    <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
+                      {!!it.sku && <Text style={styles.itemVariant}>SKU: {it.sku}</Text>}
+                      {attrEntries.length > 0 && (
+                        <View style={{ marginTop: 2 }}>
+                          {attrEntries.map(([k, v]) => (
+                            <Text key={k} style={styles.itemVariant}>{k}: {String(v)}</Text>
+                          ))}
+                        </View>
+                      )}
+                      <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
+                    </View>
+                    <Text style={styles.itemPrice}>₹{Number(it.price || 0).toFixed(2)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          ))}
         </View>
+
 
         {/* Shipping Address */}
         <View style={styles.section}>
@@ -591,6 +612,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  packageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  packageTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333',
+  },
+  etaText: {
+    marginLeft: 10,
+    color: '#666',
+    fontSize: 12,
+  },
+  trackChip: {
+    marginLeft: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f7ab18',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#fff',
+    marginLeft: 10,
+  },
+  trackChipText: {
+    color: '#f7ab18',
+    fontWeight: '700',
+    fontSize: 12,
+    marginLeft: 6,
   },
   notFoundContainer: {
     flex: 1,
