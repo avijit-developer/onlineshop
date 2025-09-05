@@ -111,9 +111,21 @@ const styles = StyleSheet.create({
   seeAll: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   seeAllText: { fontSize: 14, color: '#FFA726', fontWeight: '500' },
   loadingContainer: { height: 120, justifyContent: 'center', alignItems: 'center' },
-  card: { width: 160, borderRadius: 8, backgroundColor: '#fff', overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
+  card: { 
+    width: 160, 
+    borderRadius: 8, 
+    backgroundColor: '#fff', 
+    overflow: 'hidden', 
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    elevation: 1, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.03, 
+    shadowRadius: 2 
+  },
   image: { width: '100%', height: 120, resizeMode: 'cover' },
-  cardFooter: { padding: 8 },
+  cardFooter: { padding: 8, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   name: { fontSize: 13, color: '#333', marginBottom: 4 },
   price: { fontSize: 14, fontWeight: '700', color: '#FFA726' },
 });
