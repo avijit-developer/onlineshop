@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
   const [step, setStep] = useState('email'); // email | otp
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
 
   const isValidEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,10 +43,39 @@ const ForgotPasswordScreen = ({ navigation }) => {
     try {
       await api.forgotPassword(email.trim());
       setStep('otp');
+      setResendCooldown(30);
     } catch (e) {
       Alert.alert('Error', e.message || 'Failed to send OTP');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (step !== 'otp') return;
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, resendCooldown]);
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isResending) return;
+    setIsResending(true);
+    try {
+      await api.forgotPassword(email.trim());
+      setResendCooldown(30);
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Failed to resend OTP');
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -70,11 +102,21 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
   if (step === 'otp') {
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
+          <TouchableOpacity
+            style={styles.backTop}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backArrowText}>←</Text>
+          </TouchableOpacity>
           <View style={styles.formContainer}>
             <Text style={styles.title}>Verify OTP</Text>
             <Text style={styles.subtitle}>Enter the code sent to {email}</Text>
@@ -93,16 +135,21 @@ const ForgotPasswordScreen = ({ navigation }) => {
             </View>
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>New Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter new password"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                secureTextEntry
-              />
+              <View style={styles.passwordWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter new password"
+                  placeholderTextColor="#999"
+                  value={password}
+                  onChangeText={setPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
+                  <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <TouchableOpacity
               style={[styles.resetButton, isLoading && styles.disabledButton]}
@@ -113,15 +160,20 @@ const ForgotPasswordScreen = ({ navigation }) => {
                 {isLoading ? 'Updating...' : 'Reset Password'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => setStep('email')}
-            >
-              <Text style={styles.backButtonText}>Change Email</Text>
-            </TouchableOpacity>
+            {resendCooldown > 0 ? (
+              <Text style={styles.countdownText}>Resend OTP in {resendCooldown}s</Text>
+            ) : (
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={handleResendOtp}
+                disabled={isResending}
+              >
+                <Text style={styles.resendButtonText}>{isResending ? 'Sending...' : 'Resend OTP'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -133,6 +185,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <TouchableOpacity
           style={styles.backTop}
@@ -354,6 +407,26 @@ const styles = StyleSheet.create({
     color: '#4A90E2',
     fontSize: 16,
     fontWeight: '600',
+  },
+  countdownText: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  passwordWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeText: {
+    fontSize: 16,
   },
   backButton: {
     backgroundColor: 'transparent',
