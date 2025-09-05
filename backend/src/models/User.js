@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema(
     avatarPublicId: { type: String, trim: true },
     // Optional password hash enables customer login when present
     passwordHash: { type: String },
+    resetOtp: { type: String, default: '' },
+    resetOtpExpiresAt: { type: Date, default: null },
     isActive: { type: Boolean, default: true },
     // Address management
     addresses: [{

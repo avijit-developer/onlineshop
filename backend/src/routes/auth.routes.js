@@ -6,6 +6,7 @@ const VendorUser = require('../models/VendorUser');
 const Vendor = require('../models/Vendor');
 const User = require('../models/User');
 const { authenticate, requireAdmin } = require('../middleware/auth');
+const { sendMail, buildEmailHtml } = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -137,6 +138,65 @@ router.post('/login', async (req, res) => {
     } 
   });
 });
+
+// START OTP RESET (admin + customer)
+function generateOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email || !isValidEmail(email)) { res.status(400); throw new Error('Valid email is required'); }
+  const normalizedEmail = String(email).trim().toLowerCase();
+  // search admin first, then customer
+  let user = await Admin.findOne({ email: normalizedEmail });
+  let userType = 'admin';
+  if (!user) { user = await User.findOne({ email: normalizedEmail }); userType = 'customer'; }
+  if (!user) { res.status(404); throw new Error('No account found with this email'); }
+  const otp = generateOtp();
+  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  user.resetOtp = otp;
+  user.resetOtpExpiresAt = expires;
+  await user.save();
+  try {
+    const html = await buildEmailHtml({ subject: 'Your OTP Code', contentHtml: `<p>Your OTP is <b>${otp}</b>. It expires in 10 minutes.</p>` });
+    await sendMail({ to: normalizedEmail, subject: 'OTP Verification', html });
+  } catch (_) {}
+  res.json({ success: true });
+});
+
+router.post('/verify-otp', async (req, res) => {
+  const { email, otp } = req.body || {};
+  if (!email || !otp) { res.status(400); throw new Error('email and otp are required'); }
+  const normalizedEmail = String(email).trim().toLowerCase();
+  let user = await Admin.findOne({ email: normalizedEmail });
+  let userType = 'admin';
+  if (!user) { user = await User.findOne({ email: normalizedEmail }); userType = 'customer'; }
+  if (!user || !user.resetOtp || !user.resetOtpExpiresAt) { res.status(400); throw new Error('OTP not requested'); }
+  if (String(user.resetOtp) !== String(otp)) { res.status(400); throw new Error('Invalid OTP'); }
+  if (new Date(user.resetOtpExpiresAt) < new Date()) { res.status(400); throw new Error('OTP expired'); }
+  res.json({ success: true });
+});
+
+router.post('/reset-password', async (req, res) => {
+  const { email, otp, newPassword } = req.body || {};
+  if (!email || !otp || !newPassword) { res.status(400); throw new Error('email, otp and newPassword are required'); }
+  if (String(newPassword).length < 6) { res.status(400); throw new Error('Password must be at least 6 characters'); }
+  const normalizedEmail = String(email).trim().toLowerCase();
+  let user = await Admin.findOne({ email: normalizedEmail });
+  let isAdmin = true;
+  if (!user) { user = await User.findOne({ email: normalizedEmail }); isAdmin = false; }
+  if (!user || !user.resetOtp || !user.resetOtpExpiresAt) { res.status(400); throw new Error('OTP not requested'); }
+  if (String(user.resetOtp) !== String(otp)) { res.status(400); throw new Error('Invalid OTP'); }
+  if (new Date(user.resetOtpExpiresAt) < new Date()) { res.status(400); throw new Error('OTP expired'); }
+  const hash = await bcrypt.hash(String(newPassword), 10);
+  user.passwordHash = hash;
+  user.resetOtp = '';
+  user.resetOtpExpiresAt = null;
+  await user.save();
+  res.json({ success: true });
+});
+// END OTP RESET
 
 // Public customer registration
 router.post('/register', async (req, res) => {

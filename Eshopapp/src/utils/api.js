@@ -157,6 +157,14 @@ const api = {
     });
   },
 
+  // OTP-based password reset
+  async resetPasswordOtp(email, otp, newPassword) {
+    return this.request('/api/v1/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, newPassword }),
+    });
+  },
+
   async getProfile(token) {
     return this.request('/api/v1/auth/me', {
       headers: {
