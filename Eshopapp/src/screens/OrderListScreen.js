@@ -84,33 +84,9 @@ const OrderListScreen = () => {
     return 'Partially Processing';
   };
 
-  // Expand multi-vendor orders into per-vendor rows for clarity
-  const expandOrders = (src) => {
-    const out = [];
-    for (const o of (src || [])) {
-      const summaries = Array.isArray(o.vendorSummaries) ? o.vendorSummaries : [];
-      if (summaries.length > 1) {
-        let idx = 0;
-        for (const vs of summaries) {
-          idx += 1;
-          out.push({
-            ...o,
-            _id: `${o._id || o.id}-v${idx}`,
-            items: vs.items || [],
-            status: normalizeStatus(vs.status || o.status),
-            packageLabel: `Package ${idx}`,
-          });
-        }
-      } else {
-        out.push(o);
-      }
-    }
-    return out;
-  };
-
-  const filteredOrders = expandOrders(selectedFilter === 'all'
+  const filteredOrders = selectedFilter === 'all'
     ? orders
-    : orders.filter(order => normalizeStatus(order.status) === selectedFilter));
+    : orders.filter(order => normalizeStatus(order.status) === selectedFilter);
 
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity
@@ -120,21 +96,19 @@ const OrderListScreen = () => {
     >
       {/* Header */}
       <View style={styles.orderHeader}>
-        <Text style={styles.orderId}>#{item.orderNumber || (item._id || item.id)} {item.packageLabel ? `• ${item.packageLabel}` : ''}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
-          <Text style={styles.statusText}>{item.status}</Text>
-        </View>
+        <Text style={styles.orderId}>#{item.orderNumber || (item._id || item.id)}</Text>
+        {(() => {
+          const displayStatus = (Array.isArray(item.vendorSummaries) && item.vendorSummaries.length > 1)
+            ? aggregateMultiVendorStatus(item)
+            : normalizeStatus(item.status);
+          return (
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(displayStatus) }]}>
+              <Icon name={getStatusIcon(displayStatus)} size={12} color="#fff" />
+              <Text style={styles.statusText}>{displayStatus}</Text>
+            </View>
+          );
+        })()}
       </View>
-
-      {/* Aggregated status hint for multi-vendor orders */}
-      {Array.isArray(item.vendorSummaries) && item.vendorSummaries.length > 1 && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 }}>
-          <View style={{ backgroundColor: '#f5f5f5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-            <Text style={{ color: '#666', fontSize: 11 }}>{aggregateMultiVendorStatus(item)}</Text>
-          </View>
-        </View>
-      )}
 
       {/* Meta row */}
       <View style={styles.metaRow}>
