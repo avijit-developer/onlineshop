@@ -20,6 +20,8 @@ const VendorApplyScreen = ({ navigation }) => {
 		vendorUserPassword: ''
 	});
 	const [submitting, setSubmitting] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+	const [showPw, setShowPw] = useState(false);
 
 	const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -35,7 +37,7 @@ const VendorApplyScreen = ({ navigation }) => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					...(token ? { 'Authorization': `Bearer ${token}` } : {})
+					// Public endpoint now; do not require token
 				},
 				body: JSON.stringify(form)
 			});
@@ -129,7 +131,12 @@ const VendorApplyScreen = ({ navigation }) => {
 							</View>
 							<View style={styles.formGroup}>
 								<Text style={styles.label}>New Vendor User Password *</Text>
-								<TextInput style={styles.input} value={form.vendorUserPassword} onChangeText={v => update('vendorUserPassword', v)} placeholder="Minimum 8 characters" secureTextEntry />
+								<View style={{ position: 'relative' }}>
+									<TextInput style={[styles.input, { paddingRight: 42, color: '#000' }]} value={form.vendorUserPassword} onChangeText={v => update('vendorUserPassword', v)} placeholder="Minimum 8 characters" placeholderTextColor="#777" secureTextEntry={!showPw} />
+									<TouchableOpacity onPress={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 12, height: 40, top: '50%', marginTop: -20, justifyContent: 'center' }}>
+										<Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+									</TouchableOpacity>
+								</View>
 							</View>
 						</>
 					)}
