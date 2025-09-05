@@ -145,6 +145,18 @@ const OrderDetailsScreen = ({ route }) => {
   const current = freshOrder || order;
   const vendorSummaries = Array.isArray(current.vendorSummaries) ? current.vendorSummaries : [];
   const status = normalizeStatus(current.status);
+  const aggregateMultiVendorStatus = (o) => {
+    const summaries = Array.isArray(o?.vendorSummaries) ? o.vendorSummaries : [];
+    if (summaries.length <= 1) return normalizeStatus(o?.status);
+    const statuses = Array.from(new Set(summaries.map(vs => normalizeStatus(vs.status || o.status))));
+    if (statuses.length === 1) return statuses[0];
+    const precedence = ['Cancelled','Delivered','Shipped','Processing','Confirmed','Pending'];
+    for (const st of precedence) {
+      if (statuses.includes(st)) return `Partially ${st}`;
+    }
+    return 'Partially Processing';
+  };
+  const displayStatus = vendorSummaries.length > 1 ? aggregateMultiVendorStatus(current) : status;
   const etaForStatus = (s) => {
     switch (String(s || '').toLowerCase()) {
       case 'confirmed': return 'ETA: 3-5 days';
@@ -202,9 +214,9 @@ const OrderDetailsScreen = ({ route }) => {
         {/* Order Status */}
         <View style={styles.statusCard}>
           <View style={styles.statusHeader}>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) }]}>
-              <Icon name={getStatusIcon(status)} size={16} color="#fff" />
-              <Text style={styles.statusText}>{status}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(displayStatus) }]}>
+              <Icon name={getStatusIcon(displayStatus)} size={16} color="#fff" />
+              <Text style={styles.statusText}>{displayStatus}</Text>
             </View>
             <Text style={styles.orderId}>#{current.orderNumber || (current._id || current.id)}</Text>
           </View>
