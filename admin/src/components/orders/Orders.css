@@ -269,6 +269,8 @@
 .order-details .order-sections .section { margin-bottom: 20px; }
 .order-details .order-items .order-item { padding: 10px; border-bottom: 1px solid #eee; }
 .order-details .order-items .order-item img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; }
+.order-details .order-items .package-group { border: 1px solid #eee; border-radius: 10px; margin-bottom: 12px; background: #fafafa; }
+.order-details .order-items .package-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f5f7fb; border-bottom: 1px solid #eee; border-top-left-radius: 10px; border-top-right-radius: 10px; }
 .order-details .order-summary .summary-row { display: flex; justify-content: space-between; margin: 6px 0; }
 .order-details .order-summary .total { font-weight: 700; border-top: 1px solid #ddd; padding-top: 8px; }
 

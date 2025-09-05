@@ -628,22 +628,62 @@ const Orders = () => {
 
                   <div className="section">
                     <h3>Order Items</h3>
-                    <div className="order-items">
-                      {selectedOrder.items.map((item, index) => (
-                        <div key={index} className="order-item">
-                          <img src={item.image || '/default-product.png'} alt={item.name} />
-                          <div className="item-details">
-                            <h4>{item.name}</h4>
-                            <p>SKU: {item.sku}</p>
-                            <p>Quantity: {item.quantity}</p>
-                            <p>Price: ${item.price}</p>
+                    {(() => {
+                      const items = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
+                      const byVendor = new Map();
+                      items.forEach(it => {
+                        const vid = String(it.vendor || 'unknown');
+                        if (!byVendor.has(vid)) byVendor.set(vid, []);
+                        byVendor.get(vid).push(it);
+                      });
+                      const vendorKeys = Array.from(byVendor.keys());
+                      if (vendorKeys.length <= 1) {
+                        return (
+                          <div className="order-items">
+                            {items.map((item, index) => (
+                              <div key={index} className="order-item">
+                                <img src={item.image || '/default-product.png'} alt={item.name} />
+                                <div className="item-details">
+                                  <h4>{item.name}</h4>
+                                  <p>SKU: {item.sku}</p>
+                                  <p>Quantity: {item.quantity}</p>
+                                  <p>Price: ${item.price}</p>
+                                </div>
+                                <div className="item-total">
+                                  ${(item.price * item.quantity).toFixed(2)}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <div className="item-total">
-                            ${(item.price * item.quantity).toFixed(2)}
-                          </div>
+                        );
+                      }
+                      return (
+                        <div className="order-items">
+                          {vendorKeys.map((vid, idx) => (
+                            <div key={vid} className="package-group">
+                              <div className="package-header">
+                                <strong>Package {idx + 1}</strong>
+                                <small>{(() => { const v = vendors.find(v => String(v.id) === String(vid)); return v ? (v.name || v.companyName) : ''; })()}</small>
+                              </div>
+                              {byVendor.get(vid).map((item, index) => (
+                                <div key={index} className="order-item">
+                                  <img src={item.image || '/default-product.png'} alt={item.name} />
+                                  <div className="item-details">
+                                    <h4>{item.name}</h4>
+                                    <p>SKU: {item.sku}</p>
+                                    <p>Quantity: {item.quantity}</p>
+                                    <p>Price: ${item.price}</p>
+                                  </div>
+                                  <div className="item-total">
+                                    ${(item.price * item.quantity).toFixed(2)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="section">
