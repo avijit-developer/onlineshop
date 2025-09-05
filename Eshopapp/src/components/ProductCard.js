@@ -74,7 +74,19 @@ const ProductCard = ({ item }) => {
   const specialPriceNum = toNumber(item.specialPrice ?? item.price);
   const hasDiscount = (regularPriceNum > 0 && specialPriceNum > 0 && specialPriceNum < regularPriceNum);
   const discountPercent = hasDiscount ? Math.round(100 - (specialPriceNum / regularPriceNum) * 100) : 0;
-  const tags = Array.isArray(item.tags) ? item.tags.slice(0, 2) : [];
+  const normalizeTags = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) {
+      // Array of strings or objects
+      return val.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean);
+    }
+    if (typeof val === 'string') {
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
+  const tags = normalizeTags(item.tags || item.labels || item.badges || item.tag);
+  const tagsLimited = tags.slice(0, 2);
 
   return (
     <View style={styles.card}>
@@ -82,9 +94,9 @@ const ProductCard = ({ item }) => {
         <Image source={{ uri: item.image }} style={styles.image} />
 
         {/* Top-left tags ribbon(s) */}
-        {tags.length > 0 && (
+        {tagsLimited.length > 0 && (
           <View style={styles.tagsContainer}>
-            {tags.map((t, idx) => (
+            {tagsLimited.map((t, idx) => (
               <View key={`${t}-${idx}`} style={[styles.tagRibbon, idx > 0 && { marginTop: 4 }]}> 
                 <Text style={styles.tagRibbonText} numberOfLines={1}>{String(t)}</Text>
               </View>
@@ -104,8 +116,10 @@ const ProductCard = ({ item }) => {
           />
         </TouchableOpacity>
         {hasDiscount && (
-          <View style={styles.discountRibbon}>
-            <Text style={styles.discountText}>-{discountPercent}%</Text>
+          <View style={styles.discountCornerContainer}>
+            <View style={styles.discountCorner}>
+              <Text style={styles.discountCornerText}>-{discountPercent}%</Text>
+            </View>
           </View>
         )}
       </TouchableOpacity>
@@ -208,20 +222,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e53935',
   },
-  discountRibbon: {
-    position: 'absolute',
-    top: 8,
-    right: 46,
-    backgroundColor: '#e53935',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 4,
-  },
-  discountText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  discountCornerContainer: { position: 'absolute', top: -6, right: -24, zIndex: 10 },
+  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 30, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
+  discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
   name: {
     marginTop: 8,
     fontSize: 14,

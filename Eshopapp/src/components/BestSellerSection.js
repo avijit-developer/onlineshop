@@ -42,6 +42,16 @@ const BestSellerSection = ({ navigation }) => {
           style={styles.image}
           defaultSource={require('../assets/Placeholder_01.png')}
         />
+        {/* Tags */}
+        {Array.isArray(item.tags) && item.tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {item.tags.slice(0,2).map((t, idx) => (
+              <View key={`${t}-${idx}`} style={[styles.tagRibbon, idx > 0 && { marginTop: 4 }]}> 
+                <Text style={styles.tagRibbonText} numberOfLines={1}>{String(t)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
         <View style={styles.cardFooter}>
           <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
           {sectionConfig?.settings?.showPrice && (
@@ -55,6 +65,15 @@ const BestSellerSection = ({ navigation }) => {
             )
           )}
         </View>
+        {(() => {
+          const rp = Number(item.regularPrice || 0);
+          const sp = Number(item.specialPrice ?? (item.price ?? 0));
+          const show = rp > 0 && sp > 0 && sp < rp;
+          const pct = show ? Math.round(100 - (sp / rp) * 100) : 0;
+          return show ? (
+            <View style={styles.discountCornerContainer}><View style={styles.discountCorner}><Text style={styles.discountCornerText}>-{pct}%</Text></View></View>
+          ) : null;
+        })()}
       </TouchableOpacity>
     );
   };
@@ -125,9 +144,15 @@ const styles = StyleSheet.create({
     shadowRadius: 2 
   },
   image: { width: '100%', height: 120, resizeMode: 'cover' },
+  tagsContainer: { position: 'absolute', top: 8, left: 8 },
+  tagRibbon: { backgroundColor: '#2e7d32', paddingVertical: 2, paddingHorizontal: 6, borderTopRightRadius: 6, borderBottomRightRadius: 6, maxWidth: 100 },
+  tagRibbonText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   cardFooter: { padding: 8, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   name: { fontSize: 13, color: '#333', marginBottom: 4 },
   price: { fontSize: 14, fontWeight: '700', color: '#FFA726' },
+  discountCornerContainer: { position: 'absolute', top: -6, right: -24, zIndex: 10 },
+  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 30, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
+  discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
 });
 
 export default BestSellerSection;

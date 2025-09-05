@@ -169,7 +169,7 @@ const MostPopularSection = ({ navigation }) => {
           const show = rp > 0 && sp > 0 && sp < rp;
           const pct = show ? Math.round(100 - (sp / rp) * 100) : 0;
           return show ? (
-            <View style={styles.discountRibbon}><Text style={styles.discountText}>-{pct}%</Text></View>
+            <View style={styles.discountCornerContainer}><View style={styles.discountCorner}><Text style={styles.discountCornerText}>-{pct}%</Text></View></View>
           ) : null;
         })()}
         <View style={styles.cardBody}>
@@ -303,8 +303,9 @@ const styles = StyleSheet.create({
   priceRow: { },
   price: { fontSize: 14, fontWeight: '700', color: '#f7ab18' },
   oldPrice: { fontSize: 12, color: '#888', textDecorationLine: 'line-through' },
-  discountRibbon: { position: 'absolute', top: 8, right: 8, backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 },
-  discountText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  discountCornerContainer: { position: 'absolute', top: -6, right: -24, zIndex: 10 },
+  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 30, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
+  discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
