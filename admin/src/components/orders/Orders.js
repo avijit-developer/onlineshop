@@ -50,6 +50,40 @@ const Orders = () => {
     return { Authorization: token ? `Bearer ${token}` : '' };
   };
 
+  // Normalize various backend statuses into a small set
+  const normalizeStatus = (s) => {
+    const v = String(s || '').toLowerCase();
+    if (['cancelled','canceled'].includes(v)) return 'cancelled';
+    if (['delivered','completed'].includes(v)) return 'delivered';
+    if (['shipped','out_for_delivery','out-for-delivery','dispatched','in_transit'].includes(v)) return 'shipped';
+    if (['confirmed'].includes(v)) return 'confirmed';
+    if (['processing','packed','pending'].includes(v)) return 'processing';
+    return v || 'processing';
+  };
+
+  // Aggregate per-vendor statuses into a single display status
+  const aggregateMultiVendorStatus = (order) => {
+    try {
+      const vendorIds = Array.from(new Set((order.items || []).map(i => String(i.vendor)).filter(Boolean)));
+      if (vendorIds.length <= 1) return String(order.status || 'pending');
+      // Collect vendor-specific statuses if provided; fallback to global
+      const vsMap = order.vendorStatuses || {};
+      const statuses = vendorIds.map(vid => normalizeStatus(vsMap[vid] || order.status));
+      const unique = Array.from(new Set(statuses));
+      if (unique.length === 1) return unique[0].charAt(0).toUpperCase() + unique[0].slice(1);
+      const precedence = ['cancelled','delivered','shipped','processing','confirmed','pending'];
+      for (const st of precedence) {
+        if (unique.includes(st)) {
+          const label = st.charAt(0).toUpperCase() + st.slice(1);
+          return `Partially ${label}`;
+        }
+      }
+      return 'Partially Processing';
+    } catch (_) {
+      return String(order.status || 'Pending');
+    }
+  };
+
   useEffect(() => {
     filterOrders();
   }, [orders, searchTerm, statusFilter, dateFrom, dateTo, emailFilter, vendorFilter]);
@@ -467,7 +501,10 @@ const Orders = () => {
                 </td>
                 <td>
                   <span className={`status-badge ${getStatusBadgeClass(order.status)}`}>
-                    {order.status}
+                    {(() => {
+                      const vendorCount = Array.from(new Set((order.items || []).map(i => String(i.vendor)).filter(Boolean))).length;
+                      return vendorCount > 1 ? aggregateMultiVendorStatus(order) : order.status;
+                    })()}
                   </span>
                 </td>
                 <td>
@@ -555,7 +592,10 @@ const Orders = () => {
                 <div className="order-header">
                   <div className="order-status">
                     <span className={`status-badge ${getStatusBadgeClass(selectedOrder.status)}`}>
-                      {selectedOrder.status}
+                      {(() => {
+                        const vendorCount = Array.from(new Set((selectedOrder.items || []).map(i => String(i.vendor)).filter(Boolean))).length;
+                        return vendorCount > 1 ? aggregateMultiVendorStatus(selectedOrder) : selectedOrder.status;
+                      })()}
                     </span>
                     <span className="order-date">
                       {new Date(selectedOrder.createdAt).toLocaleString()}
