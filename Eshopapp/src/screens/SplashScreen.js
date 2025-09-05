@@ -10,6 +10,7 @@ import {
 import api from '../utils/api';
 import { Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import pkg from '../../package.json';
 
 const { width, height } = Dimensions.get('window');
 
@@ -49,7 +50,7 @@ const SplashScreen = ({ navigation }) => {
         try {
           const res = await api.getShippingSettings();
           const minAppVersion = res?.data?.minAppVersion || '';
-          const current = '0.0.1';
+          const current = (pkg && pkg.version) ? String(pkg.version) : '0.0.0';
           if (minAppVersion && compareSemver(current, minAppVersion) < 0) {
             Alert.alert(
               'Update Required',
