@@ -43,15 +43,20 @@ const BestSellerSection = ({ navigation }) => {
           defaultSource={require('../assets/Placeholder_01.png')}
         />
         {/* Tags */}
-        {Array.isArray(item.tags) && item.tags.length > 0 && (
+        {(() => {
+          const tags = Array.isArray(item.tags)
+            ? item.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
+            : (typeof item.tags === 'string' ? item.tags.split(',').map(s => s.trim()).filter(Boolean) : []);
+          return tags.length > 0 ? (
           <View style={styles.tagsContainer}>
-            {item.tags.slice(0,2).map((t, idx) => (
+            {tags.slice(0,2).map((t, idx) => (
               <View key={`${t}-${idx}`} style={[styles.tagRibbon, idx > 0 && { marginTop: 4 }]}> 
                 <Text style={styles.tagRibbonText} numberOfLines={1}>{String(t)}</Text>
               </View>
             ))}
           </View>
-        )}
+          ) : null;
+        })()}
         <View style={styles.cardFooter}>
           <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
           {sectionConfig?.settings?.showPrice && (
@@ -150,9 +155,9 @@ const styles = StyleSheet.create({
   cardFooter: { padding: 8, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   name: { fontSize: 13, color: '#333', marginBottom: 4 },
   price: { fontSize: 14, fontWeight: '700', color: '#FFA726' },
-  discountCornerContainer: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
-  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 18, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
-  discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  discountCornerContainer: { position: 'absolute', top: 0, right: 0, width: 54, height: 54, overflow: 'hidden', zIndex: 10 },
+  discountCorner: { position: 'absolute', top: 6, right: -18, backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 40, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
+  discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3, textAlign: 'center' },
 });
 
 export default BestSellerSection;

@@ -222,9 +222,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e53935',
   },
-  discountCornerContainer: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
-  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 18, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
-  discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  discountCornerContainer: { position: 'absolute', top: 0, right: 0, width: 54, height: 54, overflow: 'hidden', zIndex: 10 },
+  discountCorner: { position: 'absolute', top: 6, right: -18, backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 40, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
+  discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3, textAlign: 'center' },
   name: {
     marginTop: 8,
     fontSize: 14,
