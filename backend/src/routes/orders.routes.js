@@ -221,6 +221,42 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 				await sendMail({ to: u.email, subject: `Your order ${order.orderNumber} is now ${status}`, html });
 			}
 		} catch (_) {}
+		// Notify vendor users with only their items (no order summary)
+		try {
+			const vendorIdsInOrder = Array.from(new Set((order.items || []).map(it => String(it.vendor)).filter(Boolean)));
+			if (vendorIdsInOrder.length) {
+				const VendorUser = require('../models/VendorUser');
+				const vendorUsers = await VendorUser.find({
+					$or: [
+						{ vendor: { $in: vendorIdsInOrder } },
+						{ vendors: { $in: vendorIdsInOrder } }
+					],
+					isActive: true
+				}).select('email name vendor vendors').lean();
+
+				const byVendor = new Map();
+				for (const it of (order.items || [])) {
+					const v = String(it.vendor || '');
+					if (!v) continue;
+					if (!byVendor.has(v)) byVendor.set(v, []);
+					byVendor.get(v).push(it);
+				}
+
+				for (const vu of vendorUsers) {
+					const v = String(vu.vendor || (Array.isArray(vu.vendors) && vu.vendors[0]) || '');
+					if (!v) continue;
+					const its = byVendor.get(v) || [];
+					if (!vu.email || its.length === 0) continue;
+					const itemsRows = its.map(it => `<tr><td>${it.name}</td><td>x ${it.quantity}</td><td>₹${Number(it.price||0).toFixed(2)}</td></tr>`).join('');
+					const html = await buildEmailHtml({
+						subject: `Order ${order.orderNumber} is now ${status}`,
+						contentHtml: `<p>Dear ${vu.name || 'Vendor'},</p><p>Order <b>${order.orderNumber}</b> status changed to <b>${status}</b>.</p><p>Below are the items assigned to you.</p>`,
+						itemsTableHtml: `<thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead><tbody>${itemsRows}</tbody>`
+					});
+					await sendMail({ to: vu.email, subject: `Order ${order.orderNumber} is now ${status}`, html });
+				}
+			}
+		} catch (_) {}
 		res.json({ success: true, data: order });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to update status' });
@@ -264,6 +300,13 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
             const vendorSubtotal = vendorItems.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
             const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
             const vendorNet = vendorSubtotal - vendorCommission;
+            const orderSubtotal = Number(o.subtotal || 0);
+            const taxPercent = Number(o.tax || 0);
+            const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
+            const share = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
+            const vendorTaxShare = orderTaxAmount * share;
+            const vendorShippingShare = Number(o.shippingCost || 0) * share;
+            const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare;
             return {
                 id: o._id,
                 orderNumber: o.orderNumber,
@@ -274,7 +317,10 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                 vendorItemCount: vendorItems.length,
                 vendorSubtotal,
                 vendorCommission,
-                vendorNet
+                vendorNet,
+                vendorTaxShare,
+                vendorShippingShare,
+                vendorTotalShare
             };
         });
 
@@ -306,6 +352,13 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
         const vendorSubtotal = vendorItems.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
         const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
         const vendorNet = vendorSubtotal - vendorCommission;
+        const orderSubtotal = Number(o.subtotal || 0);
+        const taxPercent = Number(o.tax || 0);
+        const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
+        const share = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
+        const vendorTaxShare = orderTaxAmount * share;
+        const vendorShippingShare = Number(o.shippingCost || 0) * share;
+        const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare;
 
         // Fetch vendor info for items involved in this order (usually one)
         const vendorIdsInOrder = Array.from(new Set(vendorItems.map(it => String(it.vendor)).filter(Boolean)));
@@ -342,6 +395,9 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
             vendorSubtotal,
             vendorCommission,
             vendorNet,
+            vendorTaxShare,
+            vendorShippingShare,
+            vendorTotalShare,
             vendorInfo,
             vendors: vendorInfos,
         };
