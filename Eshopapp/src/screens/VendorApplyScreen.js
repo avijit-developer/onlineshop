@@ -20,7 +20,6 @@ const VendorApplyScreen = ({ navigation }) => {
 		vendorUserPassword: ''
 	});
 	const [submitting, setSubmitting] = useState(false);
-  const [showPw, setShowPw] = useState(false);
 	const [showPw, setShowPw] = useState(false);
 
 	const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
@@ -61,7 +60,7 @@ const VendorApplyScreen = ({ navigation }) => {
 				<Text style={styles.title}>Become a Vendor</Text>
 				<View style={{ width: 24 }} />
 			</View>
-			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+			<ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 				<Text style={styles.sectionSubtitle}>Tell us about your business</Text>
 				<View style={styles.formGrid}>
 					<View style={styles.formGroup}> 
