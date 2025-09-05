@@ -321,8 +321,8 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
             return res.status(403).json({ success: false, message: 'Order does not contain your items' });
         }
 
-        order.status = status;
-        order.statusHistory.push({ status, updatedBy: req.user?.email || 'vendor' });
+        // Do not update global order status; only record vendor-specific status
+        order.statusHistory.push({ status: `vendor:${status}`, updatedBy: req.user?.email || 'vendor' });
         // Record vendor-specific status
         try {
             const primaryVendorId = vendorIds[0];
@@ -466,7 +466,9 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
         const data = {
             _id: o._id,
             orderNumber: o.orderNumber,
-            status: o.status,
+            // Expose vendor-specific status if present
+            status: (o.vendorStatuses && (o.vendorStatuses.get ? o.vendorStatuses.get(String(vendorIds[0])) : o.vendorStatuses[String(vendorIds[0])])) || o.status,
+            status: (o.vendorStatuses && (o.vendorStatuses.get ? o.vendorStatuses.get(String(vendorIds[0])) : o.vendorStatuses[String(vendorIds[0])])) || o.status,
             createdAt: o.createdAt,
             updatedAt: o.updatedAt,
             user: o.user ? { _id: o.user._id || o.user, name: o.user.name, email: o.user.email, phone: o.user.phone } : undefined,
