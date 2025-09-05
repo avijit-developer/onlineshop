@@ -148,7 +148,7 @@ const OrderListScreen = () => {
   const renderEmptyOrders = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIllustration}>
-        <Icon name="bag-outline" size={64} color="#f7ab18" />
+        <Icon name="cart-outline" size={64} color="#f7ab18" />
       </View>
       <Text style={styles.emptyTitle}>No orders yet</Text>
       <Text style={styles.emptySubtitle}>Place your first order to see it here.</Text>
