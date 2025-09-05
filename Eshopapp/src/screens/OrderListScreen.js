@@ -123,9 +123,11 @@ const OrderListScreen = () => {
 
   const renderEmptyOrders = () => (
     <View style={styles.emptyContainer}>
-      <Icon name="bag-outline" size={80} color="#ddd" />
+      <View style={styles.emptyIllustration}>
+        <Icon name="bag-outline" size={64} color="#f7ab18" />
+      </View>
       <Text style={styles.emptyTitle}>No orders yet</Text>
-      <Text style={styles.emptySubtitle}>Start shopping to see your orders here</Text>
+      <Text style={styles.emptySubtitle}>Place your first order to see it here.</Text>
       <TouchableOpacity
         style={styles.shopButton}
         onPress={() => navigation.navigate('Home')}
@@ -367,29 +369,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
   },
+  emptyIllustration: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#fff8e6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 6,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 13,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 16,
   },
   shopButton: {
     backgroundColor: '#f7ab18',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 22,
   },
   shopButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 
