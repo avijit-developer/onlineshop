@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e53935',
   },
-  discountCornerContainer: { position: 'absolute', top: 8, right: 44, zIndex: 10 },
+  discountCornerContainer: { position: 'absolute', bottom: 8, left: 8, zIndex: 10 },
   discountCorner: { backgroundColor: '#e53935', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10 },
   discountCornerText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   name: {
