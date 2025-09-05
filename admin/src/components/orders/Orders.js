@@ -765,7 +765,12 @@ const Orders = () => {
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
-                  {statusUpdating && <div className="loading" style={{ marginTop: 8 }}>Updating status...</div>}
+                  {statusUpdating && (
+                    <div className="loading-inline" style={{ marginTop: 8 }}>
+                      <div className="spinner"></div>
+                      Updating status...
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
