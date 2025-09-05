@@ -3,7 +3,7 @@ import { Platform, NativeModules } from 'react-native';
 
 // Force ALL builds to use localhost for now.
 // Android physical/emulator: run `adb reverse tcp:5000 tcp:5000` to map device localhost to PC.
-export const API_BASE = 'http://localhost:5000';
+export const API_BASE = 'https://trahimart.com';
 if (__DEV__) {
   // eslint-disable-next-line no-console
   console.log('[API] BASE (dev):', API_BASE);

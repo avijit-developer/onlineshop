@@ -143,8 +143,8 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   logoImage: {
-    width: 110,
-    height: 110,
+    width: 105,
+    height: 105,
   },
   appName: {
     fontSize: 32,
