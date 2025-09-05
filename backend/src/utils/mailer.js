@@ -29,8 +29,8 @@ async function buildEmailHtml({ subject, contentHtml, itemsTableHtml, summaryRow
   const contactEmail = s?.general?.contactEmail || '';
   const contactPhone = s?.general?.contactPhone || '';
   const address = s?.general?.address || '';
-  const logo = s?.general?.siteLogo || '';
-  const siteUrl = s?.general?.siteUrl || '';
+  const logo = s?.general?.siteLogo || 'https://res.cloudinary.com/dwjcuweew/image/upload/v1756881697/logo_di0afp.jpg';
+  const siteUrl = s?.general?.siteUrl || 'https://trahimart.com/';
   const safeSubject = escapeHtml(subject || siteName);
   return `
 <!doctype html>
@@ -53,7 +53,7 @@ async function buildEmailHtml({ subject, contentHtml, itemsTableHtml, summaryRow
     .summary{margin-top:12px}
     .summary-row{display:flex;justify-content:space-between;margin:6px 0;color:#444}
     .summary-row.total{font-weight:700;color:#000}
-    .footer{padding:16px 20px;color:#777;font-size:12px}
+    .footer{padding:16px 20px;color:#777;font-size:12px;border-top:1px solid #eee}
     .muted{color:#777}
     a.btn{display:inline-block;background:#f7ab18;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px}
     a{color:#f7ab18;text-decoration:none}
