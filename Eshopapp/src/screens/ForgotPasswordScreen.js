@@ -401,6 +401,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    marginTop: 12,
     width: '100%',
   },
   resendButtonText: {
