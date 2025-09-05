@@ -25,6 +25,7 @@ const OrderListScreen = () => {
 
   const orderFilters = [
     { id: 'all', label: 'All Orders' },
+    { id: 'Confirmed', label: 'Confirmed' },
     { id: 'Processing', label: 'Processing' },
     { id: 'Shipped', label: 'Shipped' },
     { id: 'Delivered', label: 'Delivered' },
@@ -61,9 +62,19 @@ const OrderListScreen = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
-  const filteredOrders = selectedFilter === 'all' 
-    ? orders 
-    : orders.filter(order => order.status === selectedFilter);
+  const normalizeStatus = (s) => {
+    const v = String(s || '').toLowerCase();
+    if (['cancelled','canceled'].includes(v)) return 'Cancelled';
+    if (['delivered','completed'].includes(v)) return 'Delivered';
+    if (['shipped','out_for_delivery','out-for-delivery','dispatched','in_transit'].includes(v)) return 'Shipped';
+    if (['confirmed'].includes(v)) return 'Confirmed';
+    if (['processing','packed','pending'].includes(v)) return 'Processing';
+    return 'Processing';
+  };
+
+  const filteredOrders = selectedFilter === 'all'
+    ? orders
+    : orders.filter(order => normalizeStatus(order.status) === selectedFilter);
 
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity
