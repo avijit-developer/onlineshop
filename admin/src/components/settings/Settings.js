@@ -197,6 +197,27 @@ const Settings = () => {
                       rows="3"
                     />
                   </div>
+
+                  <div className="form-group">
+                    <label>Site Logo URL</label>
+                    <input
+                      type="url"
+                      value={settings.general.siteLogo || ''}
+                      onChange={(e) => handleInputChange('general', 'siteLogo', e.target.value)}
+                      placeholder="https://.../logo.jpg"
+                    />
+                    <small style={{ color: '#666' }}>Paste your logo URL (e.g., Cloudinary)</small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Site URL</label>
+                    <input
+                      type="url"
+                      value={settings.general.siteUrl || ''}
+                      onChange={(e) => handleInputChange('general', 'siteUrl', e.target.value)}
+                      placeholder="https://trahimart.com/"
+                    />
+                  </div>
                   
                   <div className="form-group">
                     <label>Minimum App Version (force update)</label>
