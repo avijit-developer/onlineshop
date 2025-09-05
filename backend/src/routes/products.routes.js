@@ -793,6 +793,32 @@ router.get('/public', async (req, res) => {
       }
     }
 
+    // Enrich with rating and reviewsCount from approved reviews
+    try {
+      const productIds = (items || []).map(it => it._id).filter(Boolean);
+      if (productIds.length) {
+        const stats = await Review.aggregate([
+          { $match: { product: { $in: productIds }, status: 'approved' } },
+          { $group: { _id: '$product', avgRating: { $avg: '$rating' }, count: { $sum: 1 } } }
+        ]);
+        const map = new Map(stats.map(s => [String(s._id), s]));
+        items.forEach(it => {
+          const st = map.get(String(it._id));
+          if (st) {
+            const avg = typeof st.avgRating === 'number' ? st.avgRating : 0;
+            it.rating = Number(avg.toFixed(1));
+            it.reviewsCount = st.count || 0;
+          } else {
+            // Ensure fields exist for frontend formatting
+            it.rating = Number(it.rating || 0);
+            if (it.reviewsCount == null) it.reviewsCount = 0;
+          }
+        });
+      }
+    } catch (_) {
+      // ignore enrichment failures
+    }
+
     res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to fetch products' });
