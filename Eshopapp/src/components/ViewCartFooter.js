@@ -104,7 +104,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
             const imageUri = getItemImage(item);
             if (!imageUri) {
               return (
-                <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -6 }]}>
+                <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -10 }]}>
                   <Icon name="image-outline" size={20} color="#ccc" />
                 </View>
               );
@@ -113,7 +113,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
               <Image
                 key={item.cartId}
                 source={{ uri: imageUri }}
-                style={[styles.itemImage, index > 0 && { marginLeft: -6 }]}
+                style={[styles.itemImage, index > 0 && { marginLeft: -10 }]}
               />
             );
           })}
@@ -128,8 +128,8 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
         )}
         
         <View style={styles.cartDetails}>
-          <Text style={styles.itemCount}>{itemsCount} item{itemsCount > 1 ? 's' : ''}</Text>
-          <Text style={styles.totalAmount}>₹{total.toFixed(2)}</Text>
+          <Text style={styles.itemCount} numberOfLines={1}>{itemsCount} item{itemsCount > 1 ? 's' : ''}</Text>
+          <Text style={styles.totalAmount} numberOfLines={1}>₹{total.toFixed(2)}</Text>
         </View>
       </View>
 
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff7e6',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#ffe1b3',
@@ -167,12 +167,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemsRow: {
-    maxWidth: 220,
+    maxWidth: 160,
+    flexShrink: 0,
   },
   itemImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 1,
     borderColor: '#fff',
   },
@@ -182,13 +183,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   moreItemsIndicator: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: -6,
+    marginLeft: -10,
     borderWidth: 1,
     borderColor: '#fff',
   },
@@ -198,8 +199,11 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   cartDetails: {
-    marginLeft: 12,
+    marginLeft: 10,
     flex: 1,
+    minWidth: 90,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   itemCount: {
     fontSize: 12,
@@ -210,6 +214,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#f7ab18',
+    textAlign: 'right',
   },
   viewCartButton: {
     flexDirection: 'row',
