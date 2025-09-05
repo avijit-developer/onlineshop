@@ -18,6 +18,7 @@ const RelatedProducts = ({ productId, onPressProduct }) => {
                     price: p.specialPrice ?? p.regularPrice ?? 0,
                     regularPrice: p.regularPrice ?? null,
                     specialPrice: p.specialPrice ?? null,
+                    tags: Array.isArray(p.tags) ? p.tags : [],
                 }));
                 setItems(mapped);
             } catch (_) {
@@ -29,6 +30,24 @@ const RelatedProducts = ({ productId, onPressProduct }) => {
     const renderItem = ({ item }) => (
         <TouchableOpacity style={styles.card} onPress={() => onPressProduct && onPressProduct(item)}>
             <Image source={{ uri: item.image }} style={styles.image} />
+            {Array.isArray(item.tags) && item.tags.length > 0 && (
+              <View style={styles.tagsContainer}>
+                {item.tags.slice(0,2).map((t, idx) => (
+                  <View key={`${t}-${idx}`} style={[styles.tagRibbon, idx > 0 && { marginTop: 4 }]}> 
+                    <Text style={styles.tagRibbonText} numberOfLines={1}>{String(t)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {(() => {
+              const rp = Number(item.regularPrice || 0);
+              const sp = Number(item.specialPrice ?? (item.price ?? 0));
+              const show = rp > 0 && sp > 0 && sp < rp;
+              const pct = show ? Math.round(100 - (sp / rp) * 100) : 0;
+              return show ? (
+                <View style={styles.discountRibbon}><Text style={styles.discountText}>-{pct}%</Text></View>
+              ) : null;
+            })()}
             <Text style={styles.title} numberOfLines={2}>
                 {item.title}
             </Text>
@@ -86,6 +105,11 @@ const styles = StyleSheet.create({
         height: 150,
         borderRadius: 10,
     },
+    tagsContainer: { position: 'absolute', top: 8, left: 8 },
+    tagRibbon: { backgroundColor: '#2e7d32', paddingVertical: 2, paddingHorizontal: 6, borderTopRightRadius: 6, borderBottomRightRadius: 6, maxWidth: 100 },
+    tagRibbonText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+    discountRibbon: { position: 'absolute', top: 8, right: 8, backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 },
+    discountText: { color: '#fff', fontSize: 10, fontWeight: '700' },
     title: {
         fontSize: 13,
         marginTop: 6,

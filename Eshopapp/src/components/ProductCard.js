@@ -60,10 +60,39 @@ const ProductCard = ({ item }) => {
     }
   };
 
+  // Compute discount percentage and normalize tags
+  const toNumber = (val) => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') {
+      const cleaned = val.replace(/[^0-9.]/g, '');
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? 0 : n;
+    }
+    return 0;
+  };
+  const regularPriceNum = toNumber(item.regularPrice ?? item.oldPrice);
+  const specialPriceNum = toNumber(item.specialPrice ?? item.price);
+  const hasDiscount = (regularPriceNum > 0 && specialPriceNum > 0 && specialPriceNum < regularPriceNum);
+  const discountPercent = hasDiscount ? Math.round(100 - (specialPriceNum / regularPriceNum) * 100) : 0;
+  const tags = Array.isArray(item.tags) ? item.tags.slice(0, 2) : [];
+
   return (
     <View style={styles.card}>
       <TouchableOpacity onPress={handleProductPress}>
         <Image source={{ uri: item.image }} style={styles.image} />
+
+        {/* Top-left tags ribbon(s) */}
+        {tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {tags.map((t, idx) => (
+              <View key={`${t}-${idx}`} style={[styles.tagRibbon, idx > 0 && { marginTop: 4 }]}> 
+                <Text style={styles.tagRibbonText} numberOfLines={1}>{String(t)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Top-right wishlist and discount */}
         <TouchableOpacity 
           style={[styles.heartIcon, isInWishlist(item.id || item._id) && styles.heartIconActive]} 
           onPress={handleWishlistToggle}
@@ -74,19 +103,24 @@ const ProductCard = ({ item }) => {
             color={isInWishlist(item.id || item._id) ? '#e53935' : '#333'}
           />
         </TouchableOpacity>
+        {hasDiscount && (
+          <View style={styles.discountRibbon}>
+            <Text style={styles.discountText}>-{discountPercent}%</Text>
+          </View>
+        )}
       </TouchableOpacity>
       
       <View style={{padding:10, paddingTop:3}}>
         <TouchableOpacity onPress={handleProductPress}>
           <Text style={styles.name}>{item.name}</Text>
           <View style={styles.priceWrapper}>
-            {item.oldPrice ? (
+            {hasDiscount ? (
               <>
-                <Text style={[styles.price, { color: '#e53935' }]}>{String(item.price).replace('$', '₹')}</Text>
-                <Text style={styles.oldPrice}>{item.oldPrice}</Text>
+                <Text style={[styles.price, { color: '#e53935' }]}>₹{specialPriceNum}</Text>
+                <Text style={styles.oldPrice}>₹{regularPriceNum}</Text>
               </>
             ) : (
-              <Text style={styles.price}>{String(item.price).replace('$', '₹')}</Text>
+              <Text style={styles.price}>₹{specialPriceNum || regularPriceNum || 0}</Text>
             )}
           </View>
           <View style={styles.ratingWrapper}>
@@ -141,6 +175,25 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 0,
   },
+  tagsContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    right: 'auto',
+  },
+  tagRibbon: {
+    backgroundColor: '#2e7d32',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
+    maxWidth: 100,
+  },
+  tagRibbonText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
   heartIcon: {
     position: 'absolute',
     top: 8,
@@ -154,6 +207,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, .95)',
     borderWidth: 1,
     borderColor: '#e53935',
+  },
+  discountRibbon: {
+    position: 'absolute',
+    top: 8,
+    right: 46,
+    backgroundColor: '#e53935',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+  },
+  discountText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   name: {
     marginTop: 8,

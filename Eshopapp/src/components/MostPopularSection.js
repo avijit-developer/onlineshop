@@ -129,6 +129,7 @@ const MostPopularSection = ({ navigation }) => {
     );
     const productId = item._id || item.id;
     const wishlisted = isInWishlist(productId);
+    const tags = Array.isArray(item.tags) ? item.tags : [];
     return (
     <View style={{ marginBottom: 8 }}>
       <TouchableOpacity 
@@ -141,6 +142,16 @@ const MostPopularSection = ({ navigation }) => {
           style={styles.image}
           defaultSource={require('../assets/Placeholder_01.png')}
         />
+        {/* Tag ribbons */}
+        {tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {tags.slice(0,2).map((t, idx) => (
+              <View key={`${t}-${idx}`} style={[styles.tagRibbon, idx > 0 && { marginTop: 4 }]}> 
+                <Text style={styles.tagRibbonText} numberOfLines={1}>{String(t)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
         <TouchableOpacity
           style={styles.favicon}
           activeOpacity={0.8}
@@ -151,6 +162,16 @@ const MostPopularSection = ({ navigation }) => {
         >
           <AntDesign name={wishlisted ? 'heart' : 'hearto'} size={14} color={wishlisted ? '#e53935' : '#FFA726'} />
         </TouchableOpacity>
+        {/* Discount ribbon */}
+        {(() => { 
+          const rp = Number(item.regularPrice || 0);
+          const sp = Number(item.specialPrice ?? (item.price ?? 0));
+          const show = rp > 0 && sp > 0 && sp < rp;
+          const pct = show ? Math.round(100 - (sp / rp) * 100) : 0;
+          return show ? (
+            <View style={styles.discountRibbon}><Text style={styles.discountText}>-{pct}%</Text></View>
+          ) : null;
+        })()}
         <View style={styles.cardBody}>
           <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
           <View style={styles.metaRow}>
@@ -272,6 +293,9 @@ const styles = StyleSheet.create({
     height: 130,
     resizeMode: 'cover',
   },
+  tagsContainer: { position: 'absolute', top: 8, left: 8 },
+  tagRibbon: { backgroundColor: '#2e7d32', paddingVertical: 2, paddingHorizontal: 6, borderTopRightRadius: 6, borderBottomRightRadius: 6, maxWidth: 100 },
+  tagRibbonText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   cardBody: { padding: 8 },
   name: { fontSize: 13, fontWeight: '600', color: '#222', height: 34, marginBottom: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
@@ -279,6 +303,8 @@ const styles = StyleSheet.create({
   priceRow: { },
   price: { fontSize: 14, fontWeight: '700', color: '#f7ab18' },
   oldPrice: { fontSize: 12, color: '#888', textDecorationLine: 'line-through' },
+  discountRibbon: { position: 'absolute', top: 8, right: 8, backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 },
+  discountText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
