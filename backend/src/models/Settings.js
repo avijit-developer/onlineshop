@@ -7,6 +7,7 @@ const SettingsSchema = new mongoose.Schema({
 		contactEmail: { type: String, default: '' },
 		contactPhone: { type: String, default: '' },
 		address: { type: String, default: '' },
+		siteLogo: { type: String, default: '' },
 		minAppVersion: { type: String, default: '' }
 	},
 	localization: {

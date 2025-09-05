@@ -205,9 +205,18 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 		try {
 			const u = await User.findById(order.user).select('email name').lean();
 			if (u?.email) {
+				const itemsHtml = (order.items || []).map(it => `<tr><td>${it.name}</td><td>x ${it.quantity}</td><td>₹${Number(it.price||0).toFixed(2)}</td></tr>`).join('');
 				const html = await buildEmailHtml({
 					subject: `Your order ${order.orderNumber} is now ${status}`,
-					contentHtml: `<p>Hi ${u?.name || ''},</p><p>Your order <b>${order.orderNumber}</b> status changed to <b>${status}</b>.</p>`
+					contentHtml: `<p>Hi ${u?.name || ''},</p><p>Your order <b>${order.orderNumber}</b> status changed to <b>${status}</b>.</p>`,
+					itemsTableHtml: `<thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead><tbody>${itemsHtml}</tbody>`,
+					summaryRows: [
+						{ key: 'Subtotal', value: `₹${Number(order.subtotal||0).toFixed(2)}` },
+						{ key: `Tax (${Number(order.tax||0)}%)`, value: `₹${(Number(order.subtotal||0)*Number(order.tax||0)/100).toFixed(2)}` },
+						{ key: 'Shipping', value: `₹${Number(order.shippingCost||0).toFixed(2)}` },
+						...(Number(order.discountAmount||0) > 0 ? [{ key: 'Discount', value: `- ₹${Number(order.discountAmount||0).toFixed(2)}` }] : []),
+						{ key: 'Total', value: `₹${Number(order.total||0).toFixed(2)}` }
+					]
 				});
 				await sendMail({ to: u.email, subject: `Your order ${order.orderNumber} is now ${status}`, html });
 			}
