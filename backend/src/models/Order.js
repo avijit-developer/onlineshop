@@ -35,6 +35,14 @@ const orderSchema = new mongoose.Schema({
 	total: { type: Number, required: true },
 	orderNote: { type: String, default: '' },
 	statusHistory: [statusHistorySchema],
+	// Vendor-specific statuses
+	vendorStatuses: { type: Map, of: String, default: {} },
+	vendorStatusHistory: [{
+		vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+		status: { type: String, required: true },
+		timestamp: { type: Date, default: Date.now },
+		updatedBy: { type: String, default: 'vendor' },
+	}],
 }, { timestamps: true });
 
 orderSchema.statics.generateOrderNumber = async function() {

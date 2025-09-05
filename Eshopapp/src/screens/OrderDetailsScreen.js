@@ -138,6 +138,7 @@ const OrderDetailsScreen = ({ route }) => {
     return 'Processing';
   };
   const current = freshOrder || order;
+  const vendorSummaries = Array.isArray(current.vendorSummaries) ? current.vendorSummaries : [];
   const status = normalizeStatus(current.status);
   const orderProgress = [
     { step: 'Order Placed', completed: true, date: current.createdAt ? new Date(current.createdAt).toLocaleDateString() : '' },
@@ -210,6 +211,41 @@ const OrderDetailsScreen = ({ route }) => {
             ))}
           </View>
         </View>
+
+        {/* Per-vendor status breakdown (for multi-vendor clarity) */}
+        {vendorSummaries.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Vendor Status</Text>
+            {vendorSummaries.map((vs, idx) => (
+              <View key={idx} style={{ backgroundColor: '#f9f9f9', borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontWeight: '700', color: '#333' }}>{vs.vendorName || 'Vendor'}</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(vs.status && vs.status[0] ? vs.status : vs.status) }]}>
+                    <Icon name={getStatusIcon(vs.status)} size={14} color="#fff" />
+                    <Text style={[styles.statusText, { marginLeft: 6 }]}>{String(vs.status || '').charAt(0).toUpperCase() + String(vs.status || '').slice(1)}</Text>
+                  </View>
+                </View>
+                <View style={{ height: 8 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: '#666' }}>Subtotal</Text>
+                  <Text style={{ color: '#333', fontWeight: '600' }}>₹{Number(vs.vendorSubtotal || 0).toFixed(2)}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: '#666' }}>Tax Share</Text>
+                  <Text style={{ color: '#333', fontWeight: '600' }}>₹{Number(vs.vendorTax || 0).toFixed(2)}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: '#666' }}>Shipping Share</Text>
+                  <Text style={{ color: '#333', fontWeight: '600' }}>₹{Number(vs.vendorShipping || 0).toFixed(2)}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 6 }}>
+                  <Text style={{ color: '#333', fontWeight: '700' }}>Vendor Total</Text>
+                  <Text style={{ color: '#111827', fontWeight: '800' }}>₹{Number(vs.vendorTotal || (Number(vs.vendorSubtotal||0)+Number(vs.vendorTax||0)+Number(vs.vendorShipping||0))).toFixed(2)}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Order Items */}
         <View style={styles.section}>

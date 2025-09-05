@@ -149,7 +149,32 @@ router.get('/me/:id', authenticate, requireRole(['customer']), async (req, res) 
 	try {
 		const order = await Order.findOne({ _id: req.params.id, user: req.user.id }).lean();
 		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-		res.json({ success: true, data: order });
+		// Build vendor summaries for UI
+		const vendorIds = Array.from(new Set((order.items || []).map(it => String(it.vendor)).filter(Boolean)));
+		let vendors = [];
+		try {
+			const vdocs = await Vendor.find({ _id: { $in: vendorIds } }).select('_id companyName').lean();
+			vendors = vdocs.map(v => ({ _id: v._id, name: v.companyName }));
+		} catch (_) {}
+		const orderSubtotal = Number(order.subtotal || 0);
+		const taxPercent = Number(order.tax || 0);
+		const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
+		const summaries = vendorIds.map(vid => {
+			const items = (order.items || []).filter(it => String(it.vendor) === String(vid));
+			const vendorSubtotal = items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+			const share = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
+			return {
+				vendor: vid,
+				vendorName: (vendors.find(v => String(v._id) === String(vid))?.name) || 'Vendor',
+				status: (order.vendorStatuses && (order.vendorStatuses.get ? order.vendorStatuses.get(String(vid)) : order.vendorStatuses[String(vid)])) || order.status,
+				items,
+				vendorSubtotal,
+				vendorTax: orderTaxAmount * share,
+				vendorShipping: Number(order.shippingCost || 0) * share,
+				vendorTotal: vendorSubtotal + (orderTaxAmount * share) + (Number(order.shippingCost || 0) * share),
+			};
+		});
+		res.json({ success: true, data: { ...order, vendorSummaries: summaries, vendors } });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to get order' });
 	}
@@ -298,6 +323,14 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
 
         order.status = status;
         order.statusHistory.push({ status, updatedBy: req.user?.email || 'vendor' });
+        // Record vendor-specific status
+        try {
+            const primaryVendorId = vendorIds[0];
+            order.vendorStatuses = order.vendorStatuses || new Map();
+            order.vendorStatuses.set(String(primaryVendorId), status);
+            order.vendorStatusHistory = Array.isArray(order.vendorStatusHistory) ? order.vendorStatusHistory : [];
+            order.vendorStatusHistory.push({ vendor: primaryVendorId, status, updatedBy: req.user?.email || 'vendor' });
+        } catch (_) {}
         await order.save();
 
         // Email customer with only vendor items (no full summary)
