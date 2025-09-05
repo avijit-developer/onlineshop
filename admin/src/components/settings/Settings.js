@@ -141,6 +141,13 @@ const Settings = () => {
               Shipping
             </button>
             <button
+              className={`nav-item ${activeTab === 'email' ? 'active' : ''}`}
+              onClick={() => setActiveTab('email')}
+            >
+              <span className="nav-icon">📧</span>
+              Email
+            </button>
+            <button
               className={`nav-item ${activeTab === 'vendor' ? 'active' : ''}`}
               onClick={() => setActiveTab('vendor')}
             >
@@ -367,6 +374,43 @@ const Settings = () => {
                     className="btn btn-primary"
                   >
                     {saving ? 'Saving...' : 'Save Shipping & Tax'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Email Settings */}
+          {activeTab === 'email' && (
+            <div className="settings-section">
+              <div className="section-header">
+                <h2>Email (Gmail SMTP)</h2>
+                <p>Configure Gmail email and app password (16-character)</p>
+              </div>
+              <div className="settings-form">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      value={settings.email?.email || ''}
+                      onChange={(e) => setSettings(prev => ({ ...prev, email: { ...(prev.email||{}), email: e.target.value } }))}
+                      placeholder="your@gmail.com"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>App Password (16-character password)</label>
+                    <input
+                      type="password"
+                      value={settings.email?.appPassword || ''}
+                      onChange={(e) => setSettings(prev => ({ ...prev, email: { ...(prev.email||{}), appPassword: e.target.value } }))}
+                      placeholder="abcd efgh ijkl mnop"
+                    />
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button onClick={() => handleSave('Email')} disabled={saving} className="btn btn-primary">
+                    {saving ? 'Saving...' : 'Save Email Settings'}
                   </button>
                 </div>
               </div>

@@ -7,6 +7,7 @@ const { authenticate, requireRole, requireAdmin } = require('../middleware/auth'
 const Vendor = require('../models/Vendor');
 
 const router = express.Router();
+const { sendMail } = require('../utils/mailer');
 const { validateAndComputeCoupon } = require('../utils/coupons');
 
 // Helper to compute totals
@@ -113,6 +114,19 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			cart.freeShippingApplied = false;
 			await cart.save();
 		}
+		// Send order placed email to customer (best-effort)
+		try {
+			const u = await User.findById(req.user.id).select('email name').lean();
+			const to = u?.email;
+			if (to) {
+				const itemsHtml = (items || []).map(it => `<li>${it.name} x ${it.quantity} — ₹${Number(it.price||0).toFixed(2)}</li>`).join('');
+				await sendMail({
+					to,
+					subject: `Order Placed - ${orderNumber}`,
+					html: `<p>Hi ${u?.name || ''},</p><p>Thanks for your order <b>${orderNumber}</b>.</p><ul>${itemsHtml}</ul><p>Total: <b>₹${total.toFixed(2)}</b></p>`
+				});
+			}
+		} catch (_) {}
 		res.status(201).json({ success: true, data: order });
 	} catch (err) {
 		console.error('Create order error:', err);
@@ -187,6 +201,17 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 		order.status = status;
 		order.statusHistory.push({ status, updatedBy: req.user?.name || 'admin' });
 		await order.save();
+		// Notify customer
+		try {
+			const u = await User.findById(order.user).select('email name').lean();
+			if (u?.email) {
+				await sendMail({
+					to: u.email,
+					subject: `Your order ${order.orderNumber} is now ${status}`,
+					html: `<p>Hi ${u?.name || ''},</p><p>Your order <b>${order.orderNumber}</b> status changed to <b>${status}</b>.</p>`
+				});
+			}
+		} catch (_) {}
 		res.json({ success: true, data: order });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to update status' });

@@ -21,6 +21,16 @@ router.get('/shipping/public', async (req, res) => {
   }
 });
 
+// Public: email settings for SMTP (expose only email identifier)
+router.get('/email/public', async (req, res) => {
+  try {
+    const doc = await Settings.findOne().select('email').lean();
+    res.json({ success: true, data: { email: doc?.email?.email || '' } });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to load email settings' });
+  }
+});
+
 module.exports = router;
 // Admin: get full settings
 router.get('/', authenticate, requireAdmin, async (req, res) => {

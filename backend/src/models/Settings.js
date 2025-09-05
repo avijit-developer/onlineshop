@@ -21,6 +21,10 @@ const SettingsSchema = new mongoose.Schema({
 		defaultShippingCost: { type: Number, default: 10 },
 		flatShippingFee: { type: Number, default: 0 }
 	},
+	email: {
+		email: { type: String, default: '' },
+		appPassword: { type: String, default: '' }
+	},
 	tax: {
 		rate: { type: Number, default: 0 }
 	}
