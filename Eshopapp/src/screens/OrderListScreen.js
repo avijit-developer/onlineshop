@@ -72,6 +72,18 @@ const OrderListScreen = () => {
     return 'Processing';
   };
 
+  const aggregateMultiVendorStatus = (order) => {
+    const summaries = Array.isArray(order?.vendorSummaries) ? order.vendorSummaries : [];
+    if (summaries.length <= 1) return normalizeStatus(order?.status);
+    const statuses = Array.from(new Set(summaries.map(vs => normalizeStatus(vs.status || order.status))));
+    if (statuses.length === 1) return statuses[0];
+    const precedence = ['Cancelled','Delivered','Shipped','Processing','Confirmed','Pending'];
+    for (const st of precedence) {
+      if (statuses.includes(st)) return `Partially ${st}`;
+    }
+    return 'Partially Processing';
+  };
+
   // Expand multi-vendor orders into per-vendor rows for clarity
   const expandOrders = (src) => {
     const out = [];
@@ -114,6 +126,15 @@ const OrderListScreen = () => {
           <Text style={styles.statusText}>{item.status}</Text>
         </View>
       </View>
+
+      {/* Aggregated status hint for multi-vendor orders */}
+      {Array.isArray(item.vendorSummaries) && item.vendorSummaries.length > 1 && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 }}>
+          <View style={{ backgroundColor: '#f5f5f5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+            <Text style={{ color: '#666', fontSize: 11 }}>{aggregateMultiVendorStatus(item)}</Text>
+          </View>
+        </View>
+      )}
 
       {/* Meta row */}
       <View style={styles.metaRow}>
