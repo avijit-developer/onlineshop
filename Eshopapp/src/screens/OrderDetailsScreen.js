@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -100,8 +101,9 @@ const OrderDetailsScreen = ({ route }) => {
   const handleTrackOrder = () => {
     Alert.alert('Order Tracking', `Order ${orderId} is currently ${order.status.toLowerCase()}`);
   };
+  const [tracking, setTracking] = React.useState({ visible: false, label: '', status: '', eta: '' });
   const handleTrackPackage = (pkgLabel, statusText, etaText) => {
-    Alert.alert(`Track ${pkgLabel}`, `${statusText}\n${etaText}`);
+    setTracking({ visible: true, label: pkgLabel, status: statusText, eta: etaText });
   };
 
   const [contact, setContact] = React.useState({ email: '', phone: '' });
@@ -249,50 +251,52 @@ const OrderDetailsScreen = ({ route }) => {
           </View>
         )}
 
-        {/* Packages grouped by vendor (no vendor names) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Items ({current.items.length})</Text>
-          {itemGroups.map((grp, gidx) => (
-            <View key={grp.key || gidx} style={{ marginBottom: 16 }}>
-              <View style={styles.packageHeader}>
-                <Text style={styles.packageTitle}>{grp.label}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(grp.status) }]}>
-                    <Icon name={getStatusIcon(grp.status)} size={14} color="#fff" />
-                    <Text style={[styles.statusText, { marginLeft: 6 }]}>{grp.status}</Text>
-                  </View>
-                  <Text style={styles.etaText}>{grp.eta}</Text>
-                  <TouchableOpacity style={styles.trackChip} onPress={() => handleTrackPackage(grp.label, `Status: ${grp.status}`, grp.eta)}>
-                    <Icon name="navigate-outline" size={14} color="#f7ab18" />
-                    <Text style={styles.trackChipText}>Track</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              {grp.items.map((it, idx) => {
-                const attrs = it.selectedAttributes && typeof it.selectedAttributes === 'object' ? it.selectedAttributes : null;
-                const attrEntries = attrs ? Object.entries(attrs) : [];
-                return (
-                  <View key={idx} style={styles.orderItem}>
-                    <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
-                    <View style={styles.itemInfo}>
-                      <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
-                      {!!it.sku && <Text style={styles.itemVariant}>SKU: {it.sku}</Text>}
-                      {attrEntries.length > 0 && (
-                        <View style={{ marginTop: 2 }}>
-                          {attrEntries.map(([k, v]) => (
-                            <Text key={k} style={styles.itemVariant}>{k}: {String(v)}</Text>
-                          ))}
-                        </View>
-                      )}
-                      <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
+        {/* Packages grouped by vendor (no vendor names) - hidden for single-vendor */}
+        {itemGroups.length > 1 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Items ({current.items.length})</Text>
+            {itemGroups.map((grp, gidx) => (
+              <View key={grp.key || gidx} style={{ marginBottom: 16 }}>
+                <View style={styles.packageHeader}>
+                  <Text style={styles.packageTitle}>{grp.label}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(grp.status) }]}>
+                      <Icon name={getStatusIcon(grp.status)} size={14} color="#fff" />
+                      <Text style={[styles.statusText, { marginLeft: 6 }]}>{grp.status}</Text>
                     </View>
-                    <Text style={styles.itemPrice}>₹{Number(it.price || 0).toFixed(2)}</Text>
+                    <Text style={styles.etaText}>{grp.eta}</Text>
+                    <TouchableOpacity style={styles.trackChip} onPress={() => handleTrackPackage(grp.label, `Status: ${grp.status}`, grp.eta)}>
+                      <Icon name="navigate-outline" size={14} color="#f7ab18" />
+                      <Text style={styles.trackChipText}>Track</Text>
+                    </TouchableOpacity>
                   </View>
-                );
-              })}
-            </View>
-          ))}
-        </View>
+                </View>
+                {grp.items.map((it, idx) => {
+                  const attrs = it.selectedAttributes && typeof it.selectedAttributes === 'object' ? it.selectedAttributes : null;
+                  const attrEntries = attrs ? Object.entries(attrs) : [];
+                  return (
+                    <View key={idx} style={styles.orderItem}>
+                      <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
+                      <View style={styles.itemInfo}>
+                        <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
+                        {!!it.sku && <Text style={styles.itemVariant}>SKU: {it.sku}</Text>}
+                        {attrEntries.length > 0 && (
+                          <View style={{ marginTop: 2 }}>
+                            {attrEntries.map(([k, v]) => (
+                              <Text key={k} style={styles.itemVariant}>{k}: {String(v)}</Text>
+                            ))}
+                          </View>
+                        )}
+                        <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
+                      </View>
+                      <Text style={styles.itemPrice}>₹{Number(it.price || 0).toFixed(2)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        )}
 
 
         {/* Shipping Address */}
@@ -355,6 +359,46 @@ const OrderDetailsScreen = ({ route }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      {/* Tracking Modal */}
+      <Modal visible={tracking.visible} transparent animationType="fade" onRequestClose={() => setTracking({ visible: false, label: '', status: '', eta: '' })}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 12, width: '100%', maxWidth: 420 }}>
+            <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontWeight: '800', color: '#333' }}>{tracking.label}</Text>
+              <TouchableOpacity onPress={() => setTracking({ visible: false, label: '', status: '', eta: '' })}>
+                <Icon name="close" size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 16 }}>
+              <Text style={{ color: '#666', marginBottom: 10 }}>{tracking.status} • {tracking.eta}</Text>
+              {/* Progress timeline */}
+              <View style={styles.progressContainer}>
+                {[ 'Order Placed', 'Confirmed', 'Processing', 'Shipped', 'Delivered' ].map((label, index) => {
+                  const cur = String(tracking.status || '').toLowerCase();
+                  const order = ['order placed','confirmed','processing','shipped','delivered'];
+                  const curIdx = order.indexOf(cur.replace('status: ', ''));
+                  const completed = curIdx >= index;
+                  return (
+                    <View key={label} style={styles.progressStep}>
+                      <View style={styles.progressLine}>
+                        <View style={[styles.progressDot, completed && styles.completedDot]}>
+                          {completed && (<Icon name="checkmark" size={12} color="#fff" />)}
+                        </View>
+                        {index < 4 && (
+                          <View style={[styles.progressConnector, completed && styles.completedConnector]} />
+                        )}
+                      </View>
+                      <View style={styles.progressContent}>
+                        <Text style={[styles.progressStepText, completed && styles.completedStepText]}>{label}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
