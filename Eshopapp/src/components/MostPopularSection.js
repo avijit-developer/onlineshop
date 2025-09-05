@@ -129,7 +129,9 @@ const MostPopularSection = ({ navigation }) => {
     );
     const productId = item._id || item.id;
     const wishlisted = isInWishlist(productId);
-    const tags = Array.isArray(item.tags) ? item.tags : [];
+    const tags = Array.isArray(item.tags)
+      ? item.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
+      : (typeof item.tags === 'string' ? item.tags.split(',').map(s => s.trim()).filter(Boolean) : []);
     return (
     <View style={{ marginBottom: 8 }}>
       <TouchableOpacity 
@@ -303,8 +305,8 @@ const styles = StyleSheet.create({
   priceRow: { },
   price: { fontSize: 14, fontWeight: '700', color: '#f7ab18' },
   oldPrice: { fontSize: 12, color: '#888', textDecorationLine: 'line-through' },
-  discountCornerContainer: { position: 'absolute', top: -6, right: -24, zIndex: 10 },
-  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 30, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
+  discountCornerContainer: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
+  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 18, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
   discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
   cardFooter: {
     flexDirection: 'row',

@@ -84,7 +84,9 @@ const ProductList = () => {
           oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
           regularPrice: p.regularPrice ?? null,
           specialPrice: p.specialPrice ?? null,
-          tags: Array.isArray(p.tags) ? p.tags : [],
+          tags: Array.isArray(p.tags)
+            ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
+            : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
           rating: p.rating || 0,
           reviews: 0,
           image: (Array.isArray(p.images) && p.images[0]) || placeholder,
@@ -181,7 +183,9 @@ const ProductList = () => {
           oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
           regularPrice: p.regularPrice ?? null,
           specialPrice: p.specialPrice ?? null,
-          tags: Array.isArray(p.tags) ? p.tags : [],
+          tags: Array.isArray(p.tags)
+            ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
+            : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
           rating: p.rating || 0,
           reviews: 0,
           image: (Array.isArray(p.images) && p.images[0]) || placeholder,

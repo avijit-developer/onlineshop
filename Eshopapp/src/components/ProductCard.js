@@ -222,8 +222,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e53935',
   },
-  discountCornerContainer: { position: 'absolute', top: -6, right: -24, zIndex: 10 },
-  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 30, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
+  discountCornerContainer: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
+  discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 18, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
   discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
   name: {
     marginTop: 8,

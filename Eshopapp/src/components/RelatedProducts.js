@@ -18,7 +18,9 @@ const RelatedProducts = ({ productId, onPressProduct }) => {
                     price: p.specialPrice ?? p.regularPrice ?? 0,
                     regularPrice: p.regularPrice ?? null,
                     specialPrice: p.specialPrice ?? null,
-                    tags: Array.isArray(p.tags) ? p.tags : [],
+                    tags: Array.isArray(p.tags)
+                      ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
+                      : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
                 }));
                 setItems(mapped);
             } catch (_) {
@@ -108,8 +110,8 @@ const styles = StyleSheet.create({
     tagsContainer: { position: 'absolute', top: 8, left: 8 },
     tagRibbon: { backgroundColor: '#2e7d32', paddingVertical: 2, paddingHorizontal: 6, borderTopRightRadius: 6, borderBottomRightRadius: 6, maxWidth: 100 },
     tagRibbonText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-    discountCornerContainer: { position: 'absolute', top: -6, right: -24, zIndex: 10 },
-    discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 30, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
+    discountCornerContainer: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
+    discountCorner: { backgroundColor: '#e53935', paddingVertical: 2, paddingHorizontal: 18, transform: [{ rotate: '45deg' }], borderRadius: 2, elevation: 3 },
     discountCornerText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
     title: {
         fontSize: 13,
