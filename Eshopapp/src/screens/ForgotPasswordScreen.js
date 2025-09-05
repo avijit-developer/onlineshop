@@ -11,18 +11,21 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import api from '../utils/api';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isEmailSent, setIsEmailSent] = useState(false);
+  const [step, setStep] = useState('email'); // email | otp
+  const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
 
   const isValidEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handleResetPassword = async () => {
+  const handleSendOtp = async () => {
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email address');
       return;
@@ -34,53 +37,87 @@ const ForgotPasswordScreen = ({ navigation }) => {
     }
 
     setIsLoading(true);
-
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await api.forgotPassword(email.trim());
+      setStep('otp');
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Failed to send OTP');
+    } finally {
       setIsLoading(false);
-      setIsEmailSent(true);
-    }, 2000);
+    }
   };
 
-  const handleResendEmail = () => {
-    setIsEmailSent(false);
-    handleResetPassword();
+  const handleResetPassword = async () => {
+    if (!otp.trim()) {
+      Alert.alert('Error', 'Enter the OTP sent to your email');
+      return;
+    }
+    if (!password || password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await api.resetPasswordOtp(email.trim(), otp.trim(), password);
+      Alert.alert('Success', 'Password updated. Please login.');
+      navigation.navigate('Login');
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Failed to reset password');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  if (isEmailSent) {
+  if (step === 'otp') {
     return (
       <View style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.successContainer}>
-            <View style={styles.successIcon}>
-              <Text style={styles.successIconText}>✓</Text>
+          <View style={styles.formContainer}>
+            <Text style={styles.title}>Verify OTP</Text>
+            <Text style={styles.subtitle}>Enter the code sent to {email}</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>OTP</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter OTP"
+                placeholderTextColor="#999"
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </View>
-            
-            <Text style={styles.successTitle}>Check Your Email</Text>
-            <Text style={styles.successMessage}>
-              We've sent a password reset link to:
-            </Text>
-            <Text style={styles.emailText}>{email}</Text>
-            
-            <Text style={styles.instructionText}>
-              Click the link in the email to reset your password. If you don't see the email, check your spam folder.
-            </Text>
-
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>New Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter new password"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+              />
+            </View>
             <TouchableOpacity
-              style={styles.resendButton}
-              onPress={handleResendEmail}
+              style={[styles.resetButton, isLoading && styles.disabledButton]}
+              onPress={handleResetPassword}
+              disabled={isLoading}
             >
-              <Text style={styles.resendButtonText}>Resend Email</Text>
+              <Text style={styles.resetButtonText}>
+                {isLoading ? 'Updating...' : 'Reset Password'}
+              </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.navigate('Login')}
+              onPress={() => setStep('email')}
             >
-              <Text style={styles.backButtonText}>Back to Sign In</Text>
+              <Text style={styles.backButtonText}>Change Email</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -129,11 +166,11 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
           <TouchableOpacity
             style={[styles.resetButton, isLoading && styles.disabledButton]}
-            onPress={handleResetPassword}
+            onPress={handleSendOtp}
             disabled={isLoading}
           >
             <Text style={styles.resetButtonText}>
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
+              {isLoading ? 'Sending...' : 'Send OTP'}
             </Text>
           </TouchableOpacity>
         </View>

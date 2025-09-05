@@ -97,7 +97,7 @@ const Login = ({ onLogin }) => {
           </div>
           
           <div className="login-footer">
-            <Link to="/forgot-password" className="forgot-link">
+            <Link to="/admin/forgot-password" className="forgot-link">
               Forgot your password?
             </Link>
           </div>
