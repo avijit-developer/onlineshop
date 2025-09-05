@@ -290,7 +290,7 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
         // Find orders that have at least one item for these vendors
         const query = { 'items.vendor': { $in: vendorIds } };
         const [orders, total] = await Promise.all([
-            Order.find(query).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
+            Order.find(query).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').lean(),
             Order.countDocuments(query)
         ]);
 
@@ -312,7 +312,7 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                 orderNumber: o.orderNumber,
                 createdAt: o.createdAt,
                 status: o.status,
-                customer: { id: o.user },
+                user: o.user ? { _id: o.user._id || o.user, name: o.user.name, email: o.user.email, phone: o.user.phone } : undefined,
                 items: vendorItems,
                 vendorItemCount: vendorItems.length,
                 vendorSubtotal,
@@ -320,7 +320,11 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                 vendorNet,
                 vendorTaxShare,
                 vendorShippingShare,
-                vendorTotalShare
+                vendorTotalShare,
+                // Aliases for frontends that expect these names
+                vendorTax: vendorTaxShare,
+                vendorShipping: vendorShippingShare,
+                vendorTotal: vendorTotalShare
             };
         });
 
