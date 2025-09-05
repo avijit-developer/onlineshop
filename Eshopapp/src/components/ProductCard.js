@@ -138,15 +138,11 @@ const ProductCard = ({ item }) => {
             )}
           </View>
           <View style={styles.ratingWrapper}>
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <Icon
-                key={`star-${idx}`}
-                name={(item.rating || 0) >= idx + 1 ? 'star' : ((item.rating || 0) > idx ? 'star-half' : 'star-outline')}
-                size={14}
-                color="#FFA726"
-              />
-            ))}
-            {!!item.rating && <Text style={styles.reviewCount}>{Number(item.rating).toFixed(1)}</Text>}
+            {Number(item.rating || 0) > 0 ? (
+              <Text style={styles.ratingBadge}>★ {Number(item.rating).toFixed(1)}{item.reviewsCount ? ` (${item.reviewsCount})` : ''}</Text>
+            ) : (
+              <View />
+            )}
           </View>
         </TouchableOpacity>
         
@@ -255,11 +251,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 2,
   },
-  reviewCount: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#666',
-  },
+  ratingBadge: { fontSize: 12, color: '#333', fontWeight: '600' },
   actionButtons: {
     flexDirection: 'row',
     marginTop: 8,
