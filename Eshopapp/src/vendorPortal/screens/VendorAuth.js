@@ -35,29 +35,31 @@ const VendorAuth = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity style={{ position: 'absolute', left: 16, top: 28 }} onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}>
-          <Text style={{ color: '#f7ab18', fontWeight: '700' }}>{'< Back'}</Text>
-        </TouchableOpacity>
-        <Image source={require('../../assets/logo.jpg')} style={styles.logo} />
-        <Text style={styles.title}>Vendor Login</Text>
-        <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" value={email} onChangeText={setEmail} autoCapitalize="none" />
-        <View style={{ width: '100%', position: 'relative' }}>
-          <TextInput style={[styles.input, { paddingRight: 42 }]} placeholder="Password" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
-          <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, height: 48, top: '50%', marginTop: -24, justifyContent: 'center' }}>
-            <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+        <View style={styles.formCard}>
+          <Text style={styles.title}>Vendor Login</Text>
+          <Text style={styles.subtitle}>Sign in to manage your orders</Text>
+          <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#777" value={email} onChangeText={setEmail} autoCapitalize="none" />
+          <View style={{ position: 'relative' }}>
+            <TextInput style={[styles.input, { paddingRight: 42 }]} placeholder="Password" placeholderTextColor="#777" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
+            <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, height: 48, top: '50%', marginTop: -24, justifyContent: 'center' }}>
+              <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.btn} onPress={loginVendor} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Login</Text>}
           </TouchableOpacity>
-        </View>
-        <TouchableOpacity style={styles.btn} onPress={loginVendor} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Login</Text>}
-        </TouchableOpacity>
-        <View style={{ flexDirection: 'row', marginTop: 12, gap: 16 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('VendorApply')}>
-            <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Become a Vendor</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Forgot Password?</Text>
+          <View style={styles.linksRow}>
+            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword', { mode: 'vendor' })}>
+              <Text style={styles.linkText}>Forgot Password?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('VendorApply')}>
+              <Text style={styles.linkText}>Become a Vendor</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })} style={{ marginTop: 16, alignItems: 'center' }}>
+            <Text style={{ color: '#f7ab18', fontWeight: '700' }}>{'< Back to Customer Login'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -66,12 +68,15 @@ const VendorAuth = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
-  logo: { width: 96, height: 96, marginBottom: 8, resizeMode: 'contain' },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 16, color: '#333' },
-  input: { width: '100%', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12, backgroundColor: '#f9f9f9', color: '#000' },
-  btn: { width: '100%', backgroundColor: '#f7ab18', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: '700' },
+  container: { flexGrow: 1, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 24 },
+  formCard: { backgroundColor: '#fff', padding: 20, borderRadius: 10 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#333', textAlign: 'center', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 30 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 15, fontSize: 16, marginBottom: 15, backgroundColor: '#f9f9f9', color: '#000' },
+  btn: { backgroundColor: '#f7ab18', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  btnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  linksRow: { marginTop: 12, flexDirection: 'row', justifyContent: 'space-between' },
+  linkText: { color: '#f7ab18', fontSize: 14, fontWeight: '600' },
 });
 
 export default VendorAuth;

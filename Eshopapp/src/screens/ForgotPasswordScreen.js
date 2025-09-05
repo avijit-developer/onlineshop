@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import api from '../utils/api';
 
-const ForgotPasswordScreen = ({ navigation }) => {
+const ForgotPasswordScreen = ({ navigation, route }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState('email'); // email | otp
@@ -92,7 +92,11 @@ const ForgotPasswordScreen = ({ navigation }) => {
     try {
       await api.resetPasswordOtp(email.trim(), otp.trim(), password);
       Alert.alert('Success', 'Password updated. Please login.');
-      navigation.navigate('Login');
+      if (route?.params?.mode === 'vendor') {
+        navigation.reset({ index: 0, routes: [{ name: 'VendorPortal' }] });
+      } else {
+        navigation.navigate('Login');
+      }
     } catch (e) {
       Alert.alert('Error', e.message || 'Failed to reset password');
     } finally {
