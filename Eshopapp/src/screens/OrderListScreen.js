@@ -51,6 +51,16 @@ const OrderListScreen = () => {
     }
   };
 
+  const formatDate = (val) => {
+    if (!val) return '';
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
   const filteredOrders = selectedFilter === 'all' 
     ? orders 
     : orders.filter(order => order.status === selectedFilter);
@@ -63,7 +73,7 @@ const OrderListScreen = () => {
       <View style={styles.orderHeader}>
         <View style={styles.orderInfo}>
           <Text style={styles.orderId}>Order #{item.orderNumber || (item._id || item.id)}</Text>
-          <Text style={styles.orderDate}>{(item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '')}</Text>
+          <Text style={styles.orderDate}>{formatDate(item.createdAt)}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
@@ -145,9 +155,7 @@ const OrderListScreen = () => {
           <Icon name="arrow-back-outline" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>My Orders</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Search')}>
-          <Icon name="search-outline" size={24} color="#333" />
-        </TouchableOpacity>
+        <View style={{ width: 24 }} />
       </View>
 
       {/* Filter Tabs */}
