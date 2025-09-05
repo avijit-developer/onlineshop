@@ -11,8 +11,10 @@ router.get('/shipping/public', async (req, res) => {
     const doc = await Settings.findOne().lean();
     const flatShippingFee = doc?.shipping?.flatShippingFee ?? Number(process.env.FLAT_SHIPPING_FEE || 0);
     const taxRate = doc?.tax?.rate ?? Number(process.env.DEFAULT_TAX_RATE || 0);
-    // Return fee and tax rate for client consumption
-    res.json({ success: true, data: { flatShippingFee, taxRate } });
+    const contactEmail = doc?.general?.contactEmail || '';
+    const contactPhone = doc?.general?.contactPhone || '';
+    // Return fee, tax rate and general contact for client consumption
+    res.json({ success: true, data: { flatShippingFee, taxRate, contactEmail, contactPhone } });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to load shipping settings' });
   }

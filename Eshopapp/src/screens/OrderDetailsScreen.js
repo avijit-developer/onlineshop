@@ -101,8 +101,19 @@ const OrderDetailsScreen = ({ route }) => {
     Alert.alert('Order Tracking', `Order ${orderId} is currently ${order.status.toLowerCase()}`);
   };
 
+  const [contact, setContact] = React.useState({ email: '', phone: '' });
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try { const res = await api.getShippingSettings(); if (mounted) setContact({ email: res?.data?.contactEmail || '', phone: res?.data?.contactPhone || '' }); } catch (_) {}
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const handleContactSupport = () => {
-    Alert.alert('Contact Support', 'Email: support@eshopapp.com\nPhone: +1 800 123 4567');
+    const email = contact.email || 'support@eshopapp.com';
+    const phone = contact.phone || '+1 800 123 4567';
+    Alert.alert('Contact Support', `Email: ${email}\nPhone: ${phone}`);
   };
 
   const renderOrderItem = (item, index) => (
