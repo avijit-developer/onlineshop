@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
 import api from '../utils/api';
+import AntDesign from 'react-native-vector-icons/AntDesign';
+import { useWishlist } from '../contexts/WishlistContext';
 
 const numColumns = 2;
 const screenWidth = Dimensions.get('window').width;
@@ -10,6 +12,7 @@ const JustForYou = ({ navigation }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sectionConfig, setSectionConfig] = useState(null);
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   useEffect(() => {
     fetchSectionData();
@@ -33,22 +36,63 @@ const JustForYou = ({ navigation }) => {
     }
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={[styles.card, { width: cardWidth }]}
-      onPress={() => navigation.navigate('ProductDetails', { productId: item._id })}
-    >
-      <Image 
-        source={{ uri: item.images && item.images[0] }} 
-        style={styles.image}
-        defaultSource={require('../assets/Placeholder_01.png')}
-      />
-      <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
-      {sectionConfig?.settings?.showPrice && (
-        <Text style={styles.price}>₹{item.specialPrice ?? item.regularPrice ?? item.price}</Text>
-      )}
-    </TouchableOpacity>
-  );
+  const renderItem = ({ item }) => {
+    const productId = item._id || item.id;
+    const wishlisted = isInWishlist(productId);
+    const rp = Number(item.regularPrice || 0);
+    const sp = Number(item.specialPrice ?? (item.price ?? 0));
+    const showDiscount = rp > 0 && sp > 0 && sp < rp;
+    const pct = showDiscount ? Math.round(100 - (sp / rp) * 100) : 0;
+    const rating = Number(item.rating || 0);
+    const ratingCount = Number(item.reviewsCount || 0);
+    return (
+      <TouchableOpacity 
+        style={[styles.card, { width: cardWidth }]}
+        onPress={() => navigation.navigate('ProductDetails', { productId })}
+        activeOpacity={0.9}
+      >
+        <Image 
+          source={{ uri: item.images && item.images[0] }} 
+          style={styles.image}
+          defaultSource={require('../assets/Placeholder_01.png')}
+        />
+
+        {/* Heart */}
+        <TouchableOpacity
+          style={styles.favicon}
+          activeOpacity={0.8}
+          onPress={async (e) => {
+            e.stopPropagation();
+            try { await toggleWishlist(productId); } catch (_) {}
+          }}
+        >
+          <AntDesign name={wishlisted ? 'heart' : 'hearto'} size={14} color={wishlisted ? '#e53935' : '#FFA726'} />
+        </TouchableOpacity>
+
+        {/* Discount badge */}
+        {showDiscount && (
+          <View style={styles.discountBadge}><Text style={styles.discountText}>-{pct}%</Text></View>
+        )}
+
+        <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
+        <View style={styles.metaRow}>
+          {rating > 0 ? (
+            <Text style={styles.ratingBadge}>★ {rating.toFixed(1)}{ratingCount ? ` (${ratingCount})` : ''}</Text>
+          ) : <View />}
+          {sectionConfig?.settings?.showPrice && (
+            item.specialPrice != null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.price, { color: '#e53935' }]}>₹{item.specialPrice}</Text>
+                <Text style={styles.oldPrice}>₹{item.regularPrice}</Text>
+              </View>
+            ) : (
+              <Text style={styles.price}>₹{item.specialPrice ?? item.regularPrice ?? item.price}</Text>
+            )
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -149,16 +193,28 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
+  favicon:{
+    position:'absolute',
+    top:8,
+    right:8,
+    width:22,
+    height:22,
+    display:'flex',
+    alignItems:'center',
+    justifyContent:'center',
+    backgroundColor: 'rgba(250, 250, 250, .9)',
+    borderRadius:20,
+    paddingTop:2,
+  },
+  discountBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: '#e53935', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10 },
+  discountText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   cardTitle: {
     fontSize: 13,
     padding: 8,
     color: '#333',
   },
-  price: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    paddingHorizontal: 8,
-    paddingBottom: 12,
-    color: '#FFA726'
-  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingBottom: 8 },
+  ratingBadge: { fontSize: 12, color: '#333', fontWeight: '600' },
+  price: { fontSize: 15, fontWeight: 'bold', color: '#FFA726' },
+  oldPrice: { fontSize: 12, color: '#888', textDecorationLine: 'line-through' },
 });
