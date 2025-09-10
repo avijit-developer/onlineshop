@@ -74,6 +74,20 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
 });
 
+// Customer (self): delete my account (must be BEFORE any '/:id' routes)
+router.delete('/me', authenticate, requireRole(['customer']), async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) { res.status(404); throw new Error('User not found'); }
+
+  // Clean up avatar from Cloudinary if present
+  if (user.avatarPublicId) {
+    try { await deleteImageByPublicId(user.avatarPublicId); } catch (_) {}
+  }
+
+  await User.findByIdAndDelete(req.user.id);
+  return res.json({ success: true, message: 'Account deleted successfully' });
+});
+
 // Admin: update customer status (activate/deactivate)
 router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
