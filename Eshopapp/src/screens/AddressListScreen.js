@@ -188,21 +188,45 @@ const AddressListScreen = ({ route }) => {
       </View>
 
       <View style={styles.addressContent}>
-        <Text style={styles.addressText}>
-          {item.firstName} {item.lastName}
-        </Text>
-        <Text style={styles.addressText}>
-          {item.address}
-        </Text>
-        <Text style={styles.addressText}>
-          {item.city}, {item.state} {item.zipCode}
-        </Text>
-        <Text style={styles.addressText}>
-          {item.country}
-        </Text>
-        <Text style={styles.contactText}>
-          📱 {item.phone}
-        </Text>
+        {/* Render only non-empty lines to avoid blank space */}
+        {(() => {
+          const firstName = String(item.firstName || '').trim();
+          const lastName = String(item.lastName || '').trim();
+          const fullName = [firstName, lastName].filter(Boolean).join(' ');
+          return fullName ? (
+            <Text style={styles.addressText}>{fullName}</Text>
+          ) : null;
+        })()}
+        {(() => {
+          const line = String(item.address || '').trim();
+          return line ? (
+            <Text style={styles.addressText}>{line}</Text>
+          ) : null;
+        })()}
+        {(() => {
+          const city = String(item.city || '').trim();
+          const state = String(item.state || '').trim();
+          const zip = String(item.zipCode || '').trim();
+          let cityStateZip = '';
+          if (city) cityStateZip += city;
+          if (state) cityStateZip += (city ? ', ' : '') + state;
+          if (zip) cityStateZip += (state || city ? ' ' : '') + zip;
+          return cityStateZip ? (
+            <Text style={styles.addressText}>{cityStateZip}</Text>
+          ) : null;
+        })()}
+        {(() => {
+          const country = String(item.country || '').trim();
+          return country ? (
+            <Text style={styles.addressText}>{country}</Text>
+          ) : null;
+        })()}
+        {(() => {
+          const phone = String(item.phone || '').trim();
+          return phone ? (
+            <Text style={styles.contactText}>📱 {phone}</Text>
+          ) : null;
+        })()}
       </View>
 
       {/* Primary action */}
