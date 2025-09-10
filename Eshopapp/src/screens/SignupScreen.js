@@ -119,7 +119,28 @@ const SignupScreen = ({ navigation }) => {
                 ]
               }
             };
-            await api.addMyAddress(authToken, addressPayload);
+            // Deduplicate: if same address/coords exists, skip adding
+            try {
+              const existingRes = await api.getMyAddresses(authToken).catch(() => null);
+              const existing = existingRes?.data || [];
+              const round3 = (n) => Math.round(Number(n) * 1000) / 1000;
+              const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+              const dup = existing.find((a) => {
+                const sameLine = norm(a.address) === norm(addressPayload.address);
+                const ex = Array.isArray(a?.location?.coordinates) ? a.location.coordinates : null;
+                const sameCoords = ex && round3(ex[1]) === round3(location.latitude) && round3(ex[0]) === round3(location.longitude);
+                return sameLine || sameCoords;
+              });
+              if (dup) {
+                if (!dup.isDefault && dup._id) {
+                  try { await api.setDefaultAddress(authToken, dup._id); } catch (_) {}
+                }
+              } else {
+                await api.addMyAddress(authToken, addressPayload);
+              }
+            } catch (_) {
+              await api.addMyAddress(authToken, addressPayload);
+            }
             
             // Refresh location context to show the saved address
             await loadUserDefaultAddress();

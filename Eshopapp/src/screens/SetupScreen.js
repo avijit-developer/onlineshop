@@ -86,7 +86,26 @@ const SetupScreen = ({ navigation, route }) => {
               },
             };
             try {
-              await api.addMyAddress(token, addressPayload);
+              // Deduplicate: fetch existing addresses and avoid re-adding the same one
+              const existingRes = await api.getMyAddresses(token).catch(() => null);
+              const existing = existingRes?.data || [];
+              const round3 = (n) => Math.round(Number(n) * 1000) / 1000;
+              const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+              const dup = existing.find((a) => {
+                const sameLine = norm(a.address) === norm(addressPayload.address);
+                const ex = Array.isArray(a?.location?.coordinates) ? a.location.coordinates : null;
+                const sameCoords = ex && round3(ex[1]) === round3(location.latitude) && round3(ex[0]) === round3(location.longitude);
+                return sameLine || sameCoords;
+              });
+
+              if (dup) {
+                // Ensure it's default
+                if (!dup.isDefault && dup._id) {
+                  try { await api.setDefaultAddress(token, dup._id); } catch (_) {}
+                }
+              } else {
+                await api.addMyAddress(token, addressPayload);
+              }
             } catch (e) {
               // Non-blocking: proceed even if address save fails
             }
