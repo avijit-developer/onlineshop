@@ -153,6 +153,20 @@ router.post('/me/addresses', authenticate, requireRole(['customer']), async (req
   res.status(201).json({ success: true, data: user.addresses });
 });
 
+// Customer (self): delete my account
+router.delete('/me', authenticate, requireRole(['customer']), async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) { res.status(404); throw new Error('User not found'); }
+
+  // Clean up avatar from Cloudinary if present
+  if (user.avatarPublicId) {
+    try { await deleteImageByPublicId(user.avatarPublicId); } catch (_) {}
+  }
+
+  await User.findByIdAndDelete(req.user.id);
+  return res.json({ success: true, message: 'Account deleted successfully' });
+});
+
 // Customer (self): set default address
 router.patch('/me/addresses/:addressId/default', authenticate, requireRole(['customer']), async (req, res) => {
   const { addressId } = req.params;

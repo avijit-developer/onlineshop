@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
+import api from '../utils/api';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
@@ -101,6 +102,30 @@ const ProfileScreen = () => {
             try {
               await logout();
             } catch {}
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and data. This action cannot be undone. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.deleteMyAccount();
+            } catch (e) {
+              Alert.alert('Error', e?.message || 'Failed to delete account');
+              return;
+            }
+            try { await logout(); } catch {}
             navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
           }
         }
@@ -202,6 +227,12 @@ const ProfileScreen = () => {
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Icon name="log-out-outline" size={20} color="#ff4444" />
           <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+
+        {/* Delete Account Button */}
+        <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+          <Icon name="trash-outline" size={20} color="#ffffff" />
+          <Text style={styles.deleteText}>Delete Account</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -400,6 +431,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ff4444',
+    marginLeft: 8,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ff4444',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    marginBottom: 30,
+  },
+  deleteText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
     marginLeft: 8,
   },
   backButton: {

@@ -213,6 +213,18 @@ const api = {
     });
   },
 
+  // Delete my account (customer self-delete)
+  async deleteMyAccount() {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/users/me', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
   // Wishlist management functions (auto-token)
   async getWishlist() {
     const token = await this.getStoredToken();
