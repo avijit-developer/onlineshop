@@ -108,8 +108,8 @@ android {
              // Caution! In production, you need to generate your own keystore file.
              // see https://reactnative.dev/docs/signed-apk-android.
              signingConfig signingConfigs.debug
-             minifyEnabled true
-             shrinkResources true
+             minifyEnabled false
+             shrinkResources false
              proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
          }
      }
@@ -127,7 +127,7 @@ android {
      //         enable false
      //     }
      // }
- }
+}
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
