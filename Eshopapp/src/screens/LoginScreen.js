@@ -83,7 +83,7 @@ const LoginScreen = ({ navigation }) => {
             returnKeyType="next"
           />
 
-          <View style={{ position: 'relative' }}>
+          <View style={styles.passwordWrapper}>
             <TextInput
               style={[styles.input, { paddingRight: 42 }]}
               placeholder="Password"
@@ -96,7 +96,7 @@ const LoginScreen = ({ navigation }) => {
               selectionColor="#333"
               cursorColor="#333"
             />
-            <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, height: 48, top: '50%', marginTop: -24, justifyContent: 'center' }}>
+            <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
               <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
             </TouchableOpacity>
           </View>
@@ -180,10 +180,15 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     padding: 15,
+    height: 50,
     fontSize: 16,
     marginBottom: 15,
     backgroundColor: '#f9f9f9',
     color: '#000',
+  },
+  passwordWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
   },
   loginButton: {
     backgroundColor: '#f7ab18',
