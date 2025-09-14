@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDate, formatTime, formatDateTime } from '../../utils/date';
 import { toast } from 'react-hot-toast';
 import './Reviews.css';
 
@@ -417,8 +418,8 @@ const Reviews = () => {
                 </td>
                 <td>
                   <div className="date-info">
-                    <p>{require('../../utils/date').formatDate(review.createdAt)}</p>
-                    <small>{require('../../utils/date').formatTime(review.createdAt)}</small>
+                    <p>{formatDate(review.createdAt)}</p>
+                    <small>{formatTime(review.createdAt)}</small>
                   </div>
                 </td>
                 <td>
@@ -537,7 +538,7 @@ const Reviews = () => {
                   </div>
                   <div className="meta-item">
                     <label>Date:</label>
-                    <span>{require('../../utils/date').formatDateTime(selectedReview.createdAt)}</span>
+                    <span>{formatDateTime(selectedReview.createdAt)}</span>
                   </div>
                 </div>
               </div>

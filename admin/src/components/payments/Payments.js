@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDate, formatDateTime } from '../../utils/date';
 import { toast } from 'react-hot-toast';
 import './Payments.css';
 
@@ -440,7 +441,7 @@ const Payments = () => {
                             {payment.status}
                           </span>
                         </td>
-                        <td>{payment.date ? require('../../utils/date').formatDate(payment.date) : '-'}</td>
+                        <td>{payment.date ? formatDate(payment.date) : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -573,7 +574,7 @@ const Payments = () => {
                         <td>${withdrawal.amount.toFixed(2)}</td>
                         <td>{withdrawal.paymentMethod}</td>
                         <td>{withdrawal.accountDetails}</td>
-                        <td>{withdrawal.requestDate ? require('../../utils/date').formatDate(withdrawal.requestDate) : '-'}</td>
+                        <td>{withdrawal.requestDate ? formatDate(withdrawal.requestDate) : '-'}</td>
                         <td>
                           <span className={`status-badge ${getStatusBadgeClass(withdrawal.status)}`}>
                             {withdrawal.status}
@@ -680,7 +681,7 @@ const Payments = () => {
                 </div>
                 <div className="detail-group">
                   <label>Request Date:</label>
-                  <span>{selectedWithdrawal.requestDate ? require('../../utils/date').formatDateTime(selectedWithdrawal.requestDate) : '-'}</span>
+                  <span>{selectedWithdrawal.requestDate ? formatDateTime(selectedWithdrawal.requestDate) : '-'}</span>
                 </div>
                 <div className="detail-group">
                   <label>Status:</label>
@@ -691,7 +692,7 @@ const Payments = () => {
                 {selectedWithdrawal.processedDate && (
                   <div className="detail-group">
                     <label>Processed Date:</label>
-                    <span>{selectedWithdrawal.processedDate ? require('../../utils/date').formatDateTime(selectedWithdrawal.processedDate) : '-'}</span>
+                    <span>{selectedWithdrawal.processedDate ? formatDateTime(selectedWithdrawal.processedDate) : '-'}</span>
                   </div>
                 )}
                 {selectedWithdrawal.rejectionReason && (

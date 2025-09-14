@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDate } from '../../utils/date';
 import { toast } from 'react-hot-toast';
 import './Coupons.css';
 
@@ -644,8 +645,8 @@ const Coupons = () => {
                 </td>
                 <td>
                   <div className="date-info">
-                    <p>From: {require('../../utils/date').formatDate(coupon.startDate)}</p>
-                    <p>To: {require('../../utils/date').formatDate(coupon.endDate)}</p>
+                    <p>From: {formatDate(coupon.startDate)}</p>
+                    <p>To: {formatDate(coupon.endDate)}</p>
                   </div>
                 </td>
                 <td>

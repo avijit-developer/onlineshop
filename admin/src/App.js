@@ -27,6 +27,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [locVersion, setLocVersion] = useState(0);
 
   useEffect(() => {
     // Check if user is logged in
@@ -46,6 +47,7 @@ function App() {
               dateFormat: j.data.localization.dateFormat,
               timeFormat: j.data.localization.timeFormat
             });
+            setLocVersion(v => v + 1);
           }
         }).catch(() => {});
       } catch (_) {}
@@ -118,7 +120,7 @@ function App() {
             path="/admin/dashboard" 
             element={
               isAuthenticated ? (
-                <Layout user={user} onLogout={logout}>
+                <Layout key={locVersion} user={user} onLogout={logout}>
                   <Dashboard />
                 </Layout>
               ) : (
@@ -126,20 +128,20 @@ function App() {
               )
             } 
           />
-          <Route path="/admin/customers" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Customers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/admin-users" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><AdminUsers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/vendors" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Vendors /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/products" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Products /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/categories" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Categories /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/brands" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Brands /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/orders" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Orders /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/inventory" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Inventory /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/payments" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Payments /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/coupons" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Coupons /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/banners" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Banners /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/homepage" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><HomePageManager /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/reviews" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Reviews /></Layout>) : (<Navigate to="/admin/login" replace />)} />
-          <Route path="/admin/settings" element={isAuthenticated ? (<Layout user={user} onLogout={logout}><Settings /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/customers" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Customers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/admin-users" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><AdminUsers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/vendors" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Vendors /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/products" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Products /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/categories" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Categories /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/brands" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Brands /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/orders" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Orders /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/inventory" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Inventory /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/payments" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Payments /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/coupons" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Coupons /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/banners" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Banners /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/homepage" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><HomePageManager /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/reviews" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Reviews /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/settings" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Settings /></Layout>) : (<Navigate to="/admin/login" replace />)} />
         </Routes>
       </div>
     </Router>
