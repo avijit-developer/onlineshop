@@ -128,12 +128,22 @@ const Customers = () => {
 
   const viewOrderHistory = async (customer) => {
     try {
-      const customerOrders = orders.filter(order => order.customerId === customer.id);
-      setCustomerOrders(customerOrders);
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+      const params = new URLSearchParams({ page: '1', limit: '50', userId: customer.id });
+      const res = await fetch(`${API_BASE}/api/v1/orders?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to fetch orders');
+      const list = Array.isArray(json?.data) ? json.data : [];
+      setCustomerOrders(list);
       setSelectedCustomer(customer);
       setShowOrderModal(true);
     } catch (error) {
-      toast.error('Failed to load order history');
+      toast.error(error.message || 'Failed to load order history');
     }
   };
 
@@ -357,7 +367,7 @@ const Customers = () => {
                     </span>
                   </td>
                   <td>{customer.totalOrders}</td>
-                  <td>${customer.totalSpent.toLocaleString()}</td>
+                  <td>${Number(customer.totalSpent || 0).toLocaleString()}</td>
                   <td>{new Date(customer.createdAt).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
@@ -508,24 +518,24 @@ const Customers = () => {
               {customerOrders.length > 0 ? (
                 <div className="order-history">
                   {customerOrders.map(order => (
-                    <div key={order.id} className="order-item">
+                    <div key={order._id || order.id} className="order-item">
                       <div className="order-header">
-                        <strong>{order.orderNumber}</strong>
-                        <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}`}>
+                        <strong>{order.orderNumber || (order._id || '').slice(-6)}</strong>
+                        <span className={`badge badge-${String(order.status).toLowerCase().includes('deliver') ? 'success' : String(order.status).toLowerCase().includes('ship') ? 'info' : 'warning'}`}>
                           {order.status}
                         </span>
                       </div>
                       <div className="order-details">
-                        <div>Date: {new Date(order.createdAt).toLocaleDateString()}</div>
-                        <div>Total: ${order.total}</div>
-                        <div>Vendor: {getVendorName(order.vendorId)}</div>
+                        <div>Date: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</div>
+                        <div>Total: ${Number(order.total || 0).toFixed(2)}</div>
+                        <div>Items: {Array.isArray(order.items) ? order.items.length : 0}</div>
                       </div>
                       <div className="order-items">
-                        {order.items.map((item, index) => (
+                        {(order.items || []).map((item, index) => (
                           <div key={index} className="order-item-detail">
-                            <span>{getProductName(item.productId)}</span>
+                            <span>{item.name || getProductName(item.product) || 'Item'}</span>
                             <span>Qty: {item.quantity}</span>
-                            <span>${item.total}</span>
+                            <span>${Number(item.price || 0).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>

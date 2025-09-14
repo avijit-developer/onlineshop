@@ -207,12 +207,16 @@ router.get('/me/:id', authenticate, requireRole(['customer']), async (req, res) 
 // Admin: list all orders
 router.get('/', authenticate, requireAdmin, async (req, res) => {
 	try {
-		const { page = 1, limit = 20 } = req.query;
+		const { page = 1, limit = 20, userId } = req.query;
 		const p = Math.max(parseInt(page, 10) || 1, 1);
 		const l = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+		const query = {};
+		if (userId) {
+			query.user = userId;
+		}
 		const [orders, total] = await Promise.all([
-			Order.find({}).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').lean(),
-			Order.countDocuments({})
+			Order.find(query).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').lean(),
+			Order.countDocuments(query)
 		]);
 		try {
 			const missingIds = new Set();
