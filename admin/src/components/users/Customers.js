@@ -478,7 +478,7 @@ const Customers = () => {
       {/* Customer Details Modal */}
       {showModal && selectedCustomer && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Customer Details</h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
