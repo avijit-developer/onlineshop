@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
@@ -242,6 +243,24 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to list orders' });
 	}
+});
+
+// Admin: summary for a specific user (total orders and total spent)
+router.get('/summary', authenticate, requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.query;
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+            return res.json({ success: true, data: { totalOrders: 0, totalSpent: 0 } });
+        }
+        const results = await Order.aggregate([
+            { $match: { user: new mongoose.Types.ObjectId(userId) } },
+            { $group: { _id: null, totalOrders: { $sum: 1 }, totalSpent: { $sum: { $toDouble: "$total" } } } }
+        ]);
+        const summary = results && results[0] ? { totalOrders: results[0].totalOrders || 0, totalSpent: results[0].totalSpent || 0 } : { totalOrders: 0, totalSpent: 0 };
+        res.json({ success: true, data: summary });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to get order summary' });
+    }
 });
 
 // Admin: update order status

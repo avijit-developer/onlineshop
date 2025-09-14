@@ -124,12 +124,12 @@
 
 /* Order history modal */
 .modal-large {
-  max-width: 800px;
-  width: 90%;
+  max-width: 1000px;
+  width: 95%;
 }
 
 .order-history {
-  max-height: 400px;
+  max-height: 60vh;
   overflow-y: auto;
 }
 

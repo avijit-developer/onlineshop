@@ -24,6 +24,7 @@ const Customers = () => {
   const [customerOrders, setCustomerOrders] = useState([]);
   const [customerAddresses, setCustomerAddresses] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [summaryByUser, setSummaryByUser] = useState({}); // { [userId]: { totalOrders, totalSpent } }
   const [vendors, setVendors] = useState([]);
   const [products, setProducts] = useState([]);
   
@@ -83,6 +84,20 @@ const Customers = () => {
       }));
 
       setCustomers(mapped);
+      // Prefetch summaries for current page customers (best-effort)
+      try {
+        const token = localStorage.getItem('adminToken');
+        const next = { ...summaryByUser };
+        await Promise.all(mapped.map(async (u) => {
+          if (next[u.id]) return;
+          const res2 = await fetch(`${API_BASE}/api/v1/orders/summary?userId=${u.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+          const j2 = await res2.json().catch(() => ({}));
+          if (res2.ok && j2?.success) {
+            next[u.id] = { totalOrders: j2.data.totalOrders || 0, totalSpent: j2.data.totalSpent || 0 };
+          }
+        }));
+        setSummaryByUser(next);
+      } catch (_) {}
       setTotalCount(total);
       setOrders([]);
       setVendors([]);
@@ -366,8 +381,8 @@ const Customers = () => {
                       {customer.status}
                     </span>
                   </td>
-                  <td>{customer.totalOrders}</td>
-                  <td>${Number(customer.totalSpent || 0).toLocaleString()}</td>
+                  <td>{(summaryByUser[customer.id]?.totalOrders ?? customer.totalOrders) || 0}</td>
+                  <td>${Number((summaryByUser[customer.id]?.totalSpent ?? customer.totalSpent) || 0).toLocaleString()}</td>
                   <td>{new Date(customer.createdAt).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
@@ -517,30 +532,43 @@ const Customers = () => {
             <div className="modal-body">
               {customerOrders.length > 0 ? (
                 <div className="order-history">
-                  {customerOrders.map(order => (
-                    <div key={order._id || order.id} className="order-item">
-                      <div className="order-header">
-                        <strong>{order.orderNumber || (order._id || '').slice(-6)}</strong>
-                        <span className={`badge badge-${String(order.status).toLowerCase().includes('deliver') ? 'success' : String(order.status).toLowerCase().includes('ship') ? 'info' : 'warning'}`}>
-                          {order.status}
-                        </span>
-                      </div>
-                      <div className="order-details">
-                        <div>Date: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</div>
-                        <div>Total: ${Number(order.total || 0).toFixed(2)}</div>
-                        <div>Items: {Array.isArray(order.items) ? order.items.length : 0}</div>
-                      </div>
-                      <div className="order-items">
-                        {(order.items || []).map((item, index) => (
-                          <div key={index} className="order-item-detail">
-                            <span>{item.name || getProductName(item.product) || 'Item'}</span>
-                            <span>Qty: {item.quantity}</span>
-                            <span>${Number(item.price || 0).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Order</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Items</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customerOrders.map(order => (
+                        <tr key={order._id || order.id}>
+                          <td>{order.orderNumber || (order._id || '').slice(-6)}</td>
+                          <td>{order.createdAt ? new Date(order.createdAt).toLocaleString() : '-'}</td>
+                          <td>
+                            <span className={`badge badge-${String(order.status).toLowerCase().includes('deliver') ? 'success' : String(order.status).toLowerCase().includes('ship') ? 'info' : 'warning'}`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td>${Number(order.total || 0).toFixed(2)}</td>
+                          <td>
+                            {(order.items || []).slice(0, 3).map((item, idx) => (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name || getProductName(item.product) || 'Item'}</span>
+                                <span>x{item.quantity}</span>
+                                <span>${Number(item.price || 0).toFixed(2)}</span>
+                              </div>
+                            ))}
+                            {(order.items || []).length > 3 && (
+                              <div style={{ color: '#666', fontSize: 12 }}>+ {(order.items || []).length - 3} more</div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <p>No orders found for this customer.</p>
