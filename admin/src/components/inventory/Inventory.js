@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency } from '../../utils/currency';
 import { toast } from 'react-hot-toast';
 import './Inventory.css';
 
@@ -323,7 +324,7 @@ const Inventory = () => {
         </div>
         <div className="stat-card">
           <h3>Total Stock Value</h3>
-          <p>${getTotalStockValue().toLocaleString()}</p>
+          <p>{formatCurrency(getTotalStockValue())}</p>
         </div>
       </div>
 
@@ -406,7 +407,7 @@ const Inventory = () => {
                     <img src={product.images[0] || '/default-product.png'} alt={product.name} className="product-image" />
                     <div>
                       <strong>{product.name}</strong>
-                      <small>${product.specialPrice || product.regularPrice}</small>
+                      <small>{formatCurrency(product.specialPrice || product.regularPrice)}</small>
                     </div>
                   </div>
                 </td>
@@ -426,7 +427,7 @@ const Inventory = () => {
                 </td>
                 <td>
                   <strong>
-                    ${((product.specialPrice || product.regularPrice) * product.stock).toFixed(2)}
+                    {formatCurrency((product.specialPrice || product.regularPrice) * product.stock)}
                   </strong>
                 </td>
                 <td>

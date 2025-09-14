@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Products.css';
+import { formatCurrency } from '../../utils/currency';
 
 const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
 const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
@@ -718,9 +719,9 @@ const Products = () => {
                 
                 <td>
                   <div className="price-info">
-                    <span className="regular-price">${product.regularPrice}</span>
+                    <span className="regular-price">{formatCurrency(product.regularPrice)}</span>
                     {product.specialPrice && (
-                      <span className="special-price">${product.specialPrice}</span>
+                      <span className="special-price">{formatCurrency(product.specialPrice)}</span>
                     )}
                   </div>
                 </td>
@@ -1301,11 +1302,11 @@ const Products = () => {
                   
                   <div className="info-item">
                     <label>Regular Price:</label>
-                    <span>${selectedProduct.regularPrice}</span>
+                    <span>{formatCurrency(selectedProduct.regularPrice)}</span>
                   </div>
                   <div className="info-item">
                     <label>Special Price:</label>
-                    <span>{selectedProduct.specialPrice ? `$${selectedProduct.specialPrice}` : 'N/A'}</span>
+                    <span>{selectedProduct.specialPrice ? formatCurrency(selectedProduct.specialPrice) : 'N/A'}</span>
                   </div>
                   <div className="info-item">
                     <label>Stock:</label>
@@ -1355,7 +1356,7 @@ const Products = () => {
                             ) : 'N/A'}
                           </div>
                           <div>
-                            <strong>Price:</strong> {variant.price != null ? `$${variant.price}` : 'N/A'}
+                            <strong>Price:</strong> {variant.price != null ? formatCurrency(variant.price) : 'N/A'}
                           </div>
                           <div>
                             <strong>Stock:</strong> {variant.stock ?? 0}
