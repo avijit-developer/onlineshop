@@ -141,7 +141,7 @@ const ForgotPasswordScreen = ({ navigation, route }) => {
               <Text style={styles.inputLabel}>New Password</Text>
               <View style={styles.passwordWrapper}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { paddingRight: 42 }]}
                   placeholder="Enter new password"
                   placeholderTextColor="#999"
                   value={password}
