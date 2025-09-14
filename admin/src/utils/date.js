@@ -14,14 +14,14 @@ export function setLocalizationSettings(localization) {
 export function getLocalizationSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { dateFormat: 'MM/DD/YYYY', timeFormat: '12' };
+    if (!raw) return { dateFormat: 'DD/MM/YYYY', timeFormat: '12' };
     const parsed = JSON.parse(raw);
     return {
-      dateFormat: parsed.dateFormat || 'MM/DD/YYYY',
+      dateFormat: parsed.dateFormat || 'DD/MM/YYYY',
       timeFormat: parsed.timeFormat || '12',
     };
   } catch (_) {
-    return { dateFormat: 'MM/DD/YYYY', timeFormat: '12' };
+    return { dateFormat: 'DD/MM/YYYY', timeFormat: '12' };
   }
 }
 
