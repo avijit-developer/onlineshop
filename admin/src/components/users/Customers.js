@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import './Customers.css';
 import { formatDate, formatDateTime } from '../../utils/date';
+import { formatCurrency } from '../../utils/currency';
 
 const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
 const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
@@ -391,7 +392,7 @@ const Customers = () => {
                     </span>
                   </td>
                   <td>{(summaryByUser[customer.id]?.totalOrders ?? customer.totalOrders) || 0}</td>
-                  <td>${Number((summaryByUser[customer.id]?.totalSpent ?? customer.totalSpent) || 0).toLocaleString()}</td>
+                  <td>{formatCurrency(Number((summaryByUser[customer.id]?.totalSpent ?? customer.totalSpent) || 0))}</td>
                   <td>{formatDate(customer.createdAt)}</td>
                   <td>
                     <div className="action-buttons">
@@ -516,7 +517,7 @@ const Customers = () => {
                   <strong>Total Orders:</strong> {Number(selectedCustomer.totalOrders || 0)}
                 </div>
                 <div className="detail-row">
-                  <strong>Total Spent:</strong> ${Number(selectedCustomer.totalSpent || 0).toLocaleString()}
+                  <strong>Total Spent:</strong> {formatCurrency(Number(selectedCustomer.totalSpent || 0))}
                 </div>
                 <div className="detail-row">
                   <strong>Joined:</strong> {selectedCustomer.createdAt ? formatDate(selectedCustomer.createdAt) : '-'}

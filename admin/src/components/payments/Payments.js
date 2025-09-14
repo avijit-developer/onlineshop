@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency } from '../../utils/currency';
 import { formatDate, formatDateTime } from '../../utils/date';
 import { toast } from 'react-hot-toast';
 import './Payments.css';
@@ -330,11 +331,11 @@ const Payments = () => {
       <div className="stats-cards">
         <div className="stat-card">
           <h3>Total Admin Earnings</h3>
-          <p>${getTotalEarnings().toFixed(2)}</p>
+          <p>{formatCurrency(getTotalEarnings())}</p>
         </div>
         <div className="stat-card">
           <h3>Total Vendor Payouts</h3>
-          <p>${getTotalVendorPayouts().toFixed(2)}</p>
+          <p>{formatCurrency(getTotalVendorPayouts())}</p>
         </div>
         <div className="stat-card">
           <h3>Pending Withdrawals</h3>
@@ -432,9 +433,9 @@ const Payments = () => {
                         <td>{payment.orderId}</td>
                         <td>{payment.customerName}</td>
                         <td>{getVendorName(payment.vendorId)}</td>
-                        <td>${payment.amount.toFixed(2)}</td>
-                        <td className="commission">${payment.commission.toFixed(2)}</td>
-                        <td>${payment.vendorEarnings.toFixed(2)}</td>
+                        <td>{formatCurrency(payment.amount)}</td>
+                        <td className="commission">{formatCurrency(payment.commission)}</td>
+                        <td>{formatCurrency(payment.vendorEarnings)}</td>
                         <td>{payment.paymentMethod}</td>
                         <td>
                           <span className={`status-badge ${getStatusBadgeClass(payment.status)}`}>
@@ -491,7 +492,7 @@ const Payments = () => {
                       <div className="balance-info">
                         <div className="balance-amount">
                           <span>Available Balance</span>
-                          <strong>${getVendorBalance(vendor.id).toFixed(2)}</strong>
+                          <strong>{formatCurrency(getVendorBalance(vendor.id))}</strong>
                         </div>
                         <button
                           onClick={() => {
@@ -571,7 +572,7 @@ const Payments = () => {
                     {getPaginatedData(getFilteredWithdrawals()).map((withdrawal) => (
                       <tr key={withdrawal.id}>
                         <td>{withdrawal.vendorName}</td>
-                        <td>${withdrawal.amount.toFixed(2)}</td>
+                        <td>{formatCurrency(withdrawal.amount)}</td>
                         <td>{withdrawal.paymentMethod}</td>
                         <td>{withdrawal.accountDetails}</td>
                         <td>{withdrawal.requestDate ? formatDate(withdrawal.requestDate) : '-'}</td>
@@ -669,7 +670,7 @@ const Payments = () => {
                 </div>
                 <div className="detail-group">
                   <label>Amount:</label>
-                  <span>${selectedWithdrawal.amount.toFixed(2)}</span>
+                  <span>{formatCurrency(selectedWithdrawal.amount)}</span>
                 </div>
                 <div className="detail-group">
                   <label>Payment Method:</label>
@@ -753,7 +754,7 @@ const Payments = () => {
                     <option value="">Choose a vendor</option>
                     {vendors.map(vendor => (
                       <option key={vendor.id} value={vendor.id}>
-                        {vendor.companyName} (Balance: ${getVendorBalance(vendor.id).toFixed(2)})
+                        {vendor.companyName} (Balance: {formatCurrency(getVendorBalance(vendor.id))})
                       </option>
                     ))}
                   </select>
@@ -771,7 +772,7 @@ const Payments = () => {
                 </div>
                 {selectedVendor && (
                   <div className="balance-info">
-                    <p>Available Balance: <strong>${getVendorBalance(selectedVendor.id).toFixed(2)}</strong></p>
+                    <p>Available Balance: <strong>{formatCurrency(getVendorBalance(selectedVendor.id))}</strong></p>
                   </div>
                 )}
               </div>

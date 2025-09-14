@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency } from '../../utils/currency';
 import { toast } from 'react-hot-toast';
 import './Orders.css';
 
@@ -457,7 +458,7 @@ const Orders = () => {
         </div>
         <div className="stat-card">
           <h3>Total Revenue</h3>
-          <p>₹{orders.reduce((sum, order) => sum + calculateOrderTotal(order), 0).toLocaleString()}</p>
+          <p>{formatCurrency(orders.reduce((sum, order) => sum + calculateOrderTotal(order), 0))}</p>
         </div>
       </div>
 
@@ -497,7 +498,7 @@ const Orders = () => {
                   </span>
                 </td>
                 <td>
-                  <strong>₹{calculateOrderTotal(order).toFixed(2)}</strong>
+                  <strong>{formatCurrency(calculateOrderTotal(order))}</strong>
                 </td>
                 <td>
                   <span className={`status-badge ${getStatusBadgeClass(order.status)}`}>
@@ -647,10 +648,10 @@ const Orders = () => {
                                   <h4>{item.name}</h4>
                                   <p>SKU: {item.sku}</p>
                                   <p>Quantity: {item.quantity}</p>
-                                  <p>Price: ₹{item.price}</p>
+                                  <p>Price: {formatCurrency(item.price)}</p>
                                 </div>
                                 <div className="item-total">
-                                  ₹{(item.price * item.quantity).toFixed(2)}
+                                  {formatCurrency(item.price * item.quantity)}
                                 </div>
                               </div>
                             ))}
@@ -687,10 +688,10 @@ const Orders = () => {
                                     <h4>{item.name}</h4>
                                     <p>SKU: {item.sku}</p>
                                     <p>Quantity: {item.quantity}</p>
-                                    <p>Price: ₹{item.price}</p>
+                                    <p>Price: {formatCurrency(item.price)}</p>
                                   </div>
                                   <div className="item-total">
-                                    ₹{(item.price * item.quantity).toFixed(2)}
+                                    {formatCurrency(item.price * item.quantity)}
                                   </div>
                                 </div>
                               ))}
@@ -720,36 +721,36 @@ const Orders = () => {
                         <>
                           <div className="summary-row">
                             <span>Subtotal:</span>
-                            <span>₹{(selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0).toFixed(2)}</span>
+                            <span>{formatCurrency((selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0))}</span>
                           </div>
                           <div className="summary-row">
                             <span>Tax ({Number(selectedOrder.tax || 0)}%):</span>
-                            <span>₹{(((selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) * Number(selectedOrder.tax || 0)) / 100).toFixed(2)}</span>
+                            <span>{formatCurrency((((selectedOrder.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) * Number(selectedOrder.tax || 0)) / 100))}</span>
                           </div>
                           <div className="summary-row">
                             <span>Shipping:</span>
-                            <span>₹{Number(selectedOrder.shippingCost || 0).toFixed(2)}</span>
+                            <span>{formatCurrency(Number(selectedOrder.shippingCost || 0))}</span>
                           </div>
                         </>
                       ) : (
                         <>
                           <div className="summary-row">
                             <span>Vendor Subtotal:</span>
-                            <span>₹{Number(selectedOrder.vendorSubtotal || 0).toFixed(2)}</span>
+                            <span>{formatCurrency(Number(selectedOrder.vendorSubtotal || 0))}</span>
                           </div>
                           <div className="summary-row">
                             <span>Vendor Tax Share:</span>
-                            <span>₹{Number(selectedOrder.vendorTax || selectedOrder.vendorTaxShare || 0).toFixed(2)}</span>
+                            <span>{formatCurrency(Number(selectedOrder.vendorTax || selectedOrder.vendorTaxShare || 0))}</span>
                           </div>
                           <div className="summary-row">
                             <span>Vendor Shipping Share:</span>
-                            <span>₹{Number(selectedOrder.vendorShipping || selectedOrder.vendorShippingShare || 0).toFixed(2)}</span>
+                            <span>{formatCurrency(Number(selectedOrder.vendorShipping || selectedOrder.vendorShippingShare || 0))}</span>
                           </div>
                         </>
                       )}
                       <div className="summary-row total">
                         <span>Total:</span>
-                        <span>₹{calculateOrderTotal(selectedOrder).toFixed(2)}</span>
+                        <span>{formatCurrency(calculateOrderTotal(selectedOrder))}</span>
                       </div>
                       {selectedOrder.orderNote && (
                         <div className="summary-row">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatDate } from '../../utils/date';
+import { formatCurrency } from '../../utils/currency';
 import { toast } from 'react-hot-toast';
 import './Coupons.css';
 
@@ -624,11 +625,11 @@ const Coupons = () => {
                     <strong>
                       {coupon.discountType === 'percentage' 
                         ? `${coupon.discountValue}%` 
-                        : `$${coupon.discountValue}`
+                        : formatCurrency(coupon.discountValue)
                       }
                     </strong>
                     {coupon.minimumAmount && (
-                      <p>Min: ${coupon.minimumAmount}</p>
+                      <p>Min: {formatCurrency(coupon.minimumAmount)}</p>
                     )}
                   </div>
                 </td>
@@ -749,7 +750,7 @@ const Coupons = () => {
                 <div className="form-group full-width">
                   <label>Summary</label>
                   <div style={{ fontSize: 12, color: '#555' }}>
-                    This coupon applies to <strong>{computeCouponType(formData)}</strong>{formData.minimumAmount ? ` with min order ₹${formData.minimumAmount}` : ''}{formData.freeShipping ? ` and grants Free Shipping` : ''}{Array.isArray(formData.allowedPaymentMethods) && formData.allowedPaymentMethods.length>0 ? ` when paying via ${formData.allowedPaymentMethods.join(', ')}` : ''}.
+                    This coupon applies to <strong>{computeCouponType(formData)}</strong>{formData.minimumAmount ? ` with min order ${formatCurrency(formData.minimumAmount)}` : ''}{formData.freeShipping ? ` and grants Free Shipping` : ''}{Array.isArray(formData.allowedPaymentMethods) && formData.allowedPaymentMethods.length>0 ? ` when paying via ${formData.allowedPaymentMethods.join(', ')}` : ''}.
                   </div>
                 </div>
                 <div className="form-group">
@@ -779,7 +780,7 @@ const Coupons = () => {
                     required
                   >
                     <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount ($)</option>
+                    <option value="fixed">Fixed Amount</option>
                   </select>
                 </div>
                 <div className="form-group">

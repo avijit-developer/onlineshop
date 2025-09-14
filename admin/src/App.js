@@ -22,6 +22,7 @@ import Reviews from './components/reviews/Reviews';
 import Settings from './components/settings/Settings';
 import './App.css';
 import { setLocalizationSettings } from './utils/date';
+import { setCurrencySettings } from './utils/currency';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -48,6 +49,13 @@ function App() {
               timeFormat: j.data.localization.timeFormat
             });
             setLocVersion(v => v + 1);
+          }
+          if (j?.success && j?.data?.localization) {
+            setCurrencySettings({
+              currency: j.data.localization.currency,
+              currencySymbol: j.data.localization.currencySymbol,
+              decimalPlaces: j.data.localization.decimalPlaces,
+            });
           }
         }).catch(() => {});
       } catch (_) {}
