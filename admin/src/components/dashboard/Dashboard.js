@@ -162,10 +162,6 @@ const Dashboard = () => {
             <p>Pending Approvals</p>
           </div>
         )}
-        <div className="stat-card">
-          <h3>{stats.lowStockProducts}</h3>
-          <p>Low Stock Products</p>
-        </div>
       </div>
 
       <div className="row">
@@ -264,18 +260,23 @@ const Dashboard = () => {
           <div className="card">
             <h3>Top Selling Products</h3>
             <div className="top-products">
-              {(Array.isArray(topProducts) ? topProducts : (Array.isArray(data.products) ? data.products : [])).map((product) => (
-                <div key={product.id || product._id} className="product-item">
-                  <img src={(product.images && product.images[0]) || '/default-product.png'} alt={product.name} className="product-image" />
-                  <div className="product-info">
-                    <strong>{product.name}</strong>
-                    <span>${product.specialPrice}</span>
+              {(Array.isArray(topProducts) ? topProducts : (Array.isArray(data.products) ? data.products : [])).map((product) => {
+                const imageSrc = (Array.isArray(product.images) && product.images[0]) || '/default-product.png';
+                const price = product.specialPrice ?? product.price ?? product.regularPrice ?? 0;
+                const formattedPrice = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(price));
+                return (
+                  <div key={product.id || product._id} className="product-item">
+                    <img src={imageSrc} alt={product.name} className="product-image" onError={(e) => { e.currentTarget.src = '/default-product.png'; }} />
+                    <div className="product-info">
+                      <strong>{product.name}</strong>
+                      <span>{formattedPrice}</span>
+                    </div>
+                    <div className="product-stats">
+                      <span>Stock: {product.stock ?? '-'}</span>
+                    </div>
                   </div>
-                  <div className="product-stats">
-                    <span>Stock: {product.stock}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -286,8 +287,13 @@ const Dashboard = () => {
             <div className="card">
               <h3>Pending Approvals</h3>
               <div className="pending-approvals">
+                {(data.vendors || []).filter(v => v.status === 'pending').length === 0 &&
+                 (data.products || []).filter(p => p.status === 'pending').length === 0 && (
+                  <div className="approval-item"><div className="approval-info"><span>No pending approvals</span></div></div>
+                )}
+
                 {/* Pending Vendors */}
-                {data.vendors.filter(v => v.status === 'pending').map(vendor => (
+                {(data.vendors || []).filter(v => v.status === 'pending').map(vendor => (
                   <div key={vendor.id} className="approval-item">
                     <div className="approval-info">
                       <strong>{vendor.companyName}</strong>
@@ -301,7 +307,7 @@ const Dashboard = () => {
                 ))}
                 
                 {/* Pending Products */}
-                {data.products.filter(p => p.status === 'pending').map(product => (
+                {(data.products || []).filter(p => p.status === 'pending').map(product => (
                   <div key={product.id} className="approval-item">
                     <div className="approval-info">
                       <strong>{product.name}</strong>

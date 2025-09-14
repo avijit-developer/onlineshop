@@ -7,12 +7,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .chart-header h3 {
   margin: 0;
   color: #333;
+  font-size: 16px;
 }
 
 .chart-controls {
@@ -22,7 +23,7 @@
 
 /* Recent orders */
 .recent-orders {
-  max-height: 300px;
+  max-height: 240px;
   overflow-y: auto;
 }
 
@@ -30,7 +31,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
+  padding: 8px 0;
   border-bottom: 1px solid #eee;
 }
 
@@ -44,12 +45,12 @@
 }
 
 .order-info strong {
-  font-size: 14px;
+  font-size: 13px;
   color: #333;
 }
 
 .order-amount {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
   margin-top: 2px;
 }
@@ -60,14 +61,14 @@
 
 /* Top products */
 .top-products {
-  max-height: 300px;
+  max-height: 240px;
   overflow-y: auto;
 }
 
 .product-item {
   display: flex;
   align-items: center;
-  padding: 12px 0;
+  padding: 8px 0;
   border-bottom: 1px solid #eee;
 }
 
@@ -76,11 +77,11 @@
 }
 
 .product-image {
-  width: 50px;
-  height: 50px;
+  width: 36px;
+  height: 36px;
   object-fit: cover;
   border-radius: 4px;
-  margin-right: 12px;
+  margin-right: 10px;
 }
 
 .product-info {
@@ -90,25 +91,25 @@
 }
 
 .product-info strong {
-  font-size: 14px;
+  font-size: 13px;
   color: #333;
   margin-bottom: 2px;
 }
 
 .product-info span {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
 }
 
 .product-stats {
   text-align: right;
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
 }
 
 /* Pending approvals */
 .pending-approvals {
-  max-height: 300px;
+  max-height: 240px;
   overflow-y: auto;
 }
 
@@ -116,7 +117,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
+  padding: 8px 0;
   border-bottom: 1px solid #eee;
 }
 
@@ -130,13 +131,13 @@
 }
 
 .approval-info strong {
-  font-size: 14px;
+  font-size: 13px;
   color: #333;
   margin-bottom: 2px;
 }
 
 .approval-info span {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
 }
 
