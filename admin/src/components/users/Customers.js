@@ -562,13 +562,13 @@ const Customers = () => {
                               {order.status}
                             </span>
                           </td>
-                          <td>${Number(order.total || 0).toFixed(2)}</td>
+                          <td>{formatCurrency(Number(order.total || 0))}</td>
                           <td>
                             {(order.items || []).slice(0, 3).map((item, idx) => (
                               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                                 <span style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name || getProductName(item.product) || 'Item'}</span>
                                 <span>x{item.quantity}</span>
-                                <span>${Number(item.price || 0).toFixed(2)}</span>
+                                <span>{formatCurrency(Number(item.price || 0))}</span>
                               </div>
                             ))}
                             {(order.items || []).length > 3 && (
