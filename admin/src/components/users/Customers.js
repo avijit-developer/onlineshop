@@ -155,6 +155,14 @@ const Customers = () => {
       if (!res.ok) throw new Error(json?.message || 'Failed to fetch orders');
       const list = Array.isArray(json?.data) ? json.data : [];
       setCustomerOrders(list);
+      // Fetch and update summary live for accuracy
+      try {
+        const sumRes = await fetch(`${API_BASE}/api/v1/orders/summary?userId=${customer.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const sumJson = await sumRes.json().catch(() => ({}));
+        if (sumRes.ok && sumJson?.success) {
+          setSummaryByUser(prev => ({ ...prev, [customer.id]: { totalOrders: sumJson.data.totalOrders || 0, totalSpent: sumJson.data.totalSpent || 0 } }));
+        }
+      } catch (_) {}
       setSelectedCustomer(customer);
       setShowOrderModal(true);
     } catch (error) {

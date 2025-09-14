@@ -128,6 +128,12 @@
   width: 95%;
 }
 
+/* Ensure large modal overrides base modal sizing */
+.modal.modal-large {
+  max-width: 1200px !important;
+  width: 95% !important;
+}
+
 .order-history {
   max-height: 60vh;
   overflow-y: auto;
