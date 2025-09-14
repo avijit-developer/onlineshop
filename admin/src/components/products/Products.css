@@ -697,3 +697,11 @@
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
 } 
+
+/* Enforce square thumbnails specifically in products table */
+.products-table .product-info .product-image {
+  width: 24px !important;
+  height: 24px !important;
+  aspect-ratio: 1 / 1;
+  border-radius: 0 !important;
+} 
