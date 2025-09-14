@@ -21,6 +21,7 @@ import HomePageManager from './components/homepage/HomePageManager';
 import Reviews from './components/reviews/Reviews';
 import Settings from './components/settings/Settings';
 import './App.css';
+import { setLocalizationSettings } from './utils/date';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -35,6 +36,19 @@ function App() {
     if (token && userData) {
       setIsAuthenticated(true);
       setUser(JSON.parse(userData));
+      // Load localization settings once per session
+      try {
+        fetch(`${process.env.REACT_APP_API_URL || ''}/api/v1/settings`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(r => r.json()).then(j => {
+          if (j?.success && j?.data?.localization) {
+            setLocalizationSettings({
+              dateFormat: j.data.localization.dateFormat,
+              timeFormat: j.data.localization.timeFormat
+            });
+          }
+        }).catch(() => {});
+      } catch (_) {}
     }
     setLoading(false);
   }, []);

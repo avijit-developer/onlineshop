@@ -509,8 +509,8 @@ const Orders = () => {
                 </td>
                 <td>
                   <div className="date-info">
-                    <span>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''}</span>
-                    <small>{order.createdAt ? new Date(order.createdAt).toLocaleTimeString() : ''}</small>
+                    <span>{order.createdAt ? require('../../utils/date').formatDate(order.createdAt) : ''}</span>
+                    <small>{order.createdAt ? require('../../utils/date').formatTime(order.createdAt) : ''}</small>
                   </div>
                 </td>
                 <td>
@@ -598,7 +598,7 @@ const Orders = () => {
                       })()}
                     </span>
                     <span className="order-date">
-                      {new Date(selectedOrder.createdAt).toLocaleString()}
+                      {require('../../utils/date').formatDateTime(selectedOrder.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -767,7 +767,7 @@ const Orders = () => {
                         {selectedOrder.statusHistory.map((history, index) => (
                           <div key={index} className="history-item">
                             <span className="status">{history.status}</span>
-                            <span className="date">{new Date(history.timestamp).toLocaleString()}</span>
+                            <span className="date">{require('../../utils/date').formatDateTime(history.timestamp)}</span>
                             <span className="updated-by">{history.updatedBy}</span>
                           </div>
                         ))}
@@ -795,8 +795,8 @@ const Orders = () => {
                   <h3>INVOICE</h3>
                   <div className="invoice-details">
                     <p><strong>Invoice #:</strong> INV-{selectedOrder.orderNumber}</p>
-                    <p><strong>Date:</strong> {new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
-                    <p><strong>Due Date:</strong> {new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
+                    <p><strong>Date:</strong> {require('../../utils/date').formatDate(selectedOrder.createdAt)}</p>
+                    <p><strong>Due Date:</strong> {require('../../utils/date').formatDate(selectedOrder.createdAt)}</p>
                   </div>
                 </div>
 

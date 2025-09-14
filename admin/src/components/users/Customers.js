@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import './Customers.css';
+import { formatDate, formatDateTime } from '../../utils/date';
 
 const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
 const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
@@ -391,7 +392,7 @@ const Customers = () => {
                   </td>
                   <td>{(summaryByUser[customer.id]?.totalOrders ?? customer.totalOrders) || 0}</td>
                   <td>${Number((summaryByUser[customer.id]?.totalSpent ?? customer.totalSpent) || 0).toLocaleString()}</td>
-                  <td>{new Date(customer.createdAt).toLocaleDateString()}</td>
+                  <td>{formatDate(customer.createdAt)}</td>
                   <td>
                     <div className="action-buttons">
                       <button
@@ -518,10 +519,10 @@ const Customers = () => {
                   <strong>Total Spent:</strong> ${Number(selectedCustomer.totalSpent || 0).toLocaleString()}
                 </div>
                 <div className="detail-row">
-                  <strong>Joined:</strong> {selectedCustomer.createdAt ? new Date(selectedCustomer.createdAt).toLocaleDateString() : '-'}
+                  <strong>Joined:</strong> {selectedCustomer.createdAt ? formatDate(selectedCustomer.createdAt) : '-'}
                 </div>
                 <div className="detail-row">
-                  <strong>Last Login:</strong> {selectedCustomer.lastLogin ? new Date(selectedCustomer.lastLogin).toLocaleDateString() : '-'}
+                  <strong>Last Login:</strong> {selectedCustomer.lastLogin ? formatDate(selectedCustomer.lastLogin) : '-'}
                 </div>
               </div>
             </div>
@@ -554,7 +555,7 @@ const Customers = () => {
                       {customerOrders.map(order => (
                         <tr key={order._id || order.id}>
                           <td>{order.orderNumber || (order._id || '').slice(-6)}</td>
-                          <td>{order.createdAt ? new Date(order.createdAt).toLocaleString() : '-'}</td>
+                          <td>{order.createdAt ? formatDateTime(order.createdAt) : '-'}</td>
                           <td>
                             <span className={`badge badge-${String(order.status).toLowerCase().includes('deliver') ? 'success' : String(order.status).toLowerCase().includes('ship') ? 'info' : 'warning'}`}>
                               {order.status}

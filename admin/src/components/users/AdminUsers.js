@@ -293,7 +293,7 @@ const AdminUsers = () => {
                         {item.isActive ? 'active' : 'inactive'}
                       </span>
                     </td>
-                    <td>{new Date(item.createdAt || Date.now()).toLocaleDateString()}</td>
+                    <td>{require('../../utils/date').formatDate(item.createdAt || Date.now())}</td>
                     <td>
                       <div className="action-buttons">
                         <button className="btn btn-sm btn-primary" onClick={() => openEdit(item)}>Edit</button>

@@ -440,7 +440,7 @@ const Payments = () => {
                             {payment.status}
                           </span>
                         </td>
-                        <td>{new Date(payment.date).toLocaleDateString()}</td>
+                        <td>{payment.date ? require('../../utils/date').formatDate(payment.date) : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -573,7 +573,7 @@ const Payments = () => {
                         <td>${withdrawal.amount.toFixed(2)}</td>
                         <td>{withdrawal.paymentMethod}</td>
                         <td>{withdrawal.accountDetails}</td>
-                        <td>{new Date(withdrawal.requestDate).toLocaleDateString()}</td>
+                        <td>{withdrawal.requestDate ? require('../../utils/date').formatDate(withdrawal.requestDate) : '-'}</td>
                         <td>
                           <span className={`status-badge ${getStatusBadgeClass(withdrawal.status)}`}>
                             {withdrawal.status}
@@ -680,7 +680,7 @@ const Payments = () => {
                 </div>
                 <div className="detail-group">
                   <label>Request Date:</label>
-                  <span>{new Date(selectedWithdrawal.requestDate).toLocaleString()}</span>
+                  <span>{selectedWithdrawal.requestDate ? require('../../utils/date').formatDateTime(selectedWithdrawal.requestDate) : '-'}</span>
                 </div>
                 <div className="detail-group">
                   <label>Status:</label>
@@ -691,7 +691,7 @@ const Payments = () => {
                 {selectedWithdrawal.processedDate && (
                   <div className="detail-group">
                     <label>Processed Date:</label>
-                    <span>{new Date(selectedWithdrawal.processedDate).toLocaleString()}</span>
+                    <span>{selectedWithdrawal.processedDate ? require('../../utils/date').formatDateTime(selectedWithdrawal.processedDate) : '-'}</span>
                   </div>
                 )}
                 {selectedWithdrawal.rejectionReason && (

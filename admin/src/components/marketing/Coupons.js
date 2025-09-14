@@ -644,8 +644,8 @@ const Coupons = () => {
                 </td>
                 <td>
                   <div className="date-info">
-                    <p>From: {new Date(coupon.startDate).toLocaleDateString()}</p>
-                    <p>To: {new Date(coupon.endDate).toLocaleDateString()}</p>
+                    <p>From: {require('../../utils/date').formatDate(coupon.startDate)}</p>
+                    <p>To: {require('../../utils/date').formatDate(coupon.endDate)}</p>
                   </div>
                 </td>
                 <td>

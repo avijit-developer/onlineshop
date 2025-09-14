@@ -413,8 +413,8 @@ const Banners = () => {
                   <span>📊 {getCTR(banner.views, banner.clicks)}</span>
                 </div>
                 <div className="banner-dates">
-                  <p>From: {new Date(banner.startDate).toLocaleDateString()}</p>
-                  <p>To: {new Date(banner.endDate).toLocaleDateString()}</p>
+                  <p>From: {require('../../utils/date').formatDate(banner.startDate)}</p>
+                  <p>To: {require('../../utils/date').formatDate(banner.endDate)}</p>
                 </div>
                 <div className="banner-link">
                   <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer">

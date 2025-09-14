@@ -417,8 +417,8 @@ const Reviews = () => {
                 </td>
                 <td>
                   <div className="date-info">
-                    <p>{new Date(review.createdAt).toLocaleDateString()}</p>
-                    <small>{new Date(review.createdAt).toLocaleTimeString()}</small>
+                    <p>{require('../../utils/date').formatDate(review.createdAt)}</p>
+                    <small>{require('../../utils/date').formatTime(review.createdAt)}</small>
                   </div>
                 </td>
                 <td>
@@ -537,7 +537,7 @@ const Reviews = () => {
                   </div>
                   <div className="meta-item">
                     <label>Date:</label>
-                    <span>{new Date(selectedReview.createdAt).toLocaleString()}</span>
+                    <span>{require('../../utils/date').formatDateTime(selectedReview.createdAt)}</span>
                   </div>
                 </div>
               </div>
