@@ -255,28 +255,39 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-        {/* Top Products */}
+        {/* Top Products (compact table) */}
         <div className="col-6">
           <div className="card">
             <h3>Top Selling Products</h3>
             <div className="top-products">
-              {(Array.isArray(topProducts) ? topProducts : (Array.isArray(data.products) ? data.products : [])).map((product) => {
-                const imageSrc = (Array.isArray(product.images) && product.images[0]) || '/default-product.png';
-                const price = product.specialPrice ?? product.price ?? product.regularPrice ?? 0;
-                const formattedPrice = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(price));
-                return (
-                  <div key={product.id || product._id} className="product-item">
-                    <img src={imageSrc} alt={product.name} className="product-image" onError={(e) => { e.currentTarget.src = '/default-product.png'; }} />
-                    <div className="product-info">
-                      <strong>{product.name}</strong>
-                      <span>{formattedPrice}</span>
-                    </div>
-                    <div className="product-stats">
-                      <span>Stock: {product.stock ?? '-'}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              <table className="table-compact">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th className="text-right">Price</th>
+                    <th className="text-right">Stock</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(Array.isArray(topProducts) ? topProducts : (Array.isArray(data.products) ? data.products : [])).map((product) => {
+                    const imageSrc = (Array.isArray(product.images) && product.images[0]) || '/default-product.png';
+                    const price = product.specialPrice ?? product.price ?? product.regularPrice ?? 0;
+                    const formattedPrice = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(price));
+                    return (
+                      <tr key={product.id || product._id}>
+                        <td>
+                          <div className="cell-product">
+                            <img src={imageSrc} alt={product.name} className="product-thumb" onError={(e) => { e.currentTarget.src = '/default-product.png'; }} />
+                            <span className="truncate" title={product.name}>{product.name}</span>
+                          </div>
+                        </td>
+                        <td className="text-right">{formattedPrice}</td>
+                        <td className="text-right">{product.stock ?? '-'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

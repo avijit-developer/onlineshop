@@ -7,7 +7,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .chart-header h3 {
@@ -23,7 +23,7 @@
 
 /* Recent orders */
 .recent-orders {
-  max-height: 240px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -31,7 +31,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #eee;
 }
 
@@ -45,12 +45,12 @@
 }
 
 .order-info strong {
-  font-size: 13px;
+  font-size: 12px;
   color: #333;
 }
 
 .order-amount {
-  font-size: 11px;
+  font-size: 10px;
   color: #666;
   margin-top: 2px;
 }
@@ -61,14 +61,14 @@
 
 /* Top products */
 .top-products {
-  max-height: 240px;
+  max-height: 220px;
   overflow-y: auto;
 }
 
-.product-item {
+.product-item { /* legacy list layout (kept for reference) */
   display: flex;
   align-items: center;
-  padding: 8px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #eee;
 }
 
@@ -77,11 +77,11 @@
 }
 
 .product-image {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   object-fit: cover;
   border-radius: 4px;
-  margin-right: 10px;
+  margin-right: 8px;
 }
 
 .product-info {
@@ -91,25 +91,25 @@
 }
 
 .product-info strong {
-  font-size: 13px;
+  font-size: 12px;
   color: #333;
   margin-bottom: 2px;
 }
 
 .product-info span {
-  font-size: 11px;
+  font-size: 10px;
   color: #666;
 }
 
 .product-stats {
   text-align: right;
-  font-size: 11px;
+  font-size: 10px;
   color: #666;
 }
 
 /* Pending approvals */
 .pending-approvals {
-  max-height: 240px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -117,7 +117,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #eee;
 }
 
@@ -131,14 +131,94 @@
 }
 
 .approval-info strong {
-  font-size: 13px;
+  font-size: 12px;
   color: #333;
   margin-bottom: 2px;
 }
 
 .approval-info span {
-  font-size: 11px;
+  font-size: 10px;
   color: #666;
+}
+
+/* Compact card and grid overrides only within dashboard */
+.dashboard .card {
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.dashboard .chart-container {
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.dashboard .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard .stat-card {
+  padding: 12px;
+}
+
+.dashboard .stat-card h3 {
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+
+.dashboard .stat-card p {
+  font-size: 11px;
+}
+
+.dashboard .row {
+  margin: 0 -6px;
+}
+
+.dashboard [class^='col-'] {
+  padding: 0 6px;
+}
+
+/* Compact table for Top Selling Products */
+.table-compact {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-compact th,
+.table-compact td {
+  padding: 6px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid #eee;
+  color: #333;
+}
+
+.table-compact th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+.cell-product {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.product-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  object-fit: cover;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
 }
 
 .approval-actions {
