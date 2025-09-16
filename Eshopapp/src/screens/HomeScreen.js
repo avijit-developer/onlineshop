@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import Header from '../components/Header';
+import HomeSkeleton from '../components/HomeSkeleton';
 import { useWishlist } from '../contexts/WishlistContext';
 
 // Removed static Best Seller (RecentView)
@@ -82,18 +83,22 @@ const HomeScreen = ({ navigation }) => {
       >
 
        
-        <Animated.View style={{ opacity: fadeIn }}>
-          <Header key={`Header-${refreshKey}`} />
-          
-          {/* Removed test wishlist button */}
-          
-          <SliderBanner key={`SliderBanner-${refreshKey}`} />
-          <AllCategories key={`AllCategories-${refreshKey}`} />
-          <MostPopularSection key={`MostPopular-${refreshKey}`} navigation={navigation} />
-          <BestSellerSection key={`BestSeller-${refreshKey}`} navigation={navigation} />
-          <CategoriesGrid key={`CategoriesGrid-${refreshKey}`} navigation={navigation} />
-          <JustForYou key={`JustForYou-${refreshKey}`} navigation={navigation} />
-        </Animated.View>
+        {refreshKey === 0 && fadeIn.__getValue && fadeIn.__getValue() < 1 ? (
+          <HomeSkeleton />
+        ) : (
+          <Animated.View style={{ opacity: fadeIn }}>
+            <Header key={`Header-${refreshKey}`} />
+            
+            {/* Removed test wishlist button */}
+            
+            <SliderBanner key={`SliderBanner-${refreshKey}`} />
+            <AllCategories key={`AllCategories-${refreshKey}`} />
+            <MostPopularSection key={`MostPopular-${refreshKey}`} navigation={navigation} />
+            <BestSellerSection key={`BestSeller-${refreshKey}`} navigation={navigation} />
+            <CategoriesGrid key={`CategoriesGrid-${refreshKey}`} navigation={navigation} />
+            <JustForYou key={`JustForYou-${refreshKey}`} navigation={navigation} />
+          </Animated.View>
+        )}
       </ScrollView>
 
       <Animated.View
