@@ -80,7 +80,8 @@ export const UserProvider = ({ children }) => {
       
       setToken(authToken);
       setUser(userData);
-      try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {}
+      // Fetch orders in background to avoid blocking login
+      setTimeout(async () => { try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {} }, 0);
       
       return { success: true };
     } catch (error) {
@@ -103,7 +104,8 @@ export const UserProvider = ({ children }) => {
       
       setToken(authToken);
       setUser(newUser);
-      try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {}
+      // Fetch orders in background to avoid blocking register
+      setTimeout(async () => { try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {} }, 0);
       
       return { success: true };
     } catch (error) {

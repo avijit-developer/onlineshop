@@ -104,59 +104,7 @@ const SignupScreen = ({ navigation }) => {
       const result = await register(userData);
       
       if (result.success) {
-        // Ask location and save default address
-        try {
-          const location = await requestLocationAndGetAddress();
-          const authToken = await AsyncStorage.getItem('authToken');
-          if (location && authToken) {
-            const addressPayload = {
-              label: 'Home',
-              name: `${String(formData.firstName || '').trim()} ${String(formData.lastName || '').trim()}`.trim().replace(/\s+/g, ' '),
-              address: location.address,
-              city: '',
-              state: '',
-              zipCode: '',
-              country: 'United States',
-              isDefault: true,
-              location: {
-                type: 'Point',
-                coordinates: [
-                  Number(location.longitude),
-                  Number(location.latitude)
-                ]
-              }
-            };
-            // Deduplicate: if same address/coords exists, skip adding
-            try {
-              const existingRes = await api.getMyAddresses(authToken).catch(() => null);
-              const existing = existingRes?.data || [];
-              const round3 = (n) => Math.round(Number(n) * 1000) / 1000;
-              const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-              const dup = existing.find((a) => {
-                const sameLine = norm(a.address) === norm(addressPayload.address);
-                const ex = Array.isArray(a?.location?.coordinates) ? a.location.coordinates : null;
-                const sameCoords = ex && round3(ex[1]) === round3(location.latitude) && round3(ex[0]) === round3(location.longitude);
-                return sameLine || sameCoords;
-              });
-              if (dup) {
-                if (!dup.isDefault && dup._id) {
-                  try { await api.setDefaultAddress(authToken, dup._id); } catch (_) {}
-                }
-              } else {
-                await api.addMyAddress(authToken, addressPayload);
-              }
-            } catch (_) {
-              await api.addMyAddress(authToken, addressPayload);
-            }
-            
-            // Refresh location context to show the saved address
-            await loadUserDefaultAddress();
-          }
-        } catch (e) {
-          // Non-blocking if address save fails
-          console.log('Address save after signup failed:', e?.message);
-        }
-        // Go to setup screen where animation runs while address is saved
+        // Immediately continue; background setup will run in Setup screen
         navigation.replace('Setup');
       } else {
         if (String(result.error || '').toLowerCase().includes('email')) {

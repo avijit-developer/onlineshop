@@ -36,25 +36,8 @@ const LoginScreen = ({ navigation }) => {
       const result = await login(email, password);
       
       if (result.success) {
-        // After successful login, request location
-        Alert.alert(
-          'Location Access',
-          'To provide you with better shopping experience, we need access to your location to show nearby stores and delivery options.',
-          [
-            {
-              text: 'Skip',
-              style: 'cancel',
-              onPress: () => navigation.replace('Home'),
-            },
-            {
-              text: 'Allow Location',
-              onPress: async () => {
-                await requestLocation();
-                navigation.replace('Home');
-              },
-            },
-          ]
-        );
+        // Navigate immediately; let Setup or Home handle address/location lazily
+        navigation.replace('Home');
       } else {
         Alert.alert('Login Failed', result.error || 'Please check your credentials and try again');
       }
