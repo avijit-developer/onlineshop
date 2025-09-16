@@ -39,15 +39,16 @@ export const LocationProvider = ({ children }) => {
 
       if (response.success && response.data && response.data.length > 0) {
         const defaultAddress = response.data.find(addr => addr.isDefault) || response.data[0];
+        const nextLocation = defaultAddress.location?.coordinates ? {
+          latitude: defaultAddress.location.coordinates[1],
+          longitude: defaultAddress.location.coordinates[0],
+        } : null;
+        // Batch-set state to minimize re-renders
         setAddress(defaultAddress.address);
-        if (defaultAddress.city) setCity(defaultAddress.city);
-        if (defaultAddress.zipCode || defaultAddress.postalCode) setPostalCode(defaultAddress.zipCode || defaultAddress.postalCode);
-        if (defaultAddress.location?.coordinates) {
-          setLocation({
-            latitude: defaultAddress.location.coordinates[1],
-            longitude: defaultAddress.location.coordinates[0],
-          });
-        }
+        setArea('');
+        setCity(defaultAddress.city || '');
+        setPostalCode(defaultAddress.zipCode || defaultAddress.postalCode || '');
+        if (nextLocation) setLocation(nextLocation);
       }
     } catch (error) {
       console.error('Failed to load user address:', error);

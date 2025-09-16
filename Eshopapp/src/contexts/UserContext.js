@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../utils/api';
+import { useLocation } from '../contexts/LocationContext';
 
 const UserContext = createContext();
 
@@ -18,6 +19,7 @@ export const UserProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const [orders, setOrders] = useState([]);
+  const { loadUserDefaultAddress } = useLocation();
 
   const [addresses, setAddresses] = useState([
     {
@@ -80,6 +82,8 @@ export const UserProvider = ({ children }) => {
       
       setToken(authToken);
       setUser(userData);
+      // Kick off address load and orders fetch in background to avoid blocking login
+      setTimeout(async () => { try { await loadUserDefaultAddress(); } catch (_) {} }, 0);
       // Fetch orders in background to avoid blocking login
       setTimeout(async () => { try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {} }, 0);
       
@@ -104,6 +108,8 @@ export const UserProvider = ({ children }) => {
       
       setToken(authToken);
       setUser(newUser);
+      // Kick off address load and orders fetch in background to avoid blocking register
+      setTimeout(async () => { try { await loadUserDefaultAddress(); } catch (_) {} }, 0);
       // Fetch orders in background to avoid blocking register
       setTimeout(async () => { try { const mine = await api.getMyOrders(); if (mine?.success) setOrders(mine.data || []); } catch (_) {} }, 0);
       
