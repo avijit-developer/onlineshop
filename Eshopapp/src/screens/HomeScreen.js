@@ -29,6 +29,7 @@ const HomeScreen = ({ navigation }) => {
   const translateY = useRef(new Animated.Value(0)).current;
   const [prevScrollY, setPrevScrollY] = useState(0);
   const fadeIn = useRef(new Animated.Value(0)).current;
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const { getWishlistCount, toggleWishlist, isInWishlist } = useWishlist();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -47,7 +48,7 @@ const HomeScreen = ({ navigation }) => {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
-    }).start();
+    }).start(() => setShowSkeleton(false));
   }, [fadeIn, refreshKey]);
 
   const handleScroll = (event) => {
@@ -83,7 +84,7 @@ const HomeScreen = ({ navigation }) => {
       >
 
        
-        {refreshKey === 0 && fadeIn.__getValue && fadeIn.__getValue() < 1 ? (
+        {showSkeleton && refreshKey === 0 ? (
           <HomeSkeleton />
         ) : (
           <Animated.View style={{ opacity: fadeIn }}>
