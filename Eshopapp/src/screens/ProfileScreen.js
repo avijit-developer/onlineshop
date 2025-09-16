@@ -143,13 +143,12 @@ const ProfileScreen = () => {
       onPress={option.onPress}
     >
       <View style={[
-        styles.optionIcon,
-        option.id === 'wishlist' && styles.wishlistOptionIcon
+        styles.optionIcon
       ]}>
         <Icon 
           name={option.icon} 
           size={24} 
-          color={option.id === 'wishlist' ? '#e53935' : '#f7ab18'} 
+          color={'#f7ab18'} 
         />
       </View>
       <View style={styles.optionContent}>
@@ -501,12 +500,8 @@ const styles = StyleSheet.create({
     color: '#f7ab18',
   },
   wishlistOptionCard: {
-    borderColor: '#e53935',
-    borderWidth: 1,
-    backgroundColor: '#fff5f5',
   },
   wishlistOptionIcon: {
-    backgroundColor: '#ffe6e6',
   },
 });
 
