@@ -230,7 +230,7 @@ const SignupScreen = ({ navigation }) => {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TouchableOpacity onPress={() => setShowPw1(v => !v)} style={{ position: 'absolute', right: 10, top: 36 }}>
+            <TouchableOpacity onPress={() => setShowPw1(v => !v)} style={{ position: 'absolute', right: 10, top: 43 }}>
               <Icon name={showPw1 ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
             </TouchableOpacity>
             <Text style={styles.passwordHint}>
@@ -250,7 +250,7 @@ const SignupScreen = ({ navigation }) => {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TouchableOpacity onPress={() => setShowPw2(v => !v)} style={{ position: 'absolute', right: 10, top: 36 }}>
+            <TouchableOpacity onPress={() => setShowPw2(v => !v)} style={{ position: 'absolute', right: 10, top: 43 }}>
               <Icon name={showPw2 ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
             </TouchableOpacity>
           </View>

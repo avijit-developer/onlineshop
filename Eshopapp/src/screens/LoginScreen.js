@@ -96,7 +96,7 @@ const LoginScreen = ({ navigation }) => {
               selectionColor="#333"
               cursorColor="#333"
             />
-            <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, top: -10, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
               <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
             </TouchableOpacity>
           </View>

@@ -43,7 +43,7 @@ const VendorAuth = ({ navigation }) => {
           <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#777" value={email} onChangeText={setEmail} autoCapitalize="none" />
           <View style={{ position: 'relative' }}>
             <TextInput style={[styles.input, { paddingRight: 42 }]} placeholder="Password" placeholderTextColor="#777" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
-            <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, height: 48, top: '50%', marginTop: -24, justifyContent: 'center' }}>
+            <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, height: 48, top: '45%', marginTop: -24, justifyContent: 'center' }}>
               <Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
             </TouchableOpacity>
           </View>
