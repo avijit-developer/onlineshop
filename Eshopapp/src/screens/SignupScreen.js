@@ -22,6 +22,7 @@ const SignupScreen = ({ navigation }) => {
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
   });
@@ -91,6 +92,7 @@ const SignupScreen = ({ navigation }) => {
       const userData = {
         name: `${String(formData.firstName || '').trim()} ${String(formData.lastName || '').trim()}`.trim().replace(/\s+/g, ' '),
         email: formData.email,
+        phone: String(formData.phone || '').trim(),
         password: formData.password,
       };
 
@@ -217,7 +219,19 @@ const SignupScreen = ({ navigation }) => {
               autoCorrect={false}
             />
           </View>
-
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Phone Number (optional)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your phone number"
+              placeholderTextColor="#999"
+              value={formData.phone}
+              onChangeText={(value) => updateFormData('phone', value)}
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Password</Text>
             <TextInput
