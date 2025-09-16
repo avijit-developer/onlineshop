@@ -38,7 +38,7 @@ const SignupScreen = ({ navigation }) => {
   };
 
   const validateForm = () => {
-    const { firstName, lastName, email, password, confirmPassword } = formData;
+    const { firstName, lastName, email, phone, password, confirmPassword } = formData;
 
     if (!firstName.trim()) {
       Alert.alert('Error', 'Please enter your first name');
@@ -57,6 +57,11 @@ const SignupScreen = ({ navigation }) => {
 
     if (!isValidEmail(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
+      return false;
+    }
+
+    if (!String(phone || '').trim()) {
+      Alert.alert('Error', 'Please enter your phone number');
       return false;
     }
 
@@ -220,7 +225,7 @@ const SignupScreen = ({ navigation }) => {
             />
           </View>
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Phone Number (optional)</Text>
+            <Text style={styles.inputLabel}>Phone Number</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter your phone number"

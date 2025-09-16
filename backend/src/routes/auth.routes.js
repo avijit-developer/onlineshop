@@ -204,9 +204,9 @@ router.post('/reset-password', async (req, res) => {
 // Public customer registration
 router.post('/register', async (req, res) => {
   const { name, email, password, phone } = req.body || {};
-  if (!name || !email || !password) {
+  if (!name || !email || !password || !phone) {
     res.status(400);
-    throw new Error('name, email and password are required');
+    throw new Error('name, email, phone and password are required');
   }
   if (!isValidEmail(email)) {
     res.status(400);
@@ -224,7 +224,7 @@ router.post('/register', async (req, res) => {
   const created = await User.create({ 
     name: String(name).trim(), 
     email: String(email).trim().toLowerCase(), 
-    phone: phone ? String(phone).trim() : undefined,
+    phone: String(phone).trim(),
     passwordHash 
   });
 
