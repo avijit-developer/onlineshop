@@ -28,8 +28,9 @@ import BestSellerSection from '../components/BestSellerSection';
 const HomeScreen = ({ navigation }) => {
   const translateY = useRef(new Animated.Value(0)).current;
   const [prevScrollY, setPrevScrollY] = useState(0);
-  const fadeIn = useRef(new Animated.Value(0)).current;
-  const [showSkeleton, setShowSkeleton] = useState(true);
+  const hasMountedOnce = !!(global && global.__HOME_MOUNTED_ONCE__);
+  const fadeIn = useRef(new Animated.Value(hasMountedOnce ? 1 : 0)).current;
+  const [showSkeleton, setShowSkeleton] = useState(!hasMountedOnce);
   const { getWishlistCount, toggleWishlist, isInWishlist } = useWishlist();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -44,12 +45,19 @@ const HomeScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
-    Animated.timing(fadeIn, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => setShowSkeleton(false));
-  }, [fadeIn, refreshKey]);
+    if (!hasMountedOnce) {
+      Animated.timing(fadeIn, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setShowSkeleton(false);
+        try { global.__HOME_MOUNTED_ONCE__ = true; } catch (_) {}
+      });
+    } else {
+      setShowSkeleton(false);
+    }
+  }, [fadeIn, refreshKey, hasMountedOnce]);
 
   const handleScroll = (event) => {
     const currentY = event.nativeEvent.contentOffset.y;
