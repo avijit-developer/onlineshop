@@ -113,6 +113,8 @@ const SetupScreen = ({ navigation, route }) => {
               await loadUserDefaultAddress();
             } catch {}
           }
+        } else {
+          targetRoute = 'Login';
         }
       } catch (e) {
         // ignore
@@ -124,10 +126,11 @@ const SetupScreen = ({ navigation, route }) => {
     };
 
     // Fallback timeout: don't keep user waiting too long
-    const fallbackTimer = setTimeout(() => {
+    const fallbackTimer = setTimeout(async () => {
       if (!isDone) {
         setIsDone(true);
-        navigation.replace('Home');
+        const token = await AsyncStorage.getItem('authToken');
+        navigation.replace(token ? 'Home' : 'Login');
       }
     }, 6000);
 

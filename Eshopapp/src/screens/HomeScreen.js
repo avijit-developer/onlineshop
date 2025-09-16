@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Text,
   View,
@@ -27,6 +27,7 @@ import BestSellerSection from '../components/BestSellerSection';
 const HomeScreen = ({ navigation }) => {
   const translateY = useRef(new Animated.Value(0)).current;
   const [prevScrollY, setPrevScrollY] = useState(0);
+  const fadeIn = useRef(new Animated.Value(0)).current;
   const { getWishlistCount, toggleWishlist, isInWishlist } = useWishlist();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -39,6 +40,14 @@ const HomeScreen = ({ navigation }) => {
       setTimeout(() => setRefreshing(false), 600);
     }
   }, []);
+
+  useEffect(() => {
+    Animated.timing(fadeIn, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeIn, refreshKey]);
 
   const handleScroll = (event) => {
     const currentY = event.nativeEvent.contentOffset.y;
@@ -65,6 +74,7 @@ const HomeScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <ScrollView
+        style={{ opacity: undefined }}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
@@ -72,16 +82,18 @@ const HomeScreen = ({ navigation }) => {
       >
 
        
-        <Header key={`Header-${refreshKey}`} />
-        
-        {/* Removed test wishlist button */}
-        
-        <SliderBanner key={`SliderBanner-${refreshKey}`} />
-        <AllCategories key={`AllCategories-${refreshKey}`} />
-        <MostPopularSection key={`MostPopular-${refreshKey}`} navigation={navigation} />
-        <BestSellerSection key={`BestSeller-${refreshKey}`} navigation={navigation} />
-        <CategoriesGrid key={`CategoriesGrid-${refreshKey}`} navigation={navigation} />
-        <JustForYou key={`JustForYou-${refreshKey}`} navigation={navigation} />
+        <Animated.View style={{ opacity: fadeIn }}>
+          <Header key={`Header-${refreshKey}`} />
+          
+          {/* Removed test wishlist button */}
+          
+          <SliderBanner key={`SliderBanner-${refreshKey}`} />
+          <AllCategories key={`AllCategories-${refreshKey}`} />
+          <MostPopularSection key={`MostPopular-${refreshKey}`} navigation={navigation} />
+          <BestSellerSection key={`BestSeller-${refreshKey}`} navigation={navigation} />
+          <CategoriesGrid key={`CategoriesGrid-${refreshKey}`} navigation={navigation} />
+          <JustForYou key={`JustForYou-${refreshKey}`} navigation={navigation} />
+        </Animated.View>
       </ScrollView>
 
       <Animated.View
