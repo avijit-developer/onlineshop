@@ -20,7 +20,7 @@ const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const { requestLocation, isLoading: locationLoading } = useLocation();
+  const { requestLocation, isLoading: locationLoading, loadUserDefaultAddress } = useLocation();
   const [showPw, setShowPw] = useState(false);
   const { login } = useUser();
 
@@ -36,7 +36,8 @@ const LoginScreen = ({ navigation }) => {
       const result = await login(email, password);
       
       if (result.success) {
-        // Navigate immediately; let Setup or Home handle address/location lazily
+        // Trigger default address fetch in background to populate header quickly
+        setTimeout(async () => { try { await loadUserDefaultAddress(); } catch (_) {} }, 0);
         navigation.replace('Home');
       } else {
         Alert.alert('Login Failed', result.error || 'Please check your credentials and try again');
