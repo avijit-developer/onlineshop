@@ -219,6 +219,12 @@ router.post('/register', async (req, res) => {
 
   const exists = await User.findOne({ email: email.trim().toLowerCase() }).lean();
   if (exists) { res.status(409); throw new Error('Email already in use'); }
+  // Check phone uniqueness if provided
+  const phoneNorm = String(phone).trim();
+  if (phoneNorm) {
+    const phoneExists = await User.findOne({ phone: phoneNorm }).lean();
+    if (phoneExists) { res.status(409); throw new Error('Phone number already in use'); }
+  }
 
   const passwordHash = await bcrypt.hash(password, 10);
   const created = await User.create({ 

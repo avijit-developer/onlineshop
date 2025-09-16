@@ -159,7 +159,13 @@ const SignupScreen = ({ navigation }) => {
         // Go to setup screen where animation runs while address is saved
         navigation.replace('Setup');
       } else {
-        Alert.alert('Registration Failed', result.error || 'Please try again');
+        if (String(result.error || '').toLowerCase().includes('email')) {
+          Alert.alert('Email Already Exists', 'An account with this email already exists. Try signing in instead.');
+        } else if (String(result.error || '').toLowerCase().includes('phone')) {
+          Alert.alert('Phone Already Exists', 'An account with this phone number already exists. Try signing in instead.');
+        } else {
+          Alert.alert('Registration Failed', result.error || 'Please try again');
+        }
       }
     } catch (error) {
       Alert.alert('Registration Failed', 'Please try again');

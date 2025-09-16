@@ -245,6 +245,15 @@ const ProfileEditScreen = () => {
         // Update profile without image
         const result = await updateUser(updatedUserData);
         if (!result.success) {
+          const msg = String(result.error || '').toLowerCase();
+          if (msg.includes('email') && msg.includes('taken')) {
+            Alert.alert('Email Already Exists', 'This email is already in use by another account.');
+            return;
+          }
+          if (msg.includes('phone') && msg.includes('taken')) {
+            Alert.alert('Phone Already Exists', 'This phone number is already in use by another account.');
+            return;
+          }
           throw new Error(result.error || 'Failed to update profile');
         }
       }
@@ -258,7 +267,14 @@ const ProfileEditScreen = () => {
       }
     } catch (error) {
       console.log('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('email already')) {
+        Alert.alert('Email Already Exists', 'This email is already in use by another account.');
+      } else if (msg.includes('phone number already')) {
+        Alert.alert('Phone Already Exists', 'This phone number is already in use by another account.');
+      } else {
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -107,10 +107,14 @@ export const UserProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.message || 'Registration failed' 
-      };
+      const message = String(error?.message || '').toLowerCase();
+      if (message.includes('email already in use')) {
+        return { success: false, error: 'An account with this email already exists' };
+      }
+      if (message.includes('phone number already in use')) {
+        return { success: false, error: 'An account with this phone number already exists' };
+      }
+      return { success: false, error: error.message || 'Registration failed' };
     }
   };
 
@@ -158,6 +162,13 @@ export const UserProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Error updating user:', error);
+      const message = String(error?.message || '').toLowerCase();
+      if (message.includes('email already in use')) {
+        return { success: false, error: 'This email is already taken' };
+      }
+      if (message.includes('phone number already in use')) {
+        return { success: false, error: 'This phone number is already taken' };
+      }
       return { success: false, error: error.message };
     }
   };

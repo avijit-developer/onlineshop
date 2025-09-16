@@ -267,6 +267,15 @@ router.put('/me/profile', authenticate, requireRole(['customer']), async (req, r
     }
   }
 
+  // Check if phone is already in use by another user
+  if (phone && String(phone).trim() !== (user.phone || '').trim()) {
+    const phoneExists = await User.findOne({ phone: String(phone).trim() });
+    if (phoneExists) {
+      res.status(409);
+      throw new Error('Phone number already in use');
+    }
+  }
+
   // Update user fields
   const updateData = {};
   if (name !== undefined) updateData.name = String(name).trim();
