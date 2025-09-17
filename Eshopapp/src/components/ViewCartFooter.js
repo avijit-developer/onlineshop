@@ -140,7 +140,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
         {firstImageUri ? (
           <Image source={{ uri: firstImageUri }} style={styles.viewCartImage} />
         ) : null}
-        <Text style={styles.viewCartText}>View Cart{itemsCount > 0 ? ` (${itemsCount})` : ''}</Text>
+        <Text style={styles.viewCartText}>View Cart</Text>
         <Icon name="arrow-forward-outline" size={16} color="#fff" />
       </TouchableOpacity>
     </Animated.View>
@@ -229,18 +229,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f7ab18',
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 24,
-    minWidth: 92,
+    paddingVertical: 6,
+    borderRadius: 20,
+    minWidth: 84,
     justifyContent: 'center',
   },
   viewCartText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     marginRight: 6,
   },
-  viewCartImage: { width: 18, height: 18, borderRadius: 3, marginRight: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
+  viewCartImage: { width: 16, height: 16, borderRadius: 3, marginRight: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
 });
 
 export default ViewCartFooter;
