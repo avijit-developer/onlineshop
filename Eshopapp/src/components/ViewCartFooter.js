@@ -151,8 +151,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 12,
-    right: 12,
-    alignSelf: 'flex-end',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff7e6',
@@ -167,7 +166,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
     zIndex: 1000,
-    maxWidth: 320,
+    width: 320,
   },
   cartInfo: {
     flex: 1,
