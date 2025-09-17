@@ -97,7 +97,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     <Animated.View 
       style={[
         styles.container,
-        { bottom: bottomOffset },
+        { bottom: Math.max(12, bottomOffset) },
         { transform: [{ translateY: slideAnim }] },
       ]}
     >
@@ -150,27 +150,30 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: 12,
+    right: 12,
+    alignSelf: 'flex-end',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff7e6',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#ffe1b3',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ffe1b3',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 6,
     zIndex: 1000,
+    maxWidth: 320,
   },
   cartInfo: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
   },
   itemsRow: {
     maxWidth: 160,
