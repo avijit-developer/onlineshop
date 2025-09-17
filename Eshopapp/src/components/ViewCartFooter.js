@@ -140,7 +140,7 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
         {firstImageUri ? (
           <Image source={{ uri: firstImageUri }} style={styles.viewCartImage} />
         ) : null}
-        <Text style={styles.viewCartText}>View Cart</Text>
+        <Text style={styles.viewCartText}>View Cart{itemsCount > 0 ? ` (${itemsCount})` : ''}</Text>
         <Icon name="arrow-forward-outline" size={16} color="#fff" />
       </TouchableOpacity>
     </Animated.View>
