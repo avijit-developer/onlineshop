@@ -90,6 +90,9 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     return null;
   }
 
+  // Pick first product image for compact UI inside the button
+  const firstImageUri = displayItems[0] ? getItemImage(displayItems[0]) : null;
+
   return (
     <Animated.View 
       style={[
@@ -134,6 +137,9 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
       </View>
 
       <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
+        {firstImageUri ? (
+          <Image source={{ uri: firstImageUri }} style={styles.viewCartImage} />
+        ) : null}
         <Text style={styles.viewCartText}>View Cart</Text>
         <Icon name="arrow-forward-outline" size={16} color="#fff" />
       </TouchableOpacity>
@@ -220,18 +226,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f7ab18',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 30,
-    minWidth: 100,
+    borderRadius: 24,
+    minWidth: 92,
     justifyContent: 'center',
   },
   viewCartText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    marginRight: 6,
   },
+  viewCartImage: { width: 18, height: 18, borderRadius: 3, marginRight: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
 });
 
 export default ViewCartFooter;
