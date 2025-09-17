@@ -63,6 +63,26 @@ function App() {
     setLoading(false);
   }, []);
 
+  // Global fetch interceptor: redirect to login on 401 (expired/invalid token)
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const res = await originalFetch(...args);
+      try {
+        if (res && res.status === 401) {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          if (window.location.pathname !== '/admin/login') {
+            window.location.replace('/admin/login');
+          }
+        }
+      } catch (_) {}
+      return res;
+    };
+    return () => { window.fetch = originalFetch; };
+  }, []);
+
   const login = ({ token, user }) => {
     setIsAuthenticated(true);
     setUser(user);
