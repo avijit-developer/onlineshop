@@ -16,62 +16,74 @@ const ProductSpecifications = ({ product, onBrandPress }) => {
       {/* Brand */}
       {product.brand && (
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Brand:</Text>
-          <TouchableOpacity onPress={() => onBrandPress?.(product.brand)}>
-            <Text style={styles.infoValue}>
-              {typeof product.brand === 'object' ? product.brand.name : product.brand}
-            </Text>
-          </TouchableOpacity>
+          {[
+            <Text key="label" style={styles.infoLabel}>Brand:</Text>,
+            <TouchableOpacity key="value" onPress={() => onBrandPress?.(product.brand)}>
+              <Text style={styles.infoValue}>
+                {String(typeof product.brand === 'object' ? product.brand.name : product.brand)}
+              </Text>
+            </TouchableOpacity>
+          ]}
         </View>
       )}
 
       {/* Category */}
       {product.category && (
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Category:</Text>
-          <Text style={styles.infoValue}>
-            {typeof product.category === 'object' ? product.category.name : product.category}
-          </Text>
+          {[
+            <Text key="label" style={styles.infoLabel}>Category:</Text>,
+            <Text key="value" style={styles.infoValue}>
+              {String(typeof product.category === 'object' ? product.category.name : product.category)}
+            </Text>
+          ]}
         </View>
       )}
 
       {/* SKU */}
       {product.sku && (
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>SKU:</Text>
-          <Text style={styles.infoValue}>{product.sku}</Text>
+          {[
+            <Text key="label" style={styles.infoLabel}>SKU:</Text>,
+            <Text key="value" style={styles.infoValue}>{String(product.sku)}</Text>
+          ]}
         </View>
       )}
 
       {/* Tags */}
       {product.tags && product.tags.length > 0 && (
         <View style={styles.tagsContainer}>
-          <Text style={styles.infoLabel}>Tags:</Text>
-          <View style={styles.tagsList}>
-            {product.tags.map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
+          {[
+            <Text key="label" style={styles.infoLabel}>Tags:</Text>,
+            <View key="list" style={styles.tagsList}>
+              {product.tags.map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{String(tag)}</Text>
+                </View>
+              ))}
+            </View>
+          ]}
         </View>
       )}
 
       {/* Tax Information */}
       {product.tax && product.tax > 0 && (
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Tax:</Text>
-          <Text style={styles.infoValue}>{product.tax}%</Text>
+          {[
+            <Text key="label" style={styles.infoLabel}>Tax:</Text>,
+            <Text key="value" style={styles.infoValue}>{String(product.tax)}%</Text>
+          ]}
         </View>
       )}
 
       {/* Vendor Information */}
       {product.vendor && (
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Sold by:</Text>
-          <Text style={styles.infoValue}>
-            {typeof product.vendor === 'object' ? product.vendor.companyName : product.vendor}
-          </Text>
+          {[
+            <Text key="label" style={styles.infoLabel}>Sold by:</Text>,
+            <Text key="value" style={styles.infoValue}>
+              {String(typeof product.vendor === 'object' ? product.vendor.companyName : product.vendor)}
+            </Text>
+          ]}
         </View>
       )}
     </View>
