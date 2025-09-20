@@ -364,7 +364,8 @@ const Products = () => {
     try {
       const id = product?._id || product?.id;
       if (!id) return;
-      const res = await fetch(`${API_BASE}/api/v1/products/${id}/related/public`);
+      // Use admin endpoint for accurate related list
+      const res = await fetch(`${API_BASE}/api/v1/products/${id}/related`, { headers: getAuthHeaders() });
       const json = await res.json();
       if (json?.success) {
         setRelatedPicker(prev => ({ ...prev, selected: (json.data || []).map(p => ({ id: p._id || p.id, name: p.name, image: (p.images && p.images[0]) })) }));
@@ -491,6 +492,8 @@ const Products = () => {
           headers: getAuthHeaders(),
           body: JSON.stringify({ relatedProductIds: relatedIds })
         });
+        // Refresh related picker selection after save to ensure popup shows
+        await prefillRelated({ _id: id });
       }
 
       setShowAddModal(false);

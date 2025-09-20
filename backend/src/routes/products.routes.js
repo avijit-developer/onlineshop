@@ -903,6 +903,25 @@ router.put('/:id/related', authenticate, requireRole(['admin','vendor']), requir
   }
 });
 
+// Admin/Vendor: Get related products for a product (no public filtering)
+router.get('/:id/related', authenticate, requireRole(['admin','vendor']), requirePermission('products.view'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id).select('relatedProducts').lean();
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    const ids = Array.isArray(product.relatedProducts) ? product.relatedProducts : [];
+    if (!ids.length) return res.json({ success: true, data: [] });
+    const items = await Product.find({ _id: { $in: ids } })
+      .select('_id name images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice')
+      .lean();
+    res.json({ success: true, data: items });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e?.message || 'Failed to fetch related products' });
+  }
+});
+
 // Public: Get single product details
 router.get('/:id/public', async (req, res) => {
   try {
