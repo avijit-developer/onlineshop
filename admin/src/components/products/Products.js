@@ -305,6 +305,16 @@ const Products = () => {
 
   const handleEditProduct = (product) => {
     setSelectedProduct(product);
+    // For vendor users, map variant price fields to use vendor's own prices in the UI
+    const mappedVariants = Array.isArray(product.variants) ? (
+      isVendorUser
+        ? product.variants.map(v => ({
+            ...v,
+            price: (v.vendorPrice != null ? v.vendorPrice : (v.price ?? '')),
+            specialPrice: (v.vendorSpecialPrice != null ? v.vendorSpecialPrice : (v.specialPrice ?? '')),
+          }))
+        : product.variants
+    ) : [];
     setFormData({
       name: product.name || '',
       description: product.description || '',
@@ -323,7 +333,7 @@ const Products = () => {
       seoTitle: '',
       seoDescription: '',
       images: product.images || [],
-      variants: Array.isArray(product.variants) ? product.variants : []
+      variants: mappedVariants
     });
     setShowEditModal(true);
     // Prefill related products

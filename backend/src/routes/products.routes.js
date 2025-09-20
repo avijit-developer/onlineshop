@@ -235,12 +235,13 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
       const existing = sku ? existingBySku.get(sku) : undefined;
       const isAdmin = req.user.role === 'admin';
       const isVendor = req.user.role === 'vendor';
+      // Business rule: vendor sets vendor prices; admin updates should NOT override vendor prices
       const nextVendorPrice = isVendor
         ? (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : (existing?.vendorPrice)))
-        : (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (existing?.vendorPrice));
+        : (existing?.vendorPrice);
       const nextVendorSpecial = isVendor
         ? (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (v.specialPrice !== undefined ? Number(v.specialPrice) : (existing?.vendorSpecialPrice)))
-        : (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (existing?.vendorSpecialPrice));
+        : (existing?.vendorSpecialPrice);
       return {
         attributes: v.attributes || {},
         sku,
