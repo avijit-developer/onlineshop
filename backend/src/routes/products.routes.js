@@ -228,16 +228,30 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
       if (dupInPayload.size) { res.status(409); throw new Error(`Duplicate variant SKU(s): ${Array.from(dupInPayload).join(', ')}`); }
       // Do not check across other products; uniqueness enforced within product only
     }
-    product.variants = body.variants.map(v => ({
-      attributes: v.attributes || {},
-      sku: v.sku ? String(v.sku).trim() : undefined,
-      price: req.user.role === 'admin' && v.price !== undefined ? Number(v.price) : undefined,
-      specialPrice: req.user.role === 'admin' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
-      vendorPrice: req.user.role === 'vendor' && (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : undefined)),
-      vendorSpecialPrice: req.user.role === 'vendor' && (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (v.specialPrice !== undefined ? Number(v.specialPrice) : undefined)),
-      stock: v.stock !== undefined ? Number(v.stock) : 0,
-      images: Array.isArray(v.images) ? v.images : []
-    }));
+    // Preserve vendor variant prices when admin updates
+    const existingBySku = new Map((product.variants || []).map(ev => [String(ev.sku || ''), ev]));
+    product.variants = body.variants.map(v => {
+      const sku = v.sku ? String(v.sku).trim() : undefined;
+      const existing = sku ? existingBySku.get(sku) : undefined;
+      const isAdmin = req.user.role === 'admin';
+      const isVendor = req.user.role === 'vendor';
+      const nextVendorPrice = isVendor
+        ? (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : (existing?.vendorPrice)))
+        : (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (existing?.vendorPrice));
+      const nextVendorSpecial = isVendor
+        ? (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (v.specialPrice !== undefined ? Number(v.specialPrice) : (existing?.vendorSpecialPrice)))
+        : (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (existing?.vendorSpecialPrice));
+      return {
+        attributes: v.attributes || {},
+        sku,
+        price: isAdmin && v.price !== undefined ? Number(v.price) : (isAdmin ? (existing?.price) : undefined),
+        specialPrice: isAdmin && v.specialPrice !== undefined ? Number(v.specialPrice) : (isAdmin ? (existing?.specialPrice) : undefined),
+        vendorPrice: nextVendorPrice,
+        vendorSpecialPrice: nextVendorSpecial,
+        stock: v.stock !== undefined ? Number(v.stock) : (existing?.stock ?? 0),
+        images: Array.isArray(v.images) ? v.images : (existing?.images || [])
+      };
+    });
   }
 
   if (body.status !== undefined) product.status = body.status;
