@@ -215,7 +215,13 @@ const Products = () => {
       setTotalCount(prodJson.meta?.total || 0);
       setCategories((catJson.data || []).map(c => ({ id: c._id, name: c.name })));
       setVendors((venJson.data || []).map(v => ({ id: v._id, companyName: v.companyName })));
-      setBrands((brJson.data || []).map(b => ({ id: b._id, name: b.name })));
+      // If a category is selected, filter brands that are linked to that category
+      const selectedCategoryId = (typeof formData?.categoryId === 'string' && formData.categoryId) ? formData.categoryId : '';
+      const allBrands = (brJson.data || []).map(b => ({ id: b._id, name: b.name, categories: b.categories || [] }));
+      const filteredBrands = selectedCategoryId
+        ? allBrands.filter(b => Array.isArray(b.categories) && b.categories.some(cid => String(cid) === String(selectedCategoryId)))
+        : allBrands;
+      setBrands(filteredBrands.map(b => ({ id: b.id, name: b.name })));
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -929,8 +935,9 @@ const Products = () => {
                     name="brandId"
                     value={formData.brandId}
                     onChange={handleInputChange}
+                    disabled={!formData.categoryId}
                   >
-                    <option value="">Select Brand</option>
+                    <option value="">{formData.categoryId ? 'Select Brand' : 'Select category first'}</option>
                     {brands.map(brand => (
                       <option key={brand.id} value={brand.id}>{brand.name}</option>
                     ))}
