@@ -109,11 +109,7 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
         res.status(409);
         throw new Error(`Duplicate variant SKU(s): ${Array.from(dupInPayload).join(', ')}`);
       }
-      const existsVariant = await Product.findOne({ 'variants.sku': { $in: variantSkus } }).select({ _id: 1 }).lean();
-      if (existsVariant) {
-        res.status(409);
-        throw new Error('One or more variant SKUs already exist');
-      }
+      // Do not block variants if same SKU exists in other products; enforce uniqueness per-product only
     }
   }
 
@@ -230,8 +226,7 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
       const seen = new Set();
       for (const s of variantSkus) { if (seen.has(s)) dupInPayload.add(s); seen.add(s); }
       if (dupInPayload.size) { res.status(409); throw new Error(`Duplicate variant SKU(s): ${Array.from(dupInPayload).join(', ')}`); }
-      const existsVariant = await Product.findOne({ _id: { $ne: id }, 'variants.sku': { $in: variantSkus } }).select({ _id: 1 }).lean();
-      if (existsVariant) { res.status(409); throw new Error('One or more variant SKUs already exist'); }
+      // Do not check across other products; uniqueness enforced within product only
     }
     product.variants = body.variants.map(v => ({
       attributes: v.attributes || {},

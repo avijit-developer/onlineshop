@@ -767,12 +767,6 @@ const Products = () => {
                 </td>
                 <td>
                   <div className="action-buttons">
-                    <button
-                      onClick={() => handleViewDetails(product)}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      View
-                    </button>
                     {(!isVendorUser || canEditProducts) && (
                       <button
                         onClick={() => handleEditProduct(product)}
@@ -870,7 +864,15 @@ const Products = () => {
           <div className="modal product-modal large-modal">
             <div className="modal-header">
               <h2>{showAddModal ? 'Add New Product' : 'Edit Product'}</h2>
-              <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="close-btn">&times;</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {!isVendorUser && showEditModal && selectedProduct && selectedProduct.status !== 'approved' && (
+                  <button onClick={() => handleStatusChange(selectedProduct._id || selectedProduct.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
+                )}
+                {!isVendorUser && showEditModal && selectedProduct && selectedProduct.status !== 'rejected' && (
+                  <button onClick={() => handleStatusChange(selectedProduct._id || selectedProduct.id, 'rejected')} className="btn btn-danger btn-sm">Reject</button>
+                )}
+                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="close-btn">&times;</button>
+              </div>
             </div>
             <form onSubmit={handleSubmit} className="modal-body">
               <div className="form-grid">
