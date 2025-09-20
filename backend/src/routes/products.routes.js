@@ -245,8 +245,10 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
       return {
         attributes: v.attributes || {},
         sku,
-        price: isAdmin && v.price !== undefined ? Number(v.price) : (isAdmin ? (existing?.price) : undefined),
-        specialPrice: isAdmin && v.specialPrice !== undefined ? Number(v.specialPrice) : (isAdmin ? (existing?.specialPrice) : undefined),
+        // Admin can update admin prices; vendor updates should preserve existing admin prices
+        price: isAdmin ? (v.price !== undefined ? Number(v.price) : (existing?.price)) : (existing?.price),
+        specialPrice: isAdmin ? (v.specialPrice !== undefined ? Number(v.specialPrice) : (existing?.specialPrice)) : (existing?.specialPrice),
+        // Vendor prices only change on vendor updates; admin edits never overwrite them
         vendorPrice: nextVendorPrice,
         vendorSpecialPrice: nextVendorSpecial,
         stock: v.stock !== undefined ? Number(v.stock) : (existing?.stock ?? 0),
