@@ -6,6 +6,9 @@ const variantSchema = new mongoose.Schema(
     sku: { type: String, trim: true },
     price: { type: Number },
     specialPrice: { type: Number },
+    // Vendor-provided prices (used for vendor views/calculations only)
+    vendorPrice: { type: Number },
+    vendorSpecialPrice: { type: Number },
     stock: { type: Number, default: 0 },
     lowStockAlert: { type: Number, default: 10 },
     images: { type: [String], default: [] },
@@ -28,8 +31,12 @@ const productSchema = new mongoose.Schema(
     sku: { type: String, trim: true },
     tags: { type: [String], default: [] },
 
-    regularPrice: { type: Number, required: true, min: 0 },
+    // Admin-controlled prices used for app display and checkout
+    regularPrice: { type: Number, min: 0 },
     specialPrice: { type: Number, default: null },
+    // Vendor-provided prices for vendor dashboards and settlements
+    vendorRegularPrice: { type: Number, min: 0 },
+    vendorSpecialPrice: { type: Number, default: null },
     tax: { type: Number, default: 0 },
 
     stock: { type: Number, default: 0 },
