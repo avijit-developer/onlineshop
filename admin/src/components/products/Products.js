@@ -32,7 +32,7 @@ const Products = () => {
     setMatrixVariants(combos.map(combo => {
       const obj = {};
       combo.forEach((val, idx) => { obj[variantAttributes[idx]] = val; });
-      return { ...obj, sku: '', price: '', specialPrice: '', stock: '', images: [] };
+      return { ...obj, sku: '', vendorPrice: '', price: '', specialPrice: '', stock: '', images: [] };
     }));
   };
 
@@ -1183,8 +1183,9 @@ const Products = () => {
                               <th key={attr}>{attr}</th>
                             ))}
                             <th>SKU</th>
-                            <th>Price</th>
-                            {!isVendorUser && (<th>Special Price</th>)}
+                            {!isVendorUser && (<th>Vendor Price</th>)}
+                            <th>{isVendorUser ? 'Price' : 'Admin Price'}</th>
+                            {!isVendorUser && (<th>Admin Special Price</th>)}
                             <th>Stock Qty</th>
                             <th>Images</th>
                           </tr>
@@ -1204,6 +1205,17 @@ const Products = () => {
                                   required
                                 />
                               </td>
+                              {!isVendorUser && (
+                                <td>
+                                  <input
+                                    type="number"
+                                    value={variant.vendorPrice ?? ''}
+                                    min="0"
+                                    step="0.01"
+                                    disabled
+                                  />
+                                </td>
+                              )}
                               <td>
                                 <input
                                   type="number"
