@@ -759,10 +759,9 @@ const Products = () => {
                   </span>
                 </td>
                 <td>
-                  <label className="toggle-switch">
-                    <input type="checkbox" checked={!!product.enabled} onChange={(e) => handleEnableToggle(product, e.target.checked)} />
-                    <span className="slider" />
-                  </label>
+                  <span className={`status-badge ${product.status}`}>
+                    {product.status}
+                  </span>
                 </td>
                 <td>
                   <div className="action-buttons">
@@ -780,6 +779,26 @@ const Products = () => {
                         Edit
                       </button>
                     )}
+                    {!isVendorUser && product.status !== 'approved' && (
+                      <button
+                        onClick={() => handleStatusChange(product._id || product.id, 'approved')}
+                        className="btn btn-success btn-sm"
+                      >
+                        Approve
+                      </button>
+                    )}
+                    {!isVendorUser && product.status !== 'rejected' && (
+                      <button
+                        onClick={() => handleStatusChange(product._id || product.id, 'rejected')}
+                        className="btn btn-danger btn-sm"
+                      >
+                        Reject
+                      </button>
+                    )}
+                    <label className="toggle-switch" title="Enable/Disable">
+                      <input type="checkbox" checked={!!product.enabled} onChange={(e) => handleEnableToggle(product, e.target.checked)} />
+                      <span className="slider" />
+                    </label>
                     {(!isVendorUser || canDeleteProducts) && (
                       <button
                         onClick={() => handleDeleteProduct(product)}
@@ -926,7 +945,7 @@ const Products = () => {
                 {isVendorUser ? (
                   <>
                     <div className="form-group">
-                      <label>Vendor Price *</label>
+                      <label>Price *</label>
                       <input
                         type="number"
                         name="vendorRegularPrice"
@@ -937,20 +956,21 @@ const Products = () => {
                         required
                       />
                     </div>
-                    <div className="form-group">
-                      <label>Vendor Special Price</label>
-                      <input
-                        type="number"
-                        name="vendorSpecialPrice"
-                        value={formData.vendorSpecialPrice}
-                        onChange={handleInputChange}
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
                   </>
                 ) : (
                   <>
+                    <div className="form-group">
+                      <label>Vendor Price</label>
+                      <input
+                        type="number"
+                        name="vendorRegularPrice"
+                        value={formData.vendorRegularPrice}
+                        onChange={() => {}}
+                        min="0"
+                        step="0.01"
+                        disabled
+                      />
+                    </div>
                     <div className="form-group">
                       <label>Admin Price *</label>
                       <input
@@ -1160,7 +1180,7 @@ const Products = () => {
                             ))}
                             <th>SKU</th>
                             <th>Price</th>
-                            <th>Special Price</th>
+                            {!isVendorUser && (<th>Special Price</th>)}
                             <th>Stock Qty</th>
                             <th>Images</th>
                           </tr>
@@ -1190,15 +1210,17 @@ const Products = () => {
                                   required
                                 />
                               </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  value={variant.specialPrice}
-                                  min="0"
-                                  step="0.01"
-                                  onChange={e => updateMatrixVariant(index, 'specialPrice', e.target.value)}
-                                />
-                              </td>
+                              {!isVendorUser && (
+                                <td>
+                                  <input
+                                    type="number"
+                                    value={variant.specialPrice}
+                                    min="0"
+                                    step="0.01"
+                                    onChange={e => updateMatrixVariant(index, 'specialPrice', e.target.value)}
+                                  />
+                                </td>
+                              )}
                               <td>
                                 <input
                                   type="number"
@@ -1272,7 +1294,7 @@ const Products = () => {
                           <tr>
                             <th>SKU</th>
                             <th>Price</th>
-                            <th>Special Price</th>
+                            {!isVendorUser && (<th>Special Price</th>)}
                             <th>Stock</th>
                             <th>Actions</th>
                           </tr>
@@ -1286,9 +1308,11 @@ const Products = () => {
                               <td>
                                 <input type="number" min="0" step="0.01" value={v.price ?? ''} onChange={e => updateExistingVariantField(i, 'price', e.target.value)} />
                               </td>
-                              <td>
-                                <input type="number" min="0" step="0.01" value={v.specialPrice ?? ''} onChange={e => updateExistingVariantField(i, 'specialPrice', e.target.value)} />
-                              </td>
+                              {!isVendorUser && (
+                                <td>
+                                  <input type="number" min="0" step="0.01" value={v.specialPrice ?? ''} onChange={e => updateExistingVariantField(i, 'specialPrice', e.target.value)} />
+                                </td>
+                              )}
                               <td>
                                 <input type="number" min="0" value={v.stock ?? 0} onChange={e => updateExistingVariantField(i, 'stock', e.target.value)} />
                               </td>
