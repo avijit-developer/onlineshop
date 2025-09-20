@@ -98,12 +98,7 @@ router.get('/sections/public', async (req, res) => {
         .slice(0, section.settings.maxProducts);
 
       // Relax filter if none found: allow any enabled and not rejected
-      if (products.length === 0) {
-        products = section.products
-          .filter(p => p.productId && p.productId.enabled && p.productId.status !== 'rejected')
-          .sort((a, b) => a.order - b.order)
-          .slice(0, section.settings.maxProducts);
-      }
+      // No relaxed fallback; only approved items should show
 
       console.log(`Homepage: Section "${section.name}" has ${products.length} manual products`);
 

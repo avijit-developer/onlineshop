@@ -35,7 +35,8 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 				product: ci.product,
 				name: ci.product?.name || 'Product',
 				sku: ci.variantInfo?.sku || ci.product?.sku || '',
-				price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.product?.specialPrice ?? ci.product?.regularPrice ?? 0,
+            // Use admin prices for customer orders
+            price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.product?.specialPrice ?? ci.product?.regularPrice ?? 0,
 				quantity: ci.quantity,
 				image: (ci.variantInfo?.images && ci.variantInfo.images[0]) || (Array.isArray(ci.images) && ci.images[0]) || null,
 				selectedAttributes: ci.selectedAttributes || {},
@@ -51,8 +52,8 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			const idToVendor = new Map(prods.map(p => [String(p._id), String(p.vendor)]));
 			const vendorIds = Array.from(new Set(prods.map(p => String(p.vendor))));
 			const Vendor = require('../models/Vendor');
-			const vendorDocs = await Vendor.find({ _id: { $in: vendorIds } }).select('_id commission').lean();
-			const idToCommission = new Map(vendorDocs.map(v => [String(v._id), Number(v.commission || 0)]));
+            const vendorDocs = await Vendor.find({ _id: { $in: vendorIds } }).select('_id commission').lean();
+            const idToCommission = new Map(vendorDocs.map(v => [String(v._id), Number(v.commission || 0)]));
 			items = items.map(i => {
 				const vendorId = idToVendor.get(String(i.product));
 				const commissionRate = idToCommission.get(String(vendorId)) || 0;

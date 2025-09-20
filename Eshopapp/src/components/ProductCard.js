@@ -70,6 +70,7 @@ const ProductCard = ({ item }) => {
     }
     return 0;
   };
+  // Use admin prices for app display
   const regularPriceNum = toNumber(item.regularPrice ?? item.oldPrice);
   const specialPriceNum = toNumber(item.specialPrice ?? item.price);
   const hasDiscount = (regularPriceNum > 0 && specialPriceNum > 0 && specialPriceNum < regularPriceNum);

@@ -118,8 +118,11 @@ const Products = () => {
     categoryId: '',
     brandId: '',
     vendorId: '',
+    // Admin controls pricing visible in app; vendors submit vendor pricing
     regularPrice: '',
     specialPrice: '',
+    vendorRegularPrice: '',
+    vendorSpecialPrice: '',
     tax: '',
     stock: '',
     sku: '',
@@ -311,6 +314,8 @@ const Products = () => {
       vendorId: isVendorUser ? currentVendorId : normalizeId(product.vendor),
       regularPrice: product.regularPrice ?? '',
       specialPrice: product.specialPrice ?? '',
+      vendorRegularPrice: product.vendorRegularPrice ?? '',
+      vendorSpecialPrice: product.vendorSpecialPrice ?? '',
       tax: product.tax ?? '',
       stock: product.stock ?? '',
       sku: product.sku || '',
@@ -377,8 +382,11 @@ const Products = () => {
         category: normalizeId(formData.categoryId),
         brand: normalizeId(formData.brandId),
         vendor: isVendorUser ? currentVendorId : normalizeId(formData.vendorId),
-        regularPrice: Number(formData.regularPrice) || 0,
-        specialPrice: formData.specialPrice !== '' ? Number(formData.specialPrice) : undefined,
+        // Admin sets admin prices; vendors set vendor prices
+        regularPrice: (!isVendorUser && formData.regularPrice !== '') ? Number(formData.regularPrice) : undefined,
+        specialPrice: (!isVendorUser && formData.specialPrice !== '') ? Number(formData.specialPrice) : undefined,
+        vendorRegularPrice: (isVendorUser && formData.vendorRegularPrice !== '') ? Number(formData.vendorRegularPrice) : undefined,
+        vendorSpecialPrice: (isVendorUser && formData.vendorSpecialPrice !== '') ? Number(formData.vendorSpecialPrice) : undefined,
         tax: formData.tax !== '' ? Number(formData.tax) : undefined,
         stock: formData.stock !== '' ? Number(formData.stock) : undefined,
         sku: formData.sku?.trim() || undefined,
@@ -392,8 +400,10 @@ const Products = () => {
         payload.variants = matrixVariants.map(v => ({
           attributes: Object.fromEntries(Object.entries(v).filter(([k]) => variantAttributes.includes(k))),
           sku: (v.sku || '').trim(),
-          price: v.price !== '' && v.price !== undefined ? Number(v.price) : undefined,
-          specialPrice: v.specialPrice !== '' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+          price: (!isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
+          specialPrice: (!isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
+          vendorPrice: (isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
+          vendorSpecialPrice: (isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
           images: (v.images || []).map(img => typeof img === 'string' ? img : img.imageUrl)
         }));
@@ -401,8 +411,10 @@ const Products = () => {
         payload.variants = formData.variants.map(v => ({
           attributes: v.attributes || {},
           sku: (v.sku || '').trim(),
-          price: v.price !== '' && v.price !== undefined ? Number(v.price) : undefined,
-          specialPrice: v.specialPrice !== '' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+          price: (!isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
+          specialPrice: (!isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
+          vendorPrice: (isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
+          vendorSpecialPrice: (isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
           images: Array.isArray(v.images) ? v.images : []
         }));
@@ -719,9 +731,20 @@ const Products = () => {
                 
                 <td>
                   <div className="price-info">
-                    <span className="regular-price">{formatCurrency(product.regularPrice)}</span>
-                    {product.specialPrice && (
-                      <span className="special-price">{formatCurrency(product.specialPrice)}</span>
+                    {isVendorUser ? (
+                      <>
+                        <span className="regular-price">{formatCurrency(product.vendorRegularPrice ?? product.regularPrice)}</span>
+                        {product.vendorSpecialPrice && (
+                          <span className="special-price">{formatCurrency(product.vendorSpecialPrice)}</span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span className="regular-price">{formatCurrency(product.regularPrice)}</span>
+                        {product.specialPrice && (
+                          <span className="special-price">{formatCurrency(product.specialPrice)}</span>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
@@ -900,30 +923,59 @@ const Products = () => {
                   )}
                 </div>
 
-                <div className="form-group">
-                  <label>Regular Price *</label>
-                  <input
-                    type="number"
-                    name="regularPrice"
-                    value={formData.regularPrice}
-                    onChange={handleInputChange}
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Special Price</label>
-                  <input
-                    type="number"
-                    name="specialPrice"
-                    value={formData.specialPrice}
-                    onChange={handleInputChange}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
+                {isVendorUser ? (
+                  <>
+                    <div className="form-group">
+                      <label>Vendor Price *</label>
+                      <input
+                        type="number"
+                        name="vendorRegularPrice"
+                        value={formData.vendorRegularPrice}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Vendor Special Price</label>
+                      <input
+                        type="number"
+                        name="vendorSpecialPrice"
+                        value={formData.vendorSpecialPrice}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="form-group">
+                      <label>Admin Price *</label>
+                      <input
+                        type="number"
+                        name="regularPrice"
+                        value={formData.regularPrice}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Admin Special Price</label>
+                      <input
+                        type="number"
+                        name="specialPrice"
+                        value={formData.specialPrice}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="form-group">
                   <label>Tax (%)</label>

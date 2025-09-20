@@ -53,7 +53,9 @@ router.get('/', authenticate, requireRole(['admin','vendor']), requirePermission
 // POST /products (JSON only, images handled via direct uploads)
 router.post('/', authenticate, requireRole(['admin','vendor']), requirePermission('products.add'), async (req, res) => {
   const body = req.body || {};
-  const required = ['name', 'category', 'vendor', 'regularPrice'];
+  // Require different fields based on role: vendor provides vendorRegularPrice, admin provides regularPrice
+  const isVendorUser = req.user.role === 'vendor';
+  const required = isVendorUser ? ['name', 'category', 'vendor', 'vendorRegularPrice'] : ['name', 'category', 'vendor', 'regularPrice'];
   for (const f of required) {
     if (!body[f]) {
       res.status(400);
@@ -64,7 +66,9 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
   // Validate variant requirements if variants present
   if (Array.isArray(body.variants)) {
     for (const v of body.variants) {
-      if (!v || !v.sku || v.price === undefined || v.price === null) {
+      const hasSku = !!(v && v.sku);
+      const priceField = isVendorUser ? (v.vendorPrice ?? v.price) : v.price;
+      if (!hasSku || priceField === undefined || priceField === null) {
         res.status(400);
         throw new Error('Each variant must have sku and price');
       }
@@ -128,8 +132,11 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
     vendor: body.vendor,
     sku: body.sku ? String(body.sku).trim() : undefined,
     tags: Array.isArray(body.tags) ? body.tags : [],
-    regularPrice: Number(body.regularPrice),
-    specialPrice: body.specialPrice !== undefined ? Number(body.specialPrice) : undefined,
+    // Admin and Vendor pricing captured separately
+    regularPrice: !isVendorUser && body.regularPrice !== undefined ? Number(body.regularPrice) : undefined,
+    specialPrice: !isVendorUser && body.specialPrice !== undefined ? Number(body.specialPrice) : undefined,
+    vendorRegularPrice: isVendorUser && (body.vendorRegularPrice !== undefined ? Number(body.vendorRegularPrice) : (body.regularPrice !== undefined ? Number(body.regularPrice) : undefined)),
+    vendorSpecialPrice: isVendorUser && (body.vendorSpecialPrice !== undefined ? Number(body.vendorSpecialPrice) : (body.specialPrice !== undefined ? Number(body.specialPrice) : undefined)),
     tax: body.tax !== undefined ? Number(body.tax) : undefined,
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
     images: Array.isArray(body.images) ? body.images : [],
@@ -138,8 +145,10 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
       ? body.variants.map(v => ({
           attributes: v.attributes || {},
           sku: v.sku ? String(v.sku).trim() : undefined,
-          price: v.price !== undefined ? Number(v.price) : undefined,
-          specialPrice: v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+          price: !isVendorUser && v.price !== undefined ? Number(v.price) : undefined,
+          specialPrice: !isVendorUser && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+          vendorPrice: isVendorUser && (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : undefined)),
+          vendorSpecialPrice: isVendorUser && (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (v.specialPrice !== undefined ? Number(v.specialPrice) : undefined)),
           stock: v.stock !== undefined ? Number(v.stock) : 0,
           images: Array.isArray(v.images) ? v.images : []
         }))
@@ -199,8 +208,15 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
   }
   if (body.tags !== undefined) product.tags = Array.isArray(body.tags) ? body.tags : [];
 
-  if (body.regularPrice !== undefined) product.regularPrice = Number(body.regularPrice);
-  if (body.specialPrice !== undefined) product.specialPrice = Number(body.specialPrice);
+  // Admin can set admin prices; vendor can set vendor prices
+  if (req.user.role === 'admin') {
+    if (body.regularPrice !== undefined) product.regularPrice = Number(body.regularPrice);
+    if (body.specialPrice !== undefined) product.specialPrice = Number(body.specialPrice);
+  }
+  if (req.user.role === 'vendor') {
+    if (body.vendorRegularPrice !== undefined) product.vendorRegularPrice = Number(body.vendorRegularPrice);
+    if (body.vendorSpecialPrice !== undefined) product.vendorSpecialPrice = Number(body.vendorSpecialPrice);
+  }
   if (body.tax !== undefined) product.tax = Number(body.tax);
   if (body.stock !== undefined) product.stock = Number(body.stock);
 
@@ -220,8 +236,10 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
     product.variants = body.variants.map(v => ({
       attributes: v.attributes || {},
       sku: v.sku ? String(v.sku).trim() : undefined,
-      price: v.price !== undefined ? Number(v.price) : undefined,
-      specialPrice: v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+      price: req.user.role === 'admin' && v.price !== undefined ? Number(v.price) : undefined,
+      specialPrice: req.user.role === 'admin' && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
+      vendorPrice: req.user.role === 'vendor' && (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : undefined)),
+      vendorSpecialPrice: req.user.role === 'vendor' && (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (v.specialPrice !== undefined ? Number(v.specialPrice) : undefined)),
       stock: v.stock !== undefined ? Number(v.stock) : 0,
       images: Array.isArray(v.images) ? v.images : []
     }));
@@ -303,7 +321,7 @@ router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), requ
 router.get('/public/filters', async (req, res) => {
   try {
     const { category } = req.query;
-    const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
+    const baseFilters = { enabled: true, status: 'approved' };
     let filters = { ...baseFilters };
 
     if (category) {
@@ -469,7 +487,7 @@ router.get('/public', async (req, res) => {
     console.log('🔍 Backend received request with category:', category);
     console.log('🔍 Backend received request with filters:', { minPrice, maxPrice, brands, productType, availability, minRating, sortBy });
     
-    const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
+    const baseFilters = { enabled: true, status: 'approved' };
     let filters = { ...baseFilters };
 
     if (q) {
@@ -675,7 +693,7 @@ router.get('/public', async (req, res) => {
       // Use regular find for non-price sorting
       [items, total] = await Promise.all([
         Product.find(filters)
-          .select('_id name images regularPrice specialPrice rating productType variants stock brand')
+          .select('_id name images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice rating productType variants stock brand')
           .populate('category', 'name')
           .populate('brand', 'name')
           .sort(sortOrder)
@@ -781,7 +799,7 @@ router.get('/public', async (req, res) => {
       } else {
         [items, total] = await Promise.all([
           Product.find(filters)
-            .select('_id name images regularPrice specialPrice rating productType variants stock brand')
+            .select('_id name images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice rating productType variants stock brand')
             .populate('category', 'name')
             .populate('brand', 'name')
             .sort(sortOrder)
@@ -836,13 +854,13 @@ router.get('/:id/related/public', async (req, res) => {
 
     let items = [];
     if (product.relatedProducts && product.relatedProducts.length > 0) {
-      items = await Product.find({ _id: { $in: product.relatedProducts }, enabled: true, status: { $ne: 'rejected' } })
+      items = await Product.find({ _id: { $in: product.relatedProducts }, enabled: true, status: 'approved' })
         .select('_id name images regularPrice specialPrice rating productType variants')
         .populate('category', 'name')
         .limit(12)
         .lean();
     } else if (product.category) {
-      items = await Product.find({ category: product.category, _id: { $ne: id }, enabled: true, status: { $ne: 'rejected' } })
+      items = await Product.find({ category: product.category, _id: { $ne: id }, enabled: true, status: 'approved' })
         .select('_id name images regularPrice specialPrice rating productType variants')
         .populate('category', 'name')
         .sort({ createdAt: -1 })
@@ -878,7 +896,7 @@ router.get('/:id/public', async (req, res) => {
   try {
     const { id } = req.params;
     const product = await Product.findById(id)
-      .select('name description shortDescription images regularPrice specialPrice tax stock productType variants category brand vendor enabled status')
+      .select('name description shortDescription images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice tax stock productType variants category brand vendor enabled status')
       .populate('brand', 'name')
       .populate('category', 'name')
       .populate('vendor', 'companyName')
@@ -886,7 +904,7 @@ router.get('/:id/public', async (req, res) => {
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    if (product.status === 'rejected' || !product.enabled) {
+    if (product.status !== 'approved' || !product.enabled) {
       return res.status(403).json({ success: false, message: 'Product not available' });
     }
 

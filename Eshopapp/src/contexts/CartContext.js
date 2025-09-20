@@ -99,9 +99,9 @@ export const CartProvider = ({ children }) => {
       if (response && response.success && response.data) {
         // Transform API cart data to match frontend format
         const transformedItems = response.data.items.map(item => {
-          // Calculate the correct price (special price if available, otherwise regular price)
-          const calculatedPrice = (item.product.specialPrice !== null && item.product.specialPrice !== undefined) 
-            ? item.product.specialPrice 
+          // Calculate price using admin-approved prices only
+          const calculatedPrice = (item.product.specialPrice !== null && item.product.specialPrice !== undefined)
+            ? item.product.specialPrice
             : item.product.regularPrice;
           
           return {

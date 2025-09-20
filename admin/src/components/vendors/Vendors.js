@@ -45,7 +45,8 @@ const Vendors = () => {
     address2: '',
     city: '',
     zip: '',
-    commission: 10,
+    // commission field removed per new logic; keep placeholder for backend compatibility if needed
+    commission: undefined,
     logoPreview: ''
   });
   const [imageFile, setImageFile] = useState(null);
@@ -194,7 +195,7 @@ const Vendors = () => {
   };
 
   const handleOpenAdd = () => {
-    setFormData({ name: '', companyName: '', email: '', phone: '', address1: '', address2: '', city: '', zip: '', commission: 10, logoPreview: '' });
+    setFormData({ name: '', companyName: '', email: '', phone: '', address1: '', address2: '', city: '', zip: '', commission: undefined, logoPreview: '' });
     setImageFile(null);
     setShowAddModal(true);
   };
@@ -231,7 +232,7 @@ const Vendors = () => {
         address2: formData.address2.trim(),
         city: formData.city.trim(),
         zip: formData.zip.trim(),
-        commission: Number(formData.commission) || 0
+        // commission removed; do not send unless explicitly set
       };
       if (imageFile) {
         const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'vendors');
@@ -267,7 +268,7 @@ const Vendors = () => {
       address2: vendor.address2 || '',
       city: vendor.city || '',
       zip: vendor.zip || '',
-      commission: vendor.commission ?? 10,
+      commission: undefined,
       logoPreview: vendor.logo || ''
     });
     setImageFile(null);
@@ -295,7 +296,7 @@ const Vendors = () => {
         address2: formData.address2.trim(),
         city: formData.city.trim(),
         zip: formData.zip.trim(),
-        commission: Number(formData.commission) || 0
+        // commission removed; do not send unless explicitly set
       };
       if (imageFile) {
         const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'vendors');
@@ -415,7 +416,7 @@ const Vendors = () => {
               <th>Phone</th>
               <th>Status</th>
               <th>Enabled</th>
-              <th>Commission</th>
+              {/* Commission removed */}
               <th>Actions</th>
             </tr>
           </thead>
@@ -449,7 +450,7 @@ const Vendors = () => {
                     <span>{vendor.enabled ? 'Yes' : 'No'}</span>
                   )}
                 </td>
-                <td>{vendor.commission ?? 10}%</td>
+                {/* Commission removed from view */}
                 <td>
                   <div className="action-buttons">
                     <button title="View" onClick={() => viewProfile(vendor)} className="btn btn-secondary btn-sm">👁️</button>

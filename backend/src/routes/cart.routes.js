@@ -44,6 +44,10 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
     if (!productDoc) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
+    // Only approved, enabled products can be added to cart for customers
+    if (productDoc.status !== 'approved' || !productDoc.enabled) {
+      return res.status(400).json({ success: false, message: 'Product not available for purchase' });
+    }
 
     // Normalize selectedAttributes: only keep keys with non-empty values
     const normalizedSelected = Object.keys(selectedAttributes || {}).reduce((acc, key) => {
@@ -60,6 +64,7 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
     const baseProduct = {
       id: productDoc._id.toString(),
       _id: productDoc._id.toString(),
+      // Use admin-controlled prices for customer carts
       regularPrice: productDoc.regularPrice,
       specialPrice: productDoc.specialPrice,
       stock: productDoc.stock,
@@ -88,6 +93,7 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
         console.log('Cart:add: matched variant for selected attrs');
         productForCart.selectedVariant = {
           attributes: normalizedSelected,
+          // For customers, price is driven by admin-set price; variant-level falls back
           price: foundVariant.price ?? productDoc.regularPrice,
           specialPrice: foundVariant.specialPrice ?? productDoc.specialPrice,
           stock: foundVariant.stock ?? productDoc.stock,
