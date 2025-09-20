@@ -426,7 +426,9 @@ const Products = () => {
       // Now payload.variants is guaranteed to be an array
       if (payload.variants.length > 0) {
         for (const v of payload.variants) {
-          if (!v.sku || v.price === undefined) {
+          const hasSku = !!v.sku;
+          const hasRequiredPrice = isVendorUser ? (v.vendorPrice !== undefined) : (v.price !== undefined);
+          if (!hasSku || !hasRequiredPrice) {
             toast.error('Each variant must have SKU and Price');
             return;
           }
@@ -1293,8 +1295,9 @@ const Products = () => {
                         <thead>
                           <tr>
                             <th>SKU</th>
-                            <th>Price</th>
-                            {!isVendorUser && (<th>Special Price</th>)}
+                            {!isVendorUser && (<th>Vendor Price</th>)}
+                            <th>{isVendorUser ? 'Price' : 'Admin Price'}</th>
+                            {!isVendorUser && (<th>Admin Special Price</th>)}
                             <th>Stock</th>
                             <th>Actions</th>
                           </tr>
@@ -1305,6 +1308,11 @@ const Products = () => {
                               <td>
                                 <input type="text" value={v.sku || ''} onChange={e => updateExistingVariantField(i, 'sku', e.target.value)} />
                               </td>
+                              {!isVendorUser && (
+                                <td>
+                                  <input type="number" min="0" step="0.01" value={v.vendorPrice ?? ''} disabled />
+                                </td>
+                              )}
                               <td>
                                 <input type="number" min="0" step="0.01" value={v.price ?? ''} onChange={e => updateExistingVariantField(i, 'price', e.target.value)} />
                               </td>
@@ -1350,7 +1358,15 @@ const Products = () => {
           <div className="modal large-modal">
             <div className="modal-header">
               <h2>Product Details</h2>
-              <button onClick={() => setShowDetailsModal(false)} className="close-btn">&times;</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {!isVendorUser && selectedProduct && selectedProduct.status !== 'approved' && (
+                  <button onClick={() => handleStatusChange(selectedProduct._id || selectedProduct.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
+                )}
+                {!isVendorUser && selectedProduct && selectedProduct.status !== 'rejected' && (
+                  <button onClick={() => handleStatusChange(selectedProduct._id || selectedProduct.id, 'rejected')} className="btn btn-danger btn-sm">Reject</button>
+                )}
+                <button onClick={() => setShowDetailsModal(false)} className="close-btn">&times;</button>
+              </div>
             </div>
             <div className="modal-body">
               <div className="product-details">
