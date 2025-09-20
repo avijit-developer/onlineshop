@@ -198,8 +198,8 @@ const Products = () => {
       const [prodRes, catRes, venRes, brRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/products?${params.toString()}`, { headers: getAuthHeaders() }),
         fetch(`${API_BASE}/api/v1/categories?parent=all&page=1&limit=1000`, { headers: getAuthHeaders() }),
-        ...(!isVendorUser ? [fetch(`${API_BASE}/api/v1/vendors?page=1&limit=1000`, { headers: getAuthHeaders() })] : [Promise.resolve({ ok: true, json: async () => ({ data: [] }) })]),
-        ...(!isVendorUser ? [fetch(`${API_BASE}/api/v1/brands?page=1&limit=1000`, { headers: getAuthHeaders() })] : [Promise.resolve({ ok: true, json: async () => ({ data: [] }) })])
+        fetch(`${API_BASE}/api/v1/vendors?page=1&limit=1000`, { headers: getAuthHeaders() }),
+        fetch(`${API_BASE}/api/v1/brands?page=1&limit=1000`, { headers: getAuthHeaders() })
       ]);
 
       const [prodJson, catJson, venJson, brJson] = await Promise.all([
@@ -321,7 +321,7 @@ const Products = () => {
       shortDescription: product.shortDescription || '',
       categoryId: normalizeId(product.category),
       brandId: normalizeId(product.brand),
-      vendorId: isVendorUser ? currentVendorId : normalizeId(product.vendor),
+      vendorId: isVendorUser ? (normalizeId(product.vendor) || currentVendorId) : normalizeId(product.vendor),
       regularPrice: product.regularPrice ?? '',
       specialPrice: product.specialPrice ?? '',
       vendorRegularPrice: product.vendorRegularPrice ?? '',
@@ -940,7 +940,19 @@ const Products = () => {
                 <div className="form-group">
                   <label>Vendor *</label>
                   {isVendorUser ? (
-                    <input type="text" value={vendors.find(v => v.id === currentVendorId)?.companyName || ''} readOnly />
+                    <select
+                      name="vendorId"
+                      value={formData.vendorId || currentVendorId || ''}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Select Vendor</option>
+                      {vendors
+                        .filter(v => !v || !v.id || !currentVendorId ? true : true)
+                        .map(vendor => (
+                          <option key={vendor.id} value={vendor.id}>{vendor.companyName}</option>
+                        ))}
+                    </select>
                   ) : (
                     <select
                       name="vendorId"
@@ -1011,18 +1023,20 @@ const Products = () => {
                   </>
                 )}
 
-                <div className="form-group">
-                  <label>Tax (%)</label>
-                  <input
-                    type="number"
-                    name="tax"
-                    value={formData.tax}
-                    onChange={handleInputChange}
-                    min="0"
-                    max="100"
-                    step="0.1"
-                  />
-                </div>
+                {!isVendorUser && (
+                  <div className="form-group">
+                    <label>Tax (%)</label>
+                    <input
+                      type="number"
+                      name="tax"
+                      value={formData.tax}
+                      onChange={handleInputChange}
+                      min="0"
+                      max="100"
+                      step="0.1"
+                    />
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label>Stock Quantity *</label>
