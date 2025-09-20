@@ -844,6 +844,32 @@ const Products = () => {
         </table>
       </div>
 
+      {/* Bulk actions */}
+      {!isVendorUser && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            className="btn btn-success"
+            onClick={async () => {
+              try {
+                const res = await fetch(`${API_BASE}/api/v1/products/bulk/status`, {
+                  method: 'POST',
+                  headers: getAuthHeaders(),
+                  body: JSON.stringify({ status: 'approved', filter: 'pending' })
+                });
+                const json = await res.json();
+                if (!res.ok || !json?.success) throw new Error(json?.message || 'Bulk approve failed');
+                toast.success(`Approved ${json?.data?.modified || 0} products`);
+                await fetchData();
+              } catch (e) {
+                toast.error(e?.message || 'Bulk approve failed');
+              }
+            }}
+          >
+            Approve All Pending
+          </button>
+        </div>
+      )}
+
       {/* Pagination (API-based) */}
       <div className="pagination">
         <button 
