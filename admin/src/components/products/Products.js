@@ -110,6 +110,7 @@ const Products = () => {
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [brandsMaster, setBrandsMaster] = useState([]);
   const [relatedPicker, setRelatedPicker] = useState({ query: '', results: [], selected: [] });
   const [formData, setFormData] = useState({
     name: '',
@@ -179,6 +180,22 @@ const Products = () => {
     fetchData();
   }, [currentPage, itemsPerPage, categoryFilter, vendorFilter, statusFilter, appliedSearchTerm]);
 
+  // Filter brand list based on selected category in the add/edit form
+  useEffect(() => {
+    try {
+      const catId = formData?.categoryId;
+      if (!catId) {
+        setBrands(brandsMaster.map(b => ({ id: b.id, name: b.name })));
+        return;
+      }
+      const filtered = (brandsMaster || []).filter(b => Array.isArray(b.categories) && b.categories.some(cid => String(cid) === String(catId)));
+      setBrands(filtered.map(b => ({ id: b.id, name: b.name })));
+      if (formData.brandId && !filtered.some(b => String(b.id) === String(formData.brandId))) {
+        setFormData(prev => ({ ...prev, brandId: '' }));
+      }
+    } catch (_) {}
+  }, [formData?.categoryId, brandsMaster]);
+
 
 
 
@@ -215,13 +232,10 @@ const Products = () => {
       setTotalCount(prodJson.meta?.total || 0);
       setCategories((catJson.data || []).map(c => ({ id: c._id, name: c.name })));
       setVendors((venJson.data || []).map(v => ({ id: v._id, companyName: v.companyName })));
-      // If a category is selected, filter brands that are linked to that category
-      const selectedCategoryId = (typeof formData?.categoryId === 'string' && formData.categoryId) ? formData.categoryId : '';
       const allBrands = (brJson.data || []).map(b => ({ id: b._id, name: b.name, categories: b.categories || [] }));
-      const filteredBrands = selectedCategoryId
-        ? allBrands.filter(b => Array.isArray(b.categories) && b.categories.some(cid => String(cid) === String(selectedCategoryId)))
-        : allBrands;
-      setBrands(filteredBrands.map(b => ({ id: b.id, name: b.name })));
+      setBrandsMaster(allBrands);
+      // Initialize with all brands; a later effect will filter by selected category
+      setBrands(allBrands.map(b => ({ id: b.id, name: b.name })));
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -1030,20 +1044,7 @@ const Products = () => {
                   </>
                 )}
 
-                {!isVendorUser && (
-                  <div className="form-group">
-                    <label>Tax (%)</label>
-                    <input
-                      type="number"
-                      name="tax"
-                      value={formData.tax}
-                      onChange={handleInputChange}
-                      min="0"
-                      max="100"
-                      step="0.1"
-                    />
-                  </div>
-                )}
+                {/* Tax (%) removed for both admin and vendor as per request */}
 
                 <div className="form-group">
                   <label>Stock Quantity *</label>
