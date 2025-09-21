@@ -117,14 +117,7 @@ router.get('/sections/public', async (req, res) => {
         products = [...products, ...newProducts.map(p => ({ productId: p, order: 999 }))];
       }
 
-      // Final fallback: if still empty, show any enabled non-rejected products
-      if (products.length === 0) {
-        const fallbackAuto = await Product.find({ enabled: true, status: { $ne: 'rejected' } })
-          .sort({ createdAt: -1 })
-          .limit(section.settings.maxProducts);
-        console.log(`Homepage: Section "${section.name}" using fallback products: ${fallbackAuto.length}`);
-        products = fallbackAuto.map(p => ({ productId: p, order: 999 }));
-      }
+      // No fallback to non-approved; only approved products should show in app
 
       console.log(`Homepage: Section "${section.name}" final product count: ${products.length}`);
 
