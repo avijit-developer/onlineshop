@@ -62,7 +62,14 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 					try {
 						if (sel && Object.keys(sel).length > 0 && Array.isArray(p.variants)) {
 							matchedVariant = p.variants.find(v => {
-								const vAttrs = v.attributes || {};
+								let vAttrs = {};
+								try {
+									if (v.attributes && typeof v.attributes.toJSON === 'function') vAttrs = v.attributes.toJSON();
+									else if (v.attributes && typeof v.attributes.get === 'function') {
+										try { vAttrs = Object.fromEntries(v.attributes); } catch (_) { vAttrs = {}; }
+									}
+									else vAttrs = v.attributes || {};
+								} catch (_) { vAttrs = v.attributes || {}; }
 								return Object.keys(sel).every(k => String(vAttrs[k]) === String(sel[k]));
 							});
 						}
