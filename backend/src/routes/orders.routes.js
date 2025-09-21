@@ -541,6 +541,24 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                 if (sku && Array.isArray(p.variants)) {
                     v = p.variants.find(vn => String(vn.sku || '').trim().toLowerCase() === sku);
                 }
+                // If no match by SKU, try matching by selectedAttributes
+                if (!v && Array.isArray(p.variants)) {
+                    let sel = it.selectedAttributes || {};
+                    try {
+                        if (sel && typeof sel.toJSON === 'function') sel = sel.toJSON();
+                        else if (sel && typeof sel.get === 'function') { try { sel = Object.fromEntries(sel); } catch (_) { sel = {}; } }
+                    } catch (_) {}
+                    if (sel && Object.keys(sel).length > 0) {
+                        v = p.variants.find(vn => {
+                            let vAttrs = vn.attributes || {};
+                            try {
+                                if (vAttrs && typeof vAttrs.toJSON === 'function') vAttrs = vAttrs.toJSON();
+                                else if (vAttrs && typeof vAttrs.get === 'function') { try { vAttrs = Object.fromEntries(vAttrs); } catch (_) { vAttrs = {}; } }
+                            } catch (_) {}
+                            return Object.keys(sel).every(k => String(vAttrs[k]) === String(sel[k]));
+                        });
+                    }
+                }
                 if (v) {
                     if (v.vendorSpecialPrice != null) return Number(v.vendorSpecialPrice);
                     if (v.vendorPrice != null) return Number(v.vendorPrice);
