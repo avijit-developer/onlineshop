@@ -347,7 +347,8 @@ const Orders = () => {
       const subtotal = Number(order.vendorSubtotal || 0);
       const tax = Number(order.vendorTax || order.vendorTaxShare || 0);
       const shipping = Number(order.vendorShipping || order.vendorShippingShare || 0);
-      return subtotal + tax + shipping;
+      const discount = Number(order.vendorDiscountShare || 0);
+      return subtotal + tax + shipping - discount;
     }
     const subtotal = (order.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
     const tax = (subtotal * Number(order.tax || 0)) / 100;
@@ -648,10 +649,10 @@ const Orders = () => {
                                   <h4>{item.name}</h4>
                                   <p>SKU: {item.sku}</p>
                                   <p>Quantity: {item.quantity}</p>
-                                  <p>Price: {formatCurrency(item.price)}</p>
+                                  <p>Price: {formatCurrency(isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.vendorDisplayUnitPrice ?? item.price) : item.price)}</p>
                                 </div>
                                 <div className="item-total">
-                                  {formatCurrency(item.price * item.quantity)}
+                                  {formatCurrency(((isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.vendorDisplayUnitPrice ?? item.price) : item.price) * item.quantity))}
                                 </div>
                               </div>
                             ))}
@@ -688,10 +689,10 @@ const Orders = () => {
                                     <h4>{item.name}</h4>
                                     <p>SKU: {item.sku}</p>
                                     <p>Quantity: {item.quantity}</p>
-                                    <p>Price: {formatCurrency(item.price)}</p>
+                                    <p>Price: {formatCurrency(isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.vendorDisplayUnitPrice ?? item.price) : item.price)}</p>
                                   </div>
                                   <div className="item-total">
-                                    {formatCurrency(item.price * item.quantity)}
+                                    {formatCurrency(((isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.vendorDisplayUnitPrice ?? item.price) : item.price) * item.quantity))}
                                   </div>
                                 </div>
                               ))}
@@ -746,6 +747,12 @@ const Orders = () => {
                             <span>Vendor Shipping Share:</span>
                             <span>{formatCurrency(Number(selectedOrder.vendorShipping || selectedOrder.vendorShippingShare || 0))}</span>
                           </div>
+                          {Number(selectedOrder.vendorDiscountShare || 0) > 0 && (
+                            <div className="summary-row">
+                              <span>Vendor Discount Share:</span>
+                              <span>- {formatCurrency(Number(selectedOrder.vendorDiscountShare || 0))}</span>
+                            </div>
+                          )}
                         </>
                       )}
                       <div className="summary-row total">
