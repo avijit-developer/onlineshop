@@ -168,11 +168,31 @@ router.get('/sections/:name/products/public', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Section not found or inactive' });
     }
 
-    const baseFilters = { enabled: true, status: { $ne: 'rejected' } };
+    const baseFilters = { enabled: true, status: 'approved' };
     let filters = { ...baseFilters };
     let sort = { createdAt: -1 };
     // If admin curated products exist for this section, honor that list even if type is auto
     const curated = Array.isArray(section.products) ? section.products.filter(p => p && p.productId).sort((a, b) => (a.order || 0) - (b.order || 0)) : [];
+    // Treat curated-only sections (most-popular, best-seller, just-for-you) as curated only
+    const curatedOnly = ['most-popular','best-seller','just-for-you'].includes(String(section.name));
+    if (curatedOnly) {
+      const total = curated.length;
+      const slice = curated.slice((pageNum - 1) * perPage, (pageNum - 1) * perPage + perPage);
+      const ids = slice.map(p => p.productId).filter(Boolean);
+      if (ids.length === 0) {
+        return res.json({ success: true, data: [], meta: { total, page: pageNum, limit: perPage } });
+      }
+      const found = await Product.find({ _id: { $in: ids }, ...baseFilters })
+        .select('name images regularPrice specialPrice rating reviewsCount reviews')
+        .lean();
+      const mapById = new Map(found.map(p => [String(p._id), p]));
+      const orderedItems = ids.map(id => mapById.get(String(id))).filter(Boolean).map(p => ({
+        ...p,
+        reviewsCount: typeof p.reviewsCount === 'number' ? p.reviewsCount : (Array.isArray(p.reviews) ? p.reviews.length : 0),
+      }));
+      return res.json({ success: true, data: orderedItems, meta: { total, page: pageNum, limit: perPage } });
+    }
+
     if (curated.length > 0) {
       const total = curated.length;
       const slice = curated.slice((pageNum - 1) * perPage, (pageNum - 1) * perPage + perPage);
