@@ -99,11 +99,15 @@ export const CartProvider = ({ children }) => {
       if (response && response.success && response.data) {
         // Transform API cart data to match frontend format
         const transformedItems = response.data.items.map(item => {
-          // Calculate price using admin-approved prices only
-          const calculatedPrice = (item.product.specialPrice !== null && item.product.specialPrice !== undefined)
+          // Prefer variant price/special if variant selected; otherwise use admin-approved base prices
+          const variantPreferredPrice = (item.variantInfo?.specialPrice != null)
+            ? item.variantInfo.specialPrice
+            : (item.variantInfo?.price != null ? item.variantInfo.price : undefined);
+          const basePreferredPrice = (item.product.specialPrice != null)
             ? item.product.specialPrice
             : item.product.regularPrice;
-          
+          const calculatedPrice = (variantPreferredPrice != null) ? variantPreferredPrice : basePreferredPrice;
+
           return {
             id: item.product._id || item.product.id,
             name: item.product.name,
@@ -372,30 +376,28 @@ export const CartProvider = ({ children }) => {
       variantInfo: item.variantInfo
     });
     
-    // Use the price field first if available (this is set by our getCartPrice logic)
-    if (item.price && item.price > 0) {
-      console.log('✅ Using item.price:', item.price);
-      return item.price;
-    }
-    // Use variant price if available, otherwise fall back to regular price
-    if (item.variantInfo?.price) {
-      console.log('✅ Using variantInfo.price:', item.variantInfo.price);
-      return item.variantInfo.price;
-    }
-    if (item.variantInfo?.specialPrice && item.variantInfo.specialPrice < item.variantInfo.price) {
+    // Prefer variant special price, then variant price, then base special, base regular, finally item.price
+    if (item.variantInfo?.specialPrice != null) {
       console.log('✅ Using variantInfo.specialPrice:', item.variantInfo.specialPrice);
-      return item.variantInfo.specialPrice;
+      return Number(item.variantInfo.specialPrice);
     }
-    if (item.regularPrice) {
-      console.log('✅ Using item.regularPrice:', item.regularPrice);
-      return item.regularPrice;
+    if (item.variantInfo?.price != null) {
+      console.log('✅ Using variantInfo.price:', item.variantInfo.price);
+      return Number(item.variantInfo.price);
     }
-    if (item.specialPrice && item.specialPrice < item.regularPrice) {
+    if (item.specialPrice != null) {
       console.log('✅ Using item.specialPrice:', item.specialPrice);
-      return item.specialPrice;
+      return Number(item.specialPrice);
     }
-    console.log('✅ Using parsePrice(item.price):', parsePrice(item.price));
-    return parsePrice(item.price);
+    if (item.regularPrice != null) {
+      console.log('✅ Using item.regularPrice:', item.regularPrice);
+      return Number(item.regularPrice);
+    }
+    if (item.price != null) {
+      console.log('✅ Using item.price fallback:', item.price);
+      return Number(item.price);
+    }
+    return 0;
   };
 
   const getItemTotal = (item) => {
