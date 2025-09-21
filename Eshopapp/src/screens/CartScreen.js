@@ -19,7 +19,7 @@ import api from '../utils/api';
 
 const CartScreen = () => {
   const navigation = useNavigation();
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, isLoading, isAuthenticated, refreshCart, cartCoupon } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemTotal, getItemImage, getItemPrice, isLoading, isAuthenticated, refreshCart, cartCoupon } = useCart();
   const [couponCode, setCouponCode] = React.useState('');
   const [couponError, setCouponError] = React.useState('');
   const [validating, setValidating] = React.useState(false);
@@ -185,15 +185,21 @@ const CartScreen = () => {
         {/* Price and quantity section */}
         <View style={styles.priceQuantitySection}>
           <View style={styles.priceSection}>
-            <Text style={styles.itemPrice}>
-              ₹{String(item.specialPrice || item.variantInfo?.specialPrice || item.regularPrice || item.variantInfo?.price || item.price || 0)}
-            </Text>
-            {/* Show original price if special price exists */}
-            {(item.specialPrice || item.variantInfo?.specialPrice) && (
-              <Text style={styles.originalPrice}>
-                ₹{String(item.regularPrice || item.variantInfo?.price || item.price || 0)}
-              </Text>
-            )}
+            {(() => {
+              const current = getItemPrice(item);
+              const hasVariantSpecial = (item.variantInfo?.specialPrice != null) && (item.variantInfo?.price != null) && (Number(item.variantInfo.specialPrice) < Number(item.variantInfo.price));
+              const hasBaseSpecial = (item.specialPrice != null) && (item.regularPrice != null) && (Number(item.specialPrice) < Number(item.regularPrice));
+              const showOriginal = hasVariantSpecial || hasBaseSpecial;
+              const original = hasVariantSpecial ? Number(item.variantInfo.price) : (hasBaseSpecial ? Number(item.regularPrice) : null);
+              return (
+                <>
+                  <Text style={styles.itemPrice}>₹{String(current)}</Text>
+                  {showOriginal && original != null && (
+                    <Text style={styles.originalPrice}>₹{String(original)}</Text>
+                  )}
+                </>
+              );
+            })()}
           </View>
           
           <View style={styles.quantityContainer}>
