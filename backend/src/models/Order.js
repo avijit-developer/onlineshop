@@ -1,13 +1,19 @@
 const mongoose = require('mongoose');
 
 const orderItemSchema = new mongoose.Schema({
-	product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-	name: { type: String, required: true },
-	sku: { type: String },
-	price: { type: Number, required: true },
-	quantity: { type: Number, required: true, min: 1 },
-	image: { type: String },
-	selectedAttributes: { type: Map, of: String, default: {} },
+    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+    name: { type: String, required: true },
+    sku: { type: String },
+    // Effective price used for customer totals (admin price or special at order time)
+    price: { type: Number, required: true },
+    // Store both admin and vendor unit prices for reporting and vendor/admin views
+    adminUnitPrice: { type: Number, default: null },
+    adminUnitSpecialPrice: { type: Number, default: null },
+    vendorUnitPrice: { type: Number, default: null },
+    vendorUnitSpecialPrice: { type: Number, default: null },
+    quantity: { type: Number, required: true, min: 1 },
+    image: { type: String },
+    selectedAttributes: { type: Map, of: String, default: {} },
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
     commissionRate: { type: Number, default: 0 },
     commissionAmount: { type: Number, default: 0 },

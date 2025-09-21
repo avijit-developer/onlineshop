@@ -31,16 +31,21 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 		if (!Array.isArray(items) || items.length === 0) {
 			// fall back to cart items
 			const cart = await Cart.findOne({ user: req.user.id }).lean();
-			items = (cart?.items || []).map(ci => ({
-				product: ci.product,
-				name: ci.product?.name || 'Product',
-				sku: ci.variantInfo?.sku || ci.product?.sku || '',
-            // Use admin prices for customer orders
-            price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.product?.specialPrice ?? ci.product?.regularPrice ?? 0,
-				quantity: ci.quantity,
-				image: (ci.variantInfo?.images && ci.variantInfo.images[0]) || (Array.isArray(ci.images) && ci.images[0]) || null,
-				selectedAttributes: ci.selectedAttributes || {},
-			}));
+            items = (cart?.items || []).map(ci => ({
+                product: ci.product,
+                name: ci.product?.name || 'Product',
+                sku: ci.variantInfo?.sku || ci.product?.sku || '',
+                // Use admin prices for customer orders
+                price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.product?.specialPrice ?? ci.product?.regularPrice ?? 0,
+                // Persist both admin and vendor unit prices for correct admin/vendor views
+                adminUnitPrice: (ci.variantInfo?.price != null ? ci.variantInfo.price : (ci.product?.specialPrice != null ? ci.product.specialPrice : ci.product?.regularPrice ?? 0)),
+                adminUnitSpecialPrice: (ci.variantInfo?.specialPrice != null ? ci.variantInfo.specialPrice : (ci.product?.specialPrice ?? null)),
+                vendorUnitPrice: (ci.variantInfo?.vendorPrice != null ? ci.variantInfo.vendorPrice : (ci.product?.vendorSpecialPrice != null ? ci.product.vendorSpecialPrice : ci.product?.vendorRegularPrice ?? null)),
+                vendorUnitSpecialPrice: (ci.variantInfo?.vendorSpecialPrice != null ? ci.variantInfo.vendorSpecialPrice : (ci.product?.vendorSpecialPrice ?? null)),
+                quantity: ci.quantity,
+                image: (ci.variantInfo?.images && ci.variantInfo.images[0]) || (Array.isArray(ci.images) && ci.images[0]) || null,
+                selectedAttributes: ci.selectedAttributes || {},
+            }));
 		}
 		if (!Array.isArray(items) || items.length === 0) {
 			return res.status(400).json({ success: false, message: 'No items to place order' });
