@@ -560,24 +560,31 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                     }
                 }
                 if (v) {
-                    if (v.vendorSpecialPrice != null) return Number(v.vendorSpecialPrice);
-                    if (v.vendorPrice != null) return Number(v.vendorPrice);
+                    return {
+                        unitSpecial: (v.vendorSpecialPrice != null) ? Number(v.vendorSpecialPrice) : null,
+                        unit: (v.vendorPrice != null) ? Number(v.vendorPrice) : null,
+                    };
                 }
-                if (p.vendorSpecialPrice != null) return Number(p.vendorSpecialPrice);
-                if (p.vendorRegularPrice != null) return Number(p.vendorRegularPrice);
+                return {
+                    unitSpecial: (p.vendorSpecialPrice != null) ? Number(p.vendorSpecialPrice) : null,
+                    unit: (p.vendorRegularPrice != null) ? Number(p.vendorRegularPrice) : null,
+                };
             } catch (_) {}
-            return null;
+            return { unitSpecial: null, unit: null };
         };
 
         // For each order, filter items to only this vendor set and compute vendor totals
         const mapped = orders.map(o => {
             const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
             const vendorItemsWithDisplay = vendorItems.map(it => {
-                const explicit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null);
-                const resolved = resolveVendorUnit(it);
-                const unit = (explicit != null) ? explicit : (resolved != null ? resolved : Number(it.price || 0));
+                const explicitSpecial = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : null;
+                const explicitRegular = (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null;
+                const { unitSpecial, unit } = resolveVendorUnit(it);
+                const finalSpecial = (explicitSpecial != null) ? explicitSpecial : (unitSpecial != null ? unitSpecial : null);
+                const finalRegular = (explicitRegular != null) ? explicitRegular : (unit != null ? unit : null);
+                const display = (finalSpecial != null) ? finalSpecial : (finalRegular != null ? finalRegular : Number(it.price || 0));
                 const quantity = Number(it.quantity || 0);
-                return { ...it, vendorDisplayUnitPrice: unit, vendorLineTotal: unit * quantity };
+                return { ...it, vendorUnitSpecialPrice: finalSpecial, vendorUnitPrice: finalRegular, vendorDisplayUnitPrice: display, vendorLineTotal: display * quantity };
             });
             const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
             const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
@@ -662,32 +669,47 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
         if (!o) return res.status(404).json({ success: false, message: 'Order not found' });
 
         const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
-        // Resolve vendor unit price from product/variant by SKU if missing
+        if (vendorItems.length === 0) {
+            return res.status(404).json({ success: false, message: 'Order not found for vendor' });
+        }
+
+        // Resolve vendor unit price from product/variant by SKU or attributes if missing
         try {
             const productIds = Array.from(new Set(vendorItems.map(it => String(it.product)).filter(Boolean)));
             const prods = await Product.find({ _id: { $in: productIds } }).select('_id vendor vendorRegularPrice vendorSpecialPrice variants').lean();
             const idToProduct = new Map(prods.map(p => [String(p._id), p]));
             for (const it of vendorItems) {
-                if (it.vendorUnitSpecialPrice == null && it.vendorUnitPrice == null) {
-                    const p = idToProduct.get(String(it.product));
-                    if (p) {
-                        const sku = String(it.sku || '').trim().toLowerCase();
-                        let v = null;
-                        if (sku && Array.isArray(p.variants)) v = p.variants.find(vn => String(vn.sku || '').trim().toLowerCase() === sku);
-                        if (v) {
-                            if (v.vendorSpecialPrice != null) it.vendorUnitSpecialPrice = Number(v.vendorSpecialPrice);
-                            else if (v.vendorPrice != null) it.vendorUnitPrice = Number(v.vendorPrice);
-                        } else {
-                            if (p.vendorSpecialPrice != null) it.vendorUnitSpecialPrice = Number(p.vendorSpecialPrice);
-                            else if (p.vendorRegularPrice != null) it.vendorUnitPrice = Number(p.vendorRegularPrice);
-                        }
+                const p = idToProduct.get(String(it.product));
+                if (!p) continue;
+                const sku = String(it.sku || '').trim().toLowerCase();
+                let v = null;
+                if (sku && Array.isArray(p.variants)) v = p.variants.find(vn => String(vn.sku || '').trim().toLowerCase() === sku);
+                if (!v && Array.isArray(p.variants)) {
+                    let sel = it.selectedAttributes || {};
+                    try {
+                        if (sel && typeof sel.toJSON === 'function') sel = sel.toJSON();
+                        else if (sel && typeof sel.get === 'function') { try { sel = Object.fromEntries(sel); } catch (_) { sel = {}; } }
+                    } catch (_) {}
+                    if (sel && Object.keys(sel).length > 0) {
+                        v = p.variants.find(vn => {
+                            let vAttrs = vn.attributes || {};
+                            try {
+                                if (vAttrs && typeof vAttrs.toJSON === 'function') vAttrs = vAttrs.toJSON();
+                                else if (vAttrs && typeof vAttrs.get === 'function') { try { vAttrs = Object.fromEntries(vAttrs); } catch (_) { vAttrs = {}; } }
+                            } catch (_) {}
+                            return Object.keys(sel).every(k => String(vAttrs[k]) === String(sel[k]));
+                        });
                     }
+                }
+                if (v) {
+                    if (it.vendorUnitSpecialPrice == null && v.vendorSpecialPrice != null) it.vendorUnitSpecialPrice = Number(v.vendorSpecialPrice);
+                    if (it.vendorUnitPrice == null && v.vendorPrice != null) it.vendorUnitPrice = Number(v.vendorPrice);
+                } else {
+                    if (it.vendorUnitSpecialPrice == null && p.vendorSpecialPrice != null) it.vendorUnitSpecialPrice = Number(p.vendorSpecialPrice);
+                    if (it.vendorUnitPrice == null && p.vendorRegularPrice != null) it.vendorUnitPrice = Number(p.vendorRegularPrice);
                 }
             }
         } catch (_) {}
-        if (vendorItems.length === 0) {
-            return res.status(404).json({ success: false, message: 'Order not found for vendor' });
-        }
 
         const vendorSubtotal = vendorItems.reduce((s, it) => {
             const explicit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null);
