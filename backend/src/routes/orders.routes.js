@@ -524,8 +524,13 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
 
         // For each order, filter items to only this vendor set and compute vendor totals
         const mapped = orders.map(o => {
-            const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
-            const vendorSubtotal = vendorItems.reduce((s, it) => {
+        const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
+        const vendorItemsWithDisplay = vendorItems.map(it => {
+            const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
+            const quantity = Number(it.quantity || 0);
+            return { ...it, vendorDisplayUnitPrice: unit, vendorLineTotal: unit * quantity };
+        });
+        const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => {
                 const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
                 return s + (unit * Number(it.quantity || 0));
             }, 0);
@@ -574,7 +579,7 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                 shippingCost: o.shippingCost,
                 discountAmount: o.discountAmount,
                 couponCode: o.couponCode,
-                items: vendorItems,
+            items: vendorItemsWithDisplay,
                 vendorItemCount: vendorItems.length,
                 vendorSubtotal,
                 vendorCommission,
