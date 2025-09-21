@@ -464,7 +464,10 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
         // For each order, filter items to only this vendor set and compute vendor totals
         const mapped = orders.map(o => {
             const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
-            const vendorSubtotal = vendorItems.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+            const vendorSubtotal = vendorItems.reduce((s, it) => {
+                const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
+                return s + (unit * Number(it.quantity || 0));
+            }, 0);
             const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
             const vendorNet = vendorSubtotal - vendorCommission;
             const orderSubtotal = Number(o.subtotal || 0);
@@ -548,7 +551,10 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
             return res.status(404).json({ success: false, message: 'Order not found for vendor' });
         }
 
-        const vendorSubtotal = vendorItems.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+        const vendorSubtotal = vendorItems.reduce((s, it) => {
+            const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
+            return s + (unit * Number(it.quantity || 0));
+        }, 0);
         const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
         const vendorNet = vendorSubtotal - vendorCommission;
         const orderSubtotal = Number(o.subtotal || 0);
