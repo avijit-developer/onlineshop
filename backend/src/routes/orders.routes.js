@@ -74,6 +74,13 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 							});
 						}
 					} catch (_) {}
+					// Fallback: if variant not matched by attributes, try by SKU provided in request
+					if (!matchedVariant) {
+						const reqSku = String(i.sku || '').trim();
+						if (reqSku && Array.isArray(p.variants)) {
+							matchedVariant = p.variants.find(v => String(v.sku || '').trim() === reqSku);
+						}
+					}
 					const adminUnitPrice = (matchedVariant && matchedVariant.price != null) ? matchedVariant.price : (p.regularPrice ?? 0);
 					const adminUnitSpecialPrice = (matchedVariant && matchedVariant.specialPrice != null) ? matchedVariant.specialPrice : (p.specialPrice ?? null);
 					const vendorUnitPrice = (matchedVariant && matchedVariant.vendorPrice != null) ? matchedVariant.vendorPrice : (p.vendorRegularPrice ?? null);
