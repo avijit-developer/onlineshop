@@ -144,7 +144,10 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Items</Text></View>
         <View style={styles.divider} />
         {(Array.isArray(items) ? items : []).map((item, idx) => {
-          const unitPrice = Number(pick(item, ['price', 'unitPrice'], 0));
+          // Prefer vendor prices for vendor view
+          const vendorUnit = pick(item, ['vendorUnitSpecialPrice'], null);
+          const vendorBase = pick(item, ['vendorUnitPrice'], null);
+          const unitPrice = Number((vendorUnit != null ? vendorUnit : (vendorBase != null ? vendorBase : pick(item, ['price', 'unitPrice'], 0))));
           const qty = Number(pick(item, ['quantity', 'qty'], 0));
           const lineTotal = unitPrice * qty;
           const imageUri = pick(item, ['image'], '');
