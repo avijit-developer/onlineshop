@@ -103,7 +103,7 @@ router.get('/sections/public', async (req, res) => {
       console.log(`Homepage: Section "${section.name}" has ${products.length} manual products`);
 
       // If auto-type and not enough products, fetch more (except curated-only sections)
-      const curatedOnly = section && ['most-popular','best-seller'].includes(String(section.name));
+      const curatedOnly = section && ['most-popular','best-seller','just-for-you'].includes(String(section.name));
       if (!curatedOnly && section.type !== 'manual' && products.length < section.settings.maxProducts) {
         console.log(`Homepage: Section "${section.name}" needs auto-products (has ${products.length}, needs ${section.settings.maxProducts})`);
         const autoProducts = await getAutoProducts(section);
