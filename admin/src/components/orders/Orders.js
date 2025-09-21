@@ -649,10 +649,10 @@ const Orders = () => {
                                   <h4>{item.name}</h4>
                                   <p>SKU: {item.sku}</p>
                                   <p>Quantity: {item.quantity}</p>
-                                  <p>Price: {formatCurrency(isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.vendorDisplayUnitPrice ?? item.price) : item.price)}</p>
+                                  <p>Price: {formatCurrency(isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.price) : item.price)}</p>
                                 </div>
                                 <div className="item-total">
-                                  {formatCurrency(((isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.vendorDisplayUnitPrice ?? item.price) : item.price) * item.quantity))}
+                                  {formatCurrency(((isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.price) : item.price) * item.quantity))}
                                 </div>
                               </div>
                             ))}
@@ -689,10 +689,10 @@ const Orders = () => {
                                     <h4>{item.name}</h4>
                                     <p>SKU: {item.sku}</p>
                                     <p>Quantity: {item.quantity}</p>
-                                    <p>Price: {formatCurrency(isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.vendorDisplayUnitPrice ?? item.price) : item.price)}</p>
+                                    <p>Price: {formatCurrency(isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.price) : item.price)}</p>
                                   </div>
                                   <div className="item-total">
-                                    {formatCurrency(((isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.vendorDisplayUnitPrice ?? item.price) : item.price) * item.quantity))}
+                                      {formatCurrency(((isVendor ? (item.vendorUnitSpecialPrice ?? item.vendorUnitPrice ?? item.price) : item.price) * item.quantity))}
                                   </div>
                                 </div>
                               ))}
