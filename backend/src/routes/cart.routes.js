@@ -64,9 +64,11 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
     const baseProduct = {
       id: productDoc._id.toString(),
       _id: productDoc._id.toString(),
-      // Use admin-controlled prices for customer carts
+      // Use admin-controlled prices for customer carts; include vendor base for vendor-side reporting later
       regularPrice: productDoc.regularPrice,
       specialPrice: productDoc.specialPrice,
+      vendorRegularPrice: productDoc.vendorRegularPrice,
+      vendorSpecialPrice: productDoc.vendorSpecialPrice,
       stock: productDoc.stock,
       sku: productDoc.sku,
       images: Array.isArray(productDoc.images) ? productDoc.images : [],
@@ -96,6 +98,8 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
           // For customers, price is driven by admin-set price; variant-level falls back
           price: foundVariant.price ?? productDoc.regularPrice,
           specialPrice: foundVariant.specialPrice ?? productDoc.specialPrice,
+          vendorPrice: foundVariant.vendorPrice ?? productDoc.vendorRegularPrice,
+          vendorSpecialPrice: foundVariant.vendorSpecialPrice ?? productDoc.vendorSpecialPrice,
           stock: foundVariant.stock ?? productDoc.stock,
           sku: foundVariant.sku ?? productDoc.sku,
           images: Array.isArray(foundVariant.images) ? foundVariant.images : [],
