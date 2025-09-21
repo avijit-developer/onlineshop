@@ -44,6 +44,13 @@ const cartItemSchema = new mongoose.Schema({
     specialPrice: {
       type: Number
     },
+    // Vendor variant prices (for vendor settlements/views)
+    vendorPrice: {
+      type: Number
+    },
+    vendorSpecialPrice: {
+      type: Number
+    },
     stock: {
       type: Number,
       required: function() {
@@ -134,6 +141,8 @@ cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
         attributes: selectedAttributes,
         price: product.selectedVariant?.price || product.regularPrice,
         specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
+        vendorPrice: product.selectedVariant?.vendorPrice || product.vendorRegularPrice,
+        vendorSpecialPrice: product.selectedVariant?.vendorSpecialPrice || product.vendorSpecialPrice,
         stock: product.selectedVariant?.stock || product.stock,
         sku: product.selectedVariant?.sku || product.sku,
         images: product.selectedVariant?.images || []
@@ -160,6 +169,8 @@ cartSchema.methods.addItem = function(product, quantity, selectedAttributes) {
         attributes: selectedAttributes,
         price: product.selectedVariant?.price || product.regularPrice,
         specialPrice: product.selectedVariant?.specialPrice || product.specialPrice,
+        vendorPrice: product.selectedVariant?.vendorPrice || product.vendorRegularPrice,
+        vendorSpecialPrice: product.selectedVariant?.vendorSpecialPrice || product.vendorSpecialPrice,
         stock: product.selectedVariant?.stock || product.stock,
         sku: product.selectedVariant?.sku || product.sku,
         images: product.selectedVariant?.images || []

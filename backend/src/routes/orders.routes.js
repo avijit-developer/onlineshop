@@ -38,9 +38,9 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
                 // Use admin prices for customer orders
                 price: ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.product?.specialPrice ?? ci.product?.regularPrice ?? 0,
                 // Persist both admin and vendor unit prices for correct admin/vendor views
-                adminUnitPrice: (ci.variantInfo?.price != null ? ci.variantInfo.price : (ci.product?.specialPrice != null ? ci.product.specialPrice : ci.product?.regularPrice ?? 0)),
+                adminUnitPrice: (ci.variantInfo?.price != null ? ci.variantInfo.price : (ci.product?.regularPrice ?? 0)),
                 adminUnitSpecialPrice: (ci.variantInfo?.specialPrice != null ? ci.variantInfo.specialPrice : (ci.product?.specialPrice ?? null)),
-                vendorUnitPrice: (ci.variantInfo?.vendorPrice != null ? ci.variantInfo.vendorPrice : (ci.product?.vendorSpecialPrice != null ? ci.product.vendorSpecialPrice : ci.product?.vendorRegularPrice ?? null)),
+                vendorUnitPrice: (ci.variantInfo?.vendorPrice != null ? ci.variantInfo.vendorPrice : (ci.product?.vendorRegularPrice ?? null)),
                 vendorUnitSpecialPrice: (ci.variantInfo?.vendorSpecialPrice != null ? ci.variantInfo.vendorSpecialPrice : (ci.product?.vendorSpecialPrice ?? null)),
                 quantity: ci.quantity,
                 image: (ci.variantInfo?.images && ci.variantInfo.images[0]) || (Array.isArray(ci.images) && ci.images[0]) || null,
