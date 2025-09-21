@@ -438,14 +438,18 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
         // Build vendor-scoped response payload
         const primaryVendorId = vendorIds[0];
         const itemsScoped = (order.items || []).filter(it => String(it.vendor) === String(primaryVendorId));
-        const vendorSubtotal = itemsScoped.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+        const vendorSubtotal = itemsScoped.reduce((s, it) => {
+            const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
+            return s + (unit * Number(it.quantity || 0));
+        }, 0);
         const orderSubtotal = Number(order.subtotal || 0);
         const taxPercent = Number(order.tax || 0);
         const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
         const share = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
         const vendorTaxShare = orderTaxAmount * share;
         const vendorShippingShare = Number(order.shippingCost || 0) * share;
-        const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare;
+        const vendorDiscountShare = Number(order.discountAmount || 0) * share;
+        const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare - vendorDiscountShare;
         const responseData = {
             _id: order._id,
             orderNumber: order.orderNumber,
@@ -468,6 +472,7 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
             vendorTaxShare,
             vendorShippingShare,
             vendorTotalShare,
+            vendorDiscountShare,
         };
 
         // Email customer with only vendor items (no full summary)
