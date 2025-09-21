@@ -523,18 +523,45 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
             Order.countDocuments(query)
         ]);
 
+        // Prefetch products referenced across these orders for accurate vendor unit resolution by SKU
+        const allProductIds = Array.from(new Set(orders.flatMap(o => (o.items || []).map(it => String(it.product)).filter(Boolean))));
+        let idToProduct = new Map();
+        try {
+            const prods = await Product.find({ _id: { $in: allProductIds } })
+                .select('_id vendor vendorRegularPrice vendorSpecialPrice variants')
+                .lean();
+            idToProduct = new Map(prods.map(p => [String(p._id), p]));
+        } catch (_) {}
+        const resolveVendorUnit = (it) => {
+            try {
+                const p = idToProduct.get(String(it.product));
+                if (!p) return null;
+                const sku = String(it.sku || '').trim().toLowerCase();
+                let v = null;
+                if (sku && Array.isArray(p.variants)) {
+                    v = p.variants.find(vn => String(vn.sku || '').trim().toLowerCase() === sku);
+                }
+                if (v) {
+                    if (v.vendorSpecialPrice != null) return Number(v.vendorSpecialPrice);
+                    if (v.vendorPrice != null) return Number(v.vendorPrice);
+                }
+                if (p.vendorSpecialPrice != null) return Number(p.vendorSpecialPrice);
+                if (p.vendorRegularPrice != null) return Number(p.vendorRegularPrice);
+            } catch (_) {}
+            return null;
+        };
+
         // For each order, filter items to only this vendor set and compute vendor totals
         const mapped = orders.map(o => {
-        const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
-        const vendorItemsWithDisplay = vendorItems.map(it => {
-            const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
-            const quantity = Number(it.quantity || 0);
-            return { ...it, vendorDisplayUnitPrice: unit, vendorLineTotal: unit * quantity };
-        });
-        const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => {
-                const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
-                return s + (unit * Number(it.quantity || 0));
-            }, 0);
+            const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
+            const vendorItemsWithDisplay = vendorItems.map(it => {
+                const explicit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null);
+                const resolved = resolveVendorUnit(it);
+                const unit = (explicit != null) ? explicit : (resolved != null ? resolved : Number(it.price || 0));
+                const quantity = Number(it.quantity || 0);
+                return { ...it, vendorDisplayUnitPrice: unit, vendorLineTotal: unit * quantity };
+            });
+            const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
             const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
             const vendorNet = vendorSubtotal - vendorCommission;
             const orderSubtotal = Number(o.subtotal || 0);
@@ -617,12 +644,36 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
         if (!o) return res.status(404).json({ success: false, message: 'Order not found' });
 
         const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
+        // Resolve vendor unit price from product/variant by SKU if missing
+        try {
+            const productIds = Array.from(new Set(vendorItems.map(it => String(it.product)).filter(Boolean)));
+            const prods = await Product.find({ _id: { $in: productIds } }).select('_id vendor vendorRegularPrice vendorSpecialPrice variants').lean();
+            const idToProduct = new Map(prods.map(p => [String(p._id), p]));
+            for (const it of vendorItems) {
+                if (it.vendorUnitSpecialPrice == null && it.vendorUnitPrice == null) {
+                    const p = idToProduct.get(String(it.product));
+                    if (p) {
+                        const sku = String(it.sku || '').trim().toLowerCase();
+                        let v = null;
+                        if (sku && Array.isArray(p.variants)) v = p.variants.find(vn => String(vn.sku || '').trim().toLowerCase() === sku);
+                        if (v) {
+                            if (v.vendorSpecialPrice != null) it.vendorUnitSpecialPrice = Number(v.vendorSpecialPrice);
+                            else if (v.vendorPrice != null) it.vendorUnitPrice = Number(v.vendorPrice);
+                        } else {
+                            if (p.vendorSpecialPrice != null) it.vendorUnitSpecialPrice = Number(p.vendorSpecialPrice);
+                            else if (p.vendorRegularPrice != null) it.vendorUnitPrice = Number(p.vendorRegularPrice);
+                        }
+                    }
+                }
+            }
+        } catch (_) {}
         if (vendorItems.length === 0) {
             return res.status(404).json({ success: false, message: 'Order not found for vendor' });
         }
 
         const vendorSubtotal = vendorItems.reduce((s, it) => {
-            const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
+            const explicit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null);
+            const unit = (explicit != null) ? explicit : Number(it.price || 0);
             return s + (unit * Number(it.quantity || 0));
         }, 0);
         const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
