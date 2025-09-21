@@ -55,13 +55,14 @@ const VendorOrderDetails = ({ route, navigation }) => {
   const vendorShare = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
   const vendorTaxShare = Number(pick(order, ['vendorTaxShare'], orderSubtotal > 0 ? ((orderSubtotal * orderTaxPercent / 100) * vendorShare) : 0));
   const vendorShippingShare = Number(pick(order, ['vendorShippingShare'], orderShipping * vendorShare));
-  const vendorTotalShare = Number(pick(order, ['vendorTotalShare'], vendorSubtotal + vendorTaxShare + vendorShippingShare));
+  const vendorDiscountShare = Number(pick(order, ['vendorDiscountShare'], Number(pick(order, ['discountAmount'], 0)) * vendorShare));
+  const vendorTotalShare = Number(pick(order, ['vendorTotalShare'], vendorSubtotal + vendorTaxShare + vendorShippingShare - vendorDiscountShare));
 
   const totals = {
     subtotal: vendorSubtotal || Number(pick(order, ['subtotal', 'summary.subtotal', 'totals.subtotal'], 0)),
     tax: vendorTaxShare,
     shipping: vendorShippingShare,
-    discount: 0,
+    discount: vendorDiscountShare,
     total: vendorTotalShare || Number(pick(order, ['total', 'grandTotal', 'summary.total', 'totals.total'], 0)),
     coupon: pick(order, ['couponCode', 'coupon', 'summary.couponCode', 'totals.couponCode'], null),
   };

@@ -476,7 +476,9 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
             const share = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
             const vendorTaxShare = orderTaxAmount * share;
             const vendorShippingShare = Number(o.shippingCost || 0) * share;
-            const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare;
+            const orderDiscountAmount = Number(o.discountAmount || 0);
+            const vendorDiscountShare = orderDiscountAmount * share;
+            const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare - vendorDiscountShare;
             // Compute vendor-scoped status across vendors present in this order for this user
             const vendorIdsInOrder = Array.from(new Set(vendorItems.map(it => String(it.vendor)).filter(Boolean)));
             let vendorScopedStatus = o.status;
@@ -519,6 +521,7 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                 vendorTaxShare,
                 vendorShippingShare,
                 vendorTotalShare,
+                vendorDiscountShare,
                 // Aliases for frontends that expect these names
                 vendorTax: vendorTaxShare,
                 vendorShipping: vendorShippingShare,
