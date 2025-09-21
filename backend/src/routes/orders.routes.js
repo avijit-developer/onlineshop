@@ -78,7 +78,8 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 					if (!matchedVariant) {
 						const reqSku = String(i.sku || '').trim();
 						if (reqSku && Array.isArray(p.variants)) {
-							matchedVariant = p.variants.find(v => String(v.sku || '').trim() === reqSku);
+							const target = reqSku.toLowerCase();
+							matchedVariant = p.variants.find(v => String(v.sku || '').trim().toLowerCase() === target);
 						}
 					}
 					const adminUnitPrice = (matchedVariant && matchedVariant.price != null) ? matchedVariant.price : (p.regularPrice ?? 0);
