@@ -196,7 +196,7 @@ const CheckoutScreen = () => {
           product: ci.id,
           name: ci.name,
           sku: ci.variantInfo?.sku || ci.sku || '',
-          price: (ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.regularPrice ?? 0),
+          price: (ci.variantInfo?.specialPrice ?? ci.variantInfo?.price ?? ci.specialPrice ?? ci.regularPrice ?? ci.price ?? 0),
           quantity: ci.quantity,
           image: (ci.variantInfo?.images?.[0] || ci.images?.[0] || null),
           selectedAttributes: ci.selectedAttributes || {},

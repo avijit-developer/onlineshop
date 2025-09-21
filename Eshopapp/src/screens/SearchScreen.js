@@ -271,7 +271,7 @@ const SearchScreen = () => {
         price: getCartPrice(item),
         images: [item.image] 
       };
-      addToCart(cartItem, 1);
+      addToCart(cartItem, 1, cartItem.selectedAttributes || null);
     }
   };
 

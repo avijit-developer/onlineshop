@@ -281,7 +281,7 @@ const ProductList = () => {
         console.log('✅ ProductList filtered products:', items.length, 'items');
         console.log('💰 ProductList price ranges in results:', items.map(item => ({
           name: item.name,
-          price: item.price,
+          price: (item.specialPrice ?? item.regularPrice ?? item.price),
           oldPrice: item.oldPrice
         })));
         
