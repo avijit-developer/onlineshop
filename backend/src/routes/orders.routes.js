@@ -46,6 +46,48 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
                 image: (ci.variantInfo?.images && ci.variantInfo.images[0]) || (Array.isArray(ci.images) && ci.images[0]) || null,
                 selectedAttributes: ci.selectedAttributes || {},
             }));
+		} else {
+			// Enrich client-provided items with unit prices derived from product/variant
+			try {
+				const ids = items.map(i => i.product).filter(Boolean);
+				const prods = await Product.find({ _id: { $in: ids } })
+					.select('_id name sku images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice variants')
+					.lean();
+				const idToProduct = new Map(prods.map(p => [String(p._id), p]));
+				items = items.map(i => {
+					const p = idToProduct.get(String(i.product));
+					if (!p) return i;
+					const sel = i.selectedAttributes || {};
+					let matchedVariant = null;
+					try {
+						if (sel && Object.keys(sel).length > 0 && Array.isArray(p.variants)) {
+							matchedVariant = p.variants.find(v => {
+								const vAttrs = v.attributes || {};
+								return Object.keys(sel).every(k => String(vAttrs[k]) === String(sel[k]));
+							});
+						}
+					} catch (_) {}
+					const adminUnitPrice = (matchedVariant && matchedVariant.price != null) ? matchedVariant.price : (p.regularPrice ?? 0);
+					const adminUnitSpecialPrice = (matchedVariant && matchedVariant.specialPrice != null) ? matchedVariant.specialPrice : (p.specialPrice ?? null);
+					const vendorUnitPrice = (matchedVariant && matchedVariant.vendorPrice != null) ? matchedVariant.vendorPrice : (p.vendorRegularPrice ?? null);
+					const vendorUnitSpecialPrice = (matchedVariant && matchedVariant.vendorSpecialPrice != null) ? matchedVariant.vendorSpecialPrice : (p.vendorSpecialPrice ?? null);
+					const sku = i.sku || (matchedVariant?.sku ?? p.sku ?? '');
+					const image = i.image || (Array.isArray(matchedVariant?.images) && matchedVariant.images[0]) || (Array.isArray(p.images) && p.images[0]) || null;
+					const name = i.name || p.name || 'Product';
+					return {
+						...i,
+						name,
+						sku,
+						image,
+						// Ensure effective customer price uses admin prices at order time
+						price: (adminUnitSpecialPrice != null ? adminUnitSpecialPrice : adminUnitPrice),
+						adminUnitPrice,
+						adminUnitSpecialPrice,
+						vendorUnitPrice,
+						vendorUnitSpecialPrice,
+					};
+				});
+			} catch (_) {}
 		}
 		if (!Array.isArray(items) || items.length === 0) {
 			return res.status(400).json({ success: false, message: 'No items to place order' });
