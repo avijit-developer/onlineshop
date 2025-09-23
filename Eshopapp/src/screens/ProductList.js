@@ -172,7 +172,7 @@ const ProductList = () => {
               } catch (_) {}
               return it;
             }));
-            if (mySeq !== reqSeqRef.current) return; // stale
+            if (mySeq !== listSeqRef.current) return; // stale
             setFilteredProducts(prev => {
               // Replace the last page segment with enriched values
               const start = page === 1 ? 0 : (prev.length - baseItems.length);
@@ -232,7 +232,7 @@ const ProductList = () => {
     try {
       setFilterLoading(true);
       setFilterMode(true);
-      const mySeq = ++reqSeqRef.current;
+      const mySeq = ++listSeqRef.current;
       setFilteredProducts([]);
       setCurrentFilters(filters);
       setPage(1);
@@ -351,7 +351,7 @@ const ProductList = () => {
               } catch (_) {}
               return it;
             }));
-            if (mySeq !== reqSeqRef.current) return; // stale
+            if (mySeq !== listSeqRef.current) return; // stale
             setFilteredProducts(enriched);
           }
         } catch (_) {}
