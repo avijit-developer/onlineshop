@@ -334,22 +334,24 @@ router.get('/public/filters', async (req, res) => {
     const { category } = req.query;
     const baseFilters = { enabled: true, status: 'approved' };
     let filters = { ...baseFilters };
+    let resolvedCategoryId = null;
 
     if (category) {
-      // Include products in the selected category and all descendants
-      const allIds = new Set([String(category)]);
-      let frontier = [String(category)];
-      while (frontier.length > 0) {
-        const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
-        const newIds = children
-          .map(c => String(c._id))
-          .filter(id => !allIds.has(id));
-        if (newIds.length === 0) break;
-        newIds.forEach(id => allIds.add(id));
-        frontier = newIds;
+      // Resolve id/name/slug; use only the selected category (no descendants)
+      resolvedCategoryId = String(category);
+      try {
+        if (!mongoose.Types.ObjectId.isValid(resolvedCategoryId)) {
+          const rx = new RegExp('^' + String(category).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i');
+          const catDoc = await Category.findOne({
+            $or: [ { name: rx }, { slug: String(category).toLowerCase() } ],
+            enabled: true
+          }).select('_id').lean();
+          if (catDoc && catDoc._id) resolvedCategoryId = String(catDoc._id);
+        }
+      } catch (_) {}
+      if (mongoose.Types.ObjectId.isValid(resolvedCategoryId)) {
+        filters.category = new mongoose.Types.ObjectId(resolvedCategoryId);
       }
-      const objectIdList = Array.from(allIds).map(id => new mongoose.Types.ObjectId(id));
-      filters.category = { $in: objectIdList };
     }
 
     // Get price range - consider both special and regular prices
@@ -446,8 +448,8 @@ router.get('/public/filters', async (req, res) => {
 
     // Get child categories of the provided category (one level down)
     let childCategories = [];
-    if (category) {
-      const childDocs = await Category.find({ parent: category }).select('_id name').lean();
+    if (resolvedCategoryId && mongoose.Types.ObjectId.isValid(resolvedCategoryId)) {
+      const childDocs = await Category.find({ parent: resolvedCategoryId }).select('_id name').lean();
       const childIds = childDocs.map(c => c._id);
       if (childIds.length > 0) {
         const counts = await Product.aggregate([
