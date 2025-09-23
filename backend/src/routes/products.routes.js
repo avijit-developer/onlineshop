@@ -510,8 +510,24 @@ router.get('/public', async (req, res) => {
 
     if (category) {
       console.log('🔒 Applying category filter for:', category);
+      // Resolve category if a name/slug was passed instead of ObjectId
+      let baseCategoryId = String(category);
+      try {
+        if (!mongoose.Types.ObjectId.isValid(baseCategoryId)) {
+          const rx = new RegExp('^' + String(category).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i');
+          const catDoc = await Category.findOne({
+            $or: [
+              { name: rx },
+              { slug: String(category).toLowerCase() }
+            ],
+            enabled: true
+          }).select('_id').lean();
+          if (catDoc && catDoc._id) baseCategoryId = String(catDoc._id);
+        }
+      } catch (_) {}
+
       // Include products in the selected category and all descendants
-      const allIds = new Set([String(category)]);
+      const allIds = new Set([baseCategoryId]);
       let frontier = [String(category)];
       while (frontier.length > 0) {
         const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
