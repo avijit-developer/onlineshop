@@ -37,6 +37,7 @@ router.get('/', authenticate, requireRole(['admin','vendor']), requirePermission
 
   const [items, total] = await Promise.all([
     Product.find(filters)
+      .select('-vendorSpecialPrice -variants.vendorSpecialPrice')
       .populate('category', 'name')
       .populate('brand', 'name')
       .populate('vendor', 'companyName')
@@ -983,6 +984,7 @@ router.get('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
   try {
     const { id } = req.params;
     const item = await Product.findById(id)
+      .select('-vendorSpecialPrice -variants.vendorSpecialPrice')
       .populate('category', 'name')
       .populate('brand', 'name')
       .populate('vendor', 'companyName')
