@@ -123,7 +123,7 @@ const Products = () => {
     regularPrice: '',
     specialPrice: '',
     vendorRegularPrice: '',
-    vendorSpecialPrice: '',
+    
     tax: '',
     stock: '',
     sku: '',
@@ -331,7 +331,7 @@ const Products = () => {
         ? product.variants.map(v => ({
             ...v,
             price: (v.vendorPrice != null ? v.vendorPrice : (v.price ?? '')),
-            specialPrice: (v.vendorSpecialPrice != null ? v.vendorSpecialPrice : (v.specialPrice ?? '')),
+            specialPrice: (v.specialPrice ?? ''),
           }))
         : product.variants
     ) : [];
@@ -345,7 +345,7 @@ const Products = () => {
       regularPrice: product.regularPrice ?? '',
       specialPrice: product.specialPrice ?? '',
       vendorRegularPrice: product.vendorRegularPrice ?? '',
-      vendorSpecialPrice: product.vendorSpecialPrice ?? '',
+      
       tax: product.tax ?? '',
       stock: product.stock ?? '',
       sku: product.sku || '',
@@ -417,7 +417,6 @@ const Products = () => {
         regularPrice: (!isVendorUser && formData.regularPrice !== '') ? Number(formData.regularPrice) : undefined,
         specialPrice: (!isVendorUser && formData.specialPrice !== '') ? Number(formData.specialPrice) : undefined,
         vendorRegularPrice: (isVendorUser && formData.vendorRegularPrice !== '') ? Number(formData.vendorRegularPrice) : undefined,
-        vendorSpecialPrice: (isVendorUser && formData.vendorSpecialPrice !== '') ? Number(formData.vendorSpecialPrice) : undefined,
         tax: formData.tax !== '' ? Number(formData.tax) : undefined,
         stock: formData.stock !== '' ? Number(formData.stock) : undefined,
         sku: formData.sku?.trim() || undefined,
@@ -434,7 +433,6 @@ const Products = () => {
           price: (!isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
           specialPrice: (!isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
           vendorPrice: (isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
-          vendorSpecialPrice: (isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
           images: (v.images || []).map(img => typeof img === 'string' ? img : img.imageUrl)
         }));
@@ -445,7 +443,6 @@ const Products = () => {
           price: (!isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
           specialPrice: (!isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
           vendorPrice: (isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
-          vendorSpecialPrice: (isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
           images: Array.isArray(v.images) ? v.images : []
         }));
@@ -769,9 +766,7 @@ const Products = () => {
                     {isVendorUser ? (
                       <>
                         <span className="regular-price">{formatCurrency(product.vendorRegularPrice ?? product.regularPrice)}</span>
-                        {product.vendorSpecialPrice && (
-                          <span className="special-price">{formatCurrency(product.vendorSpecialPrice)}</span>
-                        )}
+                        
                       </>
                     ) : (
                       <>

@@ -41,7 +41,6 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
                 adminUnitPrice: (ci.variantInfo?.price != null ? ci.variantInfo.price : (ci.product?.regularPrice ?? 0)),
                 adminUnitSpecialPrice: (ci.variantInfo?.specialPrice != null ? ci.variantInfo.specialPrice : (ci.product?.specialPrice ?? null)),
                 vendorUnitPrice: (ci.variantInfo?.vendorPrice != null ? ci.variantInfo.vendorPrice : (ci.product?.vendorRegularPrice ?? null)),
-                vendorUnitSpecialPrice: (ci.variantInfo?.vendorSpecialPrice != null ? ci.variantInfo.vendorSpecialPrice : (ci.product?.vendorSpecialPrice ?? null)),
                 quantity: ci.quantity,
                 image: (ci.variantInfo?.images && ci.variantInfo.images[0]) || (Array.isArray(ci.images) && ci.images[0]) || null,
                 selectedAttributes: ci.selectedAttributes || {},
@@ -50,8 +49,8 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			// Enrich client-provided items with unit prices derived from product/variant
 			try {
 				const ids = items.map(i => i.product).filter(Boolean);
-				const prods = await Product.find({ _id: { $in: ids } })
-					.select('_id name sku images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice variants')
+                const prods = await Product.find({ _id: { $in: ids } })
+                    .select('_id name sku images regularPrice specialPrice vendorRegularPrice variants')
 					.lean();
 				const idToProduct = new Map(prods.map(p => [String(p._id), p]));
 				items = items.map(i => {
@@ -84,8 +83,7 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 					}
 					const adminUnitPrice = (matchedVariant && matchedVariant.price != null) ? matchedVariant.price : (p.regularPrice ?? 0);
 					const adminUnitSpecialPrice = (matchedVariant && matchedVariant.specialPrice != null) ? matchedVariant.specialPrice : (p.specialPrice ?? null);
-					const vendorUnitPrice = (matchedVariant && matchedVariant.vendorPrice != null) ? matchedVariant.vendorPrice : (p.vendorRegularPrice ?? null);
-					const vendorUnitSpecialPrice = (matchedVariant && matchedVariant.vendorSpecialPrice != null) ? matchedVariant.vendorSpecialPrice : (p.vendorSpecialPrice ?? null);
+                    const vendorUnitPrice = (matchedVariant && matchedVariant.vendorPrice != null) ? matchedVariant.vendorPrice : (p.vendorRegularPrice ?? null);
 					const sku = i.sku || (matchedVariant?.sku ?? p.sku ?? '');
 					const image = i.image || (Array.isArray(matchedVariant?.images) && matchedVariant.images[0]) || (Array.isArray(p.images) && p.images[0]) || null;
 					const name = i.name || p.name || 'Product';
@@ -99,7 +97,6 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 						adminUnitPrice,
 						adminUnitSpecialPrice,
 						vendorUnitPrice,
-						vendorUnitSpecialPrice,
 					};
 				});
 			} catch (_) {}
@@ -454,7 +451,7 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
             const productIds = Array.from(new Set(itemsScoped.map(it => String(it.product)).filter(Boolean)));
             if (productIds.length) {
                 const prods = await Product.find({ _id: { $in: productIds } })
-                    .select('_id vendor vendorRegularPrice vendorSpecialPrice variants')
+                    .select('_id vendor vendorRegularPrice variants')
                     .lean();
                 idToProduct = new Map(prods.map(p => [String(p._id), p]));
             }
@@ -463,7 +460,7 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
         const resolveVendorUnit = (it) => {
             try {
                 const p = idToProduct.get(String(it.product));
-                if (!p) return { unitSpecial: (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : null, unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null };
+                if (!p) return { unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null };
                 const sku = String(it.sku || '').trim().toLowerCase();
                 let v = null;
                 if (sku && Array.isArray(p.variants)) {
@@ -488,25 +485,22 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
                 }
                 if (v) {
                     return {
-                        unitSpecial: (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((v.vendorSpecialPrice != null) ? Number(v.vendorSpecialPrice) : null),
                         unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : ((v.vendorPrice != null) ? Number(v.vendorPrice) : null),
                     };
                 }
                 return {
-                    unitSpecial: (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((p.vendorSpecialPrice != null) ? Number(p.vendorSpecialPrice) : null),
                     unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : ((p.vendorRegularPrice != null) ? Number(p.vendorRegularPrice) : null),
                 };
             } catch (_) {}
-            return { unitSpecial: (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : null, unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null };
+            return { unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null };
         };
 
         const itemsScopedWithDisplay = itemsScoped.map(it => {
-            const { unitSpecial, unit } = resolveVendorUnit(it);
-            const display = (unitSpecial != null) ? unitSpecial : (unit != null ? unit : Number(it.price || 0));
+            const { unit } = resolveVendorUnit(it);
+            const display = (unit != null ? unit : Number(it.price || 0));
             const quantity = Number(it.quantity || 0);
             return {
                 ...it.toObject ? it.toObject() : it,
-                vendorUnitSpecialPrice: unitSpecial,
                 vendorUnitPrice: unit,
                 vendorDisplayUnitPrice: display,
                 vendorLineTotal: display * quantity,
@@ -592,7 +586,7 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
         let idToProduct = new Map();
         try {
             const prods = await Product.find({ _id: { $in: allProductIds } })
-                .select('_id vendor vendorRegularPrice vendorSpecialPrice variants')
+                .select('_id vendor vendorRegularPrice variants')
                 .lean();
             idToProduct = new Map(prods.map(p => [String(p._id), p]));
         } catch (_) {}
@@ -625,30 +619,26 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                 }
                 if (v) {
                     return {
-                        unitSpecial: (v.vendorSpecialPrice != null) ? Number(v.vendorSpecialPrice) : null,
                         unit: (v.vendorPrice != null) ? Number(v.vendorPrice) : null,
                     };
                 }
                 return {
-                    unitSpecial: (p.vendorSpecialPrice != null) ? Number(p.vendorSpecialPrice) : null,
                     unit: (p.vendorRegularPrice != null) ? Number(p.vendorRegularPrice) : null,
                 };
             } catch (_) {}
-            return { unitSpecial: null, unit: null };
+            return { unit: null };
         };
 
         // For each order, filter items to only this vendor set and compute vendor totals
         const mapped = orders.map(o => {
             const vendorItems = (o.items || []).filter(it => vendorIds.includes(String(it.vendor)));
             const vendorItemsWithDisplay = vendorItems.map(it => {
-                const explicitSpecial = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : null;
                 const explicitRegular = (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null;
-                const { unitSpecial, unit } = resolveVendorUnit(it);
-                const finalSpecial = (explicitSpecial != null) ? explicitSpecial : (unitSpecial != null ? unitSpecial : null);
+                const { unit } = resolveVendorUnit(it);
                 const finalRegular = (explicitRegular != null) ? explicitRegular : (unit != null ? unit : null);
-                const display = (finalSpecial != null) ? finalSpecial : (finalRegular != null ? finalRegular : Number(it.price || 0));
+                const display = (finalRegular != null ? finalRegular : Number(it.price || 0));
                 const quantity = Number(it.quantity || 0);
-                return { ...it, vendorUnitSpecialPrice: finalSpecial, vendorUnitPrice: finalRegular, vendorDisplayUnitPrice: display, vendorLineTotal: display * quantity };
+                return { ...it, vendorUnitPrice: finalRegular, vendorDisplayUnitPrice: display, vendorLineTotal: display * quantity };
             });
             const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
             const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
@@ -740,7 +730,7 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
         // Resolve vendor unit price from product/variant by SKU or attributes if missing
         try {
             const productIds = Array.from(new Set(vendorItems.map(it => String(it.product)).filter(Boolean)));
-            const prods = await Product.find({ _id: { $in: productIds } }).select('_id vendor vendorRegularPrice vendorSpecialPrice variants').lean();
+            const prods = await Product.find({ _id: { $in: productIds } }).select('_id vendor vendorRegularPrice variants').lean();
             const idToProduct = new Map(prods.map(p => [String(p._id), p]));
             for (const it of vendorItems) {
                 const p = idToProduct.get(String(it.product));
@@ -766,10 +756,8 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
                     }
                 }
                 if (v) {
-                    if (it.vendorUnitSpecialPrice == null && v.vendorSpecialPrice != null) it.vendorUnitSpecialPrice = Number(v.vendorSpecialPrice);
                     if (it.vendorUnitPrice == null && v.vendorPrice != null) it.vendorUnitPrice = Number(v.vendorPrice);
                 } else {
-                    if (it.vendorUnitSpecialPrice == null && p.vendorSpecialPrice != null) it.vendorUnitSpecialPrice = Number(p.vendorSpecialPrice);
                     if (it.vendorUnitPrice == null && p.vendorRegularPrice != null) it.vendorUnitPrice = Number(p.vendorRegularPrice);
                 }
             }
@@ -777,11 +765,9 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
 
         // Attach vendorDisplayUnitPrice and vendorLineTotal for consistent UI display
         const vendorItemsWithDisplay = vendorItems.map(it => {
-            const explicitSpecial = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : null;
             const explicitRegular = (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null;
-            let unitSpecial = explicitSpecial;
             let unit = explicitRegular;
-            if (unitSpecial == null || unit == null) {
+            if (unit == null) {
                 try {
                     const p = idToProduct.get(String(it.product));
                     if (p) {
@@ -805,16 +791,14 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
                                 });
                             }
                         }
-                        if (unitSpecial == null) unitSpecial = (v && v.vendorSpecialPrice != null) ? Number(v.vendorSpecialPrice) : ((p.vendorSpecialPrice != null) ? Number(p.vendorSpecialPrice) : null);
                         if (unit == null) unit = (v && v.vendorPrice != null) ? Number(v.vendorPrice) : ((p.vendorRegularPrice != null) ? Number(p.vendorRegularPrice) : null);
                     }
                 } catch (_) {}
             }
-            const display = (unitSpecial != null) ? unitSpecial : (unit != null ? unit : Number(it.price || 0));
+            const display = (unit != null ? unit : Number(it.price || 0));
             const quantity = Number(it.quantity || 0);
             return {
                 ...it,
-                vendorUnitSpecialPrice: unitSpecial,
                 vendorUnitPrice: unit,
                 vendorDisplayUnitPrice: display,
                 vendorLineTotal: display * quantity,

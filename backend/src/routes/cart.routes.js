@@ -68,7 +68,7 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
       regularPrice: productDoc.regularPrice,
       specialPrice: productDoc.specialPrice,
       vendorRegularPrice: productDoc.vendorRegularPrice,
-      vendorSpecialPrice: productDoc.vendorSpecialPrice,
+      // no vendorSpecialPrice
       stock: productDoc.stock,
       sku: productDoc.sku,
       images: Array.isArray(productDoc.images) ? productDoc.images : [],
@@ -99,7 +99,7 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
           price: foundVariant.price ?? productDoc.regularPrice,
           specialPrice: foundVariant.specialPrice ?? productDoc.specialPrice,
           vendorPrice: foundVariant.vendorPrice ?? productDoc.vendorRegularPrice,
-          vendorSpecialPrice: foundVariant.vendorSpecialPrice ?? productDoc.vendorSpecialPrice,
+          // no vendorSpecialPrice
           stock: foundVariant.stock ?? productDoc.stock,
           sku: foundVariant.sku ?? productDoc.sku,
           images: Array.isArray(foundVariant.images) ? foundVariant.images : [],

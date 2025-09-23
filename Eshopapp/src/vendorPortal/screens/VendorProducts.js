@@ -16,8 +16,8 @@ const VendorProducts = ({ navigation }) => {
             id: p._id || p.id,
             name: p.name,
             // Vendor sees vendor prices on their portal
-            price: (p.vendorSpecialPrice ?? p.vendorRegularPrice ?? p.specialPrice ?? p.regularPrice ?? p.price ?? 0),
-            oldPrice: (p.vendorSpecialPrice != null)
+            price: (p.vendorRegularPrice ?? p.specialPrice ?? p.regularPrice ?? p.price ?? 0),
+            oldPrice: null
               ? (p.vendorRegularPrice ?? p.regularPrice ?? p.price ?? null)
               : null,
             image: Array.isArray(p.images) ? p.images[0] : p.image,

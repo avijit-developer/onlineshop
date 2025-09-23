@@ -15,7 +15,7 @@ async function run() {
     for (const it of (order.items || [])) {
       // Skip if already populated
       const hasAdmin = it.adminUnitPrice != null || it.adminUnitSpecialPrice != null;
-      const hasVendor = it.vendorUnitPrice != null || it.vendorUnitSpecialPrice != null;
+      const hasVendor = it.vendorUnitPrice != null;
       if (hasAdmin && hasVendor) continue;
 
       // Try to backfill from product snapshot if order.item has embedded product fields
@@ -23,7 +23,7 @@ async function run() {
       let prod = null;
       try {
         if (it.product) {
-          prod = await Product.findById(it.product).select('regularPrice specialPrice vendorRegularPrice vendorSpecialPrice variants').lean();
+          prod = await Product.findById(it.product).select('regularPrice specialPrice vendorRegularPrice variants').lean();
         }
       } catch (_) {}
 
@@ -40,12 +40,12 @@ async function run() {
           adminPrice = (variant.price != null ? Number(variant.price) : null);
           adminSpecial = (variant.specialPrice != null ? Number(variant.specialPrice) : null);
           vendorPrice = (variant.vendorPrice != null ? Number(variant.vendorPrice) : null);
-          vendorSpecial = (variant.vendorSpecialPrice != null ? Number(variant.vendorSpecialPrice) : null);
+          vendorSpecial = null;
         }
         if (adminPrice == null && (prod.regularPrice != null)) adminPrice = Number(prod.regularPrice);
         if (adminSpecial == null && (prod.specialPrice != null)) adminSpecial = Number(prod.specialPrice);
         if (vendorPrice == null && (prod.vendorRegularPrice != null)) vendorPrice = Number(prod.vendorRegularPrice);
-        if (vendorSpecial == null && (prod.vendorSpecialPrice != null)) vendorSpecial = Number(prod.vendorSpecialPrice);
+        vendorSpecial = null;
       }
 
       // Fallbacks from existing order item fields
@@ -59,7 +59,7 @@ async function run() {
       }
       if (!hasVendor) {
         it.vendorUnitPrice = vendorPrice;
-        it.vendorUnitSpecialPrice = vendorSpecial;
+        it.vendorUnitSpecialPrice = null;
         changed = true;
       }
     }

@@ -10,7 +10,6 @@ const orderItemSchema = new mongoose.Schema({
     adminUnitPrice: { type: Number, default: null },
     adminUnitSpecialPrice: { type: Number, default: null },
     vendorUnitPrice: { type: Number, default: null },
-    vendorUnitSpecialPrice: { type: Number, default: null },
     quantity: { type: Number, required: true, min: 1 },
     image: { type: String },
     selectedAttributes: { type: Map, of: String, default: {} },

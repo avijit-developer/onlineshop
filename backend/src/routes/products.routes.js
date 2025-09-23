@@ -132,7 +132,6 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
     regularPrice: !isVendorUser && body.regularPrice !== undefined ? Number(body.regularPrice) : undefined,
     specialPrice: !isVendorUser && body.specialPrice !== undefined ? Number(body.specialPrice) : undefined,
     vendorRegularPrice: isVendorUser && (body.vendorRegularPrice !== undefined ? Number(body.vendorRegularPrice) : (body.regularPrice !== undefined ? Number(body.regularPrice) : undefined)),
-    vendorSpecialPrice: isVendorUser && (body.vendorSpecialPrice !== undefined ? Number(body.vendorSpecialPrice) : (body.specialPrice !== undefined ? Number(body.specialPrice) : undefined)),
     tax: body.tax !== undefined ? Number(body.tax) : undefined,
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
     images: Array.isArray(body.images) ? body.images : [],
@@ -144,7 +143,6 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
           price: !isVendorUser && v.price !== undefined ? Number(v.price) : undefined,
           specialPrice: !isVendorUser && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
           vendorPrice: isVendorUser && (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : undefined)),
-          vendorSpecialPrice: isVendorUser && (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (v.specialPrice !== undefined ? Number(v.specialPrice) : undefined)),
           stock: v.stock !== undefined ? Number(v.stock) : 0,
           images: Array.isArray(v.images) ? v.images : []
         }))
@@ -211,7 +209,6 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
   }
   if (req.user.role === 'vendor') {
     if (body.vendorRegularPrice !== undefined) product.vendorRegularPrice = Number(body.vendorRegularPrice);
-    if (body.vendorSpecialPrice !== undefined) product.vendorSpecialPrice = Number(body.vendorSpecialPrice);
   }
   if (body.tax !== undefined) product.tax = Number(body.tax);
   if (body.stock !== undefined) product.stock = Number(body.stock);
@@ -239,9 +236,6 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
       const nextVendorPrice = isVendor
         ? (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : (existing?.vendorPrice)))
         : (existing?.vendorPrice);
-      const nextVendorSpecial = isVendor
-        ? (v.vendorSpecialPrice !== undefined ? Number(v.vendorSpecialPrice) : (v.specialPrice !== undefined ? Number(v.specialPrice) : (existing?.vendorSpecialPrice)))
-        : (existing?.vendorSpecialPrice);
       return {
         attributes: v.attributes || {},
         sku,
@@ -250,7 +244,6 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
         specialPrice: isAdmin ? (v.specialPrice !== undefined ? Number(v.specialPrice) : (existing?.specialPrice)) : (existing?.specialPrice),
         // Vendor prices only change on vendor updates; admin edits never overwrite them
         vendorPrice: nextVendorPrice,
-        vendorSpecialPrice: nextVendorSpecial,
         stock: v.stock !== undefined ? Number(v.stock) : (existing?.stock ?? 0),
         images: Array.isArray(v.images) ? v.images : (existing?.images || [])
       };
@@ -705,7 +698,7 @@ router.get('/public', async (req, res) => {
       // Use regular find for non-price sorting
       [items, total] = await Promise.all([
         Product.find(filters)
-          .select('_id name images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice rating productType variants stock brand')
+          .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
           .populate('category', 'name')
           .populate('brand', 'name')
           .sort(sortOrder)
@@ -811,7 +804,7 @@ router.get('/public', async (req, res) => {
       } else {
         [items, total] = await Promise.all([
           Product.find(filters)
-            .select('_id name images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice rating productType variants stock brand')
+            .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
             .populate('category', 'name')
             .populate('brand', 'name')
             .sort(sortOrder)
@@ -914,7 +907,7 @@ router.get('/:id/related', authenticate, requireRole(['admin','vendor']), requir
     const ids = Array.isArray(product.relatedProducts) ? product.relatedProducts : [];
     if (!ids.length) return res.json({ success: true, data: [] });
     const items = await Product.find({ _id: { $in: ids } })
-      .select('_id name images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice')
+      .select('_id name images regularPrice specialPrice vendorRegularPrice')
       .lean();
     res.json({ success: true, data: items });
   } catch (e) {
@@ -927,7 +920,7 @@ router.get('/:id/public', async (req, res) => {
   try {
     const { id } = req.params;
     const product = await Product.findById(id)
-      .select('name description shortDescription images regularPrice specialPrice vendorRegularPrice vendorSpecialPrice tax stock productType variants category brand vendor enabled status')
+      .select('name description shortDescription images regularPrice specialPrice vendorRegularPrice tax stock productType variants category brand vendor enabled status')
       .populate('brand', 'name')
       .populate('category', 'name')
       .populate('vendor', 'companyName')
