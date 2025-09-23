@@ -71,7 +71,7 @@ const ProductList = () => {
         setLoadingMore(true);
         const fetcher = sectionName
           ? () => api.getHomePageSectionProducts(sectionName, { page, limit: 20 })
-          : () => api.getProductsPublic({ category: categoryId, page, limit: 20 });
+          : () => api.getProductsPublic({ category: categoryId, page, limit: 20, includeDescendants: true });
         const toNumber = (val) => {
           if (typeof val === 'number') return val;
           if (typeof val === 'string') { const n = parseFloat(val); return isNaN(n) ? 0 : n; }
@@ -228,8 +228,10 @@ const ProductList = () => {
       // Ensure category: prefer selected child category, else lock to parent category if available
       if (filters.category) {
         params.category = filters.category;
+        params.includeDescendants = true;
       } else if (categoryId) {
         params.category = categoryId;
+        params.includeDescendants = true;
       } else if (sectionName) {
         params.sectionName = sectionName;
       }
