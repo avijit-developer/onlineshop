@@ -94,7 +94,7 @@ const ProductList = () => {
         // Log only query and result
         const queryLog = sectionName
           ? { sectionName, page, limit: 20 }
-          : { category: categoryId, page, limit: 20 };
+          : { category: effectiveCategory, page, limit: 20 };
         console.log('[ProductList] query', queryLog);
         let res;
         try {
@@ -104,7 +104,12 @@ const ProductList = () => {
           console.log('[ProductList] result', { error: err?.message || 'request failed' });
           throw err;
         }
-        const baseItems = (res?.data || []).map(p => {
+        const activeCat = effectiveCategory;
+        const filteredRaw = Array.isArray(res?.data) && activeCat ? (res.data || []).filter(p => {
+          const pid = (p?.category && (p.category._id || p.category)) || null;
+          return pid ? String(pid) === String(activeCat) : true;
+        }) : (res?.data || []);
+        const baseItems = filteredRaw.map(p => {
           const ratingRaw = pickVal(p, [
             ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
             ['reviews','average'], ['reviews','avg']
@@ -274,7 +279,12 @@ const ProductList = () => {
           }
           return fallback;
         };
-        const items = res.data.map(p => {
+        const activeCat = params.category;
+        const filteredRaw = Array.isArray(res?.data) && activeCat ? (res.data || []).filter(p => {
+          const pid = (p?.category && (p.category._id || p.category)) || null;
+          return pid ? String(pid) === String(activeCat) : true;
+        }) : (res?.data || []);
+        const items = filteredRaw.map(p => {
           const ratingRaw = pickVal(p, [
             ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
             ['reviews','average'], ['reviews','avg']
