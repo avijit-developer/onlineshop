@@ -59,21 +59,25 @@ const ProductList = () => {
     (async () => {
       try {
         // Don't load initial data if filters are active
-        const hasActiveFilters = currentFilters.priceRange[0] !== (filterOptions?.priceRange?.min || 0) ||
-                                currentFilters.priceRange[1] !== (filterOptions?.priceRange?.max || 1000) ||
-                                currentFilters.brands.length > 0 ||
-                                currentFilters.productType !== 'all' ||
-                                currentFilters.availability !== 'all' ||
-                                currentFilters.minRating > 0 ||
-                                currentFilters.sortBy !== 'newest';
+        let hasActiveFilters = currentFilters.priceRange[0] !== (filterOptions?.priceRange?.min || 0) ||
+                               currentFilters.priceRange[1] !== (filterOptions?.priceRange?.max || 1000) ||
+                               currentFilters.brands.length > 0 ||
+                               currentFilters.productType !== 'all' ||
+                               currentFilters.availability !== 'all' ||
+                               currentFilters.minRating > 0 ||
+                               currentFilters.sortBy !== 'newest';
+        // Treat explicit category selection in popup as an active filter to avoid duplicate non-filtered fetch
+        if (currentFilters.category != null) hasActiveFilters = true;
         if (hasActiveFilters) return;
         
         if (!hasMore && page !== 1) return;
         setLoadingMore(true);
         const mySeq = ++reqSeqRef.current;
+        // When category is present, do not issue an initial non-filtered fetch if a popup category filter is set
+        const effectiveCategory = currentFilters.category != null ? currentFilters.category : categoryId;
         const fetcher = sectionName
           ? () => api.getHomePageSectionProducts(sectionName, { page, limit: 20 })
-          : () => api.getProductsPublic({ category: categoryId, page, limit: 20, includeDescendants: true });
+          : () => api.getProductsPublic({ category: effectiveCategory, page, limit: 20, includeDescendants: true });
         const toNumber = (val) => {
           if (typeof val === 'number') return val;
           if (typeof val === 'string') { const n = parseFloat(val); return isNaN(n) ? 0 : n; }
