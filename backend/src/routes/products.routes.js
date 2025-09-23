@@ -526,21 +526,13 @@ router.get('/public', async (req, res) => {
         }
       } catch (_) {}
 
-      // Include products in the selected category and all descendants
-      const allIds = new Set([baseCategoryId]);
-      let frontier = [baseCategoryId];
-      while (frontier.length > 0) {
-        const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
-        const newIds = children
-          .map(c => String(c._id))
-          .filter(id => !allIds.has(id));
-        if (newIds.length === 0) break;
-        newIds.forEach(id => allIds.add(id));
-        frontier = newIds;
+      // Primary behavior: show products only from the selected category
+      if (mongoose.Types.ObjectId.isValid(baseCategoryId)) {
+        filters.category = new mongoose.Types.ObjectId(baseCategoryId);
+        console.log('🔒 Category filter set to single id:', filters.category);
+      } else {
+        console.log('⚠️ Category not resolved to ObjectId; skipping category filter');
       }
-      const objectIdList = Array.from(allIds).map(id => new mongoose.Types.ObjectId(id));
-      filters.category = { $in: objectIdList };
-      console.log('🔒 Category filter expanded to include:', objectIdList);
     } else {
       console.log('⚠️ No category specified - will show all products');
     }
