@@ -70,8 +70,12 @@ router.get('/sections', authenticate, requireAdmin, async (req, res) => {
     const sections = await HomePageSection.find()
       .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled rating')
       .sort({ order: 1 });
-    
-    res.json({ success: true, data: sections });
+    // Filter out entries whose productId got deleted (null after populate)
+    const cleaned = sections.map(s => ({
+      ...s.toObject(),
+      products: (Array.isArray(s.products) ? s.products.filter(p => p && p.productId) : [])
+    }));
+    res.json({ success: true, data: cleaned });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -302,6 +302,11 @@ router.delete('/:id', authenticate, requireRole(['admin','vendor']), requirePerm
     res.status(404);
     throw new Error('product not found');
   }
+  // Remove deleted product from all homepage sections
+  try {
+    const HomePageSection = require('../models/HomePageSection');
+    await HomePageSection.updateMany({}, { $pull: { products: { productId: deleted._id } } });
+  } catch (_) {}
   // Note: consider deleting Cloudinary images if imagePublicIds exist
   res.json({ success: true });
 });

@@ -28,7 +28,12 @@ const HomePageManager = () => {
       });
       const data = await response.json();
       if (data.success) {
-        const cleaned = (data.data || []).filter(s => String(s.title).toLowerCase() !== 'new arrivals');
+        const cleaned = (data.data || [])
+          .filter(s => String(s.title).toLowerCase() !== 'new arrivals')
+          .map(s => ({
+            ...s,
+            products: Array.isArray(s.products) ? s.products.filter(p => p && p.productId) : []
+          }));
         setSections(cleaned);
       }
     } catch (error) {
