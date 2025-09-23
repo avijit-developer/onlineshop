@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -44,6 +44,7 @@ const ProductList = () => {
     sortBy: 'newest'
   });
   const [filterLoading, setFilterLoading] = useState(false);
+  const reqSeqRef = useRef(0);
 
   useEffect(() => {
     // reset when category changes
@@ -69,6 +70,7 @@ const ProductList = () => {
         
         if (!hasMore && page !== 1) return;
         setLoadingMore(true);
+        const mySeq = ++reqSeqRef.current;
         const fetcher = sectionName
           ? () => api.getHomePageSectionProducts(sectionName, { page, limit: 20 })
           : () => api.getProductsPublic({ category: categoryId, page, limit: 20, includeDescendants: true });
@@ -122,6 +124,7 @@ const ProductList = () => {
             liked: false,
           });
         });
+        if (mySeq !== reqSeqRef.current) return; // stale
         setFilteredProducts(prev => page === 1 ? baseItems : [...prev, ...baseItems]);
         // Enrich ratings if missing
         try {
@@ -154,6 +157,7 @@ const ProductList = () => {
               } catch (_) {}
               return it;
             }));
+            if (mySeq !== reqSeqRef.current) return; // stale
             setFilteredProducts(prev => {
               // Replace the last page segment with enriched values
               const start = page === 1 ? 0 : (prev.length - baseItems.length);
@@ -166,6 +170,7 @@ const ProductList = () => {
           }
         } catch (_) {}
         const total = res?.meta?.total ?? 0;
+        if (mySeq !== reqSeqRef.current) return; // stale
         setTotalAvailable(total);
         const newLoaded = page === 1 ? baseItems.length : (loadedCount + baseItems.length);
         setLoadedCount(newLoaded);
@@ -189,6 +194,7 @@ const ProductList = () => {
   const loadFilterOptions = useCallback(async () => {
     try {
       setFilterLoading(true);
+      const mySeq = ++reqSeqRef.current;
       const res = await api.getProductFilters({ category: categoryId });
       if (res?.success && res?.data) {
         setFilterOptions(res.data);
@@ -288,7 +294,7 @@ const ProductList = () => {
             liked: false,
           });
         });
-        
+        if (mySeq !== reqSeqRef.current) return; // stale
         const total = res?.meta?.total ?? 0;
         setTotalAvailable(total);
         setFilteredProducts(items);
@@ -322,6 +328,7 @@ const ProductList = () => {
               } catch (_) {}
               return it;
             }));
+            if (mySeq !== reqSeqRef.current) return; // stale
             setFilteredProducts(enriched);
           }
         } catch (_) {}
