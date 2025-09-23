@@ -593,7 +593,7 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
         const resolveVendorUnit = (it) => {
             try {
                 const p = idToProduct.get(String(it.product));
-                if (!p) return null;
+                if (!p) return { unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null };
                 const sku = String(it.sku || '').trim().toLowerCase();
                 let v = null;
                 if (sku && Array.isArray(p.variants)) {
