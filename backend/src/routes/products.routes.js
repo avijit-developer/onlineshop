@@ -1043,13 +1043,19 @@ router.get('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
   try {
     const { id } = req.params;
     const item = await Product.findById(id)
-      .select('-vendorSpecialPrice -variants.vendorSpecialPrice')
       .populate('category', 'name')
       .populate('brand', 'name')
       .populate('vendor', 'companyName')
       .lean();
     if (!item) return res.status(404).json({ success: false, message: 'Product not found' });
-    res.json({ success: true, data: item });
+    const sanitized = {
+      ...item,
+      variants: Array.isArray(item.variants) ? item.variants.map(v => {
+        const { vendorSpecialPrice, ...rest } = v || {};
+        return rest;
+      }) : []
+    };
+    res.json({ success: true, data: sanitized });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to fetch product' });
   }
