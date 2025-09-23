@@ -65,11 +65,7 @@ const ProductList = () => {
                                 currentFilters.availability !== 'all' ||
                                 currentFilters.minRating > 0 ||
                                 currentFilters.sortBy !== 'newest';
-        
-        if (hasActiveFilters) {
-          console.log('🔍 Filters are active, skipping initial data load');
-          return;
-        }
+        if (hasActiveFilters) return;
         
         if (!hasMore && page !== 1) return;
         setLoadingMore(true);
@@ -89,7 +85,13 @@ const ProductList = () => {
           }
           return fallback;
         };
+        // Log only query and result
+        const queryLog = sectionName
+          ? { sectionName, page, limit: 20 }
+          : { category: categoryId, page, limit: 20 };
+        console.log('[ProductList] query', queryLog);
         const res = await fetcher();
+        console.log('[ProductList] result', { count: Array.isArray(res?.data) ? res.data.length : 0, meta: res?.meta });
         const baseItems = (res?.data || []).map(p => {
           const ratingRaw = pickVal(p, [
             ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
@@ -193,7 +195,7 @@ const ProductList = () => {
         }
       }
     } catch (error) {
-      console.error('Failed to load filter options:', error);
+      // no console (only query/result elsewhere)
     } finally {
       setFilterLoading(false);
     }
@@ -201,8 +203,6 @@ const ProductList = () => {
 
   const applyFilters = useCallback(async (filters) => {
     try {
-      console.log('🚀 ProductList applyFilters called with:', filters);
-      console.log('📍 Current categoryId:', categoryId);
       setFilterLoading(true);
       setCurrentFilters(filters);
       setPage(1);
@@ -222,22 +222,19 @@ const ProductList = () => {
       // Ensure category: prefer selected child category, else lock to parent category if available
       if (filters.category) {
         params.category = filters.category;
-        console.log('🔒 Using selected child category:', filters.category);
       } else if (categoryId) {
         params.category = categoryId;
-        console.log('🔒 Locking filters to category:', categoryId);
       } else if (sectionName) {
         params.sectionName = sectionName;
-        console.log('🔒 Locking filters to section:', sectionName);
       }
       
       // Remove undefined values
       Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
       
-      console.log('🔍 ProductList applying filters with params:', params);
-      
+      // Log only query and result
+      console.log('[ProductList] query', params);
       const res = await api.getProductsPublic(params);
-      console.log('📡 ProductList API response:', res);
+      console.log('[ProductList] result', { count: Array.isArray(res?.data) ? res.data.length : 0, meta: res?.meta });
       
       if (res?.success && res?.data) {
         const toNumber = (val) => {
@@ -277,13 +274,6 @@ const ProductList = () => {
             liked: false,
           });
         });
-        
-        console.log('✅ ProductList filtered products:', items.length, 'items');
-        console.log('💰 ProductList price ranges in results:', items.map(item => ({
-          name: item.name,
-          price: (item.specialPrice ?? item.regularPrice ?? item.price),
-          oldPrice: item.oldPrice
-        })));
         
         const total = res?.meta?.total ?? 0;
         setTotalAvailable(total);
@@ -325,10 +315,10 @@ const ProductList = () => {
         setResultCount(total > 0 ? total : items.length);
         setHasMore(items.length > 0 && items.length < total);
         
-        console.log('📱 ProductList state updated: filteredProducts set to', items.length, 'items');
+        // no additional console
       }
     } catch (error) {
-      console.error('❌ ProductList failed to apply filters:', error);
+      // no console
     } finally {
       setFilterLoading(false);
     }
@@ -381,10 +371,7 @@ const ProductList = () => {
     setLoadedCount(0);
     
     // Reload products for current category only
-    if (categoryId || sectionName) {
-      console.log('🔄 Clearing filters, reloading products for current category/section');
-      // This will trigger the useEffect to reload data for current category
-    }
+    // Trigger reload for current category/section via the effect
   }, [filterOptions, categoryId, sectionName]);
 
   // Load filter options on mount
