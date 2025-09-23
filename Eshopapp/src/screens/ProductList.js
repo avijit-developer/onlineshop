@@ -45,7 +45,7 @@ const ProductList = () => {
     sortBy: 'newest'
   });
   const [filterLoading, setFilterLoading] = useState(false);
-  const reqSeqRef = useRef(0);
+  const listSeqRef = useRef(0);
 
   useEffect(() => {
     // reset when category changes
@@ -54,6 +54,7 @@ const ProductList = () => {
     setHasMore(true);
     setLoadedCount(0);
     setTotalAvailable(0);
+    setFilterMode(false);
   }, [categoryId, sectionName]);
 
   useEffect(() => {
@@ -75,7 +76,7 @@ const ProductList = () => {
         
         if (!hasMore && page !== 1) return;
         setLoadingMore(true);
-        const mySeq = ++reqSeqRef.current;
+        const mySeq = ++listSeqRef.current;
         // When category is present, do not issue an initial non-filtered fetch if a popup category filter is set
         const effectiveCategory = currentFilters.category != null ? currentFilters.category : categoryId;
         const fetcher = sectionName
@@ -138,7 +139,7 @@ const ProductList = () => {
             liked: false,
           });
         });
-        if (mySeq !== reqSeqRef.current) return; // stale
+        if (mySeq !== listSeqRef.current) return; // stale
         setFilteredProducts(prev => page === 1 ? baseItems : [...prev, ...baseItems]);
         // Enrich ratings if missing
         try {
@@ -184,7 +185,7 @@ const ProductList = () => {
           }
         } catch (_) {}
         const total = res?.meta?.total ?? 0;
-        if (mySeq !== reqSeqRef.current) return; // stale
+        if (mySeq !== listSeqRef.current) return; // stale
         setTotalAvailable(total);
         const newLoaded = page === 1 ? baseItems.length : (loadedCount + baseItems.length);
         setLoadedCount(newLoaded);
@@ -209,7 +210,6 @@ const ProductList = () => {
   const loadFilterOptions = useCallback(async () => {
     try {
       setFilterLoading(true);
-      const mySeq = ++reqSeqRef.current;
       const res = await api.getProductFilters({ category: categoryId });
       if (res?.success && res?.data) {
         setFilterOptions(res.data);
@@ -317,7 +317,7 @@ const ProductList = () => {
             liked: false,
           });
         });
-        if (mySeq !== reqSeqRef.current) return; // stale
+        if (mySeq !== listSeqRef.current) return; // stale
         const total = res?.meta?.total ?? 0;
         setTotalAvailable(total);
         setFilteredProducts(items);
