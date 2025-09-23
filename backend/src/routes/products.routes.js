@@ -767,6 +767,54 @@ router.get('/public', async (req, res) => {
       }
     }
 
+    // Targeted fallback: If no results, relax only the status filter (keep category and others intact)
+    if ((items?.length || 0) === 0) {
+      try {
+        const relaxed = { ...filters };
+        if (relaxed.status) delete relaxed.status;
+        if (sortBy === 'price_low' || sortBy === 'price_high') {
+          // Use a simple find fallback to avoid complex price aggregation
+          const pageNum2 = Math.max(parseInt(page, 10) || 1, 1);
+          const perPage2 = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+          const [alt, tot] = await Promise.all([
+            Product.find(relaxed)
+              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+              .populate('category', 'name')
+              .populate('brand', 'name')
+              .sort(sortOrder)
+              .skip((pageNum2 - 1) * perPage2)
+              .limit(perPage2)
+              .lean(),
+            Product.countDocuments(relaxed)
+          ]);
+          items = (alt || []).map(doc => ({
+            ...doc,
+            variants: Array.isArray(doc.variants) ? doc.variants.map(v => { const { vendorSpecialPrice, ...rest } = v || {}; return rest; }) : []
+          }));
+          total = tot || 0;
+        } else {
+          const pageNum2 = Math.max(parseInt(page, 10) || 1, 1);
+          const perPage2 = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+          const [alt, tot] = await Promise.all([
+            Product.find(relaxed)
+              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+              .populate('category', 'name')
+              .populate('brand', 'name')
+              .sort(sortOrder)
+              .skip((pageNum2 - 1) * perPage2)
+              .limit(perPage2)
+              .lean(),
+            Product.countDocuments(relaxed)
+          ]);
+          items = (alt || []).map(doc => ({
+            ...doc,
+            variants: Array.isArray(doc.variants) ? doc.variants.map(v => { const { vendorSpecialPrice, ...rest } = v || {}; return rest; }) : []
+          }));
+          total = tot || 0;
+        }
+      } catch (_) {}
+    }
+
     // No fallback relaxation; if filters yield no results, return empty
 
     // Enrich with rating and reviewsCount from approved reviews
