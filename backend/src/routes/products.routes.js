@@ -332,7 +332,7 @@ router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), requ
 router.get('/public/filters', async (req, res) => {
   try {
     const { category } = req.query;
-    const baseFilters = { enabled: true, status: 'approved' };
+    const baseFilters = { enabled: true };
     let filters = { ...baseFilters };
     let resolvedCategoryId = null;
 
@@ -529,7 +529,7 @@ router.get('/public', async (req, res) => {
         }
       } catch (_) {}
 
-      const expand = String(includeDescendants || '').toLowerCase() === 'true';
+      const expand = String(includeDescendants ?? 'true').toLowerCase() === 'true';
       if (mongoose.Types.ObjectId.isValid(baseCategoryId)) {
         if (expand) {
           // Include descendants
