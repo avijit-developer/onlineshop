@@ -720,7 +720,7 @@ router.get('/public', async (req, res) => {
       // Use regular find for non-price sorting
       [items, total] = await Promise.all([
         Product.find(filters)
-          .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand -variants.vendorSpecialPrice')
+          .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
           .populate('category', 'name')
           .populate('brand', 'name')
           .sort(sortOrder)
@@ -729,6 +729,14 @@ router.get('/public', async (req, res) => {
           .lean(),
         Product.countDocuments(filters)
       ]);
+      // Strip vendorSpecialPrice from variants if present
+      items = (items || []).map(doc => ({
+        ...doc,
+        variants: Array.isArray(doc.variants) ? doc.variants.map(v => {
+          const { vendorSpecialPrice, ...rest } = v || {};
+          return rest;
+        }) : []
+      }));
       
       console.log('📊 Find results:', items.length, 'items');
       if (items.length > 0) {
@@ -849,7 +857,7 @@ router.get('/public', async (req, res) => {
       } else {
         [items, total] = await Promise.all([
           Product.find(filters)
-            .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand -variants.vendorSpecialPrice')
+            .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
             .populate('category', 'name')
             .populate('brand', 'name')
             .sort(sortOrder)
@@ -858,6 +866,13 @@ router.get('/public', async (req, res) => {
             .lean(),
           Product.countDocuments(filters)
         ]);
+        items = (items || []).map(doc => ({
+          ...doc,
+          variants: Array.isArray(doc.variants) ? doc.variants.map(v => {
+            const { vendorSpecialPrice, ...rest } = v || {};
+            return rest;
+          }) : []
+        }));
       }
     }
 
