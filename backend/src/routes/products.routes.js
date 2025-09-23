@@ -815,6 +815,50 @@ router.get('/public', async (req, res) => {
       } catch (_) {}
     }
 
+    // Secondary fallback: if still empty and category present, expand to descendants with relaxed status
+    if ((items?.length || 0) === 0 && category) {
+      try {
+        // Resolve base category id again
+        let baseCategoryId = String(category);
+        if (!mongoose.Types.ObjectId.isValid(baseCategoryId)) {
+          const rx = new RegExp('^' + String(category).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i');
+          const catDoc = await Category.findOne({ $or: [ { name: rx }, { slug: String(category).toLowerCase() } ] }).select('_id').lean();
+          if (catDoc && catDoc._id) baseCategoryId = String(catDoc._id);
+        }
+        if (mongoose.Types.ObjectId.isValid(baseCategoryId)) {
+          const allIds = new Set([baseCategoryId]);
+          let frontier = [baseCategoryId];
+          while (frontier.length > 0) {
+            const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
+            const newIds = children.map(c => String(c._id)).filter(id => !allIds.has(id));
+            if (newIds.length === 0) break;
+            newIds.forEach(id => allIds.add(id));
+            frontier = newIds;
+          }
+          const relaxed = { ...filters, category: { $in: Array.from(allIds).map(id => new mongoose.Types.ObjectId(id)) } };
+          if (relaxed.status) delete relaxed.status;
+          const pageNum3 = Math.max(parseInt(page, 10) || 1, 1);
+          const perPage3 = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+          const [alt2, tot2] = await Promise.all([
+            Product.find(relaxed)
+              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+              .populate('category', 'name')
+              .populate('brand', 'name')
+              .sort(sortOrder)
+              .skip((pageNum3 - 1) * perPage3)
+              .limit(perPage3)
+              .lean(),
+            Product.countDocuments(relaxed)
+          ]);
+          items = (alt2 || []).map(doc => ({
+            ...doc,
+            variants: Array.isArray(doc.variants) ? doc.variants.map(v => { const { vendorSpecialPrice, ...rest } = v || {}; return rest; }) : []
+          }));
+          total = tot2 || 0;
+        }
+      } catch (_) {}
+    }
+
     // No fallback relaxation; if filters yield no results, return empty
 
     // Enrich with rating and reviewsCount from approved reviews
