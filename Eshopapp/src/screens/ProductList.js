@@ -31,6 +31,7 @@ const ProductList = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [filterMode, setFilterMode] = useState(false);
   
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -58,6 +59,8 @@ const ProductList = () => {
   useEffect(() => {
     (async () => {
       try {
+        // If we are in filter mode (popup applied), skip initial loader
+        if (filterMode) return;
         // Don't load initial data if filters are active
         let hasActiveFilters = currentFilters.priceRange[0] !== (filterOptions?.priceRange?.min || 0) ||
                                currentFilters.priceRange[1] !== (filterOptions?.priceRange?.max || 1000) ||
@@ -183,7 +186,8 @@ const ProductList = () => {
         setTotalAvailable(total);
         const newLoaded = page === 1 ? baseItems.length : (loadedCount + baseItems.length);
         setLoadedCount(newLoaded);
-        setResultCount(total > 0 ? total : newLoaded);
+        // Reflect what is actually rendered after defensive category filter
+        setResultCount(page === 1 ? baseItems.length : newLoaded);
         setHasMore(newLoaded < total && baseItems.length > 0);
       } catch (_) {
         setHasMore(false);
@@ -191,7 +195,7 @@ const ProductList = () => {
         setLoadingMore(false);
       }
     })();
-  }, [page, categoryId, sectionName, loadedCount, currentFilters, filterOptions]);
+  }, [page, categoryId, sectionName, loadedCount, currentFilters, filterOptions, filterMode]);
 
   const handleEndReached = () => {
     if (hasMore && !loadingMore) {
@@ -225,6 +229,9 @@ const ProductList = () => {
   const applyFilters = useCallback(async (filters) => {
     try {
       setFilterLoading(true);
+      setFilterMode(true);
+      const mySeq = ++reqSeqRef.current;
+      setFilteredProducts([]);
       setCurrentFilters(filters);
       setPage(1);
       setHasMore(true);
@@ -347,7 +354,8 @@ const ProductList = () => {
           }
         } catch (_) {}
         setLoadedCount(items.length);
-        setResultCount(total > 0 ? total : items.length);
+        // Reflect what is actually shown after client-side defensive filter
+        setResultCount(items.length);
         setHasMore(items.length > 0 && items.length < total);
         
         // no additional console
@@ -404,6 +412,7 @@ const ProductList = () => {
     setPage(1);
     setHasMore(true);
     setLoadedCount(0);
+    setFilterMode(false);
     
     // Reload products for current category only
     // Trigger reload for current category/section via the effect
