@@ -528,7 +528,7 @@ router.get('/public', async (req, res) => {
 
       // Include products in the selected category and all descendants
       const allIds = new Set([baseCategoryId]);
-      let frontier = [String(category)];
+      let frontier = [baseCategoryId];
       while (frontier.length > 0) {
         const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
         const newIds = children
