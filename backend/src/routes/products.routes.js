@@ -494,7 +494,8 @@ router.get('/public', async (req, res) => {
       productType,
       availability,
       minRating,
-      sortBy = 'newest'
+      sortBy = 'newest',
+      includeDescendants
     } = req.query;
     
     console.log('🔍 Backend received request with category:', category);
@@ -528,10 +529,26 @@ router.get('/public', async (req, res) => {
         }
       } catch (_) {}
 
-      // Primary behavior: show products only from the selected category
+      const expand = String(includeDescendants || '').toLowerCase() === 'true';
       if (mongoose.Types.ObjectId.isValid(baseCategoryId)) {
-        filters.category = new mongoose.Types.ObjectId(baseCategoryId);
-        console.log('🔒 Category filter set to single id:', filters.category);
+        if (expand) {
+          // Include descendants
+          const allIds = new Set([baseCategoryId]);
+          let frontier = [baseCategoryId];
+          while (frontier.length > 0) {
+            const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
+            const newIds = children.map(c => String(c._id)).filter(id => !allIds.has(id));
+            if (newIds.length === 0) break;
+            newIds.forEach(id => allIds.add(id));
+            frontier = newIds;
+          }
+          filters.category = { $in: Array.from(allIds).map(id => new mongoose.Types.ObjectId(id)) };
+          console.log('🔒 Category filter expanded to include descendants');
+        } else {
+          // Exact category only
+          filters.category = new mongoose.Types.ObjectId(baseCategoryId);
+          console.log('🔒 Category filter set to single id:', filters.category);
+        }
       } else {
         console.log('⚠️ Category not resolved to ObjectId; skipping category filter');
       }
