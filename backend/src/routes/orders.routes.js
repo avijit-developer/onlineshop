@@ -446,10 +446,74 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
         // Build vendor-scoped response payload
         const primaryVendorId = vendorIds[0];
         const itemsScoped = (order.items || []).filter(it => String(it.vendor) === String(primaryVendorId));
-        const vendorSubtotal = itemsScoped.reduce((s, it) => {
-            const unit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : Number(it.price || 0));
-            return s + (unit * Number(it.quantity || 0));
-        }, 0);
+
+        // Resolve vendor unit prices for each item (by SKU first, then attributes),
+        // and attach vendorDisplayUnitPrice and vendorLineTotal for consistent UI display
+        let idToProduct = new Map();
+        try {
+            const productIds = Array.from(new Set(itemsScoped.map(it => String(it.product)).filter(Boolean)));
+            if (productIds.length) {
+                const prods = await Product.find({ _id: { $in: productIds } })
+                    .select('_id vendor vendorRegularPrice vendorSpecialPrice variants')
+                    .lean();
+                idToProduct = new Map(prods.map(p => [String(p._id), p]));
+            }
+        } catch (_) {}
+
+        const resolveVendorUnit = (it) => {
+            try {
+                const p = idToProduct.get(String(it.product));
+                if (!p) return { unitSpecial: (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : null, unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null };
+                const sku = String(it.sku || '').trim().toLowerCase();
+                let v = null;
+                if (sku && Array.isArray(p.variants)) {
+                    v = p.variants.find(vn => String(vn.sku || '').trim().toLowerCase() === sku);
+                }
+                if (!v && Array.isArray(p.variants)) {
+                    let sel = it.selectedAttributes || {};
+                    try {
+                        if (sel && typeof sel.toJSON === 'function') sel = sel.toJSON();
+                        else if (sel && typeof sel.get === 'function') { try { sel = Object.fromEntries(sel); } catch (_) { sel = {}; } }
+                    } catch (_) {}
+                    if (sel && Object.keys(sel).length > 0) {
+                        v = p.variants.find(vn => {
+                            let vAttrs = vn.attributes || {};
+                            try {
+                                if (vAttrs && typeof vAttrs.toJSON === 'function') vAttrs = vAttrs.toJSON();
+                                else if (vAttrs && typeof vAttrs.get === 'function') { try { vAttrs = Object.fromEntries(vAttrs); } catch (_) { vAttrs = {}; } }
+                            } catch (_) {}
+                            return Object.keys(sel).every(k => String(vAttrs[k]) === String(sel[k]));
+                        });
+                    }
+                }
+                if (v) {
+                    return {
+                        unitSpecial: (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((v.vendorSpecialPrice != null) ? Number(v.vendorSpecialPrice) : null),
+                        unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : ((v.vendorPrice != null) ? Number(v.vendorPrice) : null),
+                    };
+                }
+                return {
+                    unitSpecial: (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((p.vendorSpecialPrice != null) ? Number(p.vendorSpecialPrice) : null),
+                    unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : ((p.vendorRegularPrice != null) ? Number(p.vendorRegularPrice) : null),
+                };
+            } catch (_) {}
+            return { unitSpecial: (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : null, unit: (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null };
+        };
+
+        const itemsScopedWithDisplay = itemsScoped.map(it => {
+            const { unitSpecial, unit } = resolveVendorUnit(it);
+            const display = (unitSpecial != null) ? unitSpecial : (unit != null ? unit : Number(it.price || 0));
+            const quantity = Number(it.quantity || 0);
+            return {
+                ...it.toObject ? it.toObject() : it,
+                vendorUnitSpecialPrice: unitSpecial,
+                vendorUnitPrice: unit,
+                vendorDisplayUnitPrice: display,
+                vendorLineTotal: display * quantity,
+            };
+        });
+
+        const vendorSubtotal = itemsScopedWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
         const orderSubtotal = Number(order.subtotal || 0);
         const taxPercent = Number(order.tax || 0);
         const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
@@ -475,7 +539,7 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
             total: order.total,
             orderNote: order.orderNote,
             statusHistory: order.statusHistory,
-            items: itemsScoped,
+            items: itemsScopedWithDisplay,
             vendorSubtotal,
             vendorTaxShare,
             vendorShippingShare,
@@ -711,11 +775,52 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
             }
         } catch (_) {}
 
-        const vendorSubtotal = vendorItems.reduce((s, it) => {
-            const explicit = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : ((it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null);
-            const unit = (explicit != null) ? explicit : Number(it.price || 0);
-            return s + (unit * Number(it.quantity || 0));
-        }, 0);
+        // Attach vendorDisplayUnitPrice and vendorLineTotal for consistent UI display
+        const vendorItemsWithDisplay = vendorItems.map(it => {
+            const explicitSpecial = (it.vendorUnitSpecialPrice != null) ? Number(it.vendorUnitSpecialPrice) : null;
+            const explicitRegular = (it.vendorUnitPrice != null) ? Number(it.vendorUnitPrice) : null;
+            let unitSpecial = explicitSpecial;
+            let unit = explicitRegular;
+            if (unitSpecial == null || unit == null) {
+                try {
+                    const p = idToProduct.get(String(it.product));
+                    if (p) {
+                        const sku = String(it.sku || '').trim().toLowerCase();
+                        let v = null;
+                        if (sku && Array.isArray(p.variants)) v = p.variants.find(vn => String(vn.sku || '').trim().toLowerCase() === sku);
+                        if (!v && Array.isArray(p.variants)) {
+                            let sel = it.selectedAttributes || {};
+                            try {
+                                if (sel && typeof sel.toJSON === 'function') sel = sel.toJSON();
+                                else if (sel && typeof sel.get === 'function') { try { sel = Object.fromEntries(sel); } catch (_) { sel = {}; } }
+                            } catch (_) {}
+                            if (sel && Object.keys(sel).length > 0) {
+                                v = p.variants.find(vn => {
+                                    let vAttrs = vn.attributes || {};
+                                    try {
+                                        if (vAttrs && typeof vAttrs.toJSON === 'function') vAttrs = vAttrs.toJSON();
+                                        else if (vAttrs && typeof vAttrs.get === 'function') { try { vAttrs = Object.fromEntries(vAttrs); } catch (_) { vAttrs = {}; } }
+                                    } catch (_) {}
+                                    return Object.keys(sel).every(k => String(vAttrs[k]) === String(sel[k]));
+                                });
+                            }
+                        }
+                        if (unitSpecial == null) unitSpecial = (v && v.vendorSpecialPrice != null) ? Number(v.vendorSpecialPrice) : ((p.vendorSpecialPrice != null) ? Number(p.vendorSpecialPrice) : null);
+                        if (unit == null) unit = (v && v.vendorPrice != null) ? Number(v.vendorPrice) : ((p.vendorRegularPrice != null) ? Number(p.vendorRegularPrice) : null);
+                    }
+                } catch (_) {}
+            }
+            const display = (unitSpecial != null) ? unitSpecial : (unit != null ? unit : Number(it.price || 0));
+            const quantity = Number(it.quantity || 0);
+            return {
+                ...it,
+                vendorUnitSpecialPrice: unitSpecial,
+                vendorUnitPrice: unit,
+                vendorDisplayUnitPrice: display,
+                vendorLineTotal: display * quantity,
+            };
+        });
+        const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
         const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
         const vendorNet = vendorSubtotal - vendorCommission;
         const orderSubtotal = Number(o.subtotal || 0);
@@ -777,7 +882,7 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
             total: o.total,
             orderNote: o.orderNote,
             statusHistory: o.statusHistory,
-            items: vendorItems,
+            items: vendorItemsWithDisplay,
             vendorSubtotal,
             vendorCommission,
             vendorNet,
