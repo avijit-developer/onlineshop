@@ -90,8 +90,14 @@ const ProductList = () => {
           ? { sectionName, page, limit: 20 }
           : { category: categoryId, page, limit: 20 };
         console.log('[ProductList] query', queryLog);
-        const res = await fetcher();
-        console.log('[ProductList] result', { count: Array.isArray(res?.data) ? res.data.length : 0, meta: res?.meta });
+        let res;
+        try {
+          res = await fetcher();
+          console.log('[ProductList] result', { count: Array.isArray(res?.data) ? res.data.length : 0, meta: res?.meta });
+        } catch (err) {
+          console.log('[ProductList] result', { error: err?.message || 'request failed' });
+          throw err;
+        }
         const baseItems = (res?.data || []).map(p => {
           const ratingRaw = pickVal(p, [
             ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
@@ -233,8 +239,14 @@ const ProductList = () => {
       
       // Log only query and result
       console.log('[ProductList] query', params);
-      const res = await api.getProductsPublic(params);
-      console.log('[ProductList] result', { count: Array.isArray(res?.data) ? res.data.length : 0, meta: res?.meta });
+      let res;
+      try {
+        res = await api.getProductsPublic(params);
+        console.log('[ProductList] result', { count: Array.isArray(res?.data) ? res.data.length : 0, meta: res?.meta });
+      } catch (err) {
+        console.log('[ProductList] result', { error: err?.message || 'request failed' });
+        throw err;
+      }
       
       if (res?.success && res?.data) {
         const toNumber = (val) => {
@@ -318,7 +330,7 @@ const ProductList = () => {
         // no additional console
       }
     } catch (error) {
-      // no console
+      // logged above as result error
     } finally {
       setFilterLoading(false);
     }
