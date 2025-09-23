@@ -682,10 +682,18 @@ router.get('/public', async (req, res) => {
         }
       ];
       
+      // Strip vendorSpecialPrice from variants if present in aggregation result
       [items, total] = await Promise.all([
         Product.aggregate(aggregationPipeline),
         Product.countDocuments(filters)
       ]);
+      items = (items || []).map(doc => ({
+        ...doc,
+        variants: Array.isArray(doc.variants) ? doc.variants.map(v => {
+          const { vendorSpecialPrice, ...rest } = v || {};
+          return rest;
+        }) : []
+      }));
       
       console.log('📊 Aggregation results:', items.length, 'items');
       if (items.length > 0) {
@@ -699,7 +707,7 @@ router.get('/public', async (req, res) => {
       // Use regular find for non-price sorting
       [items, total] = await Promise.all([
         Product.find(filters)
-          .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+          .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand -variants.vendorSpecialPrice')
           .populate('category', 'name')
           .populate('brand', 'name')
           .sort(sortOrder)
@@ -802,10 +810,17 @@ router.get('/public', async (req, res) => {
           Product.aggregate(fallbackPipeline),
           Product.countDocuments(filters)
         ]);
+        items = (items || []).map(doc => ({
+          ...doc,
+          variants: Array.isArray(doc.variants) ? doc.variants.map(v => {
+            const { vendorSpecialPrice, ...rest } = v || {};
+            return rest;
+          }) : []
+        }));
       } else {
         [items, total] = await Promise.all([
           Product.find(filters)
-            .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+            .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand -variants.vendorSpecialPrice')
             .populate('category', 'name')
             .populate('brand', 'name')
             .sort(sortOrder)
