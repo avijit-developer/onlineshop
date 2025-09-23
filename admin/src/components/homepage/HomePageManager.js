@@ -264,15 +264,15 @@ const HomePageManager = () => {
               
               <div className="products-list">
                 {section.products.map(product => (
-                  <div key={product.productId._id} className="product-item">
+                  <div key={product?.productId?._id || Math.random()} className="product-item">
                     <img 
-                      src={product.productId.images[0]} 
-                      alt={product.productId.name}
+                      src={(product?.productId?.images && product.productId.images[0]) || '/default-product.png'} 
+                      alt={product?.productId?.name || 'Product'}
                       className="product-image"
                     />
                     <div className="product-info">
-                      <span className="product-name">{product.productId.name}</span>
-                      <span className="product-price">${product.productId.specialPrice ?? product.productId.regularPrice ?? product.productId.price}</span>
+                      <span className="product-name">{product?.productId?.name || '—'}</span>
+                      <span className="product-price">${product?.productId?.specialPrice ?? product?.productId?.regularPrice ?? product?.productId?.price ?? 0}</span>
                     </div>
                     <button
                       className="btn btn-sm btn-danger"
@@ -397,16 +397,16 @@ const ProductSelectionModal = ({ section, products, searchTerm, onSearch, onSear
 
           <div className="products-grid">
             {products.map(product => (
-              <div key={product._id} className="product-card">
+              <div key={product?._id || Math.random()} className="product-card">
                 <img 
-                  src={product.images[0]} 
-                  alt={product.name}
+                  src={(product?.images && product.images[0]) || '/default-product.png'} 
+                  alt={product?.name || 'Product'}
                   className="product-image"
                 />
                 <div className="product-info">
-                  <h4>{product.name}</h4>
-                  <p>${product.price}</p>
-                  <p>Rating: {product.rating || 0}/5</p>
+                  <h4>{product?.name || '—'}</h4>
+                  <p>${product?.specialPrice ?? product?.regularPrice ?? product?.price ?? 0}</p>
+                  <p>Rating: {product?.rating || 0}/5</p>
                 </div>
                 <button
                   className="btn btn-sm btn-primary"
