@@ -757,8 +757,20 @@ router.get('/public', async (req, res) => {
           { description: { $regex: String(q), $options: 'i' } }
         ];
       }
-      const allIds = new Set([String(category)]);
-      let frontier = [String(category)];
+      // Resolve category again for fallback (accept id, name, slug)
+      let baseCategoryId = String(category);
+      try {
+        if (!mongoose.Types.ObjectId.isValid(baseCategoryId)) {
+          const rx = new RegExp('^' + String(category).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i');
+          const catDoc = await Category.findOne({
+            $or: [ { name: rx }, { slug: String(category).toLowerCase() } ],
+            enabled: true
+          }).select('_id').lean();
+          if (catDoc && catDoc._id) baseCategoryId = String(catDoc._id);
+        }
+      } catch (_) {}
+      const allIds = new Set([baseCategoryId]);
+      let frontier = [baseCategoryId];
       while (frontier.length > 0) {
         const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
         const newIds = children
@@ -768,8 +780,12 @@ router.get('/public', async (req, res) => {
         newIds.forEach(id => allIds.add(id));
         frontier = newIds;
       }
-      const objectIdList = Array.from(allIds).map(id => new mongoose.Types.ObjectId(id));
-      filters.category = { $in: objectIdList };
+      const objectIdList = Array.from(allIds)
+        .filter(id => mongoose.Types.ObjectId.isValid(id))
+        .map(id => new mongoose.Types.ObjectId(id));
+      if (objectIdList.length > 0) {
+        filters.category = { $in: objectIdList };
+      }
 
       // Fallback also needs to handle price sorting
       if (sortBy === 'price_low' || sortBy === 'price_high') {
