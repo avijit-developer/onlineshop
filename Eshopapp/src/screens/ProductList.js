@@ -295,7 +295,7 @@ const ProductList = () => {
           }
           return fallback;
         };
-        const items = (res?.data || []).map(p => {
+        let items = (res?.data || []).map(p => {
           const ratingRaw = pickVal(p, [
             ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
             ['reviews','average'], ['reviews','avg']
@@ -320,6 +320,17 @@ const ProductList = () => {
             liked: false,
           });
         });
+        // Client-side fallback sort to guarantee UI order
+        const sortKey = params.sortBy;
+        if (sortKey === 'price_low' || sortKey === 'price_high') {
+          const dir = sortKey === 'price_low' ? 1 : -1;
+          items = items.slice().sort((a, b) => {
+            const pa = (a.effectivePrice ?? a.specialPrice ?? a.regularPrice ?? Number.POSITIVE_INFINITY);
+            const pb = (b.effectivePrice ?? b.specialPrice ?? b.regularPrice ?? Number.POSITIVE_INFINITY);
+            if (pa === pb) return 0;
+            return pa < pb ? -1 * dir : 1 * dir;
+          });
+        }
         if (mySeq !== listSeqRef.current) return; // stale
         const total = res?.meta?.total ?? 0;
         setTotalAvailable(total);
