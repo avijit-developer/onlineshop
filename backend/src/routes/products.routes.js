@@ -801,7 +801,20 @@ router.get('/public', async (req, res) => {
                   cond: {
                     $and: [
                       { $eq: [ { $toLower: '$$p.k' }, keyLower ] },
-                      { $in: [ { $toLower: '$$p.v' }, valsLower ] }
+                      {
+                        $let: {
+                          vars: {
+                            vlist: {
+                              $cond: [
+                                { $eq: [ { $type: '$$p.v' }, 'array' ] },
+                                { $map: { input: '$$p.v', as: 'vv', in: { $toLower: '$$vv' } } },
+                                [ { $toLower: '$$p.v' } ]
+                              ]
+                            }
+                          },
+                          in: { $gt: [ { $size: { $setIntersection: ['$$vlist', valsLower] } }, 0 ] }
+                        }
+                      }
                     ]
                   }
                 }
