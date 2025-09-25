@@ -800,15 +800,15 @@ router.get('/public', async (req, res) => {
                   as: 'p',
                   cond: {
                     $and: [
-                      { $eq: [ { $toLower: '$$p.k' }, keyLower ] },
+                      { $eq: [ { $toLower: { $convert: { input: '$$p.k', to: 'string', onError: '', onNull: '' } } }, keyLower ] },
                       {
                         $let: {
                           vars: {
                             vlist: {
                               $cond: [
                                 { $eq: [ { $type: '$$p.v' }, 'array' ] },
-                                { $map: { input: '$$p.v', as: 'vv', in: { $toLower: '$$vv' } } },
-                                [ { $toLower: '$$p.v' } ]
+                                { $map: { input: '$$p.v', as: 'vv', in: { $toLower: { $convert: { input: '$$vv', to: 'string', onError: '', onNull: '' } } } } },
+                                [ { $toLower: { $convert: { input: '$$p.v', to: 'string', onError: '', onNull: '' } } } ]
                               ]
                             }
                           },
