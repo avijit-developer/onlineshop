@@ -838,9 +838,33 @@ router.get('/public', async (req, res) => {
             }
           }
         },
+        // Convert all prices to numeric and drop nulls
         {
           $addFields: {
-            effectivePrice: sortBy === 'price_low' ? { $min: '$_allPrices' } : { $max: '$_allPrices' }
+            _numericPrices: {
+              $filter: {
+                input: {
+                  $map: {
+                    input: '$_allPrices',
+                    as: 'p',
+                    in: { $convert: { input: '$$p', to: 'double', onError: null, onNull: null } }
+                  }
+                },
+                as: 'n',
+                cond: { $ne: ['$$n', null] }
+              }
+            }
+          }
+        },
+        {
+          $addFields: {
+            effectivePrice: {
+              $cond: [
+                { $gt: [{ $size: '$_numericPrices' }, 0] },
+                (sortBy === 'price_low' ? { $min: '$_numericPrices' } : { $max: '$_numericPrices' }),
+                0
+              ]
+            }
           }
         },
         { $sort: { effectivePrice: sortDirection } },
