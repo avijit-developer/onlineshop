@@ -108,14 +108,7 @@ const ProductList = () => {
           console.log('[ProductList] result', { error: err?.message || 'request failed' });
           throw err;
         }
-        const rawList = (res?.data || []);
-        const filteredRaw = (filterMode && effectiveCategory)
-          ? rawList.filter(p => {
-              const pid = (p?.category && (p.category._id || p.category)) || null;
-              return pid ? String(pid) === String(effectiveCategory) : true;
-            })
-          : rawList;
-        const baseItems = filteredRaw.map(p => {
+        const baseItems = (res?.data || []).map(p => {
           const ratingRaw = pickVal(p, [
             ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
             ['reviews','average'], ['reviews','avg']
@@ -300,12 +293,7 @@ const ProductList = () => {
           }
           return fallback;
         };
-        const activeCat = params.category;
-        const filteredRaw = Array.isArray(res?.data) && activeCat ? (res.data || []).filter(p => {
-          const pid = (p?.category && (p.category._id || p.category)) || null;
-          return pid ? String(pid) === String(activeCat) : true;
-        }) : (res?.data || []);
-        const items = filteredRaw.map(p => {
+        const items = (res?.data || []).map(p => {
           const ratingRaw = pickVal(p, [
             ['rating'], ['avgRating'], ['averageRating'], ['ratingsAverage'], ['ratingValue'],
             ['reviews','average'], ['reviews','avg']
