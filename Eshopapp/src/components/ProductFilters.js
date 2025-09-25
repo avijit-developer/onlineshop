@@ -479,18 +479,6 @@ const ProductFilters = ({
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {filterOptions?.childCategories && filterOptions.childCategories.length > 0 &&
               renderSection('Categories', 'categories', renderChildCategories())}
-            {filterOptions?.priceRange &&
-              renderSection('Price Range', 'price', renderPriceFilter())}
-            {filterOptions?.brands && filterOptions.brands.length > 0 &&
-              renderSection('Brands', 'brands', renderBrandsFilter())}
-          {filterOptions?.attributes && filterOptions.attributes.length > 0 &&
-            renderSection('Attributes', 'attributes', renderAttributesFilter())}
-            {filterOptions?.productTypes && filterOptions.productTypes.length > 0 &&
-              renderSection('Product Type', 'productType', renderProductTypeFilter())}
-            {filterOptions?.availability && filterOptions.availability.length > 0 &&
-              renderSection('Availability', 'availability', renderAvailabilityFilter())}
-            {filterOptions?.ratings && filterOptions.ratings.length > 0 &&
-              renderSection('Rating', 'rating', renderRatingFilter())}
             {renderSection('Sort By', 'sort', renderSortOptions())}
           </ScrollView>
 
