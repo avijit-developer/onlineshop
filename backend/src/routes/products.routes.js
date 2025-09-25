@@ -740,6 +740,17 @@ router.get('/public', async (req, res) => {
       
       const aggregationPipeline = [
         { $match: filters },
+      ];
+      // If filtering by variant attributes, limit products to those having matching variants
+      if (variantAttrMatch) {
+        aggregationPipeline.push(
+          { $unwind: '$variants' },
+          { $match: variantAttrMatch },
+          { $group: { _id: '$_id', doc: { $first: '$$ROOT' } } },
+          { $replaceRoot: { newRoot: '$doc' } },
+        );
+      }
+      aggregationPipeline.push(
         {
           $addFields: {
             effectivePrice: {
@@ -788,13 +799,26 @@ router.get('/public', async (req, res) => {
             'brand.name': 1
           }
         }
-      ];
+      );
       
       // Strip vendorSpecialPrice from variants if present in aggregation result
-      [items, total] = await Promise.all([
-        Product.aggregate(aggregationPipeline),
-        Product.countDocuments(filters)
-      ]);
+      if (variantAttrMatch) {
+        [items, total] = await Promise.all([
+          Product.aggregate(aggregationPipeline),
+          Product.aggregate([
+            { $match: filters },
+            { $unwind: '$variants' },
+            { $match: variantAttrMatch },
+            { $group: { _id: '$_id' } },
+            { $count: 'count' }
+          ]).then(r => (r && r[0] && r[0].count) || 0)
+        ]);
+      } else {
+        [items, total] = await Promise.all([
+          Product.aggregate(aggregationPipeline),
+          Product.countDocuments(filters)
+        ]);
+      }
       items = (items || []).map(doc => ({
         ...doc,
         variants: Array.isArray(doc.variants) ? doc.variants.map(v => {
