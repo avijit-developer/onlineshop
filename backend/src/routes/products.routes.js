@@ -751,14 +751,58 @@ router.get('/public', async (req, res) => {
         );
       }
       aggregationPipeline.push(
+        // Compute effective price with robust fallbacks:
+        // 1) specialPrice if present
+        // 2) regularPrice if present
+        // 3) lowest variant specialPrice/price if variants exist
+        {
+          $addFields: {
+            _variantEffectivePrices: {
+              $cond: [
+                { $gt: [{ $size: { $ifNull: ['$variants', []] } }, 0] },
+                {
+                  $map: {
+                    input: '$variants',
+                    as: 'v',
+                    in: {
+                      $cond: [
+                        { $ne: ['$$v.specialPrice', null] },
+                        '$$v.specialPrice',
+                        '$$v.price'
+                      ]
+                    }
+                  }
+                },
+                []
+              ]
+            }
+          }
+        },
+        {
+          $addFields: {
+            _lowestVariantPrice: {
+              $cond: [
+                { $gt: [{ $size: '$_variantEffectivePrices' }, 0] },
+                { $min: '$_variantEffectivePrices' },
+                null
+              ]
+            }
+          }
+        },
         {
           $addFields: {
             effectivePrice: {
-              $cond: {
-                if: { $ne: ['$specialPrice', null] },
-                then: '$specialPrice',
-                else: '$regularPrice'
-              }
+              $cond: [
+                { $ne: ['$specialPrice', null] },
+                '$specialPrice',
+                {
+                  $cond: [
+                    { $ne: ['$regularPrice', null] },
+                    '$regularPrice',
+                    { $ifNull: ['$_lowestVariantPrice', 0] }
+                  ]
+                }
+              ]
             }
           }
         },
