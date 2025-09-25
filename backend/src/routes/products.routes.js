@@ -838,7 +838,11 @@ router.get('/public', async (req, res) => {
             }
           }
         },
-        // effectivePrice will be set to min or max later depending on sort order
+        {
+          $addFields: {
+            effectivePrice: sortBy === 'price_low' ? { $min: '$_allPrices' } : { $max: '$_allPrices' }
+          }
+        },
         { $sort: { effectivePrice: sortDirection } },
         { $skip: (pageNum - 1) * perPage },
         { $limit: perPage },
