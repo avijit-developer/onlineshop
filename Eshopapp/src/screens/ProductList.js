@@ -210,7 +210,8 @@ const ProductList = () => {
   const loadFilterOptions = useCallback(async () => {
     try {
       setFilterLoading(true);
-      const res = await api.getProductFilters({ category: categoryId });
+      const effectiveCategory = currentFilters.category != null ? currentFilters.category : categoryId;
+      const res = await api.getProductFilters({ category: effectiveCategory, includeDescendants: true });
       if (res?.success && res?.data) {
         setFilterOptions(res.data);
         // Initialize price range from filter options

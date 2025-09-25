@@ -35,6 +35,7 @@ const ProductFilters = ({
   const [expandedSections, setExpandedSections] = useState({
     price: true,
     brands: true,
+    attributes: true,
     productType: true,
     availability: true,
     rating: true,
@@ -116,7 +117,8 @@ const ProductFilters = ({
       productType: 'all',
       availability: 'all',
       minRating: 0,
-      sortBy: 'newest'
+      sortBy: 'newest',
+      attributes: {}
     });
   };
 

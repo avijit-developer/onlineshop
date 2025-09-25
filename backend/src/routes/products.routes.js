@@ -331,13 +331,13 @@ router.patch('/:id/enabled', authenticate, requireRole(['admin','vendor']), requ
 // Public: Get filter options for products (aggregation)
 router.get('/public/filters', async (req, res) => {
   try {
-    const { category } = req.query;
+    const { category, includeDescendants } = req.query;
     const baseFilters = { enabled: true };
     let filters = { ...baseFilters };
     let resolvedCategoryId = null;
 
     if (category) {
-      // Resolve id/name/slug; use only the selected category (no descendants)
+      // Resolve id/name/slug; include descendants if requested (default true)
       resolvedCategoryId = String(category);
       try {
         if (!mongoose.Types.ObjectId.isValid(resolvedCategoryId)) {
@@ -350,7 +350,21 @@ router.get('/public/filters', async (req, res) => {
         }
       } catch (_) {}
       if (mongoose.Types.ObjectId.isValid(resolvedCategoryId)) {
-        filters.category = new mongoose.Types.ObjectId(resolvedCategoryId);
+        const expand = String(includeDescendants ?? 'true').toLowerCase() === 'true';
+        if (expand) {
+          const allIds = new Set([resolvedCategoryId]);
+          let frontier = [resolvedCategoryId];
+          while (frontier.length > 0) {
+            const children = await Category.find({ parent: { $in: frontier } }).select('_id').lean();
+            const newIds = children.map(c => String(c._id)).filter(id => !allIds.has(id));
+            if (newIds.length === 0) break;
+            newIds.forEach(id => allIds.add(id));
+            frontier = newIds;
+          }
+          filters.category = { $in: Array.from(allIds).map(id => new mongoose.Types.ObjectId(id)) };
+        } else {
+          filters.category = new mongoose.Types.ObjectId(resolvedCategoryId);
+        }
       }
     }
 
