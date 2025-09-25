@@ -758,7 +758,8 @@ router.get('/public', async (req, res) => {
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
     // Build attribute filters if provided (support both object and attributes[key] style)
-    let variantAttrMatch = null;
+    let variantAttrMatch = null; // simple $match structure
+    let variantAttrExpr = null; // $expr-based case-insensitive structure
     try {
       let attributesObj = null;
       if (attributes && typeof attributes === 'object') {
@@ -778,18 +779,42 @@ router.get('/public', async (req, res) => {
       }
       if (attributesObj && typeof attributesObj === 'object') {
         const attrConds = [];
+        const exprConds = [];
         for (const [attrKey, attrValuesRaw] of Object.entries(attributesObj)) {
           if (attrValuesRaw == null) continue;
           const values = Array.isArray(attrValuesRaw) ? attrValuesRaw : String(attrValuesRaw).split(',');
           const cleaned = values.map(v => String(v).trim()).filter(Boolean);
           if (cleaned.length === 0) continue;
-          // Build case-insensitive exact-match regex list to handle value casing differences
+          // Simple regex-based $match for direct string storage
           const regexes = cleaned.map(v => new RegExp('^' + String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'));
           const keyPath = `variants.attributes.${attrKey}`;
           attrConds.push({ [keyPath]: { $in: regexes } });
+          // $expr-based match for Map/object-to-array case-insensitive compare
+          const keyLower = String(attrKey).toLowerCase();
+          const valsLower = cleaned.map(v => String(v).toLowerCase());
+          exprConds.push({
+            $gt: [
+              { $size: {
+                $filter: {
+                  input: { $objectToArray: { $ifNull: ['$variants.attributes', {}] } },
+                  as: 'p',
+                  cond: {
+                    $and: [
+                      { $eq: [ { $toLower: '$$p.k' }, keyLower ] },
+                      { $in: [ { $toLower: '$$p.v' }, valsLower ] }
+                    ]
+                  }
+                }
+              } },
+              0
+            ]
+          });
         }
         if (attrConds.length > 0) {
           variantAttrMatch = { $and: attrConds };
+        }
+        if (exprConds.length > 0) {
+          variantAttrExpr = { $and: exprConds };
         }
       }
     } catch (_) {}
@@ -808,10 +833,11 @@ router.get('/public', async (req, res) => {
         { $match: filters },
       ];
       // If filtering by variant attributes, limit products to those having matching variants
-      if (variantAttrMatch) {
+      if (variantAttrMatch || variantAttrExpr) {
         aggregationPipeline.push(
           { $unwind: '$variants' },
-          { $match: variantAttrMatch },
+          ...(variantAttrExpr ? [ { $match: { $expr: variantAttrExpr } } ] : []),
+          ...(variantAttrMatch ? [ { $match: variantAttrMatch } ] : []),
           { $group: { _id: '$_id', doc: { $first: '$$ROOT' } } },
           { $replaceRoot: { newRoot: '$doc' } },
         );
@@ -973,10 +999,11 @@ router.get('/public', async (req, res) => {
         const ratingPipeline = [
           { $match: filtersForRating },
         ];
-        if (variantAttrMatch) {
+        if (variantAttrMatch || variantAttrExpr) {
           ratingPipeline.push(
             { $unwind: '$variants' },
-            { $match: variantAttrMatch },
+            ...(variantAttrExpr ? [ { $match: { $expr: variantAttrExpr } } ] : []),
+            ...(variantAttrMatch ? [ { $match: variantAttrMatch } ] : []),
             { $group: { _id: '$_id', doc: { $first: '$$ROOT' } } },
             { $replaceRoot: { newRoot: '$doc' } },
           );
@@ -1020,11 +1047,12 @@ router.get('/public', async (req, res) => {
           Product.aggregate(ratingPipeline),
           Product.countDocuments(filtersForRating)
         ]);
-      } else if (variantAttrMatch) {
+      } else if (variantAttrMatch || variantAttrExpr) {
         const basePipeline = [
           { $match: filters },
           { $unwind: '$variants' },
-          { $match: variantAttrMatch },
+          ...(variantAttrExpr ? [ { $match: { $expr: variantAttrExpr } } ] : []),
+          ...(variantAttrMatch ? [ { $match: variantAttrMatch } ] : []),
           {
             $group: {
               _id: '$_id',
