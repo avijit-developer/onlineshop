@@ -761,22 +761,21 @@ router.get('/public', async (req, res) => {
     let variantAttrMatch = null; // simple $match structure
     let variantAttrExpr = null; // $expr-based case-insensitive structure
     try {
-      let attributesObj = null;
+      // Build attributes object from both nested and bracketed query forms
+      let attributesObj = {};
       if (attributes && typeof attributes === 'object') {
-        attributesObj = attributes;
-      } else {
-        const parsed = {};
-        for (const key of Object.keys(req.query)) {
-          const m = /^attributes\[(.+?)\]$/.exec(key);
-          if (m) {
-            const attrKey = m[1];
-            const raw = req.query[key];
-            const vals = String(raw).split(',').map(s => s.trim()).filter(Boolean);
-            if (vals.length > 0) parsed[attrKey] = vals;
-          }
-        }
-        if (Object.keys(parsed).length > 0) attributesObj = parsed;
+        Object.assign(attributesObj, attributes);
       }
+      for (const key of Object.keys(req.query)) {
+        const m = /^attributes\[(.+?)\]$/.exec(key);
+        if (m) {
+          const attrKey = m[1];
+          const raw = req.query[key];
+          const vals = String(raw).split(',').map(s => s.trim()).filter(Boolean);
+          if (vals.length > 0) attributesObj[attrKey] = vals;
+        }
+      }
+      if (Object.keys(attributesObj).length === 0) attributesObj = null;
       if (attributesObj && typeof attributesObj === 'object') {
         const attrConds = [];
         const exprConds = [];
@@ -800,15 +799,15 @@ router.get('/public', async (req, res) => {
                   as: 'p',
                   cond: {
                     $and: [
-                      { $eq: [ { $toLower: { $convert: { input: '$$p.k', to: 'string', onError: '', onNull: '' } } }, keyLower ] },
+                      { $eq: [ { $toLower: { $trim: { input: { $convert: { input: '$$p.k', to: 'string', onError: '', onNull: '' } } } } }, keyLower ] },
                       {
                         $let: {
                           vars: {
                             vlist: {
                               $cond: [
                                 { $eq: [ { $type: '$$p.v' }, 'array' ] },
-                                { $map: { input: '$$p.v', as: 'vv', in: { $toLower: { $convert: { input: '$$vv', to: 'string', onError: '', onNull: '' } } } } },
-                                [ { $toLower: { $convert: { input: '$$p.v', to: 'string', onError: '', onNull: '' } } } ]
+                                { $map: { input: '$$p.v', as: 'vv', in: { $toLower: { $trim: { input: { $convert: { input: '$$vv', to: 'string', onError: '', onNull: '' } } } } } } },
+                                [ { $toLower: { $trim: { input: { $convert: { input: '$$p.v', to: 'string', onError: '', onNull: '' } } } } } ]
                               ]
                             }
                           },
