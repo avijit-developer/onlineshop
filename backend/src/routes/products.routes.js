@@ -868,12 +868,16 @@ router.get('/public', async (req, res) => {
             effectivePrice: {
               $cond: [
                 { $gt: [{ $size: '$_numericPrices' }, 0] },
-                (sortBy === 'price_low' ? { $min: '$_numericPrices' } : { $max: '$_numericPrices' }),
-                0
+                { $min: '$_numericPrices' },
+                null
               ]
             }
           }
         },
+        // Keep only products with an effective price
+        { $match: { effectivePrice: { $ne: null } } },
+        // Apply range if provided
+        { $match: { effectivePrice: { $gte: (minPrice ? parseFloat(minPrice) : 0), $lte: (maxPrice ? parseFloat(maxPrice) : Number.MAX_SAFE_INTEGER) } } },
         { $sort: { effectivePrice: sortDirection } },
         { $skip: (pageNum - 1) * perPage },
         { $limit: perPage },
