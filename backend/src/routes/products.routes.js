@@ -962,7 +962,62 @@ router.get('/public', async (req, res) => {
       }
     } else {
       // Use regular find for non-price sorting
-      if (variantAttrMatch) {
+      if (sortBy === 'rating') {
+        // Compute average rating from approved reviews and sort by it
+        const filtersForRating = { ...filters };
+        // Remove product.rating filter if present; we'll apply minRating to computed avg instead
+        if (Object.prototype.hasOwnProperty.call(filtersForRating, 'rating')) delete filtersForRating.rating;
+        const ratingPipeline = [
+          { $match: filtersForRating },
+        ];
+        if (variantAttrMatch) {
+          ratingPipeline.push(
+            { $unwind: '$variants' },
+            { $match: variantAttrMatch },
+            { $group: { _id: '$_id', doc: { $first: '$$ROOT' } } },
+            { $replaceRoot: { newRoot: '$doc' } },
+          );
+        }
+        ratingPipeline.push(
+          {
+            $lookup: {
+              from: 'reviews',
+              let: { pid: '$_id' },
+              pipeline: [
+                { $match: { $expr: { $and: [ { $eq: ['$product', '$$pid'] }, { $eq: ['$status', 'approved'] } ] } } },
+                { $project: { rating: 1 } }
+              ],
+              as: 'reviews'
+            }
+          },
+          {
+            $addFields: {
+              computedAvgRating: {
+                $cond: [ { $gt: [ { $size: '$reviews' }, 0 ] }, { $avg: '$reviews.rating' }, 0 ]
+              },
+              computedReviewsCount: { $size: '$reviews' }
+            }
+          },
+        );
+        // Apply minRating to computedAvgRating if provided
+        if (minRating) {
+          ratingPipeline.push({ $match: { computedAvgRating: { $gte: parseFloat(minRating) } } });
+        }
+        ratingPipeline.push(
+          { $sort: { computedAvgRating: -1, computedReviewsCount: -1, createdAt: -1 } },
+          { $skip: (pageNum - 1) * perPage },
+          { $limit: perPage },
+          { $lookup: { from: 'categories', localField: 'category', foreignField: '_id', as: 'category' } },
+          { $lookup: { from: 'brands', localField: 'brand', foreignField: '_id', as: 'brand' } },
+          { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+          { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+          { $project: { _id: 1, name: 1, images: 1, regularPrice: 1, specialPrice: 1, vendorRegularPrice: 1, productType: 1, variants: 1, stock: 1, rating: '$computedAvgRating', reviewsCount: '$computedReviewsCount', category: { name: '$category.name' }, brand: { name: '$brand.name' } } }
+        );
+        [items, total] = await Promise.all([
+          Product.aggregate(ratingPipeline),
+          Product.countDocuments(filtersForRating)
+        ]);
+      } else if (variantAttrMatch) {
         const basePipeline = [
           { $match: filters },
           { $unwind: '$variants' },

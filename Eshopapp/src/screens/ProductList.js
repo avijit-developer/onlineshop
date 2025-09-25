@@ -330,6 +330,15 @@ const ProductList = () => {
             if (pa === pb) return 0;
             return pa < pb ? -1 * dir : 1 * dir;
           });
+        } else if (sortKey === 'rating') {
+          items = items.slice().sort((a, b) => {
+            const ra = Number(a.rating || 0);
+            const rb = Number(b.rating || 0);
+            if (rb !== ra) return rb - ra;
+            const ca = Number(a.reviewsCount || 0);
+            const cb = Number(b.reviewsCount || 0);
+            return cb - ca;
+          });
         }
         if (mySeq !== listSeqRef.current) return; // stale
         const total = res?.meta?.total ?? 0;
