@@ -890,9 +890,8 @@ router.get('/public', async (req, res) => {
             productType: 1,
             variants: 1,
             stock: 1,
-            brand: 1,
-            'category.name': 1,
-            'brand.name': 1
+            category: { name: '$category.name' },
+            brand: { name: '$brand.name' }
           }
         }
       );
@@ -952,7 +951,7 @@ router.get('/public', async (req, res) => {
           { $lookup: { from: 'brands', localField: 'brand', foreignField: '_id', as: 'brand' } },
           { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
           { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
-          { $project: { _id: 1, name: 1, images: 1, regularPrice: 1, specialPrice: 1, vendorRegularPrice: 1, rating: 1, productType: 1, variants: 1, stock: 1, brand: 1, 'category.name': 1, 'brand.name': 1 } }
+          { $project: { _id: 1, name: 1, images: 1, regularPrice: 1, specialPrice: 1, vendorRegularPrice: 1, rating: 1, productType: 1, variants: 1, stock: 1, category: { name: '$category.name' }, brand: { name: '$brand.name' } } }
         ];
         [items, total] = await Promise.all([
           Product.aggregate(basePipeline),
