@@ -849,8 +849,10 @@ router.get('/public', async (req, res) => {
       if (variantAttrMatch || variantAttrExpr) {
         aggregationPipeline.push(
           { $unwind: '$variants' },
-          ...(variantAttrExpr ? [ { $match: { $expr: variantAttrExpr } } ] : []),
-          ...(variantAttrMatch ? [ { $match: variantAttrMatch } ] : []),
+          { $match: { $or: [
+            ...(variantAttrExpr ? [ { $expr: variantAttrExpr } ] : []),
+            ...(variantAttrMatch ? [ variantAttrMatch ] : [])
+          ] } },
           { $group: { _id: '$_id', doc: { $first: '$$ROOT' } } },
           { $replaceRoot: { newRoot: '$doc' } },
         );
@@ -1015,8 +1017,10 @@ router.get('/public', async (req, res) => {
         if (variantAttrMatch || variantAttrExpr) {
           ratingPipeline.push(
             { $unwind: '$variants' },
-            ...(variantAttrExpr ? [ { $match: { $expr: variantAttrExpr } } ] : []),
-            ...(variantAttrMatch ? [ { $match: variantAttrMatch } ] : []),
+            { $match: { $or: [
+              ...(variantAttrExpr ? [ { $expr: variantAttrExpr } ] : []),
+              ...(variantAttrMatch ? [ variantAttrMatch ] : [])
+            ] } },
             { $group: { _id: '$_id', doc: { $first: '$$ROOT' } } },
             { $replaceRoot: { newRoot: '$doc' } },
           );
@@ -1064,8 +1068,10 @@ router.get('/public', async (req, res) => {
         const basePipeline = [
           { $match: filters },
           { $unwind: '$variants' },
-          ...(variantAttrExpr ? [ { $match: { $expr: variantAttrExpr } } ] : []),
-          ...(variantAttrMatch ? [ { $match: variantAttrMatch } ] : []),
+          { $match: { $or: [
+            ...(variantAttrExpr ? [ { $expr: variantAttrExpr } ] : []),
+            ...(variantAttrMatch ? [ variantAttrMatch ] : [])
+          ] } },
           {
             $group: {
               _id: '$_id',
@@ -1084,7 +1090,16 @@ router.get('/public', async (req, res) => {
         ];
         [items, total] = await Promise.all([
           Product.aggregate(basePipeline),
-          Product.aggregate([{ $match: filters }, { $unwind: '$variants' }, { $match: variantAttrMatch }, { $group: { _id: '$_id' } }, { $count: 'count' }]).then(r => (r && r[0] && r[0].count) || 0)
+          Product.aggregate([
+            { $match: filters },
+            { $unwind: '$variants' },
+            { $match: { $or: [
+              ...(variantAttrExpr ? [ { $expr: variantAttrExpr } ] : []),
+              ...(variantAttrMatch ? [ variantAttrMatch ] : [])
+            ] } },
+            { $group: { _id: '$_id' } },
+            { $count: 'count' }
+          ]).then(r => (r && r[0] && r[0].count) || 0)
         ]);
       } else {
         [items, total] = await Promise.all([
