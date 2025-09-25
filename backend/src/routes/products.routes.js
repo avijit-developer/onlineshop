@@ -780,10 +780,13 @@ router.get('/public', async (req, res) => {
         const attrConds = [];
         for (const [attrKey, attrValuesRaw] of Object.entries(attributesObj)) {
           if (attrValuesRaw == null) continue;
-          const values = Array.isArray(attrValuesRaw) ? attrValuesRaw.filter(Boolean) : String(attrValuesRaw).split(',').map(s => s.trim()).filter(Boolean);
-          if (values.length === 0) continue;
+          const values = Array.isArray(attrValuesRaw) ? attrValuesRaw : String(attrValuesRaw).split(',');
+          const cleaned = values.map(v => String(v).trim()).filter(Boolean);
+          if (cleaned.length === 0) continue;
+          // Build case-insensitive exact-match regex list to handle value casing differences
+          const regexes = cleaned.map(v => new RegExp('^' + String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'));
           const keyPath = `variants.attributes.${attrKey}`;
-          attrConds.push({ [keyPath]: { $in: values } });
+          attrConds.push({ [keyPath]: { $in: regexes } });
         }
         if (attrConds.length > 0) {
           variantAttrMatch = { $and: attrConds };
