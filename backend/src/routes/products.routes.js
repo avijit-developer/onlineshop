@@ -634,55 +634,62 @@ router.get('/public', async (req, res) => {
       console.log('⚠️ No category specified - will show all products');
     }
 
-    // Apply price filters - prefer product specialPrice, else regularPrice, and also accept variant prices
+    // Apply price filters - numeric-safe using $expr: consider product specialPrice/regularPrice and variant prices
     if (minPrice || maxPrice) {
       const minPriceVal = minPrice ? parseFloat(minPrice) : 0;
       const maxPriceVal = maxPrice ? parseFloat(maxPrice) : Number.MAX_SAFE_INTEGER;
       
       console.log('💰 Price filtering:', { minPrice: minPriceVal, maxPrice: maxPriceVal });
       
-      // Create price filter with preference for product specialPrice when it exists; include variants as well
-      const priceFilter = {
+      // Numeric-aware price filter using $expr and $convert
+      const priceExpr = {
         $or: [
-          // If specialPrice exists, it must fall within range
-          {
-            $and: [
-              { specialPrice: { $exists: true, $ne: null } },
-              { specialPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
+          { $expr: { $and: [
+            { $ne: ['$specialPrice', null] },
+            { $gte: [ { $convert: { input: '$specialPrice', to: 'double', onError: minPriceVal - 1, onNull: minPriceVal - 1 } }, minPriceVal ] },
+            { $lte: [ { $convert: { input: '$specialPrice', to: 'double', onError: maxPriceVal + 1, onNull: maxPriceVal + 1 } }, maxPriceVal ] }
+          ] } },
+          { $expr: { $and: [
+            { $or: [ { $eq: ['$specialPrice', null] }, { $not: '$specialPrice' } ] },
+            { $ne: ['$regularPrice', null] },
+            { $gte: [ { $convert: { input: '$regularPrice', to: 'double', onError: minPriceVal - 1, onNull: minPriceVal - 1 } }, minPriceVal ] },
+            { $lte: [ { $convert: { input: '$regularPrice', to: 'double', onError: maxPriceVal + 1, onNull: maxPriceVal + 1 } }, maxPriceVal ] }
+          ] } },
+          { $expr: {
+            $gt: [
+              { $size: {
+                $filter: {
+                  input: {
+                    $map: {
+                      input: { $ifNull: ['$variants', []] },
+                      as: 'v',
+                      in: {
+                        $convert: {
+                          input: { $cond: [ { $ne: ['$$v.specialPrice', null] }, '$$v.specialPrice', '$$v.price' ] },
+                          to: 'double', onError: null, onNull: null
+                        }
+                      }
+                    }
+                  },
+                  as: 'p',
+                  cond: { $and: [ { $ne: ['$$p', null] }, { $gte: ['$$p', minPriceVal] }, { $lte: ['$$p', maxPriceVal] } ] }
+                }
+              } },
+              0
             ]
-          },
-          // If specialPrice does not exist, fallback to regularPrice range
-          {
-            $and: [
-              { $or: [ { specialPrice: { $exists: false } }, { specialPrice: null } ] },
-              { regularPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
-            ]
-          },
-          // Accept products whose any variant price falls in range
-          {
-            variants: {
-              $elemMatch: {
-                $or: [
-                  { specialPrice: { $gte: minPriceVal, $lte: maxPriceVal } },
-                  { price: { $gte: minPriceVal, $lte: maxPriceVal } }
-                ]
-              }
-            }
-          }
+          } }
         ]
       };
-      
-      // If we already have $or filters (from search), combine them with $and
-      if (filters.$or) {
-        const searchFilters = filters.$or;
-        filters.$and = [
-          { $or: searchFilters },
-          { $or: priceFilter.$or }
-        ];
-        delete filters.$or; // Remove the old $or
+
+      // Merge priceExpr into filters, preserving existing search $or if any
+      if (filters.$and) {
+        filters.$and.push(priceExpr);
+      } else if (filters.$or) {
+        const existingOr = filters.$or;
+        delete filters.$or;
+        filters.$and = [ { $or: existingOr }, priceExpr ];
       } else {
-        // No existing $or filters, use price filter directly
-        filters.$or = priceFilter.$or;
+        filters.$and = [ priceExpr ];
       }
       
       console.log('🔍 Final filters object:', JSON.stringify(filters, null, 2));
