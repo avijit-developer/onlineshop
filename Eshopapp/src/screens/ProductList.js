@@ -119,10 +119,11 @@ const ProductList = () => {
           return ({
             id: p._id || p.id,
             name: p.name,
-            price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
+            price: '₹' + (p.effectivePrice ?? p.specialPrice ?? p.regularPrice ?? 0),
             oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
             regularPrice: p.regularPrice ?? null,
             specialPrice: p.specialPrice ?? null,
+            effectivePrice: p.effectivePrice ?? null,
             tags: Array.isArray(p.tags)
               ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
               : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
@@ -305,10 +306,11 @@ const ProductList = () => {
           return ({
             id: p._id || p.id,
             name: p.name,
-            price: '₹' + (p.specialPrice ?? p.regularPrice ?? 0),
+            price: '₹' + (p.effectivePrice ?? p.specialPrice ?? p.regularPrice ?? 0),
             oldPrice: p.specialPrice != null ? ('₹' + (p.regularPrice ?? '')) : null,
             regularPrice: p.regularPrice ?? null,
             specialPrice: p.specialPrice ?? null,
+            effectivePrice: p.effectivePrice ?? null,
             tags: Array.isArray(p.tags)
               ? p.tags.map(v => (typeof v === 'string' ? v : (v && (v.name || v.label || v.title)))).filter(Boolean)
               : (typeof p.tags === 'string' ? p.tags.split(',').map(s => s.trim()).filter(Boolean) : []),
