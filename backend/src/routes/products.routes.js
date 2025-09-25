@@ -593,14 +593,14 @@ router.get('/public', async (req, res) => {
       console.log('⚠️ No category specified - will show all products');
     }
 
-        // Apply price filters - prefer specialPrice when present, otherwise use regularPrice
+    // Apply price filters - prefer product specialPrice, else regularPrice, and also accept variant prices
     if (minPrice || maxPrice) {
       const minPriceVal = minPrice ? parseFloat(minPrice) : 0;
       const maxPriceVal = maxPrice ? parseFloat(maxPrice) : Number.MAX_SAFE_INTEGER;
       
       console.log('💰 Price filtering:', { minPrice: minPriceVal, maxPrice: maxPriceVal });
       
-      // Create price filter with preference for specialPrice when it exists
+      // Create price filter with preference for product specialPrice when it exists; include variants as well
       const priceFilter = {
         $or: [
           // If specialPrice exists, it must fall within range
@@ -616,6 +616,17 @@ router.get('/public', async (req, res) => {
               { $or: [ { specialPrice: { $exists: false } }, { specialPrice: null } ] },
               { regularPrice: { $gte: minPriceVal, $lte: maxPriceVal } }
             ]
+          },
+          // Accept products whose any variant price falls in range
+          {
+            variants: {
+              $elemMatch: {
+                $or: [
+                  { specialPrice: { $gte: minPriceVal, $lte: maxPriceVal } },
+                  { price: { $gte: minPriceVal, $lte: maxPriceVal } }
+                ]
+              }
+            }
           }
         ]
       };
