@@ -310,6 +310,7 @@ const api = {
   async getProductFilters(params = {}) {
     const parts = [];
     if (params.category) parts.push('category=' + encodeURIComponent(String(params.category)));
+    if (params.includeDescendants != null) parts.push('includeDescendants=' + encodeURIComponent(String(params.includeDescendants)));
     // Pass current attribute selections to compute dependent facets (optional)
     if (params.attributes && typeof params.attributes === 'object') {
       for (const [key, values] of Object.entries(params.attributes)) {
