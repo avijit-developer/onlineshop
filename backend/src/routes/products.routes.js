@@ -368,17 +368,58 @@ router.get('/public/filters', async (req, res) => {
       }
     }
 
-    // Get price range - consider both special and regular prices
+    // Get price range - consider product prices and variant prices
     const priceStats = await Product.aggregate([
       { $match: filters },
+      // Compute variant-level effective prices and choose lowest
+      {
+        $addFields: {
+          _variantEffectivePrices: {
+            $cond: [
+              { $gt: [{ $size: { $ifNull: ['$variants', []] } }, 0] },
+              {
+                $map: {
+                  input: '$variants',
+                  as: 'v',
+                  in: {
+                    $cond: [
+                      { $ne: ['$$v.specialPrice', null] },
+                      '$$v.specialPrice',
+                      '$$v.price'
+                    ]
+                  }
+                }
+              },
+              []
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          _lowestVariantPrice: {
+            $cond: [
+              { $gt: [{ $size: '$_variantEffectivePrices' }, 0] },
+              { $min: '$_variantEffectivePrices' },
+              null
+            ]
+          }
+        }
+      },
       {
         $addFields: {
           effectivePrice: {
-            $cond: {
-              if: { $ne: ['$specialPrice', null] },
-              then: '$specialPrice',
-              else: '$regularPrice'
-            }
+            $cond: [
+              { $ne: ['$specialPrice', null] },
+              '$specialPrice',
+              {
+                $cond: [
+                  { $ne: ['$regularPrice', null] },
+                  '$regularPrice',
+                  { $ifNull: ['$_lowestVariantPrice', 0] }
+                ]
+              }
+            ]
           }
         }
       },
