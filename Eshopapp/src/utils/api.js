@@ -293,6 +293,15 @@ const api = {
     if (params.availability) parts.push('availability=' + encodeURIComponent(String(params.availability)));
     if (params.minRating != null) parts.push('minRating=' + encodeURIComponent(String(params.minRating)));
     if (params.sortBy) parts.push('sortBy=' + encodeURIComponent(String(params.sortBy)));
+    if (params.includeDescendants != null) parts.push('includeDescendants=' + encodeURIComponent(String(params.includeDescendants)));
+    // Flatten attributes map to query params: attributes[color]=Red,Blue
+    if (params.attributes && typeof params.attributes === 'object') {
+      for (const [key, values] of Object.entries(params.attributes)) {
+        if (values == null) continue;
+        const list = Array.isArray(values) ? values.join(',') : String(values);
+        parts.push(`attributes[${encodeURIComponent(key)}]=` + encodeURIComponent(list));
+      }
+    }
     const qs = parts.length ? '?' + parts.join('&') : '';
     return this.request(`/api/v1/products/public${qs}`);
   },
@@ -301,6 +310,14 @@ const api = {
   async getProductFilters(params = {}) {
     const parts = [];
     if (params.category) parts.push('category=' + encodeURIComponent(String(params.category)));
+    // Pass current attribute selections to compute dependent facets (optional)
+    if (params.attributes && typeof params.attributes === 'object') {
+      for (const [key, values] of Object.entries(params.attributes)) {
+        if (values == null) continue;
+        const list = Array.isArray(values) ? values.join(',') : String(values);
+        parts.push(`attributes[${encodeURIComponent(key)}]=` + encodeURIComponent(list));
+      }
+    }
     const qs = parts.length ? '?' + parts.join('&') : '';
     return this.request(`/api/v1/products/public/filters${qs}`);
   },

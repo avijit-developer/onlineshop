@@ -461,6 +461,26 @@ router.get('/public/filters', async (req, res) => {
       }
     }
 
+    // Get variant attribute facets (derived from variants.attributes Map)
+    let attributeFacets = [];
+    try {
+      const attrAgg = await Product.aggregate([
+        { $match: filters },
+        { $unwind: '$variants' },
+        {
+          $addFields: {
+            attrPairs: { $objectToArray: { $ifNull: ['$variants.attributes', {}] } }
+          }
+        },
+        { $unwind: '$attrPairs' },
+        { $group: { _id: { key: '$attrPairs.k', value: '$attrPairs.v' }, count: { $sum: 1 } } },
+        { $group: { _id: '$_id.key', values: { $push: { value: '$_id.value', count: '$count' } } } },
+        { $project: { _id: 0, key: '$_id', values: 1 } },
+        { $sort: { key: 1 } }
+      ]);
+      attributeFacets = (attrAgg || []).map(a => ({ key: a.key, values: a.values }));
+    } catch (_) {}
+
     const filterOptions = {
       priceRange: priceStats[0] ? {
         min: Math.floor(priceStats[0].minPrice),
@@ -471,7 +491,8 @@ router.get('/public/filters', async (req, res) => {
       productTypes: productTypes.map(t => ({ type: t._id, count: t.count })),
       availability: availability.map(a => ({ status: a._id, count: a.count })),
       ratings: ratings.map(r => ({ range: r._id, count: r.count })),
-      childCategories
+      childCategories,
+      attributes: attributeFacets
     };
 
     res.json({ success: true, data: filterOptions });
@@ -495,7 +516,9 @@ router.get('/public', async (req, res) => {
       availability,
       minRating,
       sortBy = 'newest',
-      includeDescendants
+      includeDescendants,
+      // attribute filters: attributes[color]=Red,Blue&attributes[size]=M
+      attributes
     } = req.query;
     
     console.log('🔍 Backend received request with category:', category);
@@ -656,6 +679,24 @@ router.get('/public', async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
+    // Build attribute filters if provided
+    let variantAttrMatch = null;
+    try {
+      if (attributes && typeof attributes === 'object') {
+        const attrConds = [];
+        for (const [attrKey, attrValuesRaw] of Object.entries(attributes)) {
+          if (attrValuesRaw == null) continue;
+          const values = String(attrValuesRaw).split(',').map(s => s.trim()).filter(Boolean);
+          if (values.length === 0) continue;
+          const keyPath = `variants.attributes.${attrKey}`;
+          attrConds.push({ [keyPath]: { $in: values } });
+        }
+        if (attrConds.length > 0) {
+          variantAttrMatch = { $and: attrConds };
+        }
+      }
+    } catch (_) {}
+
     let items, total;
     
     // Handle price sorting with aggregation for effective price calculation
@@ -737,17 +778,44 @@ router.get('/public', async (req, res) => {
       }
     } else {
       // Use regular find for non-price sorting
-      [items, total] = await Promise.all([
-        Product.find(filters)
-          .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
-          .populate('category', 'name')
-          .populate('brand', 'name')
-          .sort(sortOrder)
-          .skip((pageNum - 1) * perPage)
-          .limit(perPage)
-          .lean(),
-        Product.countDocuments(filters)
-      ]);
+      if (variantAttrMatch) {
+        const basePipeline = [
+          { $match: filters },
+          { $unwind: '$variants' },
+          { $match: variantAttrMatch },
+          {
+            $group: {
+              _id: '$_id',
+              doc: { $first: '$$ROOT' }
+            }
+          },
+          { $replaceRoot: { newRoot: '$doc' } },
+          { $sort: sortOrder },
+          { $skip: (pageNum - 1) * perPage },
+          { $limit: perPage },
+          { $lookup: { from: 'categories', localField: 'category', foreignField: '_id', as: 'category' } },
+          { $lookup: { from: 'brands', localField: 'brand', foreignField: '_id', as: 'brand' } },
+          { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+          { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+          { $project: { _id: 1, name: 1, images: 1, regularPrice: 1, specialPrice: 1, vendorRegularPrice: 1, rating: 1, productType: 1, variants: 1, stock: 1, brand: 1, 'category.name': 1, 'brand.name': 1 } }
+        ];
+        [items, total] = await Promise.all([
+          Product.aggregate(basePipeline),
+          Product.aggregate([{ $match: filters }, { $unwind: '$variants' }, { $match: variantAttrMatch }, { $group: { _id: '$_id' } }, { $count: 'count' }]).then(r => (r && r[0] && r[0].count) || 0)
+        ]);
+      } else {
+        [items, total] = await Promise.all([
+          Product.find(filters)
+            .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+            .populate('category', 'name')
+            .populate('brand', 'name')
+            .sort(sortOrder)
+            .skip((pageNum - 1) * perPage)
+            .limit(perPage)
+            .lean(),
+          Product.countDocuments(filters)
+        ]);
+      }
       // Strip vendorSpecialPrice from variants if present
       items = (items || []).map(doc => ({
         ...doc,

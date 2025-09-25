@@ -28,7 +28,8 @@ const ProductFilters = ({
     productType: 'all',
     availability: 'all',
     minRating: 0,
-    sortBy: 'newest'
+    sortBy: 'newest',
+    attributes: {}
   });
   
   const [expandedSections, setExpandedSections] = useState({
@@ -132,6 +133,7 @@ const ProductFilters = ({
     if (filters.productType !== 'all') count++;
     if (filters.availability !== 'all') count++;
     if (filters.minRating > 0) count++;
+    if (filters.attributes && Object.values(filters.attributes).some(v => Array.isArray(v) ? v.length > 0 : !!v)) count++;
     if (filters.category && filters.category !== 'all') count++;
     if (filters.sortBy !== 'newest') count++;
     return count;
@@ -291,6 +293,55 @@ const ProductFilters = ({
     </View>
   );
 
+  const toggleAttributeValue = (key, value) => {
+    setFilters(prev => {
+      const current = prev.attributes?.[key] || [];
+      const exists = current.includes(value);
+      const nextValues = exists ? current.filter(v => v !== value) : [...current, value];
+      return {
+        ...prev,
+        attributes: {
+          ...(prev.attributes || {}),
+          [key]: nextValues
+        }
+      };
+    });
+  };
+
+  const renderAttributesFilter = () => (
+    <View style={styles.optionsContainer}>
+      {filterOptions?.attributes && filterOptions.attributes.length > 0 ? (
+        filterOptions.attributes.map(group => (
+          <View key={group.key} style={{ marginBottom: 12 }}>
+            <Text style={{ fontWeight: '600', color: '#333', marginBottom: 6 }}>{group.key}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {group.values.map(opt => (
+                <TouchableOpacity
+                  key={group.key + ':' + String(opt.value)}
+                  style={[
+                    styles.optionChip,
+                    (filters.attributes?.[group.key] || []).includes(opt.value) && styles.optionChipSelected
+                  ]}
+                  onPress={() => toggleAttributeValue(group.key, opt.value)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.optionChipText,
+                    (filters.attributes?.[group.key] || []).includes(opt.value) && styles.optionChipTextSelected
+                  ]}>
+                    {String(opt.value)} ({opt.count})
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))
+      ) : (
+        <Text style={styles.noOptionsText}>No attributes available</Text>
+      )}
+    </View>
+  );
+
   const renderProductTypeFilter = () => (
     <View style={styles.optionsContainer}>
       {filterOptions?.productTypes?.length > 0 ? (
@@ -430,6 +481,8 @@ const ProductFilters = ({
               renderSection('Price Range', 'price', renderPriceFilter())}
             {filterOptions?.brands && filterOptions.brands.length > 0 &&
               renderSection('Brands', 'brands', renderBrandsFilter())}
+          {filterOptions?.attributes && filterOptions.attributes.length > 0 &&
+            renderSection('Attributes', 'attributes', renderAttributesFilter())}
             {filterOptions?.productTypes && filterOptions.productTypes.length > 0 &&
               renderSection('Product Type', 'productType', renderProductTypeFilter())}
             {filterOptions?.availability && filterOptions.availability.length > 0 &&

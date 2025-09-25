@@ -259,6 +259,17 @@ const ProductList = () => {
       } else if (sectionName) {
         params.sectionName = sectionName;
       }
+
+      // Normalize empty attributes
+      if (params.attributes && typeof params.attributes === 'object') {
+        const cleaned = {};
+        Object.entries(params.attributes).forEach(([k, v]) => {
+          const arr = Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []);
+          if (arr.length > 0) cleaned[k] = arr;
+        });
+        params.attributes = cleaned;
+        if (Object.keys(cleaned).length === 0) delete params.attributes;
+      }
       
       // Remove undefined values
       Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
