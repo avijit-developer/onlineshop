@@ -796,6 +796,10 @@ router.get('/public', async (req, res) => {
     // Handle price sorting with aggregation for effective price calculation
     if (sortBy === 'price_low' || sortBy === 'price_high') {
       const sortDirection = sortBy === 'price_low' ? 1 : -1;
+      const rangeMin = minPrice != null ? parseFloat(minPrice) : null;
+      const rangeMax = maxPrice != null ? parseFloat(maxPrice) : null;
+      const minBound = Number.isFinite(rangeMin) ? rangeMin : -1e12;
+      const maxBound = Number.isFinite(rangeMax) ? rangeMax : 1e12;
       
       const aggregationPipeline = [
         { $match: filters },
@@ -863,21 +867,26 @@ router.get('/public', async (req, res) => {
             }
           }
         },
+        // Compute in-range prices only, based on selected slider bounds
         {
           $addFields: {
-            effectivePrice: {
-              $cond: [
-                { $gt: [{ $size: '$_numericPrices' }, 0] },
-                { $min: '$_numericPrices' },
-                null
-              ]
+            _inRangePrices: {
+              $filter: {
+                input: '$_numericPrices',
+                as: 'x',
+                cond: { $and: [ { $gte: ['$$x', minBound] }, { $lte: ['$$x', maxBound] } ] }
+              }
             }
           }
         },
-        // Keep only products with an effective price
-        { $match: { effectivePrice: { $ne: null } } },
-        // Apply range if provided
-        { $match: { effectivePrice: { $gte: (minPrice ? parseFloat(minPrice) : 0), $lte: (maxPrice ? parseFloat(maxPrice) : Number.MAX_SAFE_INTEGER) } } },
+        // Keep only items that have at least one price in range
+        { $match: { $expr: { $gt: [ { $size: '$_inRangePrices' }, 0 ] } } },
+        // Effective price for sort: min of in-range for low, max of in-range for high
+        {
+          $addFields: {
+            effectivePrice: sortBy === 'price_low' ? { $min: '$_inRangePrices' } : { $max: '$_inRangePrices' }
+          }
+        },
         { $sort: { effectivePrice: sortDirection } },
         { $skip: (pageNum - 1) * perPage },
         { $limit: perPage },
