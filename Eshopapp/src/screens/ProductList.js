@@ -240,9 +240,9 @@ const ProductList = () => {
         limit: 20,
         ...filters,
         brands: filters.brands.length > 0 ? filters.brands.join(',') : undefined,
-        // Only send min/max if user moved slider from defaults
-        minPrice: (filterOptions?.priceRange && filters.priceRange[0] !== filterOptions.priceRange.min) ? filters.priceRange[0] : undefined,
-        maxPrice: (filterOptions?.priceRange && filters.priceRange[1] !== filterOptions.priceRange.max) ? filters.priceRange[1] : undefined
+        // Always reflect the selected priceRange in the query
+        minPrice: filters.priceRange[0],
+        maxPrice: filters.priceRange[1]
       };
       
       // Ensure category: prefer selected child category, else lock to parent category if available
