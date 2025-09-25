@@ -644,9 +644,14 @@ router.get('/public', async (req, res) => {
 
     // Apply brand filters
     if (brands) {
-      const brandIds = brands.split(',').map(id => id.trim());
+      const brandIds = brands.split(',').map(id => id.trim()).filter(Boolean);
       if (brandIds.length > 0) {
-        filters.brand = { $in: brandIds };
+        const brandObjIds = brandIds
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+        if (brandObjIds.length > 0) {
+          filters.brand = { $in: brandObjIds };
+        }
       }
     }
 
@@ -693,14 +698,30 @@ router.get('/public', async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
-    // Build attribute filters if provided
+    // Build attribute filters if provided (support both object and attributes[key] style)
     let variantAttrMatch = null;
     try {
+      let attributesObj = null;
       if (attributes && typeof attributes === 'object') {
+        attributesObj = attributes;
+      } else {
+        const parsed = {};
+        for (const key of Object.keys(req.query)) {
+          const m = /^attributes\[(.+?)\]$/.exec(key);
+          if (m) {
+            const attrKey = m[1];
+            const raw = req.query[key];
+            const vals = String(raw).split(',').map(s => s.trim()).filter(Boolean);
+            if (vals.length > 0) parsed[attrKey] = vals;
+          }
+        }
+        if (Object.keys(parsed).length > 0) attributesObj = parsed;
+      }
+      if (attributesObj && typeof attributesObj === 'object') {
         const attrConds = [];
-        for (const [attrKey, attrValuesRaw] of Object.entries(attributes)) {
+        for (const [attrKey, attrValuesRaw] of Object.entries(attributesObj)) {
           if (attrValuesRaw == null) continue;
-          const values = String(attrValuesRaw).split(',').map(s => s.trim()).filter(Boolean);
+          const values = Array.isArray(attrValuesRaw) ? attrValuesRaw.filter(Boolean) : String(attrValuesRaw).split(',').map(s => s.trim()).filter(Boolean);
           if (values.length === 0) continue;
           const keyPath = `variants.attributes.${attrKey}`;
           attrConds.push({ [keyPath]: { $in: values } });
