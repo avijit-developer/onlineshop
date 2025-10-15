@@ -21,7 +21,7 @@ import { useUser } from '../contexts/UserContext';
 const ProfileEditScreen = () => {
   const navigation = useNavigation();
   const { user, updateUser } = useUser();
-  
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -57,7 +57,7 @@ const ProfileEditScreen = () => {
     const [first, last] = (name || '').split(' ');
     const initials = `${(first || '').charAt(0)}${(last || '').charAt(0)}`.toUpperCase() || 'U';
     return (
-      <View style={[styles.avatar, { backgroundColor: '#fde68a', alignItems: 'center', justifyContent: 'center' }]}> 
+      <View style={[styles.avatar, { backgroundColor: '#fde68a', alignItems: 'center', justifyContent: 'center' }]}>
         <Text style={{ color: '#92400e', fontWeight: '800', fontSize: 28 }}>{initials}</Text>
       </View>
     );
@@ -84,33 +84,7 @@ const ProfileEditScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const requestStoragePermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        // For Android 13+ (API level 33+), use READ_MEDIA_IMAGES
-        // For older versions, use READ_EXTERNAL_STORAGE
-        const permission = Platform.Version >= 33 
-          ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-          : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
 
-        const granted = await PermissionsAndroid.request(
-          permission,
-          {
-            title: 'Storage Permission',
-            message: 'App needs access to your photos to select profile pictures.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
 
   const requestCameraPermission = async () => {
     if (Platform.OS === 'android') {
@@ -153,23 +127,23 @@ const ProfileEditScreen = () => {
                 return;
               }
               launchCamera({ mediaType: 'photo', cameraType: 'front', saveToPhotos: true }, (response) => {
-                  if (response?.didCancel) return;
-                  if (response?.errorCode) {
-                    Alert.alert('Error', response.errorMessage || 'Failed to open camera');
-                    return;
+                if (response?.didCancel) return;
+                if (response?.errorCode) {
+                  Alert.alert('Error', response.errorMessage || 'Failed to open camera');
+                  return;
+                }
+                const asset = response?.assets && response.assets[0];
+                if (!asset?.uri) return;
+                setFormData(prev => ({
+                  ...prev,
+                  avatar: asset.uri,
+                  selectedImageFile: {
+                    uri: asset.uri,
+                    type: asset.type || 'image/jpeg',
+                    name: asset.fileName || 'profile.jpg'
                   }
-                  const asset = response?.assets && response.assets[0];
-                  if (!asset?.uri) return;
-                  setFormData(prev => ({
-                    ...prev,
-                    avatar: asset.uri,
-                    selectedImageFile: {
-                      uri: asset.uri,
-                      type: asset.type || 'image/jpeg',
-                      name: asset.fileName || 'profile.jpg'
-                    }
-                  }));
-                });
+                }));
+              });
             } catch (error) {
               console.error('Error taking photo:', error);
               if (error.code !== 'E_PICKER_CANCELLED') {
@@ -182,24 +156,25 @@ const ProfileEditScreen = () => {
           text: 'Gallery',
           onPress: async () => {
             try {
-              launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 }, (response) => {
-                  if (response?.didCancel) return;
-                  if (response?.errorCode) {
-                    Alert.alert('Error', response.errorMessage || 'Failed to pick image');
-                    return;
-                  }
-                  const asset = response?.assets && response.assets[0];
-                  if (!asset?.uri) return;
-                  setFormData(prev => ({
-                    ...prev,
-                    avatar: asset.uri,
-                    selectedImageFile: {
-                      uri: asset.uri,
-                      type: asset.type || 'image/jpeg',
-                      name: asset.fileName || 'profile.jpg'
-                    }
-                  }));
-                });
+              launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 }, response => {
+                if (response.didCancel) return;
+                if (response.errorCode) {
+                  Alert.alert('Error', response.errorMessage || 'Failed to pick image');
+                  return;
+                }
+                const asset = response.assets && response.assets[0];
+                if (!asset?.uri) return;
+                setFormData(prev => ({
+                  ...prev,
+                  avatar: asset.uri,
+                  selectedImageFile: {
+                    uri: asset.uri,
+                    type: asset.type || 'image/jpeg',
+                    name: asset.fileName || 'profile.jpg',
+                  },
+                }));
+              });
+
             } catch (error) {
               console.error('Error picking image:', error);
               if (error.code !== 'E_PICKER_CANCELLED') {
@@ -257,7 +232,7 @@ const ProfileEditScreen = () => {
           throw new Error(result.error || 'Failed to update profile');
         }
       }
-      
+
       if (Platform.OS === 'android') {
         ToastAndroid.show('Profile updated successfully', ToastAndroid.SHORT);
         navigation.goBack();
@@ -307,8 +282,8 @@ const ProfileEditScreen = () => {
           <Icon name="arrow-back-outline" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Edit Profile</Text>
-        <TouchableOpacity 
-          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={isLoading}
         >
@@ -393,8 +368,8 @@ const ProfileEditScreen = () => {
         </View>
 
         {/* Save Button */}
-        <TouchableOpacity 
-          style={[styles.saveButtonLarge, isLoading && styles.saveButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.saveButtonLarge, isLoading && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={isLoading}
         >
