@@ -3,13 +3,15 @@ import React from 'react';
 import { View, Text, Image, FlatList, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { useEffect, useState } from 'react';
 import api from '../utils/api';
+import Skeleton from './Skeleton';
 
 const { width: screenWidth } = Dimensions.get('window');
-const placeholder = require('../assets/cat1.png');
+// Remove hardcoded placeholder image; use skeletons instead
 
 const AllCategories = () => {
     const navigation = useNavigation();
     const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
     
     useEffect(() => {
         let mounted = true;
@@ -23,7 +25,7 @@ const AllCategories = () => {
                 }
             } catch (_) {
                 // ignore
-            }
+            } finally { if (mounted) setLoading(false); }
         })();
         return () => { mounted = false; };
     }, []);
@@ -35,11 +37,11 @@ const AllCategories = () => {
             activeOpacity={0.8}
         >
             <View style={styles.imageContainer}>
-                <Image 
-                    source={item.image ? { uri: item.image } : placeholder} 
-                    style={styles.categoryImage}
-                    defaultSource={placeholder}
-                />
+                {item.image ? (
+                    <Image source={{ uri: item.image }} style={styles.categoryImage} />
+                ) : (
+                    <Skeleton width={'100%'} height={'100%'} borderRadius={0} />
+                )}
                 <View style={styles.imageOverlay} />
             </View>
             <View style={styles.textContainer}>
@@ -57,16 +59,29 @@ const AllCategories = () => {
                 <Text style={styles.subtitle}>Explore our wide range of products</Text>
             </View>
             
-            <FlatList
-                data={categories}
-                keyExtractor={item => item.id}
-                renderItem={renderCategoryItem}
-                numColumns={2}
-                columnWrapperStyle={styles.row}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.listContainer}
-                scrollEnabled={false}
-            />
+            {loading && categories.length === 0 ? (
+                <View style={styles.listContainer}>
+                    <View style={styles.row}>
+                        <View style={styles.categoryCard}><View style={styles.imageContainer}><Skeleton width={'100%'} height={'100%'} borderRadius={0} /></View><View style={styles.textContainer}><Skeleton width={'80%'} height={16} /></View></View>
+                        <View style={styles.categoryCard}><View style={styles.imageContainer}><Skeleton width={'100%'} height={'100%'} borderRadius={0} /></View><View style={styles.textContainer}><Skeleton width={'70%'} height={16} /></View></View>
+                    </View>
+                    <View style={styles.row}>
+                        <View style={styles.categoryCard}><View style={styles.imageContainer}><Skeleton width={'100%'} height={'100%'} borderRadius={0} /></View><View style={styles.textContainer}><Skeleton width={'60%'} height={16} /></View></View>
+                        <View style={styles.categoryCard}><View style={styles.imageContainer}><Skeleton width={'100%'} height={'100%'} borderRadius={0} /></View><View style={styles.textContainer}><Skeleton width={'50%'} height={16} /></View></View>
+                    </View>
+                </View>
+            ) : (
+                <FlatList
+                    data={categories}
+                    keyExtractor={item => item.id}
+                    renderItem={renderCategoryItem}
+                    numColumns={2}
+                    columnWrapperStyle={styles.row}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.listContainer}
+                    scrollEnabled={false}
+                />
+            )}
         </View>
     );
 };
