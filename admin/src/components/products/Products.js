@@ -1354,8 +1354,8 @@ const Products = () => {
                     )}
                   </div>
                   {/* End Matrix Variant UI */}
-                  {/* Existing Variants UI */}
-                  {formData.variants && formData.variants.length > 0 && (
+                  {/* Existing Variants UI - hidden for vendor users */}
+                  {!isVendorUser && formData.variants && formData.variants.length > 0 && (
                     <div style={{ marginTop: 16 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                         <label>Current Variants</label>
