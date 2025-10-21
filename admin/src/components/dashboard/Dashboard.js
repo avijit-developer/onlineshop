@@ -47,6 +47,9 @@ const Dashboard = () => {
           if (json?.success) {
             let vendorsList = [];
             let vendorOrders = [];
+            let vendorSummary = null;
+            let vendorSalesData = null;
+            let vendorTopProducts = [];
             if (isVendor) {
               try {
                 const vres = await fetch(`${BASE}/api/v1/vendors?page=1&limit=100`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
@@ -54,14 +57,86 @@ const Dashboard = () => {
                   const vjson = await vres.json();
                   vendorsList = (vjson?.data || []).map(v => ({ id: v._id || v.id, companyName: v.companyName, status: v.status, enabled: v.enabled }));
                 }
-                const ores = await fetch(`${BASE}/api/v1/orders/vendor?page=1&limit=5`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                // Fetch a larger slice for stats
+                const ores = await fetch(`${BASE}/api/v1/orders/vendor?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
                 if (ores.ok) {
                   const ojson = await ores.json();
                   vendorOrders = ojson?.data || [];
+                  // Compute vendor summary metrics
+                  const sum = (arr, sel) => arr.reduce((acc, it) => acc + Number(sel(it) || 0), 0);
+                  const vendorSubtotalSum = sum(vendorOrders, o => o.vendorSubtotal);
+                  const vendorCommissionSum = sum(vendorOrders, o => (o.vendorCommission != null ? o.vendorCommission : 0));
+                  const vendorNetSum = sum(vendorOrders, o => (o.vendorNet != null ? o.vendorNet : (Number(o.vendorSubtotal || 0) - Number(o.vendorCommission || 0))));
+                  vendorSummary = {
+                    ordersCount: vendorOrders.length,
+                    subtotal: vendorSubtotalSum,
+                    commission: vendorCommissionSum,
+                    net: vendorNetSum,
+                  };
+                  // Build vendor sales series
+                  const daily = Array(7).fill(0); // Mon..Sun
+                  const weekly = Array(7).fill(0); // last 7 weeks
+                  const monthly = Array(7).fill(0); // last 7 months
+                  const now = new Date();
+                  const msPerDay = 24 * 60 * 60 * 1000;
+                  const revenueOf = (o) => Number(o.vendorSubtotal || 0);
+                  for (const o of vendorOrders) {
+                    const dt = o.createdAt ? new Date(o.createdAt) : null;
+                    if (!dt || isNaN(dt.getTime())) continue;
+                    // Daily: map to Mon..Sun index
+                    const dow = dt.getDay(); // 0..6, 0=Sun
+                    const monIdx = (dow + 6) % 7; // 0=Mon .. 6=Sun
+                    daily[monIdx] += revenueOf(o);
+                    // Weekly: bucket by weeks ago (0..6)
+                    const diffDays = Math.floor((now - dt) / msPerDay);
+                    const weeksAgo = Math.min(6, Math.max(0, Math.floor(diffDays / 7)));
+                    weekly[6 - weeksAgo] += revenueOf(o);
+                    // Monthly: bucket by month difference (0..6)
+                    const monthDiff = (now.getFullYear() - dt.getFullYear()) * 12 + (now.getMonth() - dt.getMonth());
+                    const clamped = Math.min(6, Math.max(0, monthDiff));
+                    monthly[6 - clamped] += revenueOf(o);
+                  }
+                  vendorSalesData = { daily, weekly, monthly };
+                  // Build top products for vendor by revenue
+                  const productAgg = new Map();
+                  for (const o of vendorOrders) {
+                    const items = Array.isArray(o.items) ? o.items : [];
+                    for (const it of items) {
+                      const key = String(it.product || it.sku || it.name || Math.random());
+                      const prev = productAgg.get(key) || { name: it.name, image: it.image, revenue: 0, quantity: 0 };
+                      const unit = (it.vendorDisplayUnitPrice != null) ? Number(it.vendorDisplayUnitPrice) : (it.vendorUnitPrice != null ? Number(it.vendorUnitPrice) : Number(it.price || 0));
+                      const qty = Number(it.quantity || 0);
+                      prev.revenue += unit * qty;
+                      prev.quantity += qty;
+                      prev.name = it.name || prev.name;
+                      prev.image = it.image || prev.image;
+                      productAgg.set(key, prev);
+                    }
+                  }
+                  vendorTopProducts = Array.from(productAgg.values())
+                    .sort((a, b) => b.revenue - a.revenue)
+                    .slice(0, 7)
+                    .map(p => ({
+                      name: p.name,
+                      image: p.image,
+                      avgPrice: p.quantity > 0 ? (p.revenue / p.quantity) : 0,
+                      quantity: p.quantity,
+                      revenue: p.revenue,
+                    }));
                 }
               } catch (_) {}
             }
-            setData({ dashboard: json.data, orders: json.data.recentOrders, products: json.data.topProducts, vendors: vendorsList, vendorOrders, users: [] });
+            setData({
+              dashboard: json.data,
+              orders: json.data.recentOrders,
+              products: json.data.topProducts,
+              vendors: vendorsList,
+              vendorOrders,
+              vendorSummary,
+              vendorSalesData,
+              vendorTopProducts,
+              users: []
+            });
             return;
           }
         }
@@ -90,7 +165,9 @@ const Dashboard = () => {
       weekly: Array(7).fill(0),
       monthly: Array(7).fill(0),
     };
-    const salesData = (data.dashboard && data.dashboard.salesData) ? data.dashboard.salesData : defaultSeries;
+    const salesData = isVendor
+      ? (data.vendorSalesData || defaultSeries)
+      : ((data.dashboard && data.dashboard.salesData) ? data.dashboard.salesData : defaultSeries);
 
     return {
       labels: labels[chartPeriod],
@@ -133,34 +210,54 @@ const Dashboard = () => {
   }
 
   const { stats, recentOrders, topProducts } = data.dashboard;
+  const vendorSummary = data.vendorSummary || { ordersCount: 0, subtotal: 0, commission: 0, net: 0 };
 
   return (
     <div className="dashboard">
       {/* Stats Cards */}
       <div className="stats-grid">
-        <div className="stat-card">
-          <h3>₹{stats.totalSales.toLocaleString()}</h3>
-          <p>Total Sales</p>
-        </div>
-        <div className="stat-card">
-          <h3>{stats.totalOrders}</h3>
-          <p>Total Orders</p>
-        </div>
-        <div className="stat-card">
-          <h3>{stats.totalVendors}</h3>
-          <p>Total Vendors</p>
-        </div>
-        {!isVendor && (
-          <div className="stat-card">
-            <h3>{stats.totalCustomers}</h3>
-            <p>Total Customers</p>
-          </div>
-        )}
-        {!isVendor && (
-          <div className="stat-card">
-            <h3>{stats.pendingApprovals}</h3>
-            <p>Pending Approvals</p>
-          </div>
+        {isVendor ? (
+          <>
+            <div className="stat-card">
+              <h3>₹{vendorSummary.subtotal.toFixed(2)}</h3>
+              <p>Vendor Revenue</p>
+            </div>
+            <div className="stat-card">
+              <h3>{vendorSummary.ordersCount}</h3>
+              <p>Orders</p>
+            </div>
+            <div className="stat-card">
+              <h3>₹{vendorSummary.net.toFixed(2)}</h3>
+              <p>Net After Commission</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="stat-card">
+              <h3>₹{stats.totalSales.toLocaleString()}</h3>
+              <p>Total Sales</p>
+            </div>
+            <div className="stat-card">
+              <h3>{stats.totalOrders}</h3>
+              <p>Total Orders</p>
+            </div>
+            <div className="stat-card">
+              <h3>{stats.totalVendors}</h3>
+              <p>Total Vendors</p>
+            </div>
+            {!isVendor && (
+              <div className="stat-card">
+                <h3>{stats.totalCustomers}</h3>
+                <p>Total Customers</p>
+              </div>
+            )}
+            {!isVendor && (
+              <div className="stat-card">
+                <h3>{stats.pendingApprovals}</h3>
+                <p>Pending Approvals</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -264,28 +361,45 @@ const Dashboard = () => {
                 <thead>
                   <tr>
                     <th>Product</th>
-                    <th className="text-right">Price</th>
+                    <th className="text-right">{isVendor ? 'Avg Price' : 'Price'}</th>
                     <th className="text-right">Stock</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(Array.isArray(topProducts) ? topProducts : (Array.isArray(data.products) ? data.products : [])).map((product) => {
-                    const imageSrc = (Array.isArray(product.images) && product.images[0]) || '/default-product.png';
-                    const price = product.specialPrice ?? product.price ?? product.regularPrice ?? 0;
-                    const formattedPrice = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(price));
-                    return (
-                      <tr key={product.id || product._id}>
-                        <td>
-                          <div className="cell-product">
-                            <img src={imageSrc} alt={product.name} className="product-thumb" onError={(e) => { e.currentTarget.src = '/default-product.png'; }} />
-                            <span className="truncate" title={product.name}>{product.name}</span>
-                          </div>
-                        </td>
-                        <td className="text-right">{formattedPrice}</td>
-                        <td className="text-right">{product.stock ?? '-'}</td>
-                      </tr>
-                    );
-                  })}
+                  {isVendor
+                    ? (Array.isArray(data.vendorTopProducts) ? data.vendorTopProducts : []).map((p, idx) => {
+                        const imageSrc = p.image || '/default-product.png';
+                        const formattedAvg = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'INR' }).format(Number(p.avgPrice || 0));
+                        return (
+                          <tr key={`${p.name}-${idx}`}>
+                            <td>
+                              <div className="cell-product">
+                                <img src={imageSrc} alt={p.name} className="product-thumb" onError={(e) => { e.currentTarget.src = '/default-product.png'; }} />
+                                <span className="truncate" title={p.name}>{p.name}</span>
+                              </div>
+                            </td>
+                            <td className="text-right">{formattedAvg}</td>
+                            <td className="text-right">-</td>
+                          </tr>
+                        );
+                      })
+                    : (Array.isArray(topProducts) ? topProducts : (Array.isArray(data.products) ? data.products : [])).map((product) => {
+                        const imageSrc = (Array.isArray(product.images) && product.images[0]) || '/default-product.png';
+                        const price = product.specialPrice ?? product.price ?? product.regularPrice ?? 0;
+                        const formattedPrice = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'INR' }).format(Number(price));
+                        return (
+                          <tr key={product.id || product._id}>
+                            <td>
+                              <div className="cell-product">
+                                <img src={imageSrc} alt={product.name} className="product-thumb" onError={(e) => { e.currentTarget.src = '/default-product.png'; }} />
+                                <span className="truncate" title={product.name}>{product.name}</span>
+                              </div>
+                            </td>
+                            <td className="text-right">{formattedPrice}</td>
+                            <td className="text-right">{product.stock ?? '-'}</td>
+                          </tr>
+                        );
+                      })}
                 </tbody>
               </table>
             </div>
