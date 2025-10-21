@@ -15,11 +15,9 @@ const VendorProducts = ({ navigation }) => {
           const items = (res.data || []).map(p => ({
             id: p._id || p.id,
             name: p.name,
-            // Vendor sees vendor prices on their portal
-            price: (p.vendorRegularPrice ?? p.specialPrice ?? p.regularPrice ?? p.price ?? 0),
-            oldPrice: null
-              ? (p.vendorRegularPrice ?? p.regularPrice ?? p.price ?? null)
-              : null,
+            // Vendor portal: show vendor price only (no admin prices)
+            price: (p.vendorRegularPrice ?? (Array.isArray(p.variants) && p.variants.length ? (p.variants.find(v => v.vendorPrice != null)?.vendorPrice ?? null) : null) ?? 0),
+            oldPrice: null,
             image: Array.isArray(p.images) ? p.images[0] : p.image,
             stock: p.stock ?? p.inventory?.stock ?? p.quantity ?? p.qty,
             raw: p,

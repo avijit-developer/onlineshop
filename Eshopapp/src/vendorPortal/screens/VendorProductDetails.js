@@ -36,9 +36,16 @@ const VendorProductDetails = ({ route, navigation }) => {
     ? product.images.map(i => (typeof i === 'string' ? i : (i?.url || i?.src || i)))
     : (product.image ? [product.image] : []);
   const primaryImage = images && images.length ? images[0] : null;
-  const regularPrice = product.regularPrice ?? product.price ?? product.listPrice ?? 0;
-  const specialPrice = (product.specialPrice ?? product.salePrice ?? product.discountPrice ?? product.offerPrice);
-  const displaySpecial = specialPrice != null && specialPrice !== '' && !isNaN(Number(specialPrice)) ? Number(specialPrice) : null;
+  // Vendor-only pricing: prefer vendorRegularPrice or variant vendorPrice; do not show admin special/regular
+  const vendorBase = (product.vendorRegularPrice != null) ? Number(product.vendorRegularPrice) : null;
+  let variantVendorMin = null;
+  try {
+    if (Array.isArray(product.variants) && product.variants.length) {
+      const prices = product.variants.map(v => (v && v.vendorPrice != null ? Number(v.vendorPrice) : null)).filter(p => p != null);
+      if (prices.length) variantVendorMin = Math.min(...prices);
+    }
+  } catch (_) {}
+  const displayVendorPrice = (vendorBase != null) ? vendorBase : (variantVendorMin != null ? variantVendorMin : 0);
   const [brandNameState, setBrandNameState] = useState(product.brand?.name || product.brandName || product.brand || '');
   const [categoryNameState, setCategoryNameState] = useState(
     Array.isArray(product.categories)
@@ -84,15 +91,8 @@ const VendorProductDetails = ({ route, navigation }) => {
         )}
         <Text style={styles.title}>{product.name}</Text>
 
-        {/* Pricing */}
-        {displaySpecial != null ? (
-          <View style={styles.priceRow}>
-            <Text style={[styles.priceSpecial]}>{currency(displaySpecial)}</Text>
-            <Text style={styles.priceRegular}>{currency(regularPrice)}</Text>
-          </View>
-        ) : (
-          <View style={styles.kvRow}><Text style={styles.kvLabel}>Price</Text><Text style={styles.kvValue}>{currency(regularPrice)}</Text></View>
-        )}
+        {/* Pricing - vendor only */}
+        <View style={styles.kvRow}><Text style={styles.kvLabel}>Price</Text><Text style={styles.kvValue}>{currency(displayVendorPrice)}</Text></View>
 
         {/* Core info */}
         <View style={styles.kvRow}><Text style={styles.kvLabel}>Stock</Text><Text style={styles.kvValue}>{stock}</Text></View>
@@ -105,6 +105,21 @@ const VendorProductDetails = ({ route, navigation }) => {
         {product.lowStockAlert != null ? (
           <View style={styles.kvRow}><Text style={styles.kvLabel}>Low Stock Alert</Text><Text style={styles.kvValue}>{String(product.lowStockAlert)}</Text></View>
         ) : null}
+
+        {/* Variants (vendor price only) */}
+        {Array.isArray(product.variants) && product.variants.length > 0 && (
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.kvLabel}>Variants</Text>
+            <View style={{ marginTop: 6 }}>
+              {product.variants.map((v, idx) => (
+                <View key={idx} style={styles.attrRow}>
+                  <Text style={styles.attrKey}>{v?.sku || `Variant ${idx + 1}`}</Text>
+                  <Text style={styles.attrValue}>{currency(v?.vendorPrice != null ? v.vendorPrice : 0)}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Attributes */}
         {attributes ? (
