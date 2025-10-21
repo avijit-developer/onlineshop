@@ -762,7 +762,7 @@ const Products = () => {
                 {/* Use correct vendor field */}
                 
                 <td>
-                  <div className="price-info">
+                  <div className={`price-info ${!isVendorUser && product.specialPrice ? 'has-special' : ''}`}>
                     {isVendorUser ? (
                       <>
                         <span className="regular-price">{formatCurrency(product.vendorRegularPrice ?? product.regularPrice)}</span>
