@@ -13,8 +13,14 @@ const HomeSkeleton = () => {
         <Skeleton width={'60%'} height={20} style={{ marginLeft: 12, borderRadius: 6 }} />
       </Row>
 
-      {/* Slider */}
+      {/* Slider (skeleton with bullets) */}
       <Skeleton width={'100%'} height={160} borderRadius={12} style={{ marginTop: 12 }} />
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 8 }}>
+        <Skeleton width={8} height={8} borderRadius={4} style={{ marginHorizontal: 3 }} />
+        <Skeleton width={8} height={8} borderRadius={4} style={{ marginHorizontal: 3 }} />
+        <Skeleton width={8} height={8} borderRadius={4} style={{ marginHorizontal: 3 }} />
+        <Skeleton width={8} height={8} borderRadius={4} style={{ marginHorizontal: 3 }} />
+      </View>
 
       {/* Categories chips */}
       <Row style={{ marginTop: 16 }}>
@@ -24,7 +30,7 @@ const HomeSkeleton = () => {
         <Skeleton width={80} height={28} borderRadius={14} style={{ marginLeft: 10 }} />
       </Row>
 
-      {/* Grid sections */}
+      {/* Grid sections (cards) */}
       <View style={{ marginTop: 16 }}>
         <Row>
           <Skeleton width={'48%'} height={220} borderRadius={12} />

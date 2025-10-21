@@ -31,6 +31,7 @@ const HomeScreen = ({ navigation }) => {
   const hasMountedOnce = !!(global && global.__HOME_MOUNTED_ONCE__);
   const fadeIn = useRef(new Animated.Value(hasMountedOnce ? 1 : 0)).current;
   const [showSkeleton, setShowSkeleton] = useState(!hasMountedOnce);
+  const [firstPaintDone, setFirstPaintDone] = useState(hasMountedOnce);
   const { getWishlistCount, toggleWishlist, isInWishlist } = useWishlist();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -51,11 +52,14 @@ const HomeScreen = ({ navigation }) => {
         duration: 300,
         useNativeDriver: true,
       }).start(() => {
-        setShowSkeleton(false);
+        setFirstPaintDone(true);
+        // Keep skeleton visible a bit longer for smoother UX
+        setTimeout(() => setShowSkeleton(false), 250);
         try { global.__HOME_MOUNTED_ONCE__ = true; } catch (_) {}
       });
     } else {
       setShowSkeleton(false);
+      setFirstPaintDone(true);
     }
   }, [fadeIn, refreshKey, hasMountedOnce]);
 
