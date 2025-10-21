@@ -344,11 +344,18 @@ const Orders = () => {
 
   const calculateOrderTotal = (order) => {
     if (isVendor) {
-      const subtotal = Number(order.vendorSubtotal || 0);
-      const tax = Number(order.vendorTax || order.vendorTaxShare || 0);
-      const shipping = Number(order.vendorShipping || order.vendorShippingShare || 0);
-      const discount = Number(order.vendorDiscountShare || 0);
-      return subtotal + tax + shipping - discount;
+      // For vendors, total should be vendor prices sum only (no tax/shipping/discount)
+      if (order.vendorSubtotal != null) return Number(order.vendorSubtotal);
+      const items = Array.isArray(order.items) ? order.items : [];
+      const subtotal = items.reduce((sum, it) => {
+        const unit = (it.vendorDisplayUnitPrice != null)
+          ? Number(it.vendorDisplayUnitPrice)
+          : (it.vendorUnitPrice != null)
+            ? Number(it.vendorUnitPrice)
+            : Number(it.price || 0);
+        return sum + unit * Number(it.quantity || 0);
+      }, 0);
+      return subtotal;
     }
     const subtotal = (order.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
     const tax = (subtotal * Number(order.tax || 0)) / 100;
@@ -706,13 +713,13 @@ const Orders = () => {
                   <div className="section">
                     <h3>Order Summary</h3>
                     <div className="order-summary">
-                      {selectedOrder.couponCode && (
+                      {!isVendor && selectedOrder.couponCode && (
                         <div className="summary-row">
                           <span>Coupon:</span>
                           <span>{selectedOrder.couponCode}</span>
                         </div>
                       )}
-                      {Number(selectedOrder.discountAmount || 0) > 0 && (
+                      {!isVendor && Number(selectedOrder.discountAmount || 0) > 0 && (
                         <div className="summary-row">
                           <span>Discount:</span>
                           <span>- ₹{Number(selectedOrder.discountAmount).toFixed(2)}</span>
@@ -736,23 +743,20 @@ const Orders = () => {
                       ) : (
                         <>
                           <div className="summary-row">
-                            <span>Vendor Subtotal:</span>
-                            <span>{formatCurrency(Number(selectedOrder.vendorSubtotal || 0))}</span>
+                            <span>Subtotal:</span>
+                            <span>{formatCurrency((() => {
+                              if (selectedOrder.vendorSubtotal != null) return Number(selectedOrder.vendorSubtotal);
+                              const items = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
+                              return items.reduce((sum, it) => {
+                                const unit = (it.vendorDisplayUnitPrice != null)
+                                  ? Number(it.vendorDisplayUnitPrice)
+                                  : (it.vendorUnitPrice != null)
+                                    ? Number(it.vendorUnitPrice)
+                                    : Number(it.price || 0);
+                                return sum + unit * Number(it.quantity || 0);
+                              }, 0);
+                            })())}</span>
                           </div>
-                          <div className="summary-row">
-                            <span>Vendor Tax Share:</span>
-                            <span>{formatCurrency(Number(selectedOrder.vendorTax || selectedOrder.vendorTaxShare || 0))}</span>
-                          </div>
-                          <div className="summary-row">
-                            <span>Vendor Shipping Share:</span>
-                            <span>{formatCurrency(Number(selectedOrder.vendorShipping || selectedOrder.vendorShippingShare || 0))}</span>
-                          </div>
-                          {Number(selectedOrder.vendorDiscountShare || 0) > 0 && (
-                            <div className="summary-row">
-                              <span>Vendor Discount Share:</span>
-                              <span>- {formatCurrency(Number(selectedOrder.vendorDiscountShare || 0))}</span>
-                            </div>
-                          )}
                         </>
                       )}
                       <div className="summary-row total">
