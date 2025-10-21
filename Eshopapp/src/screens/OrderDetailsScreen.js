@@ -17,7 +17,7 @@ import { useCart } from '../contexts/CartContext';
 
 const OrderDetailsScreen = ({ route }) => {
   const navigation = useNavigation();
-  const { orders } = useUser();
+  const { orders, user: currentUser } = useUser();
   const { addToCart } = useCart();
   const { orderId } = route.params;
   
@@ -143,6 +143,8 @@ const OrderDetailsScreen = ({ route }) => {
     return 'Processing';
   };
   const current = freshOrder || order;
+  const custName = (current?.user && current.user.name) ? current.user.name : (currentUser?.name || '');
+  const custEmail = (current?.user && current.user.email) ? current.user.email : (currentUser?.email || '');
   const vendorSummaries = Array.isArray(current.vendorSummaries) ? current.vendorSummaries : [];
   const status = normalizeStatus(current.status);
   const aggregateMultiVendorStatus = (o) => {
@@ -318,8 +320,8 @@ const OrderDetailsScreen = ({ route }) => {
             <Icon name="location-outline" size={20} color="#f7ab18" />
             <View style={{ marginLeft: 12, flex: 1 }}>
               <Text style={styles.addressText}>{current.shippingAddress}</Text>
-              {!!(current?.user?.name || current?.user?.email) && (
-                <Text style={[styles.addressText, { marginTop: 6 }]}>👤 {current?.user?.name || ''}{current?.user?.email ? ` • ${current.user.email}` : ''}</Text>
+              {!!(custName || custEmail) && (
+                <Text style={[styles.addressText, { marginTop: 6 }]}>👤 {custName}{custEmail ? ` • ${custEmail}` : ''}</Text>
               )}
               {!!(current?.customerPhone || current?.user?.phone) && (
                 <Text style={[styles.addressText, { marginTop: 6, color: '#555' }]}>📱 {current?.customerPhone || current?.user?.phone}</Text>
