@@ -34,7 +34,6 @@ const VendorProducts = ({ navigation }) => {
       <Image source={{ uri: item.image }} style={styles.image} />
       <View style={{ flex: 1, marginLeft: 10 }}>
         <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.price}>₹{item.price}</Text>
         <Text style={styles.meta}>Stock: {item.stock ?? '-'}</Text>
       </View>
     </TouchableOpacity>
@@ -69,7 +68,6 @@ const styles = StyleSheet.create({
   card: { flexDirection: 'row', backgroundColor: '#fff', borderWidth: 1, borderColor: '#eef2f7', borderRadius: 12, padding: 12, marginBottom: 12 },
   image: { width: 64, height: 64, borderRadius: 6, backgroundColor: '#f4f4f4' },
   name: { color: '#333', fontWeight: '700' },
-  price: { color: '#f7ab18', fontWeight: '700', marginTop: 4 },
   meta: { color: '#8791a1', marginTop: 2 },
 });
 
