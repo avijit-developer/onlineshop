@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../../utils/api';
 
@@ -9,6 +9,7 @@ const VendorProductDetails = ({ route, navigation }) => {
   const { productId, product: fallback } = route.params || {};
   const [product, setProduct] = useState(fallback || null);
   const [loading, setLoading] = useState(!fallback && !!productId);
+  const [variantsVisible, setVariantsVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -36,16 +37,7 @@ const VendorProductDetails = ({ route, navigation }) => {
     ? product.images.map(i => (typeof i === 'string' ? i : (i?.url || i?.src || i)))
     : (product.image ? [product.image] : []);
   const primaryImage = images && images.length ? images[0] : null;
-  // Vendor-only pricing: prefer vendorRegularPrice or variant vendorPrice; do not show admin special/regular
-  const vendorBase = (product.vendorRegularPrice != null) ? Number(product.vendorRegularPrice) : null;
-  let variantVendorMin = null;
-  try {
-    if (Array.isArray(product.variants) && product.variants.length) {
-      const prices = product.variants.map(v => (v && v.vendorPrice != null ? Number(v.vendorPrice) : null)).filter(p => p != null);
-      if (prices.length) variantVendorMin = Math.min(...prices);
-    }
-  } catch (_) {}
-  const displayVendorPrice = (vendorBase != null) ? vendorBase : (variantVendorMin != null ? variantVendorMin : 0);
+  // Remove price display per vendor UI change
   const [brandNameState, setBrandNameState] = useState(product.brand?.name || product.brandName || product.brand || '');
   const [categoryNameState, setCategoryNameState] = useState(
     Array.isArray(product.categories)
@@ -91,8 +83,7 @@ const VendorProductDetails = ({ route, navigation }) => {
         )}
         <Text style={styles.title}>{product.name}</Text>
 
-        {/* Pricing - vendor only */}
-        <View style={styles.kvRow}><Text style={styles.kvLabel}>Price</Text><Text style={styles.kvValue}>{currency(displayVendorPrice)}</Text></View>
+        {/* Pricing removed for vendor view */}
 
         {/* Core info */}
         <View style={styles.kvRow}><Text style={styles.kvLabel}>Stock</Text><Text style={styles.kvValue}>{stock}</Text></View>
@@ -106,18 +97,13 @@ const VendorProductDetails = ({ route, navigation }) => {
           <View style={styles.kvRow}><Text style={styles.kvLabel}>Low Stock Alert</Text><Text style={styles.kvValue}>{String(product.lowStockAlert)}</Text></View>
         ) : null}
 
-        {/* Variants (vendor price only) */}
+        {/* Variants popup trigger */}
         {Array.isArray(product.variants) && product.variants.length > 0 && (
-          <View style={{ marginTop: 8 }}>
-            <Text style={styles.kvLabel}>Variants</Text>
-            <View style={{ marginTop: 6 }}>
-              {product.variants.map((v, idx) => (
-                <View key={idx} style={styles.attrRow}>
-                  <Text style={styles.attrKey}>{v?.sku || `Variant ${idx + 1}`}</Text>
-                  <Text style={styles.attrValue}>{currency(v?.vendorPrice != null ? v.vendorPrice : 0)}</Text>
-                </View>
-              ))}
-            </View>
+          <View style={{ marginTop: 10 }}>
+            <TouchableOpacity style={styles.variantBtn} onPress={() => setVariantsVisible(true)}>
+              <Icon name="albums-outline" size={16} color="#f7ab18" />
+              <Text style={styles.variantBtnText}>View Variants</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -164,6 +150,38 @@ const VendorProductDetails = ({ route, navigation }) => {
           </View>
         )}
       </View>
+      {/* Variants Modal */}
+      <Modal visible={variantsVisible} transparent animationType="fade" onRequestClose={() => setVariantsVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Variants</Text>
+              <TouchableOpacity onPress={() => setVariantsVisible(false)}>
+                <Icon name="close" size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ padding: 12 }}>
+              {Array.isArray(product.variants) && product.variants.map((v, idx) => {
+                const attrs = v?.attributes && typeof v.attributes === 'object' ? (v.attributes.entries ? Object.fromEntries(v.attributes) : v.attributes) : {};
+                const name = Object.keys(attrs).length ? Object.entries(attrs).map(([k,val]) => `${k}: ${val}`).join(' / ') : (v?.sku ? `SKU ${v.sku}` : `Variant ${idx+1}`);
+                const sku = v?.sku || '-';
+                const stock = v?.stock != null ? String(v.stock) : '-';
+                const img = Array.isArray(v?.images) && v.images.length ? v.images[0] : null;
+                return (
+                  <View key={idx} style={styles.variantRow}>
+                    {img ? <Image source={{ uri: img }} style={styles.variantThumb} /> : <View style={[styles.variantThumb, { backgroundColor: '#f4f4f4' }]} />}
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={styles.variantName} numberOfLines={1}>{name}</Text>
+                      <Text style={styles.variantMeta}>SKU: {sku}</Text>
+                      <Text style={styles.variantMeta}>Stock: {stock}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -182,6 +200,16 @@ const styles = StyleSheet.create({
   attrRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   attrKey: { color: '#8791a1' },
   attrValue: { color: '#333', fontWeight: '600', maxWidth: '60%' },
+  variantBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  variantBtnText: { marginLeft: 6, color: '#f7ab18', fontWeight: '800' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  modalCard: { backgroundColor: '#fff', borderRadius: 12, width: '100%', maxWidth: 420, overflow: 'hidden' },
+  modalHeader: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modalTitle: { fontWeight: '800', color: '#333' },
+  variantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
+  variantThumb: { width: 44, height: 44, borderRadius: 6, backgroundColor: '#f0f0f0' },
+  variantName: { color: '#333', fontWeight: '700' },
+  variantMeta: { color: '#8791a1', fontSize: 12 },
 });
 
 function formatKey(s) {
