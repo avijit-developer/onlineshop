@@ -318,6 +318,9 @@ const OrderDetailsScreen = ({ route }) => {
             <Icon name="location-outline" size={20} color="#f7ab18" />
             <View style={{ marginLeft: 12, flex: 1 }}>
               <Text style={styles.addressText}>{current.shippingAddress}</Text>
+              {!!(current?.user?.name || current?.user?.email) && (
+                <Text style={[styles.addressText, { marginTop: 6 }]}>👤 {current?.user?.name || ''}{current?.user?.email ? ` • ${current.user.email}` : ''}</Text>
+              )}
               {!!(current?.customerPhone || current?.user?.phone) && (
                 <Text style={[styles.addressText, { marginTop: 6, color: '#555' }]}>📱 {current?.customerPhone || current?.user?.phone}</Text>
               )}
