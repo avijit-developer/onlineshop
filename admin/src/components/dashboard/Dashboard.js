@@ -37,6 +37,67 @@ const Dashboard = () => {
 
   const loadDashboardData = async () => {
     try {
+      // Vendor path: build dashboard without hitting admin-only endpoint
+      if (isVendor) {
+        try {
+          const token = localStorage.getItem('adminToken');
+          const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+          const BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || ''));
+          // Fetch vendors assigned and vendor orders for stats
+          const [vres, ores] = await Promise.all([
+            fetch(`${BASE}/api/v1/vendors?page=1&limit=100`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }).catch(() => null),
+            fetch(`${BASE}/api/v1/orders/vendor?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+          ]);
+          let vendorsList = [];
+          if (vres && vres.ok) {
+            try {
+              const vjson = await vres.json();
+              vendorsList = (vjson?.data || []).map(v => ({ id: v._id || v.id, companyName: v.companyName, status: v.status, enabled: v.enabled }));
+            } catch (_) {}
+          }
+          let vendorOrders = [];
+          if (ores && ores.ok) {
+            const ojson = await ores.json();
+            vendorOrders = ojson?.data || [];
+          }
+          // Compute vendor summary metrics and series
+          const sum = (arr, sel) => arr.reduce((acc, it) => acc + Number(sel(it) || 0), 0);
+          const vendorSubtotalSum = sum(vendorOrders, o => o.vendorSubtotal);
+          const vendorCommissionSum = sum(vendorOrders, o => (o.vendorCommission != null ? o.vendorCommission : 0));
+          const vendorNetSum = sum(vendorOrders, o => (o.vendorNet != null ? o.vendorNet : (Number(o.vendorSubtotal || 0) - Number(o.vendorCommission || 0))));
+          const vendorSummary = { ordersCount: vendorOrders.length, subtotal: vendorSubtotalSum, commission: vendorCommissionSum, net: vendorNetSum };
+          // Sales data
+          const daily = Array(7).fill(0); const weekly = Array(7).fill(0); const monthly = Array(7).fill(0);
+          const now = new Date(); const msPerDay = 24*60*60*1000;
+          const revenueOf = (o) => Number(o.vendorSubtotal || 0);
+          for (const o of vendorOrders) {
+            const dt = o.createdAt ? new Date(o.createdAt) : null; if (!dt || isNaN(dt.getTime())) continue;
+            const dow = dt.getDay(); const monIdx = (dow + 6) % 7; daily[monIdx] += revenueOf(o);
+            const diffDays = Math.floor((now - dt) / msPerDay); const weeksAgo = Math.min(6, Math.max(0, Math.floor(diffDays / 7))); weekly[6 - weeksAgo] += revenueOf(o);
+            const monthDiff = (now.getFullYear() - dt.getFullYear()) * 12 + (now.getMonth() - dt.getMonth()); const clamped = Math.min(6, Math.max(0, monthDiff)); monthly[6 - clamped] += revenueOf(o);
+          }
+          const vendorSalesData = { daily, weekly, monthly };
+          // Top products
+          const productAgg = new Map();
+          for (const o of vendorOrders) {
+            const items = Array.isArray(o.items) ? o.items : [];
+            for (const it of items) {
+              const key = String(it.product || it.sku || it.name || Math.random());
+              const prev = productAgg.get(key) || { name: it.name, image: it.image, revenue: 0, quantity: 0 };
+              const unit = (it.vendorDisplayUnitPrice != null) ? Number(it.vendorDisplayUnitPrice) : (it.vendorUnitPrice != null ? Number(it.vendorUnitPrice) : Number(it.price || 0));
+              const qty = Number(it.quantity || 0);
+              prev.revenue += unit * qty; prev.quantity += qty; prev.name = it.name || prev.name; prev.image = it.image || prev.image;
+              productAgg.set(key, prev);
+            }
+          }
+          const vendorTopProducts = Array.from(productAgg.values()).sort((a,b)=>b.revenue-a.revenue).slice(0,7).map(p=>({ name:p.name, image:p.image, avgPrice: p.quantity>0 ? (p.revenue/p.quantity):0, quantity:p.quantity, revenue:p.revenue }));
+
+          // Minimal admin dashboard stub to satisfy existing rendering paths
+          const stubDashboard = { stats: { totalSales: 0, totalOrders: 0, totalVendors: vendorsList.length, totalCustomers: 0, pendingApprovals: 0 }, recentOrders: [], topProducts: [] };
+          setData({ dashboard: stubDashboard, orders: [], products: [], vendors: vendorsList, vendorOrders, vendorSummary, vendorSalesData, vendorTopProducts, users: [] });
+          return;
+        } catch (_) { /* fall through to admin path if vendor fetch fails */ }
+      }
       try {
         const token = localStorage.getItem('adminToken');
         const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
