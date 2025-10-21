@@ -53,10 +53,11 @@ const VendorOrderDetails = ({ route, navigation }) => {
   const orderTaxPercent = Number(pick(order, ['tax'], 0));
   const orderShipping = Number(pick(order, ['shippingCost'], 0));
   const vendorShare = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
-  const vendorTaxShare = Number(pick(order, ['vendorTaxShare'], orderSubtotal > 0 ? ((orderSubtotal * orderTaxPercent / 100) * vendorShare) : 0));
-  const vendorShippingShare = Number(pick(order, ['vendorShippingShare'], orderShipping * vendorShare));
-  const vendorDiscountShare = Number(pick(order, ['vendorDiscountShare'], Number(pick(order, ['discountAmount'], 0)) * vendorShare));
-  const vendorTotalShare = Number(pick(order, ['vendorTotalShare'], vendorSubtotal + vendorTaxShare + vendorShippingShare - vendorDiscountShare));
+  // For vendor UI, ignore platform tax, shipping, and coupon; total equals vendorSubtotal
+  const vendorTaxShare = 0;
+  const vendorShippingShare = 0;
+  const vendorDiscountShare = 0;
+  const vendorTotalShare = vendorSubtotal;
 
   const totals = {
     subtotal: vendorSubtotal || Number(pick(order, ['subtotal', 'summary.subtotal', 'totals.subtotal'], 0)),
@@ -182,10 +183,6 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Totals</Text></View>
         <View style={styles.divider} />
         <KV label="Subtotal" value={currency(totals.subtotal)} />
-        {totals.tax != null && <KV label="Tax" value={currency(totals.tax)} />}
-        {totals.shipping != null && <KV label="Shipping" value={currency(totals.shipping)} />}
-        {totals.discount ? <KV label="Discount" value={`- ${currency(totals.discount)}`} /> : null}
-        {totals.coupon ? <KV label="Coupon" value={String(totals.coupon)} /> : null}
         <View style={styles.divider} />
         <View style={styles.grandRow}>
           <Text style={styles.grandLabel}>Grand Total</Text>

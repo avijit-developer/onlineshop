@@ -23,13 +23,7 @@ const VendorOrders = ({ navigation }) => {
         <Text style={styles.orderId}>#{item.orderNumber || item._id?.slice(-6)}</Text>
         <Text style={styles.status}>{String(item.status || '')}</Text>
       </View>
-      <Text style={styles.amount}>Subtotal: ₹{Number(item.vendorSubtotal || 0).toFixed(2)}</Text>
-      <Text style={styles.amount}>Tax: ₹{Number(item.vendorTaxShare || 0).toFixed(2)}</Text>
-      <Text style={styles.amount}>Shipping: ₹{Number(item.vendorShippingShare || 0).toFixed(2)}</Text>
-      {item.vendorDiscountShare ? (
-        <Text style={styles.amount}>Discount: -₹{Number(item.vendorDiscountShare || 0).toFixed(2)}</Text>
-      ) : null}
-      <Text style={styles.amount}>Total: ₹{Number(item.vendorTotal || item.vendorTotalShare || 0).toFixed(2)}</Text>
+      <Text style={styles.amount}>Total: ₹{Number(item.vendorSubtotal || 0).toFixed(2)}</Text>
     </TouchableOpacity>
   );
 
