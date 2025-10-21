@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
-  ScrollView,
   Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -90,9 +88,6 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
     return null;
   }
 
-  // Pick first product image for compact UI inside the button
-  const firstImageUri = displayItems[0] ? getItemImage(displayItems[0]) : null;
-
   return (
     <Animated.View 
       style={[
@@ -101,48 +96,20 @@ const ViewCartFooter = ({ bottomOffset = 0 }) => {
         { transform: [{ translateY: slideAnim }] },
       ]}
     >
-      <View style={styles.cartInfo}>
-        <ScrollView style={styles.itemsRow} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', paddingRight: 6 }} horizontal showsHorizontalScrollIndicator={false}>
-          {displayItems.map((item, index) => {
-            const imageUri = getItemImage(item);
-            if (!imageUri) {
-              return (
-                <View key={item.cartId} style={[styles.itemImage, styles.placeholderImage, index > 0 && { marginLeft: -10 }]}>
-                  <Icon name="image-outline" size={20} color="#ccc" />
-                </View>
-              );
-            }
-            return (
-              <Image
-                key={item.cartId}
-                source={{ uri: imageUri }}
-                style={[styles.itemImage, index > 0 && { marginLeft: -10 }]}
-              />
-            );
-          })}
-          {availableCount > displayItems.length && (
-            <View style={styles.moreItemsIndicator}>
-              <Text style={styles.moreItemsText}>+{availableCount - displayItems.length}</Text>
-            </View>
-          )}
-        </ScrollView>
-        {(availableCount > displayItems.length) && (
-          <Icon name="chevron-forward-outline" size={16} color="#999" />
-        )}
-        
-        <View style={styles.cartDetails}>
-          <Text style={styles.itemCount} numberOfLines={1}>{itemsCount} item{itemsCount > 1 ? 's' : ''}</Text>
-          <Text style={styles.totalAmount} numberOfLines={1}>₹{total.toFixed(2)}</Text>
-        </View>
+      <View style={styles.leftArea}>
+        <Icon name="cart-outline" size={18} color="#fff" />
+        <Text style={styles.leftText} numberOfLines={1}>
+          {itemsCount} item{itemsCount > 1 ? 's' : ''}
+        </Text>
       </View>
 
-      <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
-        {firstImageUri ? (
-          <Image source={{ uri: firstImageUri }} style={styles.viewCartImage} />
-        ) : null}
-        <Text style={styles.viewCartText}>View Cart</Text>
-        <Icon name="arrow-forward-outline" size={16} color="#fff" />
-      </TouchableOpacity>
+      <View style={styles.rightArea}>
+        <Text style={styles.totalText}>₹{total.toFixed(2)}</Text>
+        <TouchableOpacity style={styles.ctaButton} onPress={handleViewCart}>
+          <Text style={styles.ctaText}>View Cart</Text>
+          <Icon name="arrow-forward-outline" size={16} color="#f7ab18" />
+        </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 };
@@ -154,93 +121,55 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff7e6',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#ffe1b3',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 6,
-    zIndex: 1000,
-    width: 320,
-  },
-  cartInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
-  },
-  itemsRow: {
-    maxWidth: 160,
-    flexShrink: 0,
-  },
-  itemImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  placeholderImage: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-  },
-  moreItemsIndicator: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: -10,
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  moreItemsText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#666',
-  },
-  cartDetails: {
-    marginLeft: 10,
-    flex: 1,
-    minWidth: 90,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  itemCount: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
-  },
-  totalAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f7ab18',
-    textAlign: 'right',
-  },
-  viewCartButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#f7ab18',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    minWidth: 84,
-    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+    width: '94%',
   },
-  viewCartText: {
+  leftArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  leftText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  rightArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  totalText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
     marginRight: 6,
   },
-  viewCartImage: { width: 16, height: 16, borderRadius: 3, marginRight: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  ctaText: {
+    color: '#f7ab18',
+    fontSize: 12,
+    fontWeight: '800',
+    marginRight: 6,
+  },
 });
 
 export default ViewCartFooter;
