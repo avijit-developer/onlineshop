@@ -126,13 +126,9 @@ const Dashboard = () => {
                   // Compute vendor summary metrics
                   const sum = (arr, sel) => arr.reduce((acc, it) => acc + Number(sel(it) || 0), 0);
                   const vendorSubtotalSum = sum(vendorOrders, o => o.vendorSubtotal);
-                  const vendorCommissionSum = sum(vendorOrders, o => (o.vendorCommission != null ? o.vendorCommission : 0));
-                  const vendorNetSum = sum(vendorOrders, o => (o.vendorNet != null ? o.vendorNet : (Number(o.vendorSubtotal || 0) - Number(o.vendorCommission || 0))));
                   vendorSummary = {
                     ordersCount: vendorOrders.length,
                     subtotal: vendorSubtotalSum,
-                    commission: vendorCommissionSum,
-                    net: vendorNetSum,
                   };
                   // Build vendor sales series
                   const daily = Array(7).fill(0); // Mon..Sun
@@ -271,7 +267,7 @@ const Dashboard = () => {
   }
 
   const { stats, recentOrders, topProducts } = data.dashboard;
-  const vendorSummary = data.vendorSummary || { ordersCount: 0, subtotal: 0, commission: 0, net: 0 };
+  const vendorSummary = data.vendorSummary || { ordersCount: 0, subtotal: 0 };
 
   return (
     <div className="dashboard">
@@ -286,10 +282,6 @@ const Dashboard = () => {
             <div className="stat-card">
               <h3>{vendorSummary.ordersCount}</h3>
               <p>Orders</p>
-            </div>
-            <div className="stat-card">
-              <h3>₹{vendorSummary.net.toFixed(2)}</h3>
-              <p>Net After Commission</p>
             </div>
           </>
         ) : (
