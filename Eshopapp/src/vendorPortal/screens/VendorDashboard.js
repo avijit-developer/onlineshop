@@ -47,10 +47,8 @@ const VendorDashboard = ({ navigation }) => {
             </View>
           )}
           <View style={styles.cards}>
-          <View style={styles.card}><Text style={styles.cardLabel}>Orders</Text><Text style={styles.cardValue}>{summary?.orderCount || 0}</Text></View>
-          <View style={styles.card}><Text style={styles.cardLabel}>Subtotal</Text><Text style={styles.cardValue}>₹{(summary?.vendorSubtotal || 0).toFixed(2)}</Text></View>
-          <View style={styles.card}><Text style={styles.cardLabel}>Commission</Text><Text style={styles.cardValue}>₹{(summary?.vendorCommission || 0).toFixed(2)}</Text></View>
-          <View style={styles.card}><Text style={styles.cardLabel}>Net</Text><Text style={styles.cardValue}>₹{(summary?.vendorNet || 0).toFixed(2)}</Text></View>
+            <View style={styles.card}><Text style={styles.cardLabel}>Orders</Text><Text style={styles.cardValue}>{summary?.orderCount || 0}</Text></View>
+            <View style={styles.card}><Text style={styles.cardLabel}>Subtotal</Text><Text style={styles.cardValue}>₹{(summary?.vendorSubtotal || 0).toFixed(2)}</Text></View>
           </View>
         </>
       )}
