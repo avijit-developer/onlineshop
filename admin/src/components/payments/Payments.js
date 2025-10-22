@@ -32,18 +32,34 @@ const Payments = () => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/data.json');
-      const data = await response.json();
-      setVendors(data.vendors || []);
-      
-      // Generate sample payment data
-      const samplePayments = generateSamplePayments();
-      setPayments(samplePayments);
-      
-      // Generate sample withdrawal data
-      const sampleWithdrawals = generateSampleWithdrawals();
-      setWithdrawals(sampleWithdrawals);
-      
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+      const token = localStorage.getItem('adminToken');
+      const [earnRes, venRes] = await Promise.all([
+        fetch(`${baseUrl}/api/v1/payments/admin-earnings`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
+        fetch(`${baseUrl}/api/v1/vendors?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
+      ]);
+      if (venRes && venRes.ok) {
+        const vjson = await venRes.json();
+        setVendors((vjson.data || []).map(v => ({ id: v._id || v.id, companyName: v.companyName, email: v.email, logo: v.logo })));
+      }
+      if (!earnRes.ok) throw new Error('Failed to load earnings');
+      const ej = await earnRes.json();
+      const rows = (ej?.data || []).map((r, idx) => ({
+        id: r.id || idx,
+        orderId: r.orderId,
+        customerName: r.customerName || '',
+        amount: Number(r.amount || 0),
+        commission: Number(r.commission || 0),
+        vendorEarnings: Number(r.vendorEarnings || 0),
+        paymentMethod: r.paymentMethod || '',
+        status: r.status || 'pending',
+        date: r.date,
+        vendorId: r.vendorId,
+      }));
+      setPayments(rows);
+      // Keep withdrawals as manual flow for now (empty)
+      setWithdrawals([]);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);

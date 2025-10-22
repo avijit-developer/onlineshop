@@ -17,6 +17,8 @@ const adminDashboardRoutes = require('./dashboard.routes');
 const couponsRoutes = require('./coupons.routes');
 const settingsRoutes = require('./settings.routes');
 const reviewsRoutes = require('./reviews.routes');
+const paymentsRoutes = require('./payments.routes');
+const paymentsRoutes = require('./payments.routes');
 
 const router = express.Router();
 
@@ -38,5 +40,7 @@ router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/coupons', couponsRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/reviews', reviewsRoutes);
+router.use('/payments', paymentsRoutes);
+router.use('/payments', paymentsRoutes);
 
 module.exports = router;
