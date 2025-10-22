@@ -358,11 +358,7 @@ const Payments = () => {
     <div className="payments-container">
       <div className="page-header">
         <h1>Payments & Transactions</h1>
-        <div className="header-actions">
-          <button onClick={() => setShowPayoutModal(true)} className="btn btn-primary">
-            Manual Payout
-          </button>
-        </div>
+        <div className="header-actions" />
       </div>
 
       <div className="stats-cards">

@@ -15,7 +15,11 @@ router.get('/admin-earnings', authenticate, requireAdmin, async (req, res) => {
       if (from) query.createdAt.$gte = new Date(from);
       if (to) query.createdAt.$lte = new Date(to);
     }
-    if (status && String(status).toLowerCase() !== 'all') {
+    const s = String(status || '').toLowerCase();
+    if (!s || s === 'completed') {
+      // Treat delivered and completed as completed
+      query.status = { $in: ['delivered', 'completed'] };
+    } else if (s !== 'all') {
       query.status = status;
     }
 
@@ -91,7 +95,7 @@ router.post('/payouts', authenticate, requireAdmin, async (req, res) => {
 // Returns per-vendor aggregates: earnings, adminCommission, paid (sum of payouts), due = earnings - paid
 router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { from, to, vendorId } = req.query || {};
+    const { from, to, vendorId, status } = req.query || {};
     const query = {};
     if (from || to) {
       query.createdAt = {};
@@ -99,6 +103,12 @@ router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
       if (to) query.createdAt.$lte = new Date(to);
     }
 
+    const s = String(status || '').toLowerCase();
+    if (!s || s === 'completed') {
+      query.status = { $in: ['delivered', 'completed'] };
+    } else if (s !== 'all') {
+      query.status = status;
+    }
     const orders = await Order.find(query).lean();
     const sums = new Map();
     for (const o of orders) {
