@@ -12,6 +12,52 @@ const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudina
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 } });
 
+// Helpers: SKU generation
+function buildSkuBaseFromName(name) {
+  try {
+    return String(name)
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 24);
+  } catch (_) {
+    return 'PROD';
+  }
+}
+
+async function generateUniqueProductSku(name) {
+  const base = buildSkuBaseFromName(name || 'PROD');
+  let candidate = base || 'PROD';
+  let i = 0;
+  // Ensure uniqueness against existing products
+  // Try base, then base-001 ... base-9999
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const exists = await Product.findOne({ sku: candidate }).select({ _id: 1 }).lean();
+    if (!exists) return candidate;
+    i += 1;
+    const suffix = String(i).padStart(3, '0');
+    candidate = `${base}-${suffix}`.slice(0, 36);
+  }
+}
+
+async function generateUniqueVariantSku(productName, existingSkusInPayload = new Set()) {
+  const base = buildSkuBaseFromName(productName || 'PROD');
+  let i = 1;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const candidate = `${base}-V${String(i).padStart(2, '0')}`.slice(0, 36);
+    if (!existingSkusInPayload.has(candidate)) {
+      // eslint-disable-next-line no-await-in-loop
+      const exists = await Product.findOne({ 'variants.sku': candidate }).select({ _id: 1 }).lean();
+      if (!exists) return candidate;
+    }
+    i += 1;
+  }
+}
+
 // GET /products?q=&status=&category=&brand=&vendor=&page=&limit=
 router.get('/', authenticate, requireRole(['admin','vendor']), requirePermission('products.view'), async (req, res) => {
   const { q = '', status = 'all', category, brand, vendor, page = 1, limit = 10 } = req.query;
@@ -67,11 +113,10 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
   // Validate variant requirements if variants present
   if (Array.isArray(body.variants)) {
     for (const v of body.variants) {
-      const hasSku = !!(v && v.sku);
       const priceField = isVendorUser ? (v.vendorPrice ?? v.price) : v.price;
-      if (!hasSku || priceField === undefined || priceField === null) {
+      if (priceField === undefined || priceField === null) {
         res.status(400);
-        throw new Error('Each variant must have sku and price');
+        throw new Error('Each variant must have price');
       }
     }
   }
@@ -79,6 +124,13 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
   // Enforce vendor scoping
   if (req.user.role === 'vendor') {
     body.vendor = req.user.vendorId;
+  }
+
+  // Autogenerate product SKU if missing
+  if (!body.sku) {
+    body.sku = await generateUniqueProductSku(body.name);
+  } else {
+    body.sku = String(body.sku).trim().toUpperCase();
   }
 
   // Validate refs
@@ -92,15 +144,41 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
     throw new Error('Invalid category, vendor or brand');
   }
 
-  // Uniqueness checks
+  // Uniqueness checks for provided product SKU
   if (body.sku) {
     const existsSku = await Product.findOne({ sku: String(body.sku).trim() }).select({ _id: 1 }).lean();
     if (existsSku) {
-      res.status(409);
-      throw new Error('Product SKU already exists');
+      // If collision, autogenerate a new one from name
+      body.sku = await generateUniqueProductSku(body.name);
     }
   }
   if (Array.isArray(body.variants)) {
+    // Autogenerate missing variant SKUs; ensure uniqueness across payload and DB
+    const payloadSkuSet = new Set();
+    for (let idx = 0; idx < body.variants.length; idx++) {
+      const vv = body.variants[idx] || {};
+      const rawSku = vv.sku ? String(vv.sku).trim().toUpperCase() : '';
+      let nextSku = rawSku;
+      if (!nextSku) {
+        // eslint-disable-next-line no-await-in-loop
+        nextSku = await generateUniqueVariantSku(body.name, payloadSkuSet);
+      } else {
+        // Ensure provided SKU does not collide within payload or DB
+        if (payloadSkuSet.has(nextSku)) {
+          // eslint-disable-next-line no-await-in-loop
+          nextSku = await generateUniqueVariantSku(body.name, payloadSkuSet);
+        } else {
+          // eslint-disable-next-line no-await-in-loop
+          const exists = await Product.findOne({ 'variants.sku': nextSku }).select({ _id: 1 }).lean();
+          if (exists) {
+            // eslint-disable-next-line no-await-in-loop
+            nextSku = await generateUniqueVariantSku(body.name, payloadSkuSet);
+          }
+        }
+      }
+      payloadSkuSet.add(nextSku);
+      body.variants[idx].sku = nextSku;
+    }
     const variantSkus = body.variants.map(v => (v?.sku || '').trim()).filter(Boolean);
     if (variantSkus.length) {
       const dupInPayload = new Set();
@@ -110,7 +188,7 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
         res.status(409);
         throw new Error(`Duplicate variant SKU(s): ${Array.from(dupInPayload).join(', ')}`);
       }
-      // Do not block variants if same SKU exists in other products; enforce uniqueness per-product only
+      // Global uniqueness also guarded by DB index
     }
   }
 

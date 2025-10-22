@@ -59,6 +59,18 @@ const productSchema = new mongoose.Schema(
 productSchema.index({ sku: 1 }, { unique: true, partialFilterExpression: { sku: { $type: 'string' } } });
 productSchema.index({ 'variants.sku': 1 }, { unique: true, partialFilterExpression: { 'variants.sku': { $type: 'string' } } });
 
+// Normalize SKUs to uppercase before validate/save
+productSchema.pre('validate', function (next) {
+  if (this.sku) this.sku = String(this.sku).trim().toUpperCase();
+  if (Array.isArray(this.variants)) {
+    this.variants = this.variants.map(v => ({
+      ...v,
+      sku: v && v.sku ? String(v.sku).trim().toUpperCase() : v && v.sku,
+    }));
+  }
+  next();
+});
+
 function slugify(name) {
   return String(name)
     .trim()
