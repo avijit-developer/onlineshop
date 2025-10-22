@@ -26,10 +26,6 @@ const Payments = () => {
     const x = Number(n || 0);
     return Math.round((x + Number.EPSILON) * 100) / 100;
   };
-  const round2 = (n) => {
-    const x = Number(n || 0);
-    return Math.round((x + Number.EPSILON) * 100) / 100;
-  };
 
   useEffect(() => {
     fetchData();
