@@ -186,7 +186,7 @@ const Payments = () => {
           const resp = await fetch(`${baseUrl}/api/v1/payments/payouts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
-            body: JSON.stringify({ vendorId: selectedVendor.id, amount: Number(payoutAmount), method: 'Manual', note: 'Admin manual payout' })
+            body: JSON.stringify({ vendorId: selectedVendor.id, amount: round2(Number(payoutAmount)), method: 'Manual', note: 'Admin manual payout' })
           });
           const json = await resp.json().catch(() => ({}));
           if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to record payout');
@@ -538,7 +538,7 @@ const Payments = () => {
                         <button
                           onClick={() => {
                             setSelectedVendor(vendor);
-                            setPayoutAmount(getVendorBalance(vendor.id).toString());
+                            setPayoutAmount(getVendorBalance(vendor.id).toFixed(2));
                             setShowPayoutModal(true);
                           }}
                           className="btn btn-primary btn-sm"
