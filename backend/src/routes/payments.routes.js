@@ -73,3 +73,53 @@ router.get('/admin-earnings', authenticate, requireAdmin, async (req, res) => {
 });
 
 module.exports = router;
+// Vendor payout ledger (in-memory for now) could be persisted later
+// POST /api/v1/payments/payouts { vendorId, amount, note }
+router.post('/payouts', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { vendorId, amount } = req.body || {};
+    if (!vendorId || !(Number(amount) > 0)) return res.status(400).json({ success: false, message: 'vendorId and positive amount required' });
+    // In a real system, persist payout record in DB. For now, return OK (frontend keeps its own record) 
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Failed to record payout' });
+  }
+});
+
+// GET /api/v1/payments/vendor-summary?from=...&to=...&vendorId=...
+// Returns per-vendor aggregates: totalVendorEarnings, totalAdminCommission, totalPaid (0 for now), due = earnings - paid, date range
+router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { from, to, vendorId } = req.query || {};
+    const query = {};
+    if (from || to) {
+      query.createdAt = {};
+      if (from) query.createdAt.$gte = new Date(from);
+      if (to) query.createdAt.$lte = new Date(to);
+    }
+
+    const orders = await Order.find(query).lean();
+    const sums = new Map();
+    for (const o of orders) {
+      const items = Array.isArray(o.items) ? o.items : [];
+      for (const it of items) {
+        const vid = String(it.vendor || '');
+        if (!vid) continue;
+        if (vendorId && String(vendorId) !== vid) continue;
+        const qty = Number(it.quantity || 0);
+        const customerUnit = Number(it.price || 0);
+        const vendorUnit = Number(it.vendorUnitPrice || 0);
+        const vendorEarn = vendorUnit * qty;
+        const adminEarn = (customerUnit - vendorUnit) * qty;
+        if (!sums.has(vid)) sums.set(vid, { vendorId: vid, vendorEarnings: 0, adminCommission: 0 });
+        const agg = sums.get(vid);
+        agg.vendorEarnings += vendorEarn;
+        agg.adminCommission += adminEarn;
+      }
+    }
+    const result = Array.from(sums.values()).map(r => ({ ...r, paid: 0, due: r.vendorEarnings - 0 }));
+    res.json({ success: true, data: result });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Failed to compute vendor summary' });
+  }
+});

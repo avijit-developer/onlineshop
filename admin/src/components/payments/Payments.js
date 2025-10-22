@@ -6,6 +6,7 @@ import './Payments.css';
 
 const Payments = () => {
   const [payments, setPayments] = useState([]);
+  const [vendorSummary, setVendorSummary] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,9 +36,10 @@ const Payments = () => {
       const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
-      const [earnRes, venRes] = await Promise.all([
+      const [earnRes, venRes, sumRes] = await Promise.all([
         fetch(`${baseUrl}/api/v1/payments/admin-earnings`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
         fetch(`${baseUrl}/api/v1/vendors?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
+        fetch(`${baseUrl}/api/v1/payments/vendor-summary`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
       ]);
       if (venRes && venRes.ok) {
         const vjson = await venRes.json();
@@ -58,8 +60,11 @@ const Payments = () => {
         vendorId: r.vendorId,
       }));
       setPayments(rows);
-      // Keep withdrawals as manual flow for now (empty)
-      setWithdrawals([]);
+      if (sumRes && sumRes.ok) {
+        const sj = await sumRes.json();
+        setVendorSummary(sj?.data || []);
+      }
+      // Keep withdrawals as manual flow for now
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -217,13 +222,11 @@ const Payments = () => {
   };
 
   const getVendorBalance = (vendorId) => {
-    const vendorPayments = payments.filter(p => p.vendorId === vendorId && p.status === 'completed');
-    const vendorWithdrawals = withdrawals.filter(w => w.vendorId === vendorId && w.status === 'approved');
-    
-    const totalEarnings = vendorPayments.reduce((sum, p) => sum + p.vendorEarnings, 0);
-    const totalWithdrawn = vendorWithdrawals.reduce((sum, w) => sum + w.amount, 0);
-    
-    return totalEarnings - totalWithdrawn;
+    const vs = vendorSummary.find(v => String(v.vendorId) === String(vendorId));
+    const due = vs ? Number(vs.due || (vs.vendorEarnings - (vs.paid || 0))) : 0;
+    const vendorWithdrawals = withdrawals.filter(w => String(w.vendorId) === String(vendorId) && w.status === 'approved');
+    const manualPaid = vendorWithdrawals.reduce((sum, w) => sum + Number(w.amount || 0), 0);
+    return Math.max(0, due - manualPaid);
   };
 
   // Filter and sort functions
