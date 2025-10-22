@@ -37,6 +37,21 @@ const api = {
 
     try {
       const response = await fetch(url, config);
+      // Handle expired/invalid sessions: redirect vendor portal to login on 401
+      if (response && response.status === 401) {
+        try { await AsyncStorage.removeItem('vendorAuthToken'); } catch (_) {}
+        try {
+          const nav = global.__APP_NAV__;
+          if (nav && typeof nav.navigate === 'function') {
+            // Avoid repeated redirects
+            if (!global.__VENDOR_AUTH_REDIRECTING__) {
+              global.__VENDOR_AUTH_REDIRECTING__ = true;
+              const go = () => { try { nav.navigate('VendorPortal', { screen: 'VendorAuth' }); } catch (_) {} };
+              if (typeof nav.isReady === 'function' && !nav.isReady()) { setTimeout(go, 300); } else { go(); }
+            }
+          }
+        } catch (_) {}
+      }
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new ApiError(errorData.message || `HTTP error! status: ${response.status}`, response.status);
