@@ -22,6 +22,10 @@ const Payments = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const round2 = (n) => {
+    const x = Number(n || 0);
+    return Math.round((x + Number.EPSILON) * 100) / 100;
+  };
 
   useEffect(() => {
     fetchData();
@@ -244,7 +248,7 @@ const Payments = () => {
     const due = vs ? Number(vs.due || (vs.vendorEarnings - (vs.paid || 0))) : 0;
     const vendorWithdrawals = withdrawals.filter(w => String(w.vendorId) === String(vendorId) && w.status === 'approved');
     const manualPaid = vendorWithdrawals.reduce((sum, w) => sum + Number(w.amount || 0), 0);
-    return Math.max(0, due - manualPaid);
+    return round2(Math.max(0, due - manualPaid));
   };
 
   // Filter and sort functions
