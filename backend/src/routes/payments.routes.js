@@ -27,6 +27,13 @@ router.get('/admin-earnings', authenticate, requireAdmin, async (req, res) => {
     const entries = [];
 
     for (const o of orders) {
+      // Extra safety: ensure only delivered/completed are included when requested
+      const statusLower = String(o.status || '').toLowerCase();
+      if (!status || String(status).toLowerCase() === 'completed') {
+        if (!(statusLower === 'delivered' || statusLower === 'completed')) continue;
+      } else if (String(status).toLowerCase() !== 'all') {
+        if (statusLower !== String(status).toLowerCase()) continue;
+      }
       const items = Array.isArray(o.items) ? o.items : [];
       const orderSubtotal = items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
       const taxPercent = Number(o.tax || 0);
@@ -112,6 +119,12 @@ router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
     const orders = await Order.find(query).lean();
     const sums = new Map();
     for (const o of orders) {
+      const statusLower = String(o.status || '').toLowerCase();
+      if (!status || String(status).toLowerCase() === 'completed') {
+        if (!(statusLower === 'delivered' || statusLower === 'completed')) continue;
+      } else if (String(status).toLowerCase() !== 'all') {
+        if (statusLower !== String(status).toLowerCase()) continue;
+      }
       const items = Array.isArray(o.items) ? o.items : [];
       for (const it of items) {
         const vid = String(it.vendor || '');
