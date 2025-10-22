@@ -169,23 +169,41 @@ const Payments = () => {
   };
 
   const handleManualPayout = () => {
-    if (selectedVendor && payoutAmount) {
-      const newWithdrawal = {
-        id: Date.now(),
-        vendorId: selectedVendor.id,
-        vendorName: selectedVendor.companyName,
-        amount: parseFloat(payoutAmount),
-        status: 'approved',
-        requestDate: new Date().toISOString(),
-        processedDate: new Date().toISOString(),
-        paymentMethod: 'Manual Payout',
-        accountDetails: 'Admin initiated'
-      };
-      setWithdrawals([newWithdrawal, ...withdrawals]);
-      setShowPayoutModal(false);
-      setPayoutAmount('');
-      toast.success('Manual payout processed successfully');
-    }
+    (async () => {
+      if (selectedVendor && payoutAmount) {
+        try {
+          const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+          const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+          const token = localStorage.getItem('adminToken');
+          const resp = await fetch(`${baseUrl}/api/v1/payments/payouts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+            body: JSON.stringify({ vendorId: selectedVendor.id, amount: Number(payoutAmount), method: 'Manual', note: 'Admin manual payout' })
+          });
+          const json = await resp.json().catch(() => ({}));
+          if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to record payout');
+          const newWithdrawal = {
+            id: json?.data?.id || Date.now(),
+            vendorId: selectedVendor.id,
+            vendorName: selectedVendor.companyName,
+            amount: parseFloat(payoutAmount),
+            status: 'approved',
+            requestDate: new Date().toISOString(),
+            processedDate: new Date().toISOString(),
+            paymentMethod: 'Manual Payout',
+            accountDetails: 'Admin initiated'
+          };
+          setWithdrawals([newWithdrawal, ...withdrawals]);
+          // Refresh vendor summary to recalc due
+          await fetchData();
+          setShowPayoutModal(false);
+          setPayoutAmount('');
+          toast.success('Manual payout processed successfully');
+        } catch (e) {
+          toast.error(e?.message || 'Failed to process payout');
+        }
+      }
+    })();
   };
 
   const getVendorName = (vendorId) => {

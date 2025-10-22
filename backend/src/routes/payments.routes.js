@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const Order = require('../models/Order');
+const Payout = require('../models/Payout');
 
 const router = express.Router();
 
@@ -77,17 +78,17 @@ module.exports = router;
 // POST /api/v1/payments/payouts { vendorId, amount, note }
 router.post('/payouts', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { vendorId, amount } = req.body || {};
+    const { vendorId, amount, method, note } = req.body || {};
     if (!vendorId || !(Number(amount) > 0)) return res.status(400).json({ success: false, message: 'vendorId and positive amount required' });
-    // In a real system, persist payout record in DB. For now, return OK (frontend keeps its own record) 
-    return res.json({ success: true });
+    const doc = await Payout.create({ vendor: vendorId, amount: Number(amount), method: method || 'Manual', note: note || '', processedBy: req.user?.id });
+    return res.status(201).json({ success: true, data: { id: doc._id, vendorId: doc.vendor, amount: doc.amount, method: doc.method, note: doc.note, createdAt: doc.createdAt } });
   } catch (e) {
     return res.status(500).json({ success: false, message: 'Failed to record payout' });
   }
 });
 
 // GET /api/v1/payments/vendor-summary?from=...&to=...&vendorId=...
-// Returns per-vendor aggregates: totalVendorEarnings, totalAdminCommission, totalPaid (0 for now), due = earnings - paid, date range
+// Returns per-vendor aggregates: earnings, adminCommission, paid (sum of payouts), due = earnings - paid
 router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
   try {
     const { from, to, vendorId } = req.query || {};
@@ -117,7 +118,19 @@ router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
         agg.adminCommission += adminEarn;
       }
     }
-    const result = Array.from(sums.values()).map(r => ({ ...r, paid: 0, due: r.vendorEarnings - 0 }));
+    // Sum payouts
+    const payoutQuery = {};
+    if (vendorId) payoutQuery.vendor = vendorId;
+    const payouts = await Payout.find(payoutQuery).lean();
+    const paidMap = new Map();
+    for (const p of payouts) {
+      const vid = String(p.vendor);
+      paidMap.set(vid, (paidMap.get(vid) || 0) + Number(p.amount || 0));
+    }
+    const result = Array.from(sums.values()).map(r => {
+      const paid = paidMap.get(String(r.vendorId)) || 0;
+      return { ...r, paid, due: Math.max(0, r.vendorEarnings - paid) };
+    });
     res.json({ success: true, data: result });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Failed to compute vendor summary' });
