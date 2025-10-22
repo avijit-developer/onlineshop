@@ -37,9 +37,9 @@ const Payments = () => {
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
       const [earnRes, venRes, sumRes] = await Promise.all([
-        fetch(`${baseUrl}/api/v1/payments/admin-earnings`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
+        fetch(`${baseUrl}/api/v1/payments/admin-earnings?status=completed`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
         fetch(`${baseUrl}/api/v1/vendors?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
-        fetch(`${baseUrl}/api/v1/payments/vendor-summary`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+        fetch(`${baseUrl}/api/v1/payments/vendor-summary?status=completed`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
       ]);
       if (venRes && venRes.ok) {
         const vjson = await venRes.json();
