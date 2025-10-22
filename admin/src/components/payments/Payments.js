@@ -26,6 +26,10 @@ const Payments = () => {
     const x = Number(n || 0);
     return Math.round((x + Number.EPSILON) * 100) / 100;
   };
+  const round2 = (n) => {
+    const x = Number(n || 0);
+    return Math.round((x + Number.EPSILON) * 100) / 100;
+  };
 
   useEffect(() => {
     fetchData();
@@ -784,7 +788,7 @@ const Payments = () => {
                       const vendor = vendors.find(v => v.id === parseInt(e.target.value));
                       setSelectedVendor(vendor);
                       if (vendor) {
-                        setPayoutAmount(getVendorBalance(vendor.id).toString());
+                        setPayoutAmount(getVendorBalance(vendor.id).toFixed(2));
                       }
                     }}
                   >
