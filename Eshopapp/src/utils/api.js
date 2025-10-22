@@ -597,8 +597,8 @@ const api = {
   async getVendorProfile() {
     const token = await this.getVendorToken();
     if (!token) throw new Error('No authentication token');
-    // Reuse auth/me with vendor token; backend should return the current user profile
-    return this.request('/api/v1/auth/me', {
+    // Use vendors/me for vendor profile details
+    return this.request('/api/v1/vendors/me', {
       headers: { 'Authorization': `Bearer ${token}` },
     });
   },
