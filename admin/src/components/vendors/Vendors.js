@@ -633,27 +633,61 @@ const Vendors = () => {
               </div>
             </div>
             <div className="modal-body">
-              <div className="vendor-profile">
-                <div className="profile-header">
-                  <img src={selectedVendor.logo && selectedVendor.logo.trim() ? selectedVendor.logo : defaultVendor} alt={selectedVendor.companyName} />
-                  <div>
-                    <h3>{selectedVendor.companyName}</h3>
-                    <p>{selectedVendor.name}</p>
+              <div className="vendor-card">
+                <div className="profile-hero">
+                  <div className="cover" />
+                  <div className="avatar-row">
+                    <img
+                      src={selectedVendor.logo && selectedVendor.logo.trim() ? selectedVendor.logo : defaultVendor}
+                      alt={selectedVendor.companyName}
+                      className="avatar"
+                    />
+                    <div className="title">
+                      <h3 className="vendor-company">{selectedVendor.companyName}</h3>
+                      <p className="vendor-name">{selectedVendor.name}</p>
+                    </div>
+                    <span className={`status-pill ${selectedVendor.status}`}>{selectedVendor.status}</span>
                   </div>
                 </div>
-                <div className="profile-details">
-                  <div className="detail-group"><label>Email:</label><span>{selectedVendor.email}</span></div>
-                  <div className="detail-group"><label>Phone:</label><span>{selectedVendor.phone}</span></div>
-                  <div className="detail-group"><label>Address:</label><span>{formatAddress(selectedVendor) || '—'}</span></div>
-                  <div className="detail-group"><label>Status:</label><span className={`status-badge ${selectedVendor.status}`}>{selectedVendor.status}</span></div>
-                  <div className="detail-group"><label>Balance:</label><span>${selectedVendor.balance?.toLocaleString() || '0'}</span></div>
-                  <div className="detail-group"><label>Total Earnings:</label><span>${selectedVendor.totalEarnings?.toLocaleString() || '0'}</span></div>
-                  {/* Commission removed from view */}
+                <div className="details-grid">
+                  <div className="detail">
+                    <span className="label">Email</span>
+                    <span className="value">{selectedVendor.email || '—'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">Phone</span>
+                    <span className="value">{selectedVendor.phone || '—'}</span>
+                  </div>
+                  <div className="detail full">
+                    <span className="label">Address</span>
+                    <span className="value">{formatAddress(selectedVendor) || '—'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">Status</span>
+                    <span className="value"><span className={`status-badge ${selectedVendor.status}`}>{selectedVendor.status}</span></span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">Balance</span>
+                    <span className="value">${selectedVendor.balance?.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">Total Earnings</span>
+                    <span className="value">${selectedVendor.totalEarnings?.toLocaleString() || '0'}</span>
+                  </div>
                 </div>
-                <div className="vendor-stats">
-                  <div className="stat-item"><h4>Products</h4><p>{selectedVendor.productsCount || 0}</p></div>
-                  <div className="stat-item"><h4>Orders</h4><p>{selectedVendor.ordersCount || 0}</p></div>
-                  <div className="stat-item"><h4>Rating</h4><p>{selectedVendor.rating || 'N/A'}</p></div>
+                <div className="stats-row">
+                  <div className="mini-stat">
+                    <span className="big">{selectedVendor.productsCount || 0}</span>
+                    <span className="sub">Products</span>
+                  </div>
+                  <div className="mini-stat">
+                    <span className="big">{selectedVendor.ordersCount || 0}</span>
+                    <span className="sub">Orders</span>
+                  </div>
+                  <div className="mini-stat">
+                    <span className="big">{selectedVendor.rating || '—'}</span>
+                    <span className="sub">Rating</span>
+                  </div>
                 </div>
               </div>
             </div>
