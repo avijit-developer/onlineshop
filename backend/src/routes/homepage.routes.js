@@ -219,9 +219,7 @@ router.get('/sections/:name/products/public', async (req, res) => {
         sort = { salesCount: -1, featured: -1, createdAt: -1 };
         break;
       case 'auto-recent': {
-        const daysBack = section.autoSettings?.daysBack || 30;
-        const dateLimit = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-        filters.createdAt = { $gte: dateLimit };
+        // Show recent first, but without limiting by days
         sort = { createdAt: -1 };
         break;
       }
@@ -420,11 +418,9 @@ async function getAutoProducts(section) {
       return products;
     
     case 'auto-recent':
-      const daysBack = section.autoSettings.daysBack || 30;
-      const dateLimit = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-      query.createdAt = { $gte: dateLimit };
+      // Show recent first without restricting by days
       const recentProducts = await Product.find(query).sort({ createdAt: -1 }).limit(section.settings.maxProducts);
-      console.log(`getAutoProducts: auto-recent found ${recentProducts.length} products (daysBack: ${daysBack})`);
+      console.log(`getAutoProducts: auto-recent found ${recentProducts.length} products`);
       return recentProducts;
     
     case 'auto-category':
