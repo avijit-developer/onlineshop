@@ -65,6 +65,14 @@ const Vendors = () => {
     };
   };
 
+  const formatAddress = (v) => {
+    if (!v) return '';
+    const parts = [v.address1, v.address2, v.city, v.zip]
+      .map((s) => (s || '').trim())
+      .filter(Boolean);
+    return parts.join(', ');
+  };
+
   useEffect(() => {
     fetchVendors();
   }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
@@ -529,10 +537,7 @@ const Vendors = () => {
                   <label>ZIP *</label>
                   <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} required />
                 </div>
-                <div className="form-group">
-                  <label>Commission (%)</label>
-                  <input type="number" name="commission" min="0" max="100" step="0.1" value={formData.commission} onChange={handleAddInput} />
-                </div>
+                {/* Commission removed */}
                 <div className="form-group full-width">
                   <label>Logo</label>
                   <input type="file" accept="image/*" onChange={handleLogoChange} />
@@ -594,10 +599,7 @@ const Vendors = () => {
                   <label>ZIP *</label>
                   <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} required />
                 </div>
-                <div className="form-group">
-                  <label>Commission (%)</label>
-                  <input type="number" name="commission" min="0" max="100" step="0.1" value={formData.commission} onChange={handleAddInput} />
-                </div>
+                {/* Commission removed */}
                 <div className="form-group full-width">
                   <label>Logo</label>
                   <input type="file" accept="image/*" onChange={handleLogoChange} />
@@ -642,11 +644,11 @@ const Vendors = () => {
                 <div className="profile-details">
                   <div className="detail-group"><label>Email:</label><span>{selectedVendor.email}</span></div>
                   <div className="detail-group"><label>Phone:</label><span>{selectedVendor.phone}</span></div>
-                  <div className="detail-group"><label>Address:</label><span>{selectedVendor.address}</span></div>
+                  <div className="detail-group"><label>Address:</label><span>{formatAddress(selectedVendor) || '—'}</span></div>
                   <div className="detail-group"><label>Status:</label><span className={`status-badge ${selectedVendor.status}`}>{selectedVendor.status}</span></div>
                   <div className="detail-group"><label>Balance:</label><span>${selectedVendor.balance?.toLocaleString() || '0'}</span></div>
                   <div className="detail-group"><label>Total Earnings:</label><span>${selectedVendor.totalEarnings?.toLocaleString() || '0'}</span></div>
-                  <div className="detail-group"><label>Commission:</label><span>{selectedVendor.commission ?? 10}%</span></div>
+                  {/* Commission removed from view */}
                 </div>
                 <div className="vendor-stats">
                   <div className="stat-item"><h4>Products</h4><p>{selectedVendor.productsCount || 0}</p></div>

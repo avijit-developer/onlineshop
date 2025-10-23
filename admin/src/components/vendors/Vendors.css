@@ -528,8 +528,10 @@
 
 /* Larger profile modal */
 .modal.profile-modal {
-  max-width: 900px;
+  max-width: 520px;
   width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .vendor-profile {
@@ -537,18 +539,32 @@
 }
 
 .profile-header img {
-  width: 100px;
-  height: 100px;
+  width: 72px;
+  height: 72px;
 }
 
 .profile-details {
-  grid-template-columns: repeat(3, minmax(200px, 1fr));
-  gap: 20px;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
 .vendor-stats {
   grid-template-columns: repeat(3, 1fr);
-} 
+}
+
+/* Make profile modal visually cleaner */
+.modal.profile-modal .modal-body {
+  padding-top: 12px;
+}
+.modal.profile-modal .profile-header h3 {
+  font-size: 1.25rem;
+}
+.modal.profile-modal .detail-group label {
+  color: #475569;
+}
+.modal.profile-modal .detail-group span {
+  color: #0f172a;
+}
 
 .toggle-switch {
   position: relative;
