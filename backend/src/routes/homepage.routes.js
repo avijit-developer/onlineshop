@@ -106,9 +106,9 @@ router.get('/sections/public', async (req, res) => {
 
       console.log(`Homepage: Section "${section.name}" has ${products.length} manual products`);
 
-      // If auto-type and not enough products, fetch more (except curated-only sections)
+      // If auto-type and not enough products, fetch more (allow fallback for all auto sections)
       const curatedOnly = section && ['most-popular','best-seller','just-for-you'].includes(String(section.name));
-      if (!curatedOnly && section.type !== 'manual' && products.length < section.settings.maxProducts) {
+      if (section.type !== 'manual' && products.length < section.settings.maxProducts) {
         console.log(`Homepage: Section "${section.name}" needs auto-products (has ${products.length}, needs ${section.settings.maxProducts})`);
         const autoProducts = await getAutoProducts(section);
         console.log(`Homepage: Section "${section.name}" got ${autoProducts.length} auto-products`);
@@ -122,7 +122,7 @@ router.get('/sections/public', async (req, res) => {
         products = [...products, ...newProducts.map(p => ({ productId: p, order: 999 }))];
       }
 
-      // No fallback to non-approved; only approved products should show in app
+      // Ensure we still enforce approved + enabled
 
       console.log(`Homepage: Section "${section.name}" final product count: ${products.length}`);
 
