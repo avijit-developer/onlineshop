@@ -28,26 +28,34 @@ export const LocationProvider = ({ children }) => {
 
   const loadUserDefaultAddress = async () => {
     try {
+      // First try local storage (fast path)
+      const storedAddresses = await AsyncStorage.getItem('userAddresses');
+      const storedDefaultId = await AsyncStorage.getItem('defaultAddressId');
+      if (storedAddresses) {
+        const parsed = JSON.parse(storedAddresses);
+        const fallback = parsed.find(a => a.isDefault) || parsed[0];
+        const chosen = (storedDefaultId && parsed.find(a => a.id === storedDefaultId)) || fallback;
+        if (chosen) {
+          setAddress(chosen.address || '');
+          setArea('');
+          setCity(chosen.city || '');
+          setPostalCode(chosen.zipCode || chosen.postalCode || '');
+          if (chosen.location?.coordinates) {
+            setLocation({ latitude: chosen.location.coordinates[1], longitude: chosen.location.coordinates[0] });
+          }
+        }
+      }
+      // Then try API (authoritative path)
       const token = await AsyncStorage.getItem('authToken');
       if (!token) return;
-
-      const response = await api.request('/api/v1/users/me/addresses', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.success && response.data && response.data.length > 0) {
-        const defaultAddress = response.data.find(addr => addr.isDefault) || response.data[0];
-        const nextLocation = defaultAddress.location?.coordinates ? {
-          latitude: defaultAddress.location.coordinates[1],
-          longitude: defaultAddress.location.coordinates[0],
-        } : null;
-        // Batch-set state to minimize re-renders
-        setAddress(defaultAddress.address);
+      const response = await api.request('/api/v1/users/me/addresses', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+        const def = response.data.find(a => a.isDefault) || response.data[0];
+        const nextLocation = def.location?.coordinates ? { latitude: def.location.coordinates[1], longitude: def.location.coordinates[0] } : null;
+        setAddress(def.address || '');
         setArea('');
-        setCity(defaultAddress.city || '');
-        setPostalCode(defaultAddress.zipCode || defaultAddress.postalCode || '');
+        setCity(def.city || '');
+        setPostalCode(def.zipCode || def.postalCode || '');
         if (nextLocation) setLocation(nextLocation);
       }
     } catch (error) {

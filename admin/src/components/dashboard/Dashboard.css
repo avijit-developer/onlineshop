@@ -154,9 +154,27 @@
 
 .dashboard .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   margin-bottom: 16px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dashboard .stat-card {
@@ -250,3 +268,29 @@
     justify-content: flex-end;
   }
 } 
+
+/* Equal height for Sales Overview and Recent Orders */
+.row-equal {
+  display: flex;
+  align-items: stretch;
+}
+.row-equal .col-8,
+.row-equal .col-4 {
+  display: flex;
+}
+.row-equal .col-8 .chart-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.row-equal .col-4 .card {
+  width: 100%;
+  height: 98%;
+  display: flex;
+  flex-direction: column;
+}
+.row-equal .recent-orders {
+  flex: 1;
+  max-height: none; /* override cap */
+  overflow-y: auto;
+}

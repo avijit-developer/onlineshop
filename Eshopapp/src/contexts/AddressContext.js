@@ -46,18 +46,44 @@ export const AddressProvider = ({ children }) => {
     };
   });
 
+  const buildSignature = (a) => {
+    const norm = (v) => String(v || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    return [
+      norm(a.address),
+      norm(a.city),
+      norm(a.state),
+      norm(a.zipCode || a.postalCode),
+      norm(a.phone)
+    ].join('|');
+  };
+
+  const dedupeBySignature = (list) => {
+    const seen = new Set();
+    const out = [];
+    for (const a of list) {
+      const sig = buildSignature(a);
+      if (seen.has(sig)) continue;
+      seen.add(sig);
+      out.push(a);
+    }
+    return out;
+  };
+
   const refreshFromAPI = async () => {
     try {
       const resp = await api.getUserAddresses();
       if (resp && Array.isArray(resp.data)) {
         const apiAddresses = transformApiAddresses(resp.data);
-        setAddresses(apiAddresses);
+        // Normalize single default
         const def = apiAddresses.find(a => a.isDefault);
-        if (def) {
-          setDefaultAddressId(def.id);
-          await AsyncStorage.setItem('defaultAddressId', def.id);
+        const chosenDefaultId = def ? def.id : (apiAddresses[0]?.id || null);
+        const normalized = apiAddresses.map(a => ({ ...a, isDefault: chosenDefaultId ? a.id === chosenDefaultId : !!a.isDefault }));
+        setAddresses(dedupeBySignature(normalized));
+        if (chosenDefaultId) {
+          setDefaultAddressId(chosenDefaultId);
+          await AsyncStorage.setItem('defaultAddressId', chosenDefaultId);
         }
-        await saveAddresses(apiAddresses);
+        await saveAddresses(dedupeBySignature(normalized));
       }
     } catch (e) {
       // ignore
@@ -89,10 +115,13 @@ export const AddressProvider = ({ children }) => {
       const storedDefaultId = await AsyncStorage.getItem('defaultAddressId');
       
       if (storedAddresses) {
-        setAddresses(JSON.parse(storedAddresses));
-      }
-      if (storedDefaultId) {
-        setDefaultAddressId(storedDefaultId);
+        const parsed = JSON.parse(storedAddresses);
+        // Normalize single default based on storedDefaultId or first default flag
+        const fallbackDefault = parsed.find(a => a.isDefault) || parsed[0];
+        const chosenDefaultId = storedDefaultId || (fallbackDefault && fallbackDefault.id) || null;
+        const normalized = parsed.map(a => ({ ...a, isDefault: chosenDefaultId ? a.id === chosenDefaultId : !!a.isDefault }));
+        setAddresses(dedupeBySignature(normalized));
+        if (chosenDefaultId) setDefaultAddressId(chosenDefaultId);
       }
 
       // Then try to fetch from API if user is logged in
@@ -116,20 +145,19 @@ export const AddressProvider = ({ children }) => {
               }
             });
 
-            setAddresses(mergedAddresses);
-            
-            // Set default address
-            const defaultAddr = mergedAddresses.find(addr => addr.isDefault);
-            if (defaultAddr) {
-              setDefaultAddressId(defaultAddr.id);
-              await AsyncStorage.setItem('defaultAddressId', defaultAddr.id);
+            // Normalize a single default (prefer API default)
+            const apiDefault = mergedAddresses.find(addr => addr.isDefault);
+            const storedDefault = storedDefaultId ? mergedAddresses.find(a => a.id === storedDefaultId) : null;
+            const chosenDefaultId = (apiDefault && apiDefault.id) || (storedDefault && storedDefault.id) || (mergedAddresses[0] && mergedAddresses[0].id) || null;
+            const normalized = mergedAddresses.map(a => ({ ...a, isDefault: chosenDefaultId ? a.id === chosenDefaultId : !!a.isDefault }));
+            setAddresses(dedupeBySignature(normalized));
+            if (chosenDefaultId) {
+              setDefaultAddressId(chosenDefaultId);
+              await AsyncStorage.setItem('defaultAddressId', chosenDefaultId);
             }
-            
-            // Save only API addresses to local storage (to preserve _originalId)
-            const apiOnlyAddresses = mergedAddresses.filter(addr => addr._originalId);
-            if (apiOnlyAddresses.length > 0) {
-              await saveAddresses(apiOnlyAddresses);
-            }
+            // Save only API-backed addresses to local storage (preserve _originalId)
+            const apiOnlyAddresses = dedupeBySignature(normalized).filter(addr => addr._originalId);
+            if (apiOnlyAddresses.length > 0) await saveAddresses(apiOnlyAddresses);
           }
         } catch (apiError) {
           console.log('API address fetch failed, using local addresses:', apiError);
@@ -188,6 +216,11 @@ export const AddressProvider = ({ children }) => {
 
   const addAddress = async (address) => {
     try {
+      // Prevent duplicates locally
+      const incomingSig = buildSignature(address);
+      if (addresses.some(a => buildSignature(a) === incomingSig)) {
+        throw new Error('This address already exists in your list');
+      }
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
         try {
@@ -220,7 +253,7 @@ export const AddressProvider = ({ children }) => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      const newAddresses = [...addresses, newAddress];
+      const newAddresses = dedupeBySignature([...addresses, newAddress]);
       setAddresses(newAddresses);
       if (newAddress.isDefault) {
         setDefaultAddressId(newAddress.id);
@@ -389,17 +422,16 @@ export const AddressProvider = ({ children }) => {
       const response = await api.getUserAddresses();
       if (response && Array.isArray(response.data)) {
         const apiAddresses = transformApiAddresses(response.data);
-        setAddresses(apiAddresses);
-        
-        // Set default address
-        const defaultAddr = apiAddresses.find(addr => addr.isDefault);
-        if (defaultAddr) {
-          setDefaultAddressId(defaultAddr.id);
-          await AsyncStorage.setItem('defaultAddressId', defaultAddr.id);
+        const apiDefault = apiAddresses.find(a => a.isDefault) || apiAddresses[0] || null;
+        const chosenDefaultId = apiDefault ? apiDefault.id : null;
+        const normalized = apiAddresses.map(a => ({ ...a, isDefault: chosenDefaultId ? a.id === chosenDefaultId : !!a.isDefault }));
+        setAddresses(normalized);
+        if (chosenDefaultId) {
+          setDefaultAddressId(chosenDefaultId);
+          await AsyncStorage.setItem('defaultAddressId', chosenDefaultId);
         }
-        
         // Save API addresses to local storage
-        await saveAddresses(apiAddresses);
+        await saveAddresses(normalized);
         
         return apiAddresses;
       }

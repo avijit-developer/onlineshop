@@ -15,6 +15,7 @@ const Vendors = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [total, setTotal] = useState(0);
+  const [rowAction, setRowAction] = useState({});
 
   // Get current user and permissions
   const getCurrentUser = () => {
@@ -138,6 +139,12 @@ const Vendors = () => {
 
   const handleStatusChange = async (vendorId, newStatus) => {
     try {
+      setRowAction(prev => ({ ...prev, [vendorId]: newStatus }));
+      setVendors(prev => prev.map(v => {
+        const id = v._id || v.id;
+        if (String(id) !== String(vendorId)) return v;
+        return { ...v, status: newStatus, enabled: newStatus === 'approved' ? true : v.enabled };
+      }));
       const res = await fetch(`${API_BASE}/api/v1/vendors/${vendorId}/status`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
@@ -149,6 +156,9 @@ const Vendors = () => {
       fetchVendors();
     } catch (error) {
       toast.error(error.message || 'Failed to update vendor status');
+      fetchVendors();
+    } finally {
+      setRowAction(prev => { const { [vendorId]: _, ...rest } = prev; return rest; });
     }
   };
 
@@ -464,8 +474,14 @@ const Vendors = () => {
                     <button title="View" onClick={() => viewProfile(vendor)} className="btn btn-secondary btn-sm">👁️</button>
                     {vendor.status === 'pending' && !isVendor && has('vendor.approve') && (
                       <>
-                        <button title="Approve" onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')} className="btn btn-success btn-sm">✔️</button>
-                        <button title="Reject" onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')} className="btn btn-danger btn-sm">✖️</button>
+                        {rowAction[vendor._id || vendor.id] ? (
+                          <span className="loading-inline">Updating...</span>
+                        ) : (
+                          <>
+                            <button title="Approve" onClick={() => handleStatusChange(vendor._id || vendor.id, 'approved')} className="btn btn-success btn-sm">✔️</button>
+                            <button title="Reject" onClick={() => handleStatusChange(vendor._id || vendor.id, 'rejected')} className="btn btn-danger btn-sm">✖️</button>
+                          </>
+                        )}
                       </>
                     )}
                     {has('vendor.edit') && (

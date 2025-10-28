@@ -4,6 +4,7 @@ const { authenticate, requireAdmin, requireRole, requireAnyPermission, requirePe
 const Vendor = require('../models/Vendor');
 const router = express.Router();
 const VendorUser = require('../models/VendorUser');
+const Role = require('../models/Role');
 const bcrypt = require('bcryptjs');
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
 // Public: customer can submit vendor application (creates pending vendor)
@@ -48,6 +49,8 @@ router.post('/apply', async (req, res) => {
       throw new Error('A vendor with this email already exists');
     }
 
+    // Removed pre-validation for creating vendor user; account will be created on approval
+
     const created = await Vendor.create({
       name: String(name || req.user?.name || '').trim() || 'Applicant',
       companyName: String(companyName).trim(),
@@ -78,18 +81,7 @@ router.post('/apply', async (req, res) => {
         if (!vu.vendor) vu.vendor = created._id; // legacy single vendor field if empty
         await vu.save();
       } else {
-        // create new vendor user if sufficient details provided
-        if (!vendorUserName || !vendorUserPassword || String(vendorUserPassword).length < 8) {
-          res.status(400);
-          throw new Error('Vendor user not found. Provide name and a password (min 8 chars) to create one.');
-        }
-        const passwordHash = await bcrypt.hash(String(vendorUserPassword), 10);
-        await VendorUser.create({
-          name: String(vendorUserName).trim(),
-          email: vuEmail,
-          passwordHash,
-          vendors: [created._id],
-        });
+        // do not create new vendor user at application time; will be created on approval
       }
     } else {
       // NO to using existing vendor user: ensure we create/assign a vendor user if email provided
@@ -102,30 +94,21 @@ router.post('/apply', async (req, res) => {
           if (!vu.vendor) vu.vendor = created._id; // legacy single vendor field if empty
           await vu.save();
         } else {
-          // Create a new vendor user AND assign the vendor
-          if (!vendorUserName || !vendorUserPassword || String(vendorUserPassword).length < 8) {
-            res.status(400);
-            throw new Error('To create a new vendor user, provide name and a password (min 8 chars)');
-          }
-          const passwordHash = await bcrypt.hash(String(vendorUserPassword), 10);
-          await VendorUser.create({
-            name: String(vendorUserName).trim(),
-            email: vuEmail,
-            passwordHash,
-            vendor: created._id,
-            vendors: [created._id]
-          });
+          // do not create new vendor user at application time; will be created on approval
         }
       }
     }
 
-    // Notify vendor user via email (best-effort)
+    // Notify applicant (and optional vendor user) via email (best-effort)
     try {
-      const html = await buildEmailHtml({
-        subject: 'Vendor Registration Received',
-        contentHtml: `<p>Hi ${name || 'there'},</p><p>Your vendor registration for <b>${companyName}</b> has been received and is pending approval.</p>`
-      });
-      await sendMail({ to: applicantEmail, subject: 'Vendor Registration Received', html });
+      const subject = 'Thank you for registering - awaiting admin approval';
+      const contentHtml = `<p>Hi ${name || 'there'},</p><p>Thank you for registering your business <b>${companyName}</b>.</p><p>Your application has been received and is <b>awaiting admin approval</b>. We will notify you once it is reviewed.</p>`;
+      const html = await buildEmailHtml({ subject, contentHtml });
+      await sendMail({ to: applicantEmail, subject, html });
+      const vuEmail = String(vendorUserEmail || '').trim().toLowerCase();
+      if (isValidEmail(vuEmail) && vuEmail !== applicantEmail) {
+        await sendMail({ to: vuEmail, subject, html });
+      }
     } catch (_) {}
 
     res.status(201).json({ success: true, data: created });
@@ -299,10 +282,65 @@ router.patch('/:id/status', authenticate, requirePermission('vendor.approve'), a
     res.status(400);
     throw new Error('Invalid status');
   }
-  const updated = await Vendor.findByIdAndUpdate(id, { status }, { new: true }).lean();
+  const updated = await Vendor.findByIdAndUpdate(id, { status, enabled: status === 'approved' ? true : false }, { new: true }).lean();
   if (!updated) {
     res.status(404);
     throw new Error('Vendor not found');
+  }
+  try {
+    if (status === 'approved') {
+      // Ensure at least one vendor user exists; if none, create one with a temp password
+      const vendorId = updated._id;
+      const tempPassword = Math.random().toString(36).slice(-10) + Math.floor(1000 + Math.random() * 9000);
+      const users = await VendorUser.find({ $or: [{ vendor: vendorId }, { vendors: vendorId }] }).lean();
+      let targetUsers = users;
+      if (!users || users.length === 0) {
+        // Create a vendor user using vendor email if valid
+        const vEmail = String(updated.email || '').trim().toLowerCase();
+        if (isValidEmail(vEmail)) {
+          const passwordHash = await bcrypt.hash(String(tempPassword), 10);
+          const createdVU = await VendorUser.create({ name: updated.companyName || 'Vendor', email: vEmail, passwordHash, vendor: vendorId, vendors: [vendorId] });
+          targetUsers = [createdVU.toObject()];
+        }
+      } else {
+        // Reset passwords to temp for all vendor users
+        const passwordHash = await bcrypt.hash(String(tempPassword), 10);
+        await VendorUser.updateMany({ _id: { $in: users.map(u => u._id) } }, { $set: { passwordHash } });
+      }
+      // Ensure default role for vendor users
+      let vendorRole = await Role.findOne({ name: 'Vendor' }).lean();
+      if (!vendorRole) {
+        const createdRole = await Role.create({ name: 'Vendor', description: 'Default vendor role', permissions: ['vendor.view','vendor.edit','products.view'] });
+        vendorRole = createdRole.toObject();
+      }
+      if (targetUsers && targetUsers.length > 0) {
+        await VendorUser.updateMany({ _id: { $in: targetUsers.map(u => u._id || u.id) } }, { $set: { roleRef: vendorRole._id } });
+      }
+      // Send approval email with credentials to vendor email and vendor users
+      try {
+        const subject = 'Your vendor account has been approved';
+        const credsHtml = targetUsers && targetUsers.length > 0
+          ? `<ul>${targetUsers.map(u => `<li><b>Username:</b> ${u.email} — <b>Password:</b> ${tempPassword}</li>`).join('')}</ul>`
+          : `<p>Please use your registered email to sign in. You can reset your password if needed.</p>`;
+        const contentHtml = `<p>Hi ${updated.name || 'there'},</p><p>Your vendor application for <b>${updated.companyName}</b> has been <b>approved</b>.</p>${credsHtml}<p>You can now sign in to the Vendor Portal.</p>`;
+        const html = await buildEmailHtml({ subject, contentHtml });
+        if (isValidEmail(updated.email)) await sendMail({ to: updated.email, subject, html });
+        for (const u of (targetUsers || [])) {
+          if (u && isValidEmail(u.email)) {
+            await sendMail({ to: u.email, subject, html });
+          }
+        }
+      } catch (_) {}
+    } else if (status === 'rejected') {
+      try {
+        const subject = 'Vendor application not approved';
+        const contentHtml = `<p>Hi ${updated.name || 'there'},</p><p>Your vendor application for <b>${updated.companyName}</b> has been <b>rejected</b>.</p><p>Please contact support if you have questions.</p>`;
+        const html = await buildEmailHtml({ subject, contentHtml });
+        if (isValidEmail(updated.email)) await sendMail({ to: updated.email, subject, html });
+      } catch (_) {}
+    }
+  } catch (mailErr) {
+    // Non-fatal; continue
   }
   res.json({ success: true, data: updated });
 });

@@ -71,6 +71,13 @@ function App() {
       const res = await originalFetch(...args);
       try {
         if (res && res.status === 401) {
+          // Do not logout on expected 401s (e.g., wrong current password during change-password)
+          try {
+            const reqUrl = (typeof args[0] === 'string') ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+            if (reqUrl && reqUrl.includes('/api/v1/auth/change-password')) {
+              return res; // allow caller to handle
+            }
+          } catch (_) {}
           localStorage.removeItem('adminToken');
           localStorage.removeItem('adminUser');
           if (window.location.pathname !== '/admin/login') {

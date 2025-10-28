@@ -1,6 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+
+// Move vector icons apply after react plugin
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 
 /**
@@ -92,6 +94,14 @@ android {
     //         enable false
     //     }
     // }
+
+    tasks.whenTaskAdded { task ->
+        // Update to include both tasks
+        if (task.name == "generateReleaseLintVitalReportModel" || 
+            task.name == "lintVitalAnalyzeRelease") {
+            task.dependsOn(":app:copyReactNativeVectorIconFonts")
+        }
+    }
 }
 
 dependencies {
@@ -101,5 +111,16 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+}
+
+project.afterEvaluate {
+    // Add configuration for both tasks
+    tasks.named("generateReleaseLintVitalReportModel") {
+        inputs.files(tasks.named("copyReactNativeVectorIconFonts"))
+    }
+    
+    tasks.named("lintVitalAnalyzeRelease") {
+        inputs.files(tasks.named("copyReactNativeVectorIconFonts"))
     }
 }

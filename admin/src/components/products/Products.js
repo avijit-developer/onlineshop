@@ -646,7 +646,7 @@ const Products = () => {
             {searchTerm && (
               <button className="btn btn-secondary" onClick={() => { setSearchTerm(''); setAppliedSearchTerm(''); setCurrentPage(1); }}>Clear</button>
             )}
-            {(searchTerm || categoryFilter !== 'all' || vendorFilter !== 'all') && (
+            {(searchTerm || categoryFilter !== 'all' || vendorFilter !== 'all' || statusFilter !== 'all') && (
               <button 
                 className="btn btn-secondary" 
                 onClick={() => { 
@@ -654,6 +654,7 @@ const Products = () => {
                   setAppliedSearchTerm(''); 
                   setCategoryFilter('all'); 
                   setVendorFilter('all'); 
+                  setStatusFilter('all'); 
                   setCurrentPage(1); 
                 }}
               >
@@ -674,6 +675,16 @@ const Products = () => {
             {categories.map(category => (
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            className="filter-select"
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
           </select>
           {isVendorUser ? (
             <select

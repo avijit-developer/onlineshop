@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency } from '../../utils/currency';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -26,6 +27,11 @@ const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState('daily');
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [pwModal, setPwModal] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwSubmitting, setPwSubmitting] = useState(false);
   const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem('adminUser') || 'null'); } catch { return null; }
   })();
@@ -62,15 +68,20 @@ const Dashboard = () => {
           }
           // Compute vendor summary metrics and series
           const sum = (arr, sel) => arr.reduce((acc, it) => acc + Number(sel(it) || 0), 0);
-          const vendorSubtotalSum = sum(vendorOrders, o => o.vendorSubtotal);
-          const vendorCommissionSum = sum(vendorOrders, o => (o.vendorCommission != null ? o.vendorCommission : 0));
-          const vendorNetSum = sum(vendorOrders, o => (o.vendorNet != null ? o.vendorNet : (Number(o.vendorSubtotal || 0) - Number(o.vendorCommission || 0))));
-          const vendorSummary = { ordersCount: vendorOrders.length, subtotal: vendorSubtotalSum, commission: vendorCommissionSum, net: vendorNetSum };
+          const isDelivered = (o) => {
+            const s = String(o.status || '').toLowerCase();
+            return s === 'delivered' || s === 'completed';
+          };
+          const deliveredVendorOrders = (vendorOrders || []).filter(isDelivered);
+          const vendorSubtotalSum = sum(deliveredVendorOrders, o => o.vendorSubtotal);
+          const vendorCommissionSum = sum(deliveredVendorOrders, o => (o.vendorCommission != null ? o.vendorCommission : 0));
+          const vendorNetSum = sum(deliveredVendorOrders, o => (o.vendorNet != null ? o.vendorNet : (Number(o.vendorSubtotal || 0) - Number(o.vendorCommission || 0))));
+          const vendorSummary = { ordersCount: deliveredVendorOrders.length, subtotal: vendorSubtotalSum, commission: vendorCommissionSum, net: vendorNetSum };
           // Sales data
           const daily = Array(7).fill(0); const weekly = Array(7).fill(0); const monthly = Array(7).fill(0);
           const now = new Date(); const msPerDay = 24*60*60*1000;
           const revenueOf = (o) => Number(o.vendorSubtotal || 0);
-          for (const o of vendorOrders) {
+          for (const o of deliveredVendorOrders) {
             const dt = o.createdAt ? new Date(o.createdAt) : null; if (!dt || isNaN(dt.getTime())) continue;
             const dow = dt.getDay(); const monIdx = (dow + 6) % 7; daily[monIdx] += revenueOf(o);
             const diffDays = Math.floor((now - dt) / msPerDay); const weeksAgo = Math.min(6, Math.max(0, Math.floor(diffDays / 7))); weekly[6 - weeksAgo] += revenueOf(o);
@@ -79,18 +90,34 @@ const Dashboard = () => {
           const vendorSalesData = { daily, weekly, monthly };
           // Top products
           const productAgg = new Map();
+          const productIdForKey = new Map();
           for (const o of vendorOrders) {
             const items = Array.isArray(o.items) ? o.items : [];
             for (const it of items) {
-              const key = String(it.product || it.sku || it.name || Math.random());
-              const prev = productAgg.get(key) || { name: it.name, image: it.image, revenue: 0, quantity: 0 };
+              const pid = it.product ? String(it.product) : null;
+              const key = String(pid || it.sku || it.name || Math.random());
+              const prev = productAgg.get(key) || { name: it.name, image: it.image, revenue: 0, quantity: 0, productId: pid };
               const unit = (it.vendorDisplayUnitPrice != null) ? Number(it.vendorDisplayUnitPrice) : (it.vendorUnitPrice != null ? Number(it.vendorUnitPrice) : Number(it.price || 0));
               const qty = Number(it.quantity || 0);
-              prev.revenue += unit * qty; prev.quantity += qty; prev.name = it.name || prev.name; prev.image = it.image || prev.image;
+              prev.revenue += unit * qty; prev.quantity += qty; prev.name = it.name || prev.name; prev.image = it.image || prev.image; prev.productId = prev.productId || pid;
               productAgg.set(key, prev);
+              if (pid) productIdForKey.set(key, pid);
             }
           }
-          const vendorTopProducts = Array.from(productAgg.values()).sort((a,b)=>b.revenue-a.revenue).slice(0,7).map(p=>({ name:p.name, image:p.image, avgPrice: p.quantity>0 ? (p.revenue/p.quantity):0, quantity:p.quantity, revenue:p.revenue }));
+          let vendorTopProducts = Array.from(productAgg.values()).sort((a,b)=>b.revenue-a.revenue).slice(0,7).map(p=>({ name:p.name, image:p.image, avgPrice: p.quantity>0 ? (p.revenue/p.quantity):0, quantity:p.quantity, revenue:p.revenue, productId: p.productId }));
+          // Fetch stock for those with productId
+          try {
+            const token = localStorage.getItem('adminToken');
+            const ORIGIN2 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+            const BASE2 = process.env.REACT_APP_API_URL || (ORIGIN2 && ORIGIN2.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN2 || ''));
+            const withIds = vendorTopProducts.filter(p => p.productId);
+            const stocks = await Promise.all(withIds.map(async p => {
+              try { const r = await fetch(`${BASE2}/api/v1/products/${p.productId}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }); if (!r.ok) return { id:p.productId, stock: undefined }; const j = await r.json(); return { id:p.productId, stock: j?.data?.stock };
+              } catch { return { id:p.productId, stock: undefined }; }
+            }));
+            const idToStock = new Map(stocks.map(s => [String(s.id), s.stock]));
+            vendorTopProducts = vendorTopProducts.map(p => ({ ...p, stock: p.productId ? idToStock.get(String(p.productId)) : undefined }));
+          } catch (_) {}
 
           // Minimal admin dashboard stub to satisfy existing rendering paths
           const stubDashboard = { stats: { totalSales: 0, totalOrders: 0, totalVendors: vendorsList.length, totalCustomers: 0, pendingApprovals: 0 }, recentOrders: [], topProducts: [] };
@@ -125,9 +152,14 @@ const Dashboard = () => {
                   vendorOrders = ojson?.data || [];
                   // Compute vendor summary metrics
                   const sum = (arr, sel) => arr.reduce((acc, it) => acc + Number(sel(it) || 0), 0);
-                  const vendorSubtotalSum = sum(vendorOrders, o => o.vendorSubtotal);
+                  const isDelivered = (o) => {
+                    const s = String(o.status || '').toLowerCase();
+                    return s === 'delivered' || s === 'completed';
+                  };
+                  const deliveredVendorOrders = (vendorOrders || []).filter(isDelivered);
+                  const vendorSubtotalSum = sum(deliveredVendorOrders, o => o.vendorSubtotal);
                   vendorSummary = {
-                    ordersCount: vendorOrders.length,
+                    ordersCount: deliveredVendorOrders.length,
                     subtotal: vendorSubtotalSum,
                   };
                   // Build vendor sales series
@@ -137,7 +169,7 @@ const Dashboard = () => {
                   const now = new Date();
                   const msPerDay = 24 * 60 * 60 * 1000;
                   const revenueOf = (o) => Number(o.vendorSubtotal || 0);
-                  for (const o of vendorOrders) {
+                  for (const o of deliveredVendorOrders) {
                     const dt = o.createdAt ? new Date(o.createdAt) : null;
                     if (!dt || isNaN(dt.getTime())) continue;
                     // Daily: map to Mon..Sun index
@@ -159,14 +191,16 @@ const Dashboard = () => {
                   for (const o of vendorOrders) {
                     const items = Array.isArray(o.items) ? o.items : [];
                     for (const it of items) {
-                      const key = String(it.product || it.sku || it.name || Math.random());
-                      const prev = productAgg.get(key) || { name: it.name, image: it.image, revenue: 0, quantity: 0 };
+                      const pid = it.product ? String(it.product) : null;
+                      const key = String(pid || it.sku || it.name || Math.random());
+                      const prev = productAgg.get(key) || { name: it.name, image: it.image, revenue: 0, quantity: 0, productId: pid };
                       const unit = (it.vendorDisplayUnitPrice != null) ? Number(it.vendorDisplayUnitPrice) : (it.vendorUnitPrice != null ? Number(it.vendorUnitPrice) : Number(it.price || 0));
                       const qty = Number(it.quantity || 0);
                       prev.revenue += unit * qty;
                       prev.quantity += qty;
                       prev.name = it.name || prev.name;
                       prev.image = it.image || prev.image;
+                      prev.productId = prev.productId || pid;
                       productAgg.set(key, prev);
                     }
                   }
@@ -179,7 +213,20 @@ const Dashboard = () => {
                       avgPrice: p.quantity > 0 ? (p.revenue / p.quantity) : 0,
                       quantity: p.quantity,
                       revenue: p.revenue,
+                      productId: p.productId
                     }));
+                  try {
+                    const token2 = localStorage.getItem('adminToken');
+                    const ORIGINv = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+                    const BASEv = process.env.REACT_APP_API_URL || (ORIGINv && ORIGINv.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGINv || ''));
+                    const withIds2 = vendorTopProducts.filter(p => p.productId);
+                    const stocks2 = await Promise.all(withIds2.map(async p => {
+                      try { const r = await fetch(`${BASEv}/api/v1/products/${p.productId}`, { headers: { Authorization: token2 ? `Bearer ${token2}` : '' } }); if (!r.ok) return { id:p.productId, stock: undefined }; const j = await r.json(); return { id:p.productId, stock: j?.data?.stock };
+                      } catch { return { id:p.productId, stock: undefined }; }
+                    }));
+                    const idToStock2 = new Map(stocks2.map(s => [String(s.id), s.stock]));
+                    vendorTopProducts = vendorTopProducts.map(p => ({ ...p, stock: p.productId ? idToStock2.get(String(p.productId)) : undefined }));
+                  } catch (_) {}
                 }
               } catch (_) {}
             }
@@ -269,7 +316,19 @@ const Dashboard = () => {
   const { stats, recentOrders, topProducts } = data.dashboard;
   const vendorSummary = data.vendorSummary || { ordersCount: 0, subtotal: 0 };
 
+  const openOrderDetails = (order) => {
+    setSelectedOrder(order);
+    setShowOrderModal(true);
+  };
+  const closeOrderDetails = () => {
+    setShowOrderModal(false);
+    setSelectedOrder(null);
+  };
+
+  
+
   return (
+    <>
     <div className="dashboard">
       {/* Stats Cards */}
       <div className="stats-grid">
@@ -307,14 +366,20 @@ const Dashboard = () => {
             {!isVendor && (
               <div className="stat-card">
                 <h3>{stats.pendingApprovals}</h3>
-                <p>Pending Approvals</p>
+                <p>Vendor Pending Approvals</p>
+              </div>
+            )}
+            {!isVendor && (
+              <div className="stat-card">
+                <h3>{stats.pendingProductApprovals || 0}</h3>
+                <p>Product Pending Approvals</p>
               </div>
             )}
           </>
         )}
       </div>
 
-      <div className="row">
+      <div className="row row-equal">
         {/* Sales Chart */}
         <div className="col-8">
           <div className="chart-container">
@@ -351,8 +416,8 @@ const Dashboard = () => {
             <h3>Recent Orders</h3>
             <div className="recent-orders">
               {isVendor ? (
-                (data.vendorOrders || []).map((order) => (
-                  <div key={order.id} className="order-item">
+                ([...((data.vendorOrders || []))].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0,5)).map((order) => (
+                  <div key={order.id} className="order-item" onClick={() => openOrderDetails(order)} style={{ cursor: 'pointer' }}>
                     <div className="order-info">
                       <strong>{order.orderNumber}</strong>
                       <span className="order-amount">₹{Number(order.vendorSubtotal || 0).toFixed(2)}</span>
@@ -366,7 +431,7 @@ const Dashboard = () => {
                 ))
               ) : (
                 (Array.isArray(recentOrders) ? recentOrders : (Array.isArray(data.orders) ? data.orders : [])).map((order) => (
-                  <div key={order._id || order.id} className="order-item">
+                  <div key={order._id || order.id} className="order-item" onClick={() => openOrderDetails(order)} style={{ cursor: 'pointer' }}>
                     <div className="order-info">
                       <strong>{order.orderNumber || order.id}</strong>
                       <span className="order-amount">₹{Number(order.total || 0).toFixed(2)}</span>
@@ -405,6 +470,19 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+        {isVendor && (
+          <div className="col-6">
+            <div className="card">
+              <h3>Account</h3>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div>
+                  <div style={{ fontSize:12, color:'#666' }}>Change your password</div>
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={() => setPwModal(true)}>Change Password</button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Top Products (compact table) */}
         <div className="col-6">
           <div className="card">
@@ -414,7 +492,7 @@ const Dashboard = () => {
                 <thead>
                   <tr>
                     <th>Product</th>
-                    <th className="text-right">{isVendor ? 'Avg Price' : 'Price'}</th>
+                    <th className="text-right">Price</th>
                     <th className="text-right">Stock</th>
                   </tr>
                 </thead>
@@ -432,7 +510,7 @@ const Dashboard = () => {
                               </div>
                             </td>
                             <td className="text-right">{formattedAvg}</td>
-                            <td className="text-right">-</td>
+                            <td className="text-right">{p.stock ?? '-'}</td>
                           </tr>
                         );
                       })
@@ -459,50 +537,164 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Pending Approvals (hidden for vendor users) */}
-        {!isVendor && (
-          <div className="col-6">
-            <div className="card">
-              <h3>Pending Approvals</h3>
-              <div className="pending-approvals">
-                {(data.vendors || []).filter(v => v.status === 'pending').length === 0 &&
-                 (data.products || []).filter(p => p.status === 'pending').length === 0 && (
-                  <div className="approval-item"><div className="approval-info"><span>No pending approvals</span></div></div>
-                )}
-
-                {/* Pending Vendors */}
-                {(data.vendors || []).filter(v => v.status === 'pending').map(vendor => (
-                  <div key={vendor.id} className="approval-item">
-                    <div className="approval-info">
-                      <strong>{vendor.companyName}</strong>
-                      <span>Vendor Application</span>
-                    </div>
-                    <div className="approval-actions">
-                      <button className="btn btn-success btn-sm">Approve</button>
-                      <button className="btn btn-danger btn-sm">Reject</button>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Pending Products */}
-                {(data.products || []).filter(p => p.status === 'pending').map(product => (
-                  <div key={product.id} className="approval-item">
-                    <div className="approval-info">
-                      <strong>{product.name}</strong>
-                      <span>Product Approval</span>
-                    </div>
-                    <div className="approval-actions">
-                      <button className="btn btn-success btn-sm">Approve</button>
-                      <button className="btn btn-danger btn-sm">Reject</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        
       </div>
     </div>
+    {pwModal && (
+      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }} onClick={() => setPwModal(false)}>
+        <div style={{ width:'90%', maxWidth:420, background:'#fff', borderRadius:8, overflow:'hidden' }} onClick={e => e.stopPropagation()}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:12, borderBottom:'1px solid #eee' }}>
+            <h3 style={{ margin:0 }}>Change Password</h3>
+            <button className="btn btn-secondary btn-sm" onClick={() => setPwModal(false)}>Close</button>
+          </div>
+          <div style={{ padding:12 }}>
+            <div style={{ marginBottom:10 }}>
+              <label style={{ fontSize:12, color:'#666' }}>Current Password</label>
+              <input type="password" className="filter-input" value={pwForm.currentPassword} onChange={e => setPwForm(prev => ({ ...prev, currentPassword: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <label style={{ fontSize:12, color:'#666' }}>New Password</label>
+              <input type="password" className="filter-input" value={pwForm.newPassword} onChange={e => setPwForm(prev => ({ ...prev, newPassword: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666' }}>Confirm New Password</label>
+              <input type="password" className="filter-input" value={pwForm.confirmPassword} onChange={e => setPwForm(prev => ({ ...prev, confirmPassword: e.target.value }))} />
+            </div>
+            <button className="btn btn-primary" disabled={pwSubmitting} onClick={async () => {
+              try {
+                if (!pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword) { alert('All fields are required'); return; }
+                if (pwForm.newPassword !== pwForm.confirmPassword) { alert('New passwords do not match'); return; }
+                if (pwForm.newPassword.length < 8) { alert('New password must be at least 8 characters'); return; }
+                setPwSubmitting(true);
+                const token = localStorage.getItem('adminToken');
+                const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+                const BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || ''));
+                const res = await fetch(`${BASE}/api/v1/auth/change-password`, { method:'PATCH', headers:{ 'Content-Type':'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }) });
+                const j = await res.json().catch(() => ({}));
+                if (!res.ok || !j?.success) throw new Error(j?.message || 'Failed to change password');
+                alert('Password changed successfully');
+                setPwModal(false);
+                setPwForm({ currentPassword:'', newPassword:'', confirmPassword:'' });
+              } catch (e) { alert(e?.message || 'Failed to change password'); }
+              finally { setPwSubmitting(false); }
+            }}>{pwSubmitting ? 'Updating...' : 'Update Password'}</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {showOrderModal && selectedOrder && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={closeOrderDetails}>
+        <div style={{ width: '90%', maxWidth: 560, maxHeight: '80vh', background: '#fff', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottom: '1px solid #eee' }}>
+            <h3 style={{ margin: 0 }}>Order #{selectedOrder.orderNumber || selectedOrder.id}</h3>
+            <button className="btn btn-secondary btn-sm" onClick={closeOrderDetails}>Close</button>
+          </div>
+          <div style={{ padding: 12, flex: 1, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center' }}>
+              <span className={`badge badge-${selectedOrder.status === 'delivered' ? 'success' : selectedOrder.status === 'shipped' ? 'info' : 'warning'}`}>{selectedOrder.status}</span>
+              <span style={{ color: '#666' }}>{selectedOrder.createdAt ? require('../../utils/date').formatDateTime(selectedOrder.createdAt) : ''}</span>
+            </div>
+            {/* Customer Details */}
+            <div style={{ marginBottom: 12 }}>
+              <h4 style={{ margin: '8px 0' }}>Customer Information</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: '#666' }}>Name</div>
+                  <div style={{ fontWeight: 600 }}>{(selectedOrder.user && (selectedOrder.user.name || selectedOrder.user.email)) || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: '#666' }}>Email</div>
+                  <div style={{ fontWeight: 600 }}>{selectedOrder.user?.email || selectedOrder.customerEmail || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: '#666' }}>Phone</div>
+                  <div style={{ fontWeight: 600 }}>{selectedOrder.customerPhone || selectedOrder.user?.phone || 'N/A'}</div>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 12, color: '#666' }}>Address</div>
+                  <div style={{ fontWeight: 600 }}>{selectedOrder.shippingAddress || 'N/A'}</div>
+                </div>
+                    </div>
+                    </div>
+            <div>
+              {(Array.isArray(selectedOrder.items) ? selectedOrder.items : []).map((it, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f2f2f2' }}>
+                  <img src={it.image || '/default-product.png'} alt={it.name} style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover', marginRight: 10 }} onError={(e) => { e.currentTarget.src = '/default-product.png'; }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{it.name}</div>
+                    <div style={{ color: '#666', fontSize: 12 }}>Qty: {it.quantity} • Price: ₹{Number((it.vendorDisplayUnitPrice ?? it.vendorUnitPrice ?? it.price) || 0).toFixed(2)}</div>
+                  </div>
+                  <div style={{ fontWeight: 600 }}>₹{Number(((it.vendorDisplayUnitPrice ?? it.vendorUnitPrice ?? it.price) || 0) * Number(it.quantity || 0)).toFixed(2)}</div>
+                  </div>
+                ))}
+                    </div>
+            {/* Order Summary (hide for vendor admins) */}
+            {!isVendor && (
+            <div style={{ marginTop: 12, borderTop: '1px solid #eee', paddingTop: 12 }}>
+              <h4 style={{ margin: '8px 0' }}>Order Summary</h4>
+              {(() => {
+                try {
+                  const items = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
+                  const subtotal = items.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
+                  const taxPercent = Number(selectedOrder.tax || 0);
+                  const taxAmount = (subtotal * taxPercent) / 100;
+                  const shipping = Number(selectedOrder.shippingCost || 0);
+                  const discount = Number(selectedOrder.discountAmount || 0);
+                  const total = Math.max(0, subtotal + taxAmount + shipping - discount);
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 6 }}>
+                      {selectedOrder.couponCode && (
+                        <>
+                          <div style={{ color: '#666' }}>Coupon</div>
+                          <div style={{ fontWeight: 600 }}>{String(selectedOrder.couponCode).toUpperCase()}</div>
+                        </>
+                      )}
+                      <div style={{ color: '#666' }}>Subtotal</div>
+                      <div style={{ fontWeight: 600 }}>{formatCurrency(subtotal)}</div>
+                      <div style={{ color: '#666' }}>Tax ({taxPercent}%)</div>
+                      <div style={{ fontWeight: 600 }}>{formatCurrency(taxAmount)}</div>
+                      <div style={{ color: '#666' }}>Shipping</div>
+                      <div style={{ fontWeight: 600 }}>{formatCurrency(shipping)}</div>
+                      {discount > 0 && (
+                        <>
+                          <div style={{ color: '#666' }}>Discount</div>
+                          <div style={{ fontWeight: 600 }}>- {formatCurrency(discount)}</div>
+                        </>
+                      )}
+                      <div style={{ color: '#333', marginTop: 4 }}>Total</div>
+                      <div style={{ fontWeight: 700, marginTop: 4 }}>{formatCurrency(total)}</div>
+                    </div>
+                  );
+                } catch (_) { return null; }
+              })()}
+            </div>
+            )}
+          </div>
+          {/* Footer bar keeps total always visible */}
+          <div style={{ padding: 12, borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: 16, background: '#fff' }}>
+            {(() => {
+              try {
+                if (isVendor) {
+                  const totalV = Number(selectedOrder.vendorSubtotal || 0);
+                  return (<><div style={{ color: '#333' }}>Total:</div><div style={{ fontWeight: 700 }}>{formatCurrency(totalV)}</div></>);
+                }
+                const total = (selectedOrder.total != null) ? Number(selectedOrder.total) : (() => {
+                  const items = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
+                  const subtotal = items.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
+                  const taxPercent = Number(selectedOrder.tax || 0);
+                  const taxAmount = (subtotal * taxPercent) / 100;
+                  const shipping = Number(selectedOrder.shippingCost || 0);
+                  const discount = Number(selectedOrder.discountAmount || 0);
+                  return Math.max(0, subtotal + taxAmount + shipping - discount);
+                })();
+                return (<><div style={{ color: '#333' }}>Total:</div><div style={{ fontWeight: 700 }}>{formatCurrency(total)}</div></>);
+              } catch (_) { return null; }
+            })()}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

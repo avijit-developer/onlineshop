@@ -368,4 +368,36 @@ router.post('/refresh-permissions', authenticate, async (req, res) => {
   }
 });
 
+// Change password (admin or vendor)
+router.patch('/change-password', authenticate, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) { res.status(400); throw new Error('currentPassword and newPassword are required'); }
+    if (String(newPassword).length < 8) { res.status(400); throw new Error('New password must be at least 8 characters'); }
+    if (req.user.role === 'admin') {
+      const admin = await Admin.findById(req.user.id);
+      if (!admin) { res.status(404); throw new Error('User not found'); }
+      const ok = await bcrypt.compare(currentPassword, admin.passwordHash);
+      if (!ok) { res.status(401); throw new Error('Current password is incorrect'); }
+      admin.passwordHash = await bcrypt.hash(String(newPassword), 10);
+      await admin.save();
+      return res.json({ success: true });
+    } else if (req.user.role === 'vendor') {
+      const vu = await VendorUser.findById(req.user.id);
+      if (!vu) { res.status(404); throw new Error('User not found'); }
+      const ok = await bcrypt.compare(currentPassword, vu.passwordHash);
+      if (!ok) { res.status(401); throw new Error('Current password is incorrect'); }
+      vu.passwordHash = await bcrypt.hash(String(newPassword), 10);
+      await vu.save();
+      return res.json({ success: true });
+    } else {
+      res.status(400);
+      throw new Error('Unsupported role for password change');
+    }
+  } catch (e) {
+    res.status(res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+    throw e;
+  }
+});
+
 module.exports = router;

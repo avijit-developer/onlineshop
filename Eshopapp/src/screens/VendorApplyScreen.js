@@ -16,11 +16,9 @@ const VendorApplyScreen = ({ navigation }) => {
 		address: '',
 		useExistingVendorUser: false,
 		vendorUserEmail: '',
-		vendorUserName: '',
-		vendorUserPassword: ''
+		vendorUserName: ''
 	});
 	const [submitting, setSubmitting] = useState(false);
-	const [showPw, setShowPw] = useState(false);
 
 	const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -29,6 +27,7 @@ const VendorApplyScreen = ({ navigation }) => {
 			Alert.alert('Validation', 'Company name, email and phone are required');
 			return;
 		}
+		// No password field; account credentials will be sent upon admin approval
 		setSubmitting(true);
 		try {
 			const token = await api.getStoredToken?.();
@@ -128,15 +127,7 @@ const VendorApplyScreen = ({ navigation }) => {
 								<Text style={styles.label}>New Vendor User Email *</Text>
 								<TextInput style={styles.input} value={form.vendorUserEmail} onChangeText={v => update('vendorUserEmail', v)} placeholder="user@company.com" autoCapitalize="none" keyboardType="email-address" />
 							</View>
-							<View style={styles.formGroup}>
-								<Text style={styles.label}>New Vendor User Password *</Text>
-								<View style={{ position: 'relative' }}>
-									<TextInput style={[styles.input, { paddingRight: 42, color: '#000' }]} value={form.vendorUserPassword} onChangeText={v => update('vendorUserPassword', v)} placeholder="Minimum 8 characters" placeholderTextColor="#777" secureTextEntry={!showPw} />
-									<TouchableOpacity onPress={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 12, height: 40, top: '50%', marginTop: -20, justifyContent: 'center' }}>
-										<Icon name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
-									</TouchableOpacity>
-								</View>
-							</View>
+				{/* Password field removed; credentials will be emailed after approval */}
 						</>
 					)}
 				</View>
