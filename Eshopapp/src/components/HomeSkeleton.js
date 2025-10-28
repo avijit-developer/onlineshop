@@ -1,10 +1,19 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
 import Skeleton from './Skeleton';
 
 const Row = ({ children, style }) => <View style={[styles.row, style]}>{children}</View>;
 
 const HomeSkeleton = () => {
+  const data = Array.from({ length: 6 }).map((_, i) => ({ id: String(i) }));
+  const renderCard = () => (
+    <View style={styles.card}>
+      <Skeleton width={'100%'} height={160} borderRadius={12} />
+      <Skeleton width={'80%'} height={16} style={{ marginTop: 10, borderRadius: 6 }} />
+      <Skeleton width={'60%'} height={14} style={{ marginTop: 8, borderRadius: 6 }} />
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -32,14 +41,15 @@ const HomeSkeleton = () => {
 
       {/* Grid sections (cards) */}
       <View style={{ marginTop: 16 }}>
-        <Row>
-          <Skeleton width={'48%'} height={220} borderRadius={12} />
-          <Skeleton width={'48%'} height={220} borderRadius={12} style={{ marginLeft: '4%' }} />
-        </Row>
-        <Row style={{ marginTop: 12 }}>
-          <Skeleton width={'48%'} height={220} borderRadius={12} />
-          <Skeleton width={'48%'} height={220} borderRadius={12} style={{ marginLeft: '4%' }} />
-        </Row>
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
+          renderItem={renderCard}
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     </View>
   );
@@ -55,6 +65,15 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  gridRow: {
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  card: {
+    width: '48%',
+    borderRadius: 12,
+    backgroundColor: '#fff',
   },
 });
 
