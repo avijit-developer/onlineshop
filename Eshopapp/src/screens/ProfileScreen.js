@@ -83,6 +83,20 @@ const ProfileScreen = () => {
       icon: 'briefcase-outline',
       onPress: () => navigation.navigate('VendorApply'),
     },
+    {
+      id: 'driver-login',
+      title: 'Driver Login',
+      subtitle: 'Access driver portal',
+      icon: 'car-outline',
+      onPress: () => navigation.navigate('DriverLogin'),
+    },
+    {
+      id: 'become-driver',
+      title: 'Become a Driver',
+      subtitle: 'Apply to deliver orders',
+      icon: 'bicycle-outline',
+      onPress: () => navigation.navigate('DriverApply'),
+    },
   ];
 
   const handleEditProfile = () => {

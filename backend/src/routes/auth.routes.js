@@ -5,6 +5,7 @@ const Admin = require('../models/Admin');
 const VendorUser = require('../models/VendorUser');
 const Vendor = require('../models/Vendor');
 const User = require('../models/User');
+const DriverUser = require('../models/DriverUser');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
 
@@ -53,19 +54,31 @@ router.post('/login', async (req, res) => {
     return res.json({ success: true, token, user: { id: admin._id, name: admin.name, email: admin.email, role: 'admin' } });
   }
 
+  // Try Driver User login
+  const driverUser = await DriverUser.findOne({ email: normalizedEmail, isActive: true });
+  if (driverUser) {
+    const ok = await bcrypt.compare(password, driverUser.passwordHash);
+    if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+    const token = jwt.sign(
+      { id: driverUser._id.toString(), role: 'driver', email: driverUser.email, driverId: driverUser.driver ? driverUser.driver.toString() : undefined },
+      getJwtSecret(),
+      { expiresIn: getJwtExpiry() }
+    );
+    return res.json({ success: true, token, user: { id: driverUser._id, name: driverUser.name, email: driverUser.email, role: 'driver', driverId: driverUser.driver } });
+  }
+
   // Try Vendor User login
-  const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').populate('vendors', '_id companyName enabled status').lean();
+  const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').populate('vendors', '_id companyName enabled status');
   if (vendorUser) {
-    const vendorUserDoc = await VendorUser.findOne({ email: normalizedEmail, isActive: true });
-    const ok = await bcrypt.compare(password, vendorUserDoc.passwordHash);
+    const ok = await bcrypt.compare(password, vendorUser.passwordHash);
     if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
 
-  // Migrate single vendor to vendors array if needed
-  if (vendorUserDoc.vendor && (!vendorUserDoc.vendors || vendorUserDoc.vendors.length === 0)) {
-    vendorUserDoc.vendors = [vendorUserDoc.vendor];
-    await vendorUserDoc.save();
-    console.log(`Migrated vendor user ${vendorUserDoc._id} from single vendor to vendors array`);
-  }
+    // Migrate single vendor to vendors array if needed
+    if (vendorUser.vendor && (!vendorUser.vendors || vendorUser.vendors.length === 0)) {
+      vendorUser.vendors = [vendorUser.vendor];
+      await vendorUser.save();
+      console.log(`Migrated vendor user ${vendorUser._id} from single vendor to vendors array`);
+    }
 
   // Get the primary vendor (first in vendors array or single vendor)
   const primaryVendorId = vendorUserDoc.vendors && vendorUserDoc.vendors.length > 0 ? vendorUserDoc.vendors[0] : vendorUserDoc.vendor;
@@ -389,6 +402,14 @@ router.patch('/change-password', authenticate, async (req, res) => {
       if (!ok) { res.status(401); throw new Error('Current password is incorrect'); }
       vu.passwordHash = await bcrypt.hash(String(newPassword), 10);
       await vu.save();
+      return res.json({ success: true });
+    } else if (req.user.role === 'driver') {
+      const du = await DriverUser.findById(req.user.id);
+      if (!du) { res.status(404); throw new Error('User not found'); }
+      const ok = await bcrypt.compare(currentPassword, du.passwordHash);
+      if (!ok) { res.status(401); throw new Error('Current password is incorrect'); }
+      du.passwordHash = await bcrypt.hash(String(newPassword), 10);
+      await du.save();
       return res.json({ success: true });
     } else {
       res.status(400);

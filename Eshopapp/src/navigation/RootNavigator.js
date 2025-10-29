@@ -27,6 +27,9 @@ import SplashScreen from '../screens/SplashScreen';
 import SetupScreen from '../screens/SetupScreen';
 import LegalWebViewScreen from '../screens/LegalWebViewScreen';
 import VendorPortalNavigator from '../vendorPortal/VendorPortalNavigator';
+import DriverApplyScreen from '../screens/DriverApplyScreen';
+import DriverLoginScreen from '../screens/DriverLoginScreen';
+import DriverPortalNavigator from '../driverPortal/DriverPortalNavigator';
 import NetworkErrorScreen from '../screens/NetworkErrorScreen';
 
 const Stack = createNativeStackNavigator();
@@ -57,6 +60,9 @@ const RootNavigator = () => {
       <Stack.Screen name="AddressDetails" component={AddressDetailsScreen} />
       <Stack.Screen name="Wishlist" component={WishlistScreen} />
       <Stack.Screen name="VendorApply" component={VendorApplyScreen} />
+      <Stack.Screen name="DriverApply" component={DriverApplyScreen} />
+      <Stack.Screen name="DriverLogin" component={DriverLoginScreen} />
+      <Stack.Screen name="DriverPortal" component={DriverPortalNavigator} />
       <Stack.Screen name="AddressSelection" component={AddressSelectionScreen} />
       <Stack.Screen name="Filter" component={FilterScreen} />
       <Stack.Screen name="ReviewForm" component={ReviewFormScreen} />

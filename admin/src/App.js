@@ -9,6 +9,7 @@ import Layout from './components/layout/Layout';
 import Customers from './components/users/Customers';
 import AdminUsers from './components/users/AdminUsers';
 import Vendors from './components/vendors/Vendors';
+import Drivers from './components/drivers/Drivers';
 import Products from './components/products/Products';
 import Categories from './components/products/Categories';
 import Brands from './components/products/Brands';
@@ -166,6 +167,7 @@ function App() {
           <Route path="/admin/customers" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Customers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
           <Route path="/admin/admin-users" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><AdminUsers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
           <Route path="/admin/vendors" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Vendors /></Layout>) : (<Navigate to="/admin/login" replace />)} />
+          <Route path="/admin/drivers" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Drivers /></Layout>) : (<Navigate to="/admin/login" replace />)} />
           <Route path="/admin/products" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Products /></Layout>) : (<Navigate to="/admin/login" replace />)} />
           <Route path="/admin/categories" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Categories /></Layout>) : (<Navigate to="/admin/login" replace />)} />
           <Route path="/admin/brands" element={isAuthenticated ? (<Layout key={locVersion} user={user} onLogout={logout}><Brands /></Layout>) : (<Navigate to="/admin/login" replace />)} />

@@ -64,8 +64,13 @@ const SplashScreen = ({ navigation }) => {
           }
         } catch (_) {}
         const vendorToken = await AsyncStorage.getItem('vendorAuthToken');
+        const driverToken = await AsyncStorage.getItem('driverAuthToken');
         if (vendorToken) {
           navigation.replace('VendorPortal');
+          return;
+        }
+        if (driverToken) {
+          navigation.replace('DriverPortal');
           return;
         }
         const token = await AsyncStorage.getItem('authToken');

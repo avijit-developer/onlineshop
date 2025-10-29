@@ -279,6 +279,25 @@ const Orders = () => {
     setShowDeliveryModal(true);
   };
 
+  const assignDriverByEmail = async (order) => {
+    try {
+      const email = window.prompt('Enter driver email to assign:');
+      if (!email) return;
+      const ORIGIN2 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN2 && ORIGIN2.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN2 || 'http://localhost:5000'));
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/orders/${order._id || order.id}/assign-driver`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ driverEmail: email })
+      });
+      const json = await resp.json().catch(()=>({}));
+      if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to assign driver');
+      toast.success('Driver assigned');
+      fetchData();
+    } catch (e) { toast.error(e?.message || 'Failed to assign driver'); }
+  };
+
   const assignDeliveryPartner = (partnerId) => {
     if (selectedOrder) {
       const partner = deliveryPartners.find(p => p.id === partnerId);
@@ -542,6 +561,14 @@ const Orders = () => {
                     >
                       Delivery
                     </button>
+                    {!isVendor && (
+                      <button
+                        onClick={() => assignDriverByEmail(order)}
+                        className="btn btn-success btn-sm"
+                      >
+                        Assign Driver
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setSelectedOrder(order);

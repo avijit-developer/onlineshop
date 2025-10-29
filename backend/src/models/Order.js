@@ -40,6 +40,14 @@ const orderSchema = new mongoose.Schema({
 	total: { type: Number, required: true },
 	orderNote: { type: String, default: '' },
 	statusHistory: [statusHistorySchema],
+	// Driver assignment and status
+	driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', index: true, default: null },
+	driverStatus: { type: String, enum: ['assigned','pickup_completed','on_the_way','delivery_completed', null], default: null },
+	driverStatusHistory: [{
+		status: { type: String, required: true },
+		timestamp: { type: Date, default: Date.now },
+		updatedBy: { type: String, default: 'driver' },
+	}],
 	// Vendor-specific statuses
 	vendorStatuses: { type: Map, of: String, default: {} },
 	vendorStatusHistory: [{

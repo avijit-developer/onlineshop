@@ -5,6 +5,7 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const User = require('../models/User');
 const { authenticate, requireRole, requireAdmin } = require('../middleware/auth');
+const Driver = require('../models/Driver');
 const Vendor = require('../models/Vendor');
 
 const router = express.Router();
@@ -407,6 +408,74 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 });
 
 module.exports = router;
+
+// Admin: assign driver to order
+router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) => {
+    try {
+        const { driverId, driverEmail } = req.body || {};
+        let driver = null;
+        if (driverId) {
+            driver = await Driver.findById(driverId).lean();
+        } else if (driverEmail) {
+            driver = await Driver.findOne({ email: String(driverEmail).trim().toLowerCase() }).lean();
+        }
+        if (!driver) return res.status(404).json({ success: false, message: 'Driver not found' });
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        order.driver = driver._id;
+        order.driverStatus = 'assigned';
+        order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
+        order.driverStatusHistory.push({ status: 'assigned', updatedBy: req.user?.email || 'admin' });
+        order.statusHistory.push({ status: 'driver:assigned', updatedBy: req.user?.email || 'admin' });
+        await order.save();
+        res.json({ success: true, data: order });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to assign driver' });
+    }
+});
+
+// Driver: list my assigned orders
+router.get('/driver', authenticate, requireRole(['driver']), async (req, res) => {
+    try {
+        const { page = 1, limit = 20 } = req.query;
+        const p = Math.max(parseInt(page, 10) || 1, 1);
+        const l = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+        const query = { driver: req.user.driverId || req.user.id };
+        const [orders, total] = await Promise.all([
+            Order.find(query).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').lean(),
+            Order.countDocuments(query)
+        ]);
+        res.json({ success: true, data: orders, meta: { total, page: p, limit: l } });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to list driver orders' });
+    }
+});
+
+// Driver: update driver delivery status
+router.patch('/driver/:id/status', authenticate, requireRole(['driver']), async (req, res) => {
+    try {
+        const { status } = req.body || {};
+        const allowed = ['pickup_completed','on_the_way','delivery_completed'];
+        if (!allowed.includes(status)) return res.status(400).json({ success: false, message: 'Invalid status' });
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        if (String(order.driver || '') !== String(req.user.driverId || req.user.id)) {
+            return res.status(403).json({ success: false, message: 'Not your order' });
+        }
+        order.driverStatus = status;
+        order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
+        order.driverStatusHistory.push({ status, updatedBy: req.user?.email || 'driver' });
+        order.statusHistory.push({ status: `driver:${status}`, updatedBy: req.user?.email || 'driver' });
+        if (status === 'delivery_completed') {
+            order.status = 'delivered';
+            order.statusHistory.push({ status: 'delivered', updatedBy: req.user?.email || 'driver' });
+        }
+        await order.save();
+        res.json({ success: true, data: order });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to update status' });
+    }
+});
 
 // Vendor: update order status (scoped to vendor's items). Sends customer email with only that vendor's items, without full summary.
 router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async (req, res) => {
