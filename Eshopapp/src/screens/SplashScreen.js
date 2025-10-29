@@ -56,7 +56,7 @@ const SplashScreen = ({ navigation }) => {
               'Update Required',
               'A newer version of Trahi Mart is required to continue.',
               [
-                { text: 'Update', onPress: () => Linking.openURL('https://play.google.com/store/apps/details?id=trahimart') }
+                { text: 'Update', onPress: () => Linking.openURL('https://play.google.com/store/apps/details?id=com.trahimart') }
               ],
               { cancelable: false }
             );
