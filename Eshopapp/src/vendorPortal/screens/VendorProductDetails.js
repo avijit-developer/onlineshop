@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
+import { WebView } from 'react-native-webview';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../../utils/api';
 
@@ -10,10 +11,16 @@ const VendorProductDetails = ({ route, navigation }) => {
   const [product, setProduct] = useState(fallback || null);
   const [loading, setLoading] = useState(!fallback && !!productId);
   const [variantsVisible, setVariantsVisible] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     (async () => {
-      if (!product && productId) {
+      if (!productId) return;
+      const needsFetch =
+        !product ||
+        (product && (product.vendorRegularPrice == null) &&
+         !(Array.isArray(product.variants) && product.variants.some(v => v && v.vendorPrice != null)));
+      if (needsFetch) {
         try {
           const vtok = await api.getVendorToken?.();
           const headers = vtok ? { Authorization: `Bearer ${vtok}` } : {};
@@ -24,7 +31,7 @@ const VendorProductDetails = ({ route, navigation }) => {
         finally { setLoading(false); }
       }
     })();
-  }, [productId]);
+  }, [productId, product]);
 
   if (loading) return <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator /></View>;
   if (!product) return (
@@ -33,10 +40,21 @@ const VendorProductDetails = ({ route, navigation }) => {
     </View>
   );
   // Normalize fields
-  const images = Array.isArray(product.images)
-    ? product.images.map(i => (typeof i === 'string' ? i : (i?.url || i?.src || i)))
+  const baseImages = Array.isArray(product.images)
+    ? product.images.map(i => (typeof i === 'string' ? i : (i?.url || i?.src || i))).filter(Boolean)
     : (product.image ? [product.image] : []);
-  const primaryImage = images && images.length ? images[0] : null;
+  const variantImages = Array.isArray(product.variants)
+    ? product.variants.flatMap(v => Array.isArray(v?.images) ? v.images : []).filter(Boolean)
+    : [];
+  // Deduplicate while preserving order
+  const seen = new Set();
+  const images = [...baseImages, ...variantImages].filter((url) => {
+    const key = String(url);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const primaryImage = images && images.length ? images[Math.min(activeIndex, images.length - 1)] : null;
   // Remove price display per vendor UI change
   const [brandNameState, setBrandNameState] = useState(product.brand?.name || product.brandName || product.brand || '');
   const [categoryNameState, setCategoryNameState] = useState(
@@ -55,7 +73,9 @@ const VendorProductDetails = ({ route, navigation }) => {
   const displayed = new Set([
     'name','images','image','price','regularPrice','specialPrice','listPrice','salePrice','discountPrice','offerPrice',
     'stock','inventory','quantity','qty','sku','skuCode','code','itemCode','brand','brandName','category','categories',
-    'barcode','ean','upc','weight','netWeight','weightUnit','length','width','height','lowStockAlert','description','longDescription','details','content','desc'
+    'barcode','ean','upc','weight','netWeight','weightUnit','length','width','height','lowStockAlert','description','longDescription','details','content','desc',
+    // Hide technical/system fields from Additional Details
+    '_id','id','tax','createdAt','updatedAt','__v','videoUrl','vendorRegularPrice','vendorPrice','vendorUnitPrice'
   ]);
   const otherEntries = Object.entries(product).filter(([k, v]) => {
     const isScalar = ['string','number','boolean'].includes(typeof v);
@@ -73,17 +93,82 @@ const VendorProductDetails = ({ route, navigation }) => {
         <View style={{ width: 22 }} />
       </View>
       <View style={styles.card}>
-        {!!primaryImage && <Image source={{ uri: primaryImage }} style={styles.image} />}
-        {images.length > 1 && (
+        {/* Main media: image or inline video */}
+        {(() => {
+          const hasVideo = !!product.videoUrl;
+          const isVideo = hasVideo && activeIndex === images.length; // video tile after all images
+          if (isVideo) {
+            const poster = images.length > 0 ? String(images[0]) : '';
+            const html = `
+              <html>
+                <head>
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                  <style>html,body{margin:0;padding:0;background:#000;height:100%;} video{width:100%;height:100%;object-fit:contain;background:#000;}</style>
+                </head>
+                <body>
+                  <video src="${String(product.videoUrl)}" ${poster ? `poster="${poster}"` : ''} preload="metadata" controls playsinline webkit-playsinline></video>
+                </body>
+              </html>`;
+            return (
+              <View style={styles.videoContainer}>
+                <WebView
+                  originWhitelist={['*']}
+                  source={{ html }}
+                  style={styles.webView}
+                  allowsInlineMediaPlayback
+                  mediaPlaybackRequiresUserAction={false}
+                />
+              </View>
+            );
+          }
+          if (primaryImage) {
+            return <Image source={{ uri: primaryImage }} style={styles.image} />;
+          }
+          return null;
+        })()}
+
+        {/* Thumbnails (all images + video tile) */}
+        {(images.length > 0 || product.videoUrl) && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-            {images.slice(1).map((img, idx) => (
-              <Image key={idx} source={{ uri: img }} style={{ width: 64, height: 64, borderRadius: 6, backgroundColor: '#f4f4f4', marginRight: 8 }} />
+            {images.map((img, idx) => (
+              <TouchableOpacity key={`img-${idx}`} onPress={() => setActiveIndex(idx)}>
+                <Image source={{ uri: img }} style={[styles.thumb, activeIndex === idx && styles.activeThumb]} />
+              </TouchableOpacity>
             ))}
+            {!!product.videoUrl && (
+              <TouchableOpacity onPress={() => setActiveIndex(images.length)}>
+                <View style={[styles.thumb, styles.videoThumbWrapper, activeIndex === images.length && styles.activeThumb]}>
+                  {images.length > 0 ? (
+                    <Image source={{ uri: images[0] }} style={styles.videoThumbImage} />
+                  ) : (
+                    <View style={[styles.videoThumbImage, { backgroundColor: '#000' }]} />
+                  )}
+                  <View style={styles.videoThumbOverlay}>
+                    <Icon name="play" size={22} color="#fff" />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         )}
         <Text style={styles.title}>{product.name}</Text>
 
-        {/* Pricing removed for vendor view */}
+        {/* Vendor Price */}
+        {(() => {
+          try {
+            const prices = [];
+            if (product.vendorRegularPrice != null) prices.push(Number(product.vendorRegularPrice));
+            if (Array.isArray(product.variants)) {
+              for (const v of product.variants) {
+                if (v && v.vendorPrice != null) prices.push(Number(v.vendorPrice));
+              }
+            }
+            const vp = prices.length ? Math.min(...prices.filter(n => !isNaN(n) && n >= 0)) : null;
+            return vp != null ? (
+              <View style={styles.kvRow}><Text style={styles.kvLabel}>Price (Vendor)</Text><Text style={styles.kvValue}>{currency(vp)}</Text></View>
+            ) : null;
+          } catch (_) { return null; }
+        })()}
 
         {/* Core info */}
         <View style={styles.kvRow}><Text style={styles.kvLabel}>Stock</Text><Text style={styles.kvValue}>{stock}</Text></View>
@@ -190,6 +275,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7f8fa' },
   card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eef2f7', padding: 14 },
   image: { width: '100%', height: 220, borderRadius: 8, backgroundColor: '#f4f4f4' },
+  videoContainer: { width: '100%', height: 220, borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' },
+  webView: { width: '100%', height: '100%', backgroundColor: '#000' },
+  thumb: { width: 64, height: 64, borderRadius: 6, backgroundColor: '#f4f4f4', marginRight: 8, borderWidth: 1, borderColor: '#eee' },
+  activeThumb: { borderColor: '#1976d2', borderWidth: 2 },
+  videoThumbWrapper: { position: 'relative', overflow: 'hidden' },
+  videoThumbImage: { width: '100%', height: '100%', borderRadius: 6 },
+  videoThumbOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
   title: { fontWeight: '800', color: '#333', marginTop: 12, fontSize: 16 },
   kvRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
   kvLabel: { color: '#8791a1' },
