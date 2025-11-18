@@ -7,6 +7,8 @@ const User = require('../models/User');
 const { authenticate, requireRole, requireAdmin } = require('../middleware/auth');
 const Driver = require('../models/Driver');
 const Vendor = require('../models/Vendor');
+const Settings = require('../models/Settings');
+const PDFDocument = require('pdfkit');
 
 const router = express.Router();
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
@@ -303,6 +305,131 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 		res.json({ success: true, data: orders, meta: { total, page: p, limit: l } });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to list orders' });
+	}
+});
+
+// Admin: download invoice PDF
+router.get('/:id/invoice.pdf', authenticate, requireAdmin, async (req, res) => {
+	try {
+		const o = await Order.findById(req.params.id).populate('user', 'name email phone').lean();
+		if (!o) {
+			res.status(404);
+			throw new Error('Order not found');
+		}
+
+		// Load currency settings
+		let currencySymbol = '₹';
+		let currencyCode = 'INR';
+		let decimalPlaces = 2;
+		try {
+			const s = await Settings.findOne().lean();
+			if (s && s.localization) {
+				if (s.localization.currency) currencyCode = s.localization.currency;
+				if (s.localization.currencySymbol) currencySymbol = s.localization.currencySymbol;
+				if (typeof s.localization.decimalPlaces === 'number') decimalPlaces = s.localization.decimalPlaces;
+			}
+		} catch (_) {}
+		// Built-in PDF fonts do not support some Unicode symbols (e.g., ₹). Fallback to currency code if non-ASCII.
+		const currencyLabel = (/^[\x20-\x7E]+$/.test(String(currencySymbol || '')) && String(currencySymbol).trim() !== '')
+			? String(currencySymbol)
+			: `${String(currencyCode || 'INR')} `;
+
+		// Set headers for file download
+		const filename = `invoice-${o.orderNumber || o._id}.pdf`;
+		res.setHeader('Content-Type', 'application/pdf');
+		res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+		// Build PDF
+		const doc = new PDFDocument({ size: 'A4', margin: 36 });
+		doc.pipe(res);
+
+		// Header
+		doc.fontSize(20).text('INVOICE', { align: 'right' });
+		doc.moveDown(0.5);
+		doc.fontSize(10).text(`Invoice #: INV-${o.orderNumber || o._id}` , { align: 'right' });
+		doc.text(`Date: ${new Date(o.createdAt).toLocaleDateString()}`, { align: 'right' });
+		doc.moveDown(1);
+
+		// Bill To
+		doc.fontSize(12).text('Bill To:', { underline: true });
+		const customerName = (o.user && o.user.name) || 'Customer';
+		const customerEmail = (o.user && o.user.email) || (o.customerEmail || '');
+		const customerPhone = o.customerPhone || (o.user && o.user.phone) || '';
+		const cleanAddress = (() => {
+			try {
+				const parts = String(o.shippingAddress || '').split(',').map(s => s.trim()).filter(Boolean);
+				return parts.join(', ');
+			} catch (_) { return String(o.shippingAddress || ''); }
+		})();
+		doc.fontSize(10).text(customerName);
+		if (customerEmail) doc.text(customerEmail);
+		if (customerPhone) doc.text(customerPhone);
+		if (cleanAddress) doc.text(cleanAddress);
+		doc.moveDown(1);
+
+		// Items table header
+		doc.fontSize(12).text('Items', { underline: true });
+		doc.moveDown(0.5);
+		const startX = doc.x;
+		const tableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+		const colWidths = [tableWidth * 0.50, tableWidth * 0.15, tableWidth * 0.15, tableWidth * 0.20];
+		const drawRow = (name, qty, price, total, bold = false) => {
+			if (bold) doc.font('Helvetica-Bold'); else doc.font('Helvetica');
+			doc.text(name, startX, doc.y, { width: colWidths[0] });
+			doc.text(String(qty), startX + colWidths[0], doc.y, { width: colWidths[1], align: 'right' });
+			doc.text(`${currencyLabel}${Number(price).toFixed(decimalPlaces)}`, startX + colWidths[0] + colWidths[1], doc.y, { width: colWidths[2], align: 'right' });
+			doc.text(`${currencyLabel}${Number(total).toFixed(decimalPlaces)}`, startX + colWidths[0] + colWidths[1] + colWidths[2], doc.y, { width: colWidths[3], align: 'right' });
+			doc.moveDown(0.3);
+		};
+
+		doc.font('Helvetica-Bold');
+		drawRow('Item', 'Qty', 'Price', 'Total', true);
+		doc.moveDown(0.2);
+		doc.font('Helvetica');
+
+		(o.items || []).forEach(it => {
+			const lineTotal = Number(it.price || 0) * Number(it.quantity || 0);
+			drawRow(it.name || 'Item', it.quantity || 0, (it.price || 0), lineTotal);
+		});
+
+		doc.moveDown(0.8);
+		// Summary
+		const subtotal = Number(o.subtotal || (o.items || []).reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0));
+		const taxPercent = Number(o.tax || 0);
+		const taxAmount = (subtotal * taxPercent) / 100;
+		const shipping = Number(o.shippingCost || 0);
+		const discount = Number(o.discountAmount || 0);
+		const total = Math.max(0, subtotal + taxAmount + shipping - discount);
+
+		const rightX = startX + colWidths[0] + colWidths[1] + colWidths[2];
+		const labelWidth = colWidths[0] + colWidths[1] + colWidths[2];
+
+		const summaryRow = (label, value, bold = false) => {
+			if (bold) doc.font('Helvetica-Bold'); else doc.font('Helvetica');
+			doc.text(label, startX + colWidths[0] + colWidths[1], doc.y, { width: colWidths[2], align: 'right' });
+			doc.text(value, rightX, doc.y, { width: colWidths[3], align: 'right' });
+			doc.moveDown(0.2);
+		};
+
+		summaryRow('Subtotal:', `${currencyLabel}${subtotal.toFixed(decimalPlaces)}`);
+		summaryRow(`Tax (${taxPercent}%):`, `${currencyLabel}${taxAmount.toFixed(decimalPlaces)}`);
+		summaryRow('Shipping:', `${currencyLabel}${shipping.toFixed(decimalPlaces)}`);
+		if (discount > 0) summaryRow('Discount:', `- ${currencyLabel}${discount.toFixed(decimalPlaces)}`);
+		summaryRow('Total:', `${currencyLabel}${total.toFixed(decimalPlaces)}`, true);
+
+		if (o.orderNote) {
+			doc.moveDown(1);
+			doc.font('Helvetica-Bold').text('Order Note:');
+			doc.font('Helvetica').text(String(o.orderNote), { width: tableWidth });
+		}
+
+		doc.end();
+	} catch (err) {
+		console.error('Invoice PDF error:', err);
+		if (!res.headersSent) {
+			res.status(500);
+			res.end();
+		}
 	}
 });
 

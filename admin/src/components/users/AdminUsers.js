@@ -258,6 +258,7 @@ const AdminUsers = () => {
                 <tr>
                   <th>Name</th>
                   <th>Email</th>
+                  {tab==='vendorUsers' && <th>Phone</th>}
                   {tab==='vendorUsers' && <th>Vendor</th>}
                   {tab==='vendorUsers' && <th>Role</th>}
                   <th>Status</th>
@@ -275,6 +276,19 @@ const AdminUsers = () => {
                       </div>
                     </td>
                     <td>{item.email}</td>
+                    {tab==='vendorUsers' && (
+                      <td>
+                        {(() => {
+                          try {
+                            if (Array.isArray(item.vendors) && item.vendors.length > 0) {
+                              const first = item.vendors[0];
+                              return first?.phone || '—';
+                            }
+                            return item.vendor?.phone || '—';
+                          } catch (_) { return '—'; }
+                        })()}
+                      </td>
+                    )}
                     {tab==='vendorUsers' && (
                       <td>
                         {item.vendors && Array.isArray(item.vendors) ? 

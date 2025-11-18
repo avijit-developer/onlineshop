@@ -594,28 +594,30 @@ const Dashboard = () => {
               <span className={`badge badge-${selectedOrder.status === 'delivered' ? 'success' : selectedOrder.status === 'shipped' ? 'info' : 'warning'}`}>{selectedOrder.status}</span>
               <span style={{ color: '#666' }}>{selectedOrder.createdAt ? require('../../utils/date').formatDateTime(selectedOrder.createdAt) : ''}</span>
             </div>
-            {/* Customer Details */}
-            <div style={{ marginBottom: 12 }}>
-              <h4 style={{ margin: '8px 0' }}>Customer Information</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 12, color: '#666' }}>Name</div>
-                  <div style={{ fontWeight: 600 }}>{(selectedOrder.user && (selectedOrder.user.name || selectedOrder.user.email)) || 'N/A'}</div>
+            {/* Customer Details - hide for vendor users */}
+            {!isVendor && (
+              <div style={{ marginBottom: 12 }}>
+                <h4 style={{ margin: '8px 0' }}>Customer Information</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: '#666' }}>Name</div>
+                    <div style={{ fontWeight: 600 }}>{(selectedOrder.user && (selectedOrder.user.name || selectedOrder.user.email)) || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: '#666' }}>Email</div>
+                    <div style={{ fontWeight: 600 }}>{selectedOrder.user?.email || selectedOrder.customerEmail || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: '#666' }}>Phone</div>
+                    <div style={{ fontWeight: 600 }}>{selectedOrder.customerPhone || selectedOrder.user?.phone || 'N/A'}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>Address</div>
+                    <div style={{ fontWeight: 600 }}>{selectedOrder.shippingAddress || 'N/A'}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 12, color: '#666' }}>Email</div>
-                  <div style={{ fontWeight: 600 }}>{selectedOrder.user?.email || selectedOrder.customerEmail || 'N/A'}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, color: '#666' }}>Phone</div>
-                  <div style={{ fontWeight: 600 }}>{selectedOrder.customerPhone || selectedOrder.user?.phone || 'N/A'}</div>
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={{ fontSize: 12, color: '#666' }}>Address</div>
-                  <div style={{ fontWeight: 600 }}>{selectedOrder.shippingAddress || 'N/A'}</div>
-                </div>
-                    </div>
-                    </div>
+              </div>
+            )}
             <div>
               {(Array.isArray(selectedOrder.items) ? selectedOrder.items : []).map((it, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f2f2f2' }}>

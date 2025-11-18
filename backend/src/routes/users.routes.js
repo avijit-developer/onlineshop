@@ -1,6 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const User = require('../models/User');
+const Vendor = require('../models/Vendor');
+const Driver = require('../models/Driver');
 const { authenticate, requireAdmin, requireRole } = require('../middleware/auth');
 const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
 
@@ -57,7 +59,8 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
     const regex = new RegExp(String(q), 'i');
     filters.$or = [
       { name: { $regex: regex } },
-      { email: { $regex: regex } }
+      { email: { $regex: regex } },
+      { phone: { $regex: regex } }
     ];
   }
   if (status === 'active') filters.isActive = true;
@@ -269,8 +272,13 @@ router.put('/me/profile', authenticate, requireRole(['customer']), async (req, r
 
   // Check if phone is already in use by another user
   if (phone && String(phone).trim() !== (user.phone || '').trim()) {
-    const phoneExists = await User.findOne({ phone: String(phone).trim() });
-    if (phoneExists) {
+    const phoneNorm = String(phone).trim();
+    const [userPhone, vendorPhone, driverPhone] = await Promise.all([
+      User.findOne({ phone: phoneNorm, _id: { $ne: user._id } }),
+      Vendor.findOne({ phone: phoneNorm }),
+      Driver.findOne({ phone: phoneNorm }),
+    ]);
+    if (userPhone || vendorPhone || driverPhone) {
       res.status(409);
       throw new Error('Phone number already in use');
     }

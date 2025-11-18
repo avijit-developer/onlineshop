@@ -37,6 +37,14 @@ const Orders = () => {
     { id: 3, name: 'QuickShip', phone: '+1234567892' }
   ]);
 
+  const normalizeAddress = (addr) => {
+    try {
+      if (!addr) return '';
+      const parts = String(addr).split(',').map(s => s.trim()).filter(Boolean);
+      return parts.join(', ');
+    } catch (_) { return String(addr || ''); }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -136,6 +144,9 @@ const Orders = () => {
 
   const deleteOrder = async (orderId) => {
     try {
+      if (!window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+        return;
+      }
       const ORIGIN2 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN2 && ORIGIN2.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN2 || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
@@ -382,16 +393,31 @@ const Orders = () => {
     return subtotal + tax + shipping;
   };
 
-  const generateInvoice = () => {
-    // This would generate a PDF invoice
-    // For now, just show a success message
-    toast.success('Invoice generated successfully');
-    setShowInvoiceModal(false);
-  };
-
-  const downloadInvoice = () => {
-    // This would download the invoice
-    toast.success('Invoice downloaded successfully');
+  const downloadInvoice = async () => {
+    try {
+      if (!selectedOrder) return;
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+      const token = localStorage.getItem('adminToken');
+      const orderId = selectedOrder._id || selectedOrder.id;
+      const resp = await fetch(`${baseUrl}/api/v1/orders/${orderId}/invoice.pdf`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      if (!resp.ok) { toast.error('Failed to download invoice'); return; }
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const fname = `invoice-${selectedOrder.orderNumber || orderId}.pdf`;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Invoice downloaded');
+    } catch (e) {
+      toast.error('Failed to download invoice');
+    }
   };
 
   // Pagination
@@ -494,7 +520,6 @@ const Orders = () => {
           <thead>
             <tr>
               <th>Order</th>
-              <th>Customer</th>
               <th>Vendor</th>
               <th>Items</th>
               <th>Total</th>
@@ -510,12 +535,6 @@ const Orders = () => {
                   <div className="order-info">
                     <strong>#{order.orderNumber || order.id}</strong>
                     <small>{order.paymentMethod || ''}</small>
-                  </div>
-                </td>
-                <td>
-                  <div className="customer-info">
-                    <strong>{getCustomerName(order)}</strong>
-                    <small>{order.user?.email || order.customerEmail || ''}</small>
                   </div>
                 </td>
                 <td>{getVendorName(order)}</td>
@@ -581,6 +600,7 @@ const Orders = () => {
                     <button
                       onClick={() => deleteOrder(order._id || order.id)}
                       className="btn btn-danger btn-sm"
+                      style={{ display: isVendor ? 'none' : undefined }}
                     >
                       Delete
                     </button>
@@ -640,27 +660,29 @@ const Orders = () => {
                 </div>
 
                 <div className="order-sections">
-                  <div className="section">
-                    <h3>Customer Information</h3>
-                    <div className="info-grid">
-                      <div className="info-item">
-                        <label>Name:</label>
-                        <span>{getCustomerName(selectedOrder)}</span>
-                      </div>
-                      <div className="info-item">
-                        <label>Email:</label>
-                        <span>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</span>
-                      </div>
-                      <div className="info-item">
-                        <label>Phone:</label>
-                        <span>{selectedOrder.customerPhone || selectedOrder.user?.phone || 'N/A'}</span>
-                      </div>
-                      <div className="info-item">
-                        <label>Address:</label>
-                        <span>{selectedOrder.shippingAddress}</span>
+                  {!isVendor && (
+                    <div className="section">
+                      <h3>Customer Information</h3>
+                      <div className="info-grid">
+                        <div className="info-item">
+                          <label>Name:</label>
+                          <span>{getCustomerName(selectedOrder)}</span>
+                        </div>
+                        <div className="info-item">
+                          <label>Email:</label>
+                          <span>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</span>
+                        </div>
+                        <div className="info-item">
+                          <label>Phone:</label>
+                          <span>{selectedOrder.customerPhone || selectedOrder.user?.phone || 'N/A'}</span>
+                        </div>
+                        <div className="info-item">
+                          <label>Address:</label>
+                          <span>{normalizeAddress(selectedOrder.shippingAddress)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="section">
                     <h3>Order Items</h3>
@@ -840,12 +862,14 @@ const Orders = () => {
                 </div>
 
                 <div className="invoice-sections">
-                  <div className="invoice-section">
-                    <h4>Bill To:</h4>
-                    <p>{getCustomerName(selectedOrder)}</p>
-                    <p>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</p>
-                    <p>{selectedOrder.shippingAddress}</p>
-                  </div>
+                  {!isVendor && (
+                    <div className="invoice-section">
+                      <h4>Bill To:</h4>
+                      <p>{getCustomerName(selectedOrder)}</p>
+                      <p>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</p>
+                      <p>{normalizeAddress(selectedOrder.shippingAddress)}</p>
+                    </div>
+                  )}
 
                   <div className="invoice-section">
                     <h4>Items:</h4>
@@ -863,8 +887,8 @@ const Orders = () => {
                           <tr key={index}>
                             <td>{item.name}</td>
                             <td>{item.quantity}</td>
-                            <td>${item.price}</td>
-                            <td>${(item.price * item.quantity).toFixed(2)}</td>
+                            <td>{formatCurrency(item.price)}</td>
+                            <td>{formatCurrency((Number(item.price) * Number(item.quantity)))}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -874,19 +898,19 @@ const Orders = () => {
                   <div className="invoice-summary">
                     <div className="summary-row">
                       <span>Subtotal:</span>
-                      <span>${selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</span>
+                      <span>{formatCurrency(selectedOrder.items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0))}</span>
                     </div>
                     <div className="summary-row">
                       <span>Tax:</span>
-                      <span>${((selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * selectedOrder.tax) / 100).toFixed(2)}</span>
+                      <span>{formatCurrency(((selectedOrder.items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) * Number(selectedOrder.tax || 0)) / 100))}</span>
                     </div>
                     <div className="summary-row">
                       <span>Shipping:</span>
-                      <span>${selectedOrder.shippingCost || 0}</span>
+                      <span>{formatCurrency(Number(selectedOrder.shippingCost || 0))}</span>
                     </div>
                     <div className="summary-row total">
                       <span>Total:</span>
-                      <span>${calculateOrderTotal(selectedOrder).toFixed(2)}</span>
+                      <span>{formatCurrency(calculateOrderTotal(selectedOrder))}</span>
                     </div>
                   </div>
                 </div>
@@ -895,9 +919,6 @@ const Orders = () => {
             <div className="modal-footer">
               <button onClick={() => setShowInvoiceModal(false)} className="btn btn-secondary">
                 Close
-              </button>
-              <button onClick={generateInvoice} className="btn btn-primary">
-                Generate PDF
               </button>
               <button onClick={downloadInvoice} className="btn btn-success">
                 Download

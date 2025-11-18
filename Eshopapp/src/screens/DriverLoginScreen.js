@@ -5,15 +5,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE } from '../utils/api';
 
 const DriverLoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const login = async () => {
-    if (!email || !password) { Alert.alert('Validation', 'Email and password are required'); return; }
+    if (!phone || !password) { Alert.alert('Validation', 'Phone and password are required'); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      const res = await fetch(`${API_BASE}/api/v1/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, password }) });
       const json = await res.json().catch(()=>({}));
       if (!res.ok || !json?.success) throw new Error(json?.message || 'Failed to login');
       const role = json?.user?.role;
@@ -33,7 +33,7 @@ const DriverLoginScreen = ({ navigation }) => {
         <View style={{ width: 24 }} />
       </View>
       <View style={styles.form}>
-        <View style={styles.formGroup}><Text style={styles.label}>Email</Text><TextInput style={styles.input} autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="driver@email.com" /></View>
+        <View style={styles.formGroup}><Text style={styles.label}>Phone</Text><TextInput style={styles.input} autoCapitalize="none" keyboardType="phone-pad" value={phone} onChangeText={setPhone} placeholder="+1 555 123 4567" /></View>
         <View style={styles.formGroup}><Text style={styles.label}>Password</Text><TextInput style={styles.input} secureTextEntry value={password} onChangeText={setPassword} placeholder="********" /></View>
         <TouchableOpacity style={[styles.submitButton, submitting && { opacity: 0.7 }]} onPress={login} disabled={submitting}><Text style={styles.submitText}>{submitting ? 'Signing in...' : 'Sign In'}</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('DriverApply')} style={{ marginTop: 12, alignSelf:'center' }}><Text style={{ color:'#f7ab18', fontWeight:'600' }}>Become a Driver</Text></TouchableOpacity>

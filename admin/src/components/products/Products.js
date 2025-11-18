@@ -93,6 +93,24 @@ const Products = () => {
     if (!res.ok) throw new Error(json?.error?.message || 'Cloudinary upload failed');
     return { imageUrl: json.secure_url, imagePublicId: json.public_id };
   };
+  const uploadVideoToCloudinary = async (file, subfolder = 'products/videos') => {
+    const { signature, timestamp, folder, apiKey, cloudName } = await getUploadSignature(subfolder);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('api_key', apiKey);
+    fd.append('timestamp', String(timestamp));
+    fd.append('signature', signature);
+    fd.append('folder', folder);
+    fd.append('unique_filename', 'true');
+    fd.append('overwrite', 'false');
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+      method: 'POST',
+      body: fd
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error?.message || 'Cloudinary video upload failed');
+    return { videoUrl: json.secure_url, videoPublicId: json.public_id };
+  };
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -131,8 +149,10 @@ const Products = () => {
     seoTitle: '',
     seoDescription: '',
     images: [],
-    variants: []
+    variants: [],
+    videoUrl: ''
   });
+  const [videoUploading, setVideoUploading] = useState(false);
 
   const normalizeId = (val) => {
     if (!val) return '';
@@ -312,7 +332,8 @@ const Products = () => {
       seoTitle: '',
       seoDescription: '',
       images: [],
-      variants: []
+      variants: [],
+      videoUrl: ''
     });
     // Reset dynamic variant matrix state when opening Add Product
     setVariantAttributes([]);
@@ -353,7 +374,8 @@ const Products = () => {
       seoTitle: '',
       seoDescription: '',
       images: product.images || [],
-      variants: mappedVariants
+      variants: mappedVariants,
+      videoUrl: product.videoUrl || ''
     });
     setShowEditModal(true);
     // Prefill related products
@@ -424,6 +446,7 @@ const Products = () => {
         images: formData.images || [],
         imagePublicIds: [],
         // variants will be conditionally added below
+        videoUrl: (formData.videoUrl || '').trim() || ''
       };
 
       if (matrixVariants.length > 0) {
@@ -524,6 +547,23 @@ const Products = () => {
       }));
     } catch (err) {
       toast.error(err?.message || 'Failed to upload images');
+    }
+  };
+
+  const handleVideoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    try {
+      setFormData(prev => ({ ...prev })); // trigger re-render
+      setVideoUploading && setVideoUploading(true);
+      const f = files[0];
+      const { videoUrl } = await uploadVideoToCloudinary(f, 'products/videos');
+      setFormData(prev => ({ ...prev, videoUrl }));
+      toast.success('Video uploaded');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to upload video');
+    } finally {
+      setVideoUploading && setVideoUploading(false);
     }
   };
 
@@ -1206,6 +1246,20 @@ const Products = () => {
                 </div>
 
                 <div className="form-group full-width">
+                  <label>Product Video</label>
+                  <input type="file" accept="video/*" onChange={handleVideoUpload} />
+                  {formData.videoUrl && (
+                    <div style={{ marginTop: 10 }}>
+                      <video
+                        src={formData.videoUrl}
+                        controls
+                        style={{ width: 160, height: 90, borderRadius: 6, objectFit: 'cover', background: '#000', display: 'block' }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group full-width">
                   <label>Variants</label>
                   {/* Matrix Variant UI */}
                   <div className="matrix-variant-section">
@@ -1425,8 +1479,8 @@ const Products = () => {
               >
                 Cancel
               </button>
-              <button onClick={handleSubmit} className="btn btn-primary">
-                {showAddModal ? 'Add Product' : 'Update Product'}
+              <button onClick={handleSubmit} className="btn btn-primary" disabled={videoUploading}>
+                {videoUploading ? 'Uploading video...' : (showAddModal ? 'Add Product' : 'Update Product')}
               </button>
             </div>
           </div>

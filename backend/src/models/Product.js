@@ -42,6 +42,10 @@ const productSchema = new mongoose.Schema(
     images: { type: [String], default: [] },
     imagePublicIds: { type: [String], default: [] },
 
+    // Optional product video
+    videoUrl: { type: String, trim: true, default: '' },
+    videoPublicId: { type: String, trim: true, default: '' },
+
     variants: { type: [variantSchema], default: [] },
     
     // New field: product type - 'simple' or 'configurable'

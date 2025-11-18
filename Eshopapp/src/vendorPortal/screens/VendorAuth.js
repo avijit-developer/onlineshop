@@ -5,21 +5,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../utils/api';
 
 const VendorAuth = ({ navigation }) => {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
   const loginVendor = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+    if (!phone || !password) {
+      Alert.alert('Error', 'Please enter phone and password');
       return;
     }
     setLoading(true);
     try {
       const res = await api.request('/api/v1/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ phone, password })
       });
       if (res?.token) {
         await AsyncStorage.setItem('vendorAuthToken', res.token);
@@ -40,7 +40,7 @@ const VendorAuth = ({ navigation }) => {
         <View style={styles.formCard}>
           <Text style={styles.title}>Vendor Login</Text>
           <Text style={styles.subtitle}>Sign in to manage your orders</Text>
-          <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#777" value={email} onChangeText={setEmail} autoCapitalize="none" />
+          <TextInput style={styles.input} placeholder="Phone number" placeholderTextColor="#777" value={phone} onChangeText={setPhone} autoCapitalize="none" keyboardType="phone-pad" />
           <View style={{ position: 'relative' }}>
             <TextInput style={[styles.input, { paddingRight: 42 }]} placeholder="Password" placeholderTextColor="#777" value={password} onChangeText={setPassword} secureTextEntry={!showPw} autoCapitalize="none" selectionColor="#333" cursorColor="#333" />
             <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, height: 48, top: '45%', marginTop: -24, justifyContent: 'center' }}>

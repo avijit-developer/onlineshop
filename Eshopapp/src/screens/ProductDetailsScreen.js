@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, Modal, ActivityIndicator, Alert } from 'react-native';
+import { WebView } from 'react-native-webview';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import RelatedProducts from '../components/RelatedProducts';
 import ProductSpecifications from '../components/ProductSpecifications';
@@ -435,21 +436,78 @@ export default function ProductDetailsScreen() {
                     <Text style={styles.headerText}>Product Details</Text>
                 </TouchableOpacity>
 
-                {/* Product Image */}
-                {currentImages()[activeImageIndex] && (
-                    <Image source={{ uri: currentImages()[activeImageIndex] }} style={styles.mainImage} resizeMode="cover" />
-                )}
+                {/* Product Media (image or video) */}
+                {(() => {
+                    const imgs = currentImages();
+                    const hasVideo = !!product?.videoUrl;
+                    const isVideo = hasVideo && activeImageIndex === imgs.length;
+                    if (isVideo) {
+                        const poster = imgs && imgs.length > 0 ? String(imgs[0]) : '';
+                        const html = `
+                          <html>
+                            <head>
+                              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                              <style>
+                                html,body{margin:0;padding:0;background:#000;height:100%;}
+                                video{width:100%;height:100%;object-fit:contain;background:#000;}
+                              </style>
+                            </head>
+                            <body>
+                              <video src="${String(product.videoUrl)}" ${poster ? `poster="${poster}"` : ''} preload="metadata" controls playsinline webkit-playsinline></video>
+                            </body>
+                          </html>`;
+                        return (
+                            <View style={styles.videoContainer}>
+                                <WebView
+                                    originWhitelist={['*']}
+                                    source={{ html }}
+                                    style={styles.webView}
+                                    allowsInlineMediaPlayback
+                                    mediaPlaybackRequiresUserAction={false}
+                                />
+                            </View>
+                        );
+                    }
+                    const img = imgs[activeImageIndex];
+                    if (img) {
+                        return <Image source={{ uri: img }} style={styles.mainImage} resizeMode="cover" />;
+                    }
+                    return null;
+                })()}
 
-                {/* Image Thumbnails */}
-                {currentImages().length > 1 && (
+                {/* Image + Video Thumbnails */}
+                {(() => {
+                    const imgs = currentImages();
+                    const hasVideo = !!product?.videoUrl;
+                    const total = imgs.length + (hasVideo ? 1 : 0);
+                    if (total <= 1) return null;
+                    return (
                     <View style={styles.thumbnailContainer}>
-                        {currentImages().map((img, index) => (
+                        {imgs.map((img, index) => (
                             <TouchableOpacity key={index} onPress={() => setActiveImageIndex(index)}>
                                 <Image source={{ uri: img }} style={[styles.thumbnail, activeImageIndex === index && styles.activeThumb]} />
                             </TouchableOpacity>
                         ))}
+                        {hasVideo && (() => {
+                            const poster = imgs && imgs.length > 0 ? String(imgs[0]) : null;
+                            return (
+                                <TouchableOpacity onPress={() => setActiveImageIndex(imgs.length)}>
+                                    <View style={[styles.thumbnail, styles.videoThumbWrapper, activeImageIndex === imgs.length && styles.activeThumb]}>
+                                        {poster ? (
+                                            <Image source={{ uri: poster }} style={styles.videoThumbImage} />
+                                        ) : (
+                                            <View style={[styles.videoThumbImage, { backgroundColor: '#000' }]} />
+                                        )}
+                                        <View style={styles.videoThumbOverlay}>
+                                            <AntDesign name="play" size={22} color="#fff" />
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })()}
                     </View>
-                )}
+                    );
+                })()}
 
                 {/* Title */}
                 <Text style={styles.title}>{product.name}</Text>
@@ -679,8 +737,13 @@ const styles = StyleSheet.create({
     headerText: { fontSize: 18, fontWeight: '600', marginLeft: 12 },
 
     mainImage: { width: '100%', height: 300, borderRadius: 12 },
+    videoContainer: { width: '100%', height: 300, borderRadius: 12, overflow: 'hidden', backgroundColor: '#000' },
+    webView: { width: '100%', height: '100%', backgroundColor: '#000' },
     thumbnailContainer: { flexDirection: 'row', marginTop: 10 },
     thumbnail: { width: 60, height: 60, borderRadius: 8, marginRight: 10, borderWidth: 1, borderColor: '#eee' },
+    videoThumbWrapper: { position: 'relative', overflow: 'hidden' },
+    videoThumbImage: { width: '100%', height: '100%', borderRadius: 8 },
+    videoThumbOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
     activeThumb: { borderColor: '#1976d2', borderWidth: 2 },
 
     title: { fontSize: 18, fontWeight: '600', marginVertical: 10 },

@@ -14,7 +14,6 @@ const Inventory = () => {
   const [itemsPerPage] = useState(10);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showStockModal, setShowStockModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [stockUpdate, setStockUpdate] = useState({
@@ -191,27 +190,7 @@ const Inventory = () => {
     return [headers, ...rows].map(row => row.join(',')).join('\n');
   };
 
-  const importInventory = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const csv = e.target.result;
-          const lines = csv.split('\n');
-          const headers = lines[0].split(',');
-          
-          // Process CSV and update products
-          // This is a simplified implementation
-          toast.success('Inventory imported successfully');
-          setShowImportModal(false);
-        } catch (error) {
-          toast.error('Error importing inventory');
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
+  // Import CSV feature removed as requested
 
   const getCategoryName = (categoryId) => {
     const category = categories.find(c => c.id === categoryId);
@@ -270,9 +249,7 @@ const Inventory = () => {
           <button onClick={exportInventory} className="btn btn-success">
             Export CSV
           </button>
-          <button onClick={() => setShowImportModal(true)} className="btn btn-primary">
-            Import CSV
-          </button>
+          {/* Import CSV button removed */}
           <div className="search-filter-container">
             <input
               type="text"
@@ -354,35 +331,7 @@ const Inventory = () => {
         </div>
       </div>
 
-      {/* Bulk Actions */}
-      <div className="bulk-actions">
-        <h3>Bulk Stock Operations</h3>
-        <div className="bulk-controls">
-          <select className="bulk-action-select">
-            <option value="add">Add Stock</option>
-            <option value="subtract">Subtract Stock</option>
-            <option value="set">Set Stock</option>
-          </select>
-          <input
-            type="number"
-            placeholder="Quantity"
-            className="bulk-quantity"
-            min="0"
-          />
-          <button 
-            onClick={() => {
-              const action = document.querySelector('.bulk-action-select').value;
-              const quantity = document.querySelector('.bulk-quantity').value;
-              if (quantity) {
-                bulkUpdateStock(action, quantity);
-              }
-            }}
-            className="btn btn-primary"
-          >
-            Apply to All
-          </button>
-        </div>
-      </div>
+      {/* Bulk Actions removed as requested */}
 
       <div className="inventory-table-container">
         <table className="inventory-table">
@@ -534,54 +483,7 @@ const Inventory = () => {
         </div>
       )}
 
-      {/* Import Modal */}
-      {showImportModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>Import Inventory</h2>
-              <button onClick={() => setShowImportModal(false)} className="close-btn">&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="import-instructions">
-                <h3>Instructions</h3>
-                <p>Upload a CSV file with the following columns:</p>
-                <ul>
-                  <li><strong>SKU</strong> - Product SKU</li>
-                  <li><strong>Stock</strong> - New stock quantity</li>
-                  <li><strong>LowStockAlert</strong> - Low stock threshold (optional)</li>
-                </ul>
-                <div className="sample-csv">
-                  <h4>Sample CSV Format:</h4>
-                  <pre>SKU,Stock,LowStockAlert
-PROD001,50,10
-PROD002,25,5
-PROD003,0,10</pre>
-                </div>
-              </div>
-              <div className="import-upload">
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={importInventory}
-                  className="file-input"
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button onClick={() => setShowImportModal(false)} className="btn btn-secondary">
-                Cancel
-              </button>
-              <button 
-                onClick={() => document.querySelector('.file-input').click()}
-                className="btn btn-primary"
-              >
-                Choose File
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Import CSV modal removed as requested */}
     </div>
   );
 };

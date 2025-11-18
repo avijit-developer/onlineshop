@@ -6,6 +6,7 @@ const VendorUser = require('../models/VendorUser');
 const Vendor = require('../models/Vendor');
 const User = require('../models/User');
 const DriverUser = require('../models/DriverUser');
+const Driver = require('../models/Driver');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
 
@@ -28,128 +29,190 @@ function getJwtExpiry() {
 }
 
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, phone, password } = req.body || {};
 
-  if (!email || !password) {
+  if (!password || (!email && !phone)) {
     res.status(400);
-    throw new Error('Email and password are required');
+    throw new Error('Email or phone and password are required');
   }
-  if (!isValidEmail(email)) {
+
+  // If email is provided, validate it and try email-based login flow first
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  if (normalizedEmail && !isValidEmail(normalizedEmail)) {
     res.status(400);
     throw new Error('Invalid email format');
   }
 
-  const normalizedEmail = String(email).trim().toLowerCase();
-
-  // Try Admin login first
-  const admin = await Admin.findOne({ email: normalizedEmail, $or: [{ isActive: true }, { isActive: { $exists: false } }] });
-  if (admin) {
-    const ok = await bcrypt.compare(password, admin.passwordHash);
-    if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
-    const token = jwt.sign(
-      { id: admin._id.toString(), role: 'admin', email: admin.email },
-      getJwtSecret(),
-      { expiresIn: getJwtExpiry() }
-    );
-    return res.json({ success: true, token, user: { id: admin._id, name: admin.name, email: admin.email, role: 'admin' } });
-  }
-
-  // Try Driver User login
-  const driverUser = await DriverUser.findOne({ email: normalizedEmail, isActive: true });
-  if (driverUser) {
-    const ok = await bcrypt.compare(password, driverUser.passwordHash);
-    if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
-    const token = jwt.sign(
-      { id: driverUser._id.toString(), role: 'driver', email: driverUser.email, driverId: driverUser.driver ? driverUser.driver.toString() : undefined },
-      getJwtSecret(),
-      { expiresIn: getJwtExpiry() }
-    );
-    return res.json({ success: true, token, user: { id: driverUser._id, name: driverUser.name, email: driverUser.email, role: 'driver', driverId: driverUser.driver } });
-  }
-
-  // Try Vendor User login
-  const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').populate('vendors', '_id companyName enabled status');
-  if (vendorUser) {
-    const ok = await bcrypt.compare(password, vendorUser.passwordHash);
-    if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
-
-    // Migrate single vendor to vendors array if needed
-    if (vendorUser.vendor && (!vendorUser.vendors || vendorUser.vendors.length === 0)) {
-      vendorUser.vendors = [vendorUser.vendor];
-      await vendorUser.save();
-      console.log(`Migrated vendor user ${vendorUser._id} from single vendor to vendors array`);
+  if (normalizedEmail) {
+    // Try Admin login first (email-only)
+    const admin = await Admin.findOne({ email: normalizedEmail, $or: [{ isActive: true }, { isActive: { $exists: false } }] });
+    if (admin) {
+      const ok = await bcrypt.compare(password, admin.passwordHash);
+      if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+      const token = jwt.sign(
+        { id: admin._id.toString(), role: 'admin', email: admin.email },
+        getJwtSecret(),
+        { expiresIn: getJwtExpiry() }
+      );
+      return res.json({ success: true, token, user: { id: admin._id, name: admin.name, email: admin.email, role: 'admin' } });
     }
 
-  // Get the primary vendor (first in vendors array or single vendor)
-  const primaryVendorId = vendorUserDoc.vendors && vendorUserDoc.vendors.length > 0 ? vendorUserDoc.vendors[0] : vendorUserDoc.vendor;
-  const vendor = await Vendor.findById(primaryVendorId).lean();
-  if (!vendor || vendor.enabled === false || vendor.status !== 'approved') {
-    res.status(403);
-    throw new Error('Vendor is not approved or is disabled');
+    // Driver User by email
+    const driverUser = await DriverUser.findOne({ email: normalizedEmail, isActive: true });
+    if (driverUser) {
+      const ok = await bcrypt.compare(password, driverUser.passwordHash);
+      if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+      const token = jwt.sign(
+        { id: driverUser._id.toString(), role: 'driver', email: driverUser.email, driverId: driverUser.driver ? driverUser.driver.toString() : undefined },
+        getJwtSecret(),
+        { expiresIn: getJwtExpiry() }
+      );
+      return res.json({ success: true, token, user: { id: driverUser._id, name: driverUser.name, email: driverUser.email, role: 'driver', driverId: driverUser.driver } });
+    }
+
+    // Vendor User by email
+    const vendorUser = await VendorUser.findOne({ email: normalizedEmail, isActive: true }).populate('vendor', '_id companyName enabled status').populate('vendors', '_id companyName enabled status');
+    if (vendorUser) {
+      const ok = await bcrypt.compare(password, vendorUser.passwordHash);
+      if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+
+      // Migrate single vendor to vendors array if needed
+      if (vendorUser.vendor && (!vendorUser.vendors || vendorUser.vendors.length === 0)) {
+        vendorUser.vendors = [vendorUser.vendor];
+        await vendorUser.save();
+        console.log(`Migrated vendor user ${vendorUser._id} from single vendor to vendors array`);
+      }
+
+      // Get the primary vendor (first in vendors array or single vendor)
+      const primaryVendorId = vendorUser.vendors && vendorUser.vendors.length > 0 ? vendorUser.vendors[0] : vendorUser.vendor;
+      const vendor = await Vendor.findById(primaryVendorId).lean();
+      if (!vendor || vendor.enabled === false || vendor.status !== 'approved') {
+        res.status(403);
+        throw new Error('Vendor is not approved or is disabled');
+      }
+
+      // Merge role permissions for immediate correctness
+      const populatedVu = await VendorUser.findById(vendorUser._id).populate('roleRef').lean();
+      const mergedPermissions = Array.from(new Set([
+        ...(Array.isArray(populatedVu?.roleRef?.permissions) ? populatedVu.roleRef.permissions : [])
+      ]));
+
+      // Normalize vendors array to string ids
+      const vendorIdList = Array.isArray(vendorUser.vendors)
+        ? vendorUser.vendors.map(v => (v && v._id ? v._id.toString() : String(v)))
+        : [];
+      const token = jwt.sign(
+        { 
+          id: vendorUser._id.toString(), 
+          role: 'vendor', 
+          email: vendorUser.email, 
+          vendorId: vendor._id.toString(),
+          vendors: vendorIdList,
+          permissions: mergedPermissions 
+        },
+        getJwtSecret(),
+        { expiresIn: getJwtExpiry() }
+      );
+
+      return res.json({ 
+        success: true, 
+        token, 
+        user: { 
+          id: vendorUser._id, 
+          name: vendorUser.name, 
+          email: vendorUser.email, 
+          role: 'vendor', 
+          vendorId: vendor._id, 
+          vendorCompany: vendor.companyName, 
+          vendors: vendorUser.vendors,
+          permissions: mergedPermissions 
+        } 
+      });
+    }
+
+    // Customer by email
+    const customerByEmail = await User.findOne({ email: normalizedEmail, isActive: true });
+    if (customerByEmail && customerByEmail.passwordHash) {
+      const ok = await bcrypt.compare(password, customerByEmail.passwordHash);
+      if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
+      const token = jwt.sign(
+        { id: customerByEmail._id.toString(), role: 'customer', email: customerByEmail.email },
+        getJwtSecret(),
+        { expiresIn: getJwtExpiry() }
+      );
+      return res.json({ success: true, token, user: { id: customerByEmail._id, name: customerByEmail.name, email: customerByEmail.email, phone: customerByEmail.phone, avatar: customerByEmail.avatar, role: 'customer' } });
+    }
+    // If email was provided but no match, fall through to phone if provided
   }
 
-  // Merge role permissions for immediate correctness
-  const populatedVu = await VendorUser.findById(vendorUserDoc._id).populate('roleRef').lean();
-  const mergedPermissions = Array.from(new Set([...
-    (Array.isArray(populatedVu?.roleRef?.permissions) ? populatedVu.roleRef.permissions : [])
-  ]));
+  // Phone-based login (customer, driver, vendor)
+  const phoneNorm = String(phone || '').trim();
+  if (phoneNorm) {
+    // Customer by phone
+    const customerByPhone = await User.findOne({ phone: phoneNorm, isActive: true });
+    if (customerByPhone && customerByPhone.passwordHash) {
+      const ok = await bcrypt.compare(password, customerByPhone.passwordHash);
+      if (ok) {
+        const token = jwt.sign(
+          { id: customerByPhone._id.toString(), role: 'customer', email: customerByPhone.email },
+          getJwtSecret(),
+          { expiresIn: getJwtExpiry() }
+        );
+        return res.json({ success: true, token, user: { id: customerByPhone._id, name: customerByPhone.name, email: customerByPhone.email, phone: customerByPhone.phone, avatar: customerByPhone.avatar, role: 'customer' } });
+      }
+    }
 
-  const token = jwt.sign(
-    { 
-      id: vendorUserDoc._id.toString(), 
-      role: 'vendor', 
-      email: vendorUserDoc.email, 
-      vendorId: vendor._id.toString(), // Keep for backward compatibility
-      vendors: vendorUserDoc.vendors.map(v => v.toString()), // Add vendors array
-      permissions: mergedPermissions 
-    },
-    getJwtSecret(),
-    { expiresIn: getJwtExpiry() }
-  );
+    // Driver by phone -> DriverUser by email
+    const driver = await Driver.findOne({ phone: phoneNorm }).lean();
+    if (driver) {
+      const driverUser = await DriverUser.findOne({ email: String(driver.email || '').trim().toLowerCase(), isActive: true });
+      if (driverUser) {
+        const ok = await bcrypt.compare(password, driverUser.passwordHash);
+        if (ok) {
+          const token = jwt.sign(
+            { id: driverUser._id.toString(), role: 'driver', email: driverUser.email, driverId: driverUser.driver ? driverUser.driver.toString() : undefined },
+            getJwtSecret(),
+            { expiresIn: getJwtExpiry() }
+          );
+          return res.json({ success: true, token, user: { id: driverUser._id, name: driverUser.name, email: driverUser.email, role: 'driver', driverId: driverUser.driver } });
+        }
+      }
+    }
 
-    return res.json({ 
-      success: true, 
-      token, 
-      user: { 
-        id: vendorUserDoc._id, 
-        name: vendorUserDoc.name, 
-        email: vendorUserDoc.email, 
-        role: 'vendor', 
-        vendorId: vendor._id, 
-        vendorCompany: vendor.companyName, 
-        vendors: vendorUserDoc.vendors,
-        permissions: mergedPermissions 
-      } 
-    });
+    // Vendor by phone -> VendorUser by vendor email
+    const vendor = await Vendor.findOne({ phone: phoneNorm }).lean();
+    if (vendor) {
+      const vendorEmail = String(vendor.email || '').trim().toLowerCase();
+      if (vendorEmail && isValidEmail(vendorEmail)) {
+        const vendorUser = await VendorUser.findOne({ email: vendorEmail, isActive: true }).populate('vendor', '_id companyName enabled status').populate('vendors', '_id companyName enabled status');
+        if (vendorUser) {
+          const ok = await bcrypt.compare(password, vendorUser.passwordHash);
+          if (ok) {
+            // Ensure vendor status is approved/enabled
+            const primaryVendorId = vendorUser.vendors && vendorUser.vendors.length > 0 ? vendorUser.vendors[0] : vendorUser.vendor;
+            const v = await Vendor.findById(primaryVendorId).lean();
+            if (!v || v.enabled === false || v.status !== 'approved') {
+              res.status(403);
+              throw new Error('Vendor is not approved or is disabled');
+            }
+            const populatedVu = await VendorUser.findById(vendorUser._id).populate('roleRef').lean();
+            const mergedPermissions = Array.from(new Set([
+              ...(Array.isArray(populatedVu?.roleRef?.permissions) ? populatedVu.roleRef.permissions : [])
+            ]));
+          const token = jwt.sign(
+            { id: vendorUser._id.toString(), role: 'vendor', email: vendorUser.email, vendorId: v._id.toString(), vendors: (Array.isArray(vendorUser.vendors) ? vendorUser.vendors.map(x => (x && x._id ? x._id.toString() : String(x))) : []), permissions: mergedPermissions },
+              getJwtSecret(),
+              { expiresIn: getJwtExpiry() }
+            );
+            return res.json({ success: true, token, user: { id: vendorUser._id, name: vendorUser.name, email: vendorUser.email, role: 'vendor', vendorId: v._id, vendorCompany: v.companyName, vendors: vendorUser.vendors, permissions: mergedPermissions } });
+          }
+        }
+      }
+    }
   }
 
-  // Fallback to customer login
-  const customer = await User.findOne({ email: normalizedEmail, isActive: true });
-  if (!customer || !customer.passwordHash) {
-    res.status(401);
-    throw new Error('Invalid credentials');
-  }
-  const ok = await bcrypt.compare(password, customer.passwordHash);
-  if (!ok) { res.status(401); throw new Error('Invalid credentials'); }
-
-  const token = jwt.sign(
-    { id: customer._id.toString(), role: 'customer', email: customer.email },
-    getJwtSecret(),
-    { expiresIn: getJwtExpiry() }
-  );
-
-  return res.json({ 
-    success: true, 
-    token, 
-    user: { 
-      id: customer._id, 
-      name: customer.name, 
-      email: customer.email, 
-      phone: customer.phone,
-      avatar: customer.avatar,
-      role: 'customer' 
-    } 
-  });
+  res.status(401);
+  throw new Error('Invalid credentials');
 });
 
 // START OTP RESET (admin + customer)
@@ -235,8 +298,15 @@ router.post('/register', async (req, res) => {
   // Check phone uniqueness if provided
   const phoneNorm = String(phone).trim();
   if (phoneNorm) {
-    const phoneExists = await User.findOne({ phone: phoneNorm }).lean();
-    if (phoneExists) { res.status(409); throw new Error('Phone number already in use'); }
+    const [userPhone, vendorPhone, driverPhone] = await Promise.all([
+      User.findOne({ phone: phoneNorm }).lean(),
+      Vendor.findOne({ phone: phoneNorm }).lean(),
+      Driver.findOne({ phone: phoneNorm }).lean()
+    ]);
+    if (userPhone || vendorPhone || driverPhone) {
+      res.status(409);
+      throw new Error('Phone number already in use');
+    }
   }
 
   const passwordHash = await bcrypt.hash(password, 10);

@@ -68,9 +68,9 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const login = async (email, password) => {
+  const login = async (phone, password) => {
     try {
-      const response = await api.login(email, password);
+      const response = await api.login(phone, password);
       
       const { token: authToken, user: userData } = response;
       

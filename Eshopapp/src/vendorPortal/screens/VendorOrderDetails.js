@@ -110,29 +110,9 @@ const VendorOrderDetails = ({ route, navigation }) => {
         <Text style={styles.dateText}>{formatDate(pick(order, ['createdAt', 'created_at', 'date', 'placedAt'], ''))}</Text>
       </View>
 
-      {/* Customer quick info */}
-      <View style={styles.infoCard}>
-        <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Customer</Text></View>
-        <View style={styles.infoRow}><Text style={styles.infoLabel}>Name</Text><Text style={styles.infoValue}>{customer.name || '-'}</Text></View>
-        <View style={styles.infoRow}><Text style={styles.infoLabel}>Email</Text><Text style={styles.infoValue}>{customer.email || '-'}</Text></View>
-        <View style={styles.infoRow}><Text style={styles.infoLabel}>Mobile</Text><Text style={styles.infoValue}>{order.customerPhone || customer.phone || '-'}</Text></View>
-      </View>
+      {/* Customer quick info - hidden for vendor users */}
 
-      {/* Customer details */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Customer</Text>
-        <View style={styles.divider} />
-        <KV label="Name" value={pick(customer, ['name', 'fullName'], '-')} />
-        <KV label="Email" value={pick(customer, ['email'], '-')} />
-        <KV label="Mobile" value={pick(order, ['customerPhone', 'phone'], pick(customer, ['phone', 'mobile'], '-'))} />
-        {shippingString ? (
-          <KVWrap label="Shipping" value={shippingString} />
-        ) : (shipping && (shipping.address || shipping.city || shipping.state || shipping.zipCode)) ? (
-          <KVWrap label="Shipping" value={formatAddress(shipping)} />
-        ) : null}
-        {pick(order, ['paymentMethod', 'payment_method']) ? <KV label="Payment" value={String(pick(order, ['paymentMethod', 'payment_method'], '')).toUpperCase()} /> : null}
-        {pick(order, ['orderNote', 'note']) ? <KV label="Note" value={String(pick(order, ['orderNote', 'note'], ''))} /> : null}
-      </View>
+      {/* Customer details - hidden for vendor users */}
 
       {/* Vendor details */}
       <View style={styles.card}>

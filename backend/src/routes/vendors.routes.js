@@ -7,6 +7,8 @@ const VendorUser = require('../models/VendorUser');
 const Role = require('../models/Role');
 const bcrypt = require('bcryptjs');
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
+const User = require('../models/User');
+const Driver = require('../models/Driver');
 // Public: customer can submit vendor application (creates pending vendor)
 // Make public for app submission; if logged in, we still accept and use req.user when present
 router.post('/apply', async (req, res) => {
@@ -47,6 +49,20 @@ router.post('/apply', async (req, res) => {
     if (exists) {
       res.status(409);
       throw new Error('A vendor with this email already exists');
+    }
+
+    // Ensure phone is unique across customers, vendors and drivers
+    const phoneNorm = String(phone || '').trim();
+    if (phoneNorm) {
+      const [userPhone, vendorPhone, driverPhone] = await Promise.all([
+        User.findOne({ phone: phoneNorm }).lean(),
+        Vendor.findOne({ phone: phoneNorm }).lean(),
+        Driver.findOne({ phone: phoneNorm }).lean(),
+      ]);
+      if (userPhone || vendorPhone || driverPhone) {
+        res.status(409);
+        throw new Error('Phone number already in use');
+      }
     }
 
     // Removed pre-validation for creating vendor user; account will be created on approval
@@ -193,6 +209,20 @@ router.post('/', authenticate, requirePermission('vendor.add'), async (req, res)
     throw new Error('Invalid email format');
   }
 
+  // Ensure phone is unique across customers, vendors and drivers
+  const phoneNorm = String(phone || '').trim();
+  if (phoneNorm) {
+    const [userPhone, vendorPhone, driverPhone] = await Promise.all([
+      User.findOne({ phone: phoneNorm }).lean(),
+      Vendor.findOne({ phone: phoneNorm }).lean(),
+      Driver.findOne({ phone: phoneNorm }).lean(),
+    ]);
+    if (userPhone || vendorPhone || driverPhone) {
+      res.status(409);
+      throw new Error('Phone number already in use');
+    }
+  }
+
   const exists = await Vendor.findOne({ email: email.trim().toLowerCase() }).lean();
   if (exists) {
     res.status(409);
@@ -258,7 +288,21 @@ router.put('/:id', authenticate, requirePermission('vendor.edit'), async (req, r
     }
     vendor.email = String(email).trim().toLowerCase();
   }
-  if (phone !== undefined) vendor.phone = String(phone).trim();
+  if (phone !== undefined) {
+    const newPhone = String(phone).trim();
+    if (newPhone !== (vendor.phone || '').trim()) {
+      const [userPhone, vendorPhone, driverPhone] = await Promise.all([
+        User.findOne({ phone: newPhone }).lean(),
+        Vendor.findOne({ phone: newPhone, _id: { $ne: vendor._id } }).lean(),
+        Driver.findOne({ phone: newPhone }).lean(),
+      ]);
+      if (userPhone || vendorPhone || driverPhone) {
+        res.status(409);
+        throw new Error('Phone number already in use');
+      }
+    }
+    vendor.phone = newPhone;
+  }
   if (address1 !== undefined) vendor.address1 = String(address1).trim();
   if (address2 !== undefined) vendor.address2 = String(address2).trim();
   if (city !== undefined) vendor.city = String(city).trim();

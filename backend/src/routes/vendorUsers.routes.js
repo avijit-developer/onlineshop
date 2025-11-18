@@ -26,7 +26,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
   const [items, total] = await Promise.all([
-    VendorUser.find(filters).populate('vendors', 'companyName').populate('vendor', 'companyName').populate('roleRef','name').skip((pageNum - 1) * perPage).limit(perPage).lean(),
+    VendorUser.find(filters).populate('vendors', 'companyName phone').populate('vendor', 'companyName phone').populate('roleRef','name').skip((pageNum - 1) * perPage).limit(perPage).lean(),
     VendorUser.countDocuments(filters)
   ]);
   

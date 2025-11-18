@@ -215,6 +215,8 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
     images: Array.isArray(body.images) ? body.images : [],
     imagePublicIds: Array.isArray(body.imagePublicIds) ? body.imagePublicIds : [],
+    videoUrl: body.videoUrl ? String(body.videoUrl).trim() : '',
+    videoPublicId: body.videoPublicId ? String(body.videoPublicId).trim() : '',
     variants: hasVariants
       ? body.variants.map(v => ({
           attributes: v.attributes || {},
@@ -294,6 +296,8 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
 
   if (body.images !== undefined) product.images = Array.isArray(body.images) ? body.images : [];
   if (body.imagePublicIds !== undefined) product.imagePublicIds = Array.isArray(body.imagePublicIds) ? body.imagePublicIds : [];
+  if (body.videoUrl !== undefined) product.videoUrl = String(body.videoUrl || '').trim();
+  if (body.videoPublicId !== undefined) product.videoPublicId = String(body.videoPublicId || '').trim();
   if (body.variants !== undefined) {
     if (!Array.isArray(body.variants)) { res.status(400); throw new Error('variants must be an array'); }
     const variantSkus = body.variants.map(v => (v?.sku || '').trim()).filter(Boolean);
@@ -1163,7 +1167,7 @@ router.get('/public', async (req, res) => {
           { $lookup: { from: 'brands', localField: 'brand', foreignField: '_id', as: 'brand' } },
           { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
           { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
-          { $project: { _id: 1, name: 1, images: 1, regularPrice: 1, specialPrice: 1, vendorRegularPrice: 1, rating: 1, productType: 1, variants: 1, stock: 1, effectivePrice: 1, category: { name: '$category.name' }, brand: { name: '$brand.name' } } }
+        { $project: { _id: 1, name: 1, images: 1, regularPrice: 1, specialPrice: 1, vendorRegularPrice: 1, rating: 1, productType: 1, variants: 1, stock: 1, videoUrl: 1, effectivePrice: 1, category: { name: '$category.name' }, brand: { name: '$brand.name' } } }
         ];
         [items, total] = await Promise.all([
           Product.aggregate(basePipeline),
@@ -1181,7 +1185,7 @@ router.get('/public', async (req, res) => {
       } else {
         [items, total] = await Promise.all([
           Product.find(filters)
-            .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+            .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand videoUrl')
             .populate('category', 'name')
             .populate('brand', 'name')
             .sort(sortOrder)
@@ -1221,7 +1225,7 @@ router.get('/public', async (req, res) => {
           const perPage2 = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
           const [alt, tot] = await Promise.all([
             Product.find(relaxed)
-              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand videoUrl')
               .populate('category', 'name')
               .populate('brand', 'name')
               .sort(sortOrder)
@@ -1240,7 +1244,7 @@ router.get('/public', async (req, res) => {
           const perPage2 = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
           const [alt, tot] = await Promise.all([
             Product.find(relaxed)
-              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand videoUrl')
               .populate('category', 'name')
               .populate('brand', 'name')
               .sort(sortOrder)
@@ -1284,7 +1288,7 @@ router.get('/public', async (req, res) => {
           const perPage3 = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
           const [alt2, tot2] = await Promise.all([
             Product.find(relaxed)
-              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand')
+              .select('_id name images regularPrice specialPrice vendorRegularPrice rating productType variants stock brand videoUrl')
               .populate('category', 'name')
               .populate('brand', 'name')
               .sort(sortOrder)
@@ -1408,7 +1412,7 @@ router.get('/:id/public', async (req, res) => {
   try {
     const { id } = req.params;
     const product = await Product.findById(id)
-      .select('name description shortDescription images regularPrice specialPrice vendorRegularPrice tax stock productType variants category brand vendor enabled status')
+      .select('name description shortDescription images regularPrice specialPrice vendorRegularPrice tax stock productType variants category brand vendor enabled status videoUrl')
       .populate('brand', 'name')
       .populate('category', 'name')
       .populate('vendor', 'companyName')

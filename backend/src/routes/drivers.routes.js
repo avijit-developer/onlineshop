@@ -5,6 +5,8 @@ const Driver = require('../models/Driver');
 const DriverUser = require('../models/DriverUser');
 const Role = require('../models/Role');
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
+const User = require('../models/User');
+const Vendor = require('../models/Vendor');
 
 const router = express.Router();
 
@@ -22,6 +24,20 @@ router.post('/apply', async (req, res) => {
 
     const exists = await Driver.findOne({ email: applicantEmail }).lean();
     if (exists) { res.status(409); throw new Error('A driver with this email already exists'); }
+
+    // Ensure phone is unique across customers, vendors and drivers
+    const phoneNorm = String(phone || '').trim();
+    if (phoneNorm) {
+      const [userPhone, vendorPhone, driverPhone] = await Promise.all([
+        User.findOne({ phone: phoneNorm }).lean(),
+        Vendor.findOne({ phone: phoneNorm }).lean(),
+        Driver.findOne({ phone: phoneNorm }).lean(),
+      ]);
+      if (userPhone || vendorPhone || driverPhone) {
+        res.status(409);
+        throw new Error('Phone number already in use');
+      }
+    }
 
     const created = await Driver.create({ name: String(name).trim(), email: applicantEmail, phone: String(phone).trim(), address1, address2, city, zip, address, status: 'pending', enabled: false });
 
