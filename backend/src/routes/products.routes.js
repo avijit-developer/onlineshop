@@ -13,6 +13,32 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 } });
 
 // Helpers: SKU generation
+function slugifyName(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+async function ensureUniqueSlug(name, excludeId = null) {
+  const base = slugifyName(name);
+  if (!base) return '';
+  const query = { slug: { $regex: new RegExp(`^${base}(?:-\\d+)?$`, 'i') } };
+  if (excludeId) query._id = { $ne: excludeId };
+  const existing = await Product.find(query).select('slug').lean();
+  if (!existing || existing.length === 0) return base;
+  const taken = new Set(existing.map(e => String(e.slug).toLowerCase()));
+  if (!taken.has(base)) return base;
+  let i = 2;
+  while (true) {
+    const candidate = `${base}-${i}`;
+    if (!taken.has(candidate)) return candidate;
+    i += 1;
+  }
+}
+
 function buildSkuBaseFromName(name) {
   try {
     return String(name)
@@ -200,6 +226,7 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
 
   const created = await Product.create({
     name: String(body.name).trim(),
+    slug: await ensureUniqueSlug(body.name),
     description: body.description ? String(body.description).trim() : '',
     shortDescription: body.shortDescription ? String(body.shortDescription).trim() : undefined,
     category: body.category,
@@ -336,6 +363,12 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
   if (body.status !== undefined) product.status = body.status;
   if (body.featured !== undefined) product.featured = Boolean(body.featured);
   if (body.enabled !== undefined) product.enabled = Boolean(body.enabled);
+
+  // If name changed, update slug to a unique one
+  if (body.name !== undefined) {
+    const nextSlug = await ensureUniqueSlug(product.name, product._id);
+    product.slug = nextSlug;
+  }
 
   // Update productType based on variants
   if (body.variants !== undefined) {

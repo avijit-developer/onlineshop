@@ -65,7 +65,7 @@ router.post('/apply', async (req, res) => {
       }
     }
 
-    // Removed pre-validation for creating vendor user; account will be created on approval
+    // If password provided for new vendor user, we will create/update that vendor user now
 
     const created = await Vendor.create({
       name: String(name || req.user?.name || '').trim() || 'Applicant',
@@ -97,7 +97,7 @@ router.post('/apply', async (req, res) => {
         if (!vu.vendor) vu.vendor = created._id; // legacy single vendor field if empty
         await vu.save();
       } else {
-        // do not create new vendor user at application time; will be created on approval
+        // Existing user flag set but not found; do nothing now. Admin can link later.
       }
     } else {
       // NO to using existing vendor user: ensure we create/assign a vendor user if email provided
@@ -105,13 +105,26 @@ router.post('/apply', async (req, res) => {
       if (isValidEmail(vuEmail)) {
         let vu = await VendorUser.findOne({ email: vuEmail });
         if (vu) {
-          // Assign the newly created vendor to this user
+          // Assign the newly created vendor to this user and set password if provided
           vu.vendors = Array.from(new Set([...(vu.vendors || []), created._id]));
           if (!vu.vendor) vu.vendor = created._id; // legacy single vendor field if empty
+          if (vendorUserPassword) {
+            const passwordHash = await bcrypt.hash(String(vendorUserPassword), 10);
+            vu.passwordHash = passwordHash;
+          }
           await vu.save();
-        } else {
-          // do not create new vendor user at application time; will be created on approval
-        }
+        } else if (vendorUserPassword && vendorUserName) {
+          // Create vendor user now with provided password so they can use this "normal" password after approval
+          const passwordHash = await bcrypt.hash(String(vendorUserPassword), 10);
+          await VendorUser.create({
+            name: String(vendorUserName || created.companyName || 'Vendor').trim(),
+            email: vuEmail,
+            passwordHash,
+            vendor: created._id,
+            vendors: [created._id],
+            isActive: true
+          });
+        } // else: no password provided; will require Forgot Password after approval
       }
     }
 
@@ -333,23 +346,19 @@ router.patch('/:id/status', authenticate, requirePermission('vendor.approve'), a
   }
   try {
     if (status === 'approved') {
-      // Ensure at least one vendor user exists; if none, create one with a temp password
+      // Ensure at least one vendor user exists; do NOT reset existing passwords
       const vendorId = updated._id;
-      const tempPassword = Math.random().toString(36).slice(-10) + Math.floor(1000 + Math.random() * 9000);
       const users = await VendorUser.find({ $or: [{ vendor: vendorId }, { vendors: vendorId }] }).lean();
       let targetUsers = users;
       if (!users || users.length === 0) {
-        // Create a vendor user using vendor email if valid
+        // Create a vendor user using vendor email if valid (password will not be emailed; user can use Forgot Password)
         const vEmail = String(updated.email || '').trim().toLowerCase();
         if (isValidEmail(vEmail)) {
+          const tempPassword = Math.random().toString(36).slice(-10) + Math.floor(1000 + Math.random() * 9000);
           const passwordHash = await bcrypt.hash(String(tempPassword), 10);
           const createdVU = await VendorUser.create({ name: updated.companyName || 'Vendor', email: vEmail, passwordHash, vendor: vendorId, vendors: [vendorId] });
           targetUsers = [createdVU.toObject()];
         }
-      } else {
-        // Reset passwords to temp for all vendor users
-        const passwordHash = await bcrypt.hash(String(tempPassword), 10);
-        await VendorUser.updateMany({ _id: { $in: users.map(u => u._id) } }, { $set: { passwordHash } });
       }
       // Ensure default role for vendor users
       let vendorRole = await Role.findOne({ name: 'Vendor' }).lean();
@@ -360,13 +369,10 @@ router.patch('/:id/status', authenticate, requirePermission('vendor.approve'), a
       if (targetUsers && targetUsers.length > 0) {
         await VendorUser.updateMany({ _id: { $in: targetUsers.map(u => u._id || u.id) } }, { $set: { roleRef: vendorRole._id } });
       }
-      // Send approval email with credentials to vendor email and vendor users
+      // Send approval email WITHOUT credentials
       try {
         const subject = 'Your vendor account has been approved';
-        const credsHtml = targetUsers && targetUsers.length > 0
-          ? `<ul>${targetUsers.map(u => `<li><b>Username:</b> ${u.email} — <b>Password:</b> ${tempPassword}</li>`).join('')}</ul>`
-          : `<p>Please use your registered email to sign in. You can reset your password if needed.</p>`;
-        const contentHtml = `<p>Hi ${updated.name || 'there'},</p><p>Your vendor application for <b>${updated.companyName}</b> has been <b>approved</b>.</p>${credsHtml}<p>You can now sign in to the Vendor Portal.</p>`;
+        const contentHtml = `<p>Hi ${updated.name || 'there'},</p><p>Your vendor application for <b>${updated.companyName}</b> has been <b>approved</b>.</p><p>You can now sign in to the <a href="https://trahimart.com/admin/login" target="_blank" rel="noopener noreferrer">Vendor Portal</a> using your existing password. If you need help, use <b>Forgot Password</b> to set a new one.</p>`;
         const html = await buildEmailHtml({ subject, contentHtml });
         if (isValidEmail(updated.email)) await sendMail({ to: updated.email, subject, html });
         for (const u of (targetUsers || [])) {
