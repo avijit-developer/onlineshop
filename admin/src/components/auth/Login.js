@@ -9,6 +9,7 @@ const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('lo
 
 const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   const onSubmit = async (data) => {
@@ -17,7 +18,7 @@ const Login = ({ onLogin }) => {
       const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, password: data.password })
+        body: JSON.stringify({ phone: data.phone, password: data.password })
       });
 
       const json = await res.json().catch(() => ({}));
@@ -53,36 +54,65 @@ const Login = ({ onLogin }) => {
         
         <form onSubmit={handleSubmit(onSubmit)} className="login-form">
           <div className="form-group">
-            <label className="form-label">Email</label>
+            <label className="form-label">Phone Number</label>
             <input
-              type="email"
-              className={`form-control ${errors.email ? 'error' : ''}`}
-              placeholder="Enter your email"
-              {...register('email', {
-                required: 'Email is required',
+              type="tel"
+              className={`form-control ${errors.phone ? 'error' : ''}`}
+              placeholder="Enter your phone number"
+              {...register('phone', {
+                required: 'Phone number is required',
                 pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address'
+                  value: /^[0-9+\-\s()]+$/,
+                  message: 'Invalid phone number format'
                 }
               })}
             />
-            {errors.email && <span className="error-message">{errors.email.message}</span>}
+            {errors.phone && <span className="error-message">{errors.phone.message}</span>}
           </div>
           
           <div className="form-group">
             <label className="form-label">Password</label>
-            <input
-              type="password"
-              className={`form-control ${errors.password ? 'error' : ''}`}
-              placeholder="Enter your password"
-              {...register('password', {
-                required: 'Password is required',
-                minLength: {
-                  value: 6,
-                  message: 'Password must be at least 6 characters'
-                }
-              })}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className={`form-control ${errors.password ? 'error' : ''}`}
+                placeholder="Enter your password"
+                style={{ paddingRight: '40px' }}
+                {...register('password', {
+                  required: 'Password is required',
+                  minLength: {
+                    value: 6,
+                    message: 'Password must be at least 6 characters'
+                  }
+                })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '20px',
+                  padding: '5px 8px',
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'color 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.color = '#667eea'}
+                onMouseLeave={(e) => e.target.style.color = '#666'}
+                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
             {errors.password && <span className="error-message">{errors.password.message}</span>}
           </div>
           

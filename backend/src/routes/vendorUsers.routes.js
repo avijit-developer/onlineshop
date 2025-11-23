@@ -54,7 +54,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 
 // Create vendor user (admin-only)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
-  const { name, email, password, vendors = [], roleRef } = req.body || {};
+  const { name, email, phone, password, vendors = [], roleRef } = req.body || {};
   if (!name || !email || !password || !vendors.length) {
     res.status(400);
     throw new Error('name, email, password and at least one vendor are required');
@@ -83,6 +83,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   const created = await VendorUser.create({ 
     name: String(name).trim(), 
     email: String(email).trim().toLowerCase(), 
+    phone: phone ? String(phone).trim() : undefined,
     passwordHash, 
     vendors: vendorIds, 
     roleRef: roleRefId
@@ -93,7 +94,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 // Update vendor user (admin-only)
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, email, password, vendors = [], isActive, roleRef } = req.body || {};
+  const { name, email, phone, password, vendors = [], isActive, roleRef } = req.body || {};
   const user = await VendorUser.findById(id);
   if (!user) { res.status(404); throw new Error('vendor user not found'); }
   if (name !== undefined) user.name = String(name).trim();
@@ -101,6 +102,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     if (!isValidEmail(email)) { res.status(400); throw new Error('Invalid email format'); }
     user.email = String(email).trim().toLowerCase();
   }
+  if (phone !== undefined) user.phone = phone ? String(phone).trim() : undefined;
   if (password !== undefined) {
     if (String(password).length < 8) { res.status(400); throw new Error('Password must be at least 8 characters'); }
     user.passwordHash = await bcrypt.hash(password, 10);

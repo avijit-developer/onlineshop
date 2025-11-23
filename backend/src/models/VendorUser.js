@@ -4,6 +4,7 @@ const vendorUserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
+    phone: { type: String, trim: true },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['vendor'], default: 'vendor', index: true },
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: false, index: true }, // Keep for backward compatibility

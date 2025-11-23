@@ -26,12 +26,12 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
     Admin.find(filters).sort({ createdAt: -1 }).skip((pageNum - 1) * perPage).limit(perPage).lean(),
     Admin.countDocuments(filters)
   ]);
-  res.json({ success: true, data: items.map(a => ({ id: a._id, name: a.name, email: a.email, role: a.role, isActive: a.isActive, createdAt: a.createdAt })), meta: { total, page: pageNum, limit: perPage } });
+  res.json({ success: true, data: items.map(a => ({ id: a._id, name: a.name, email: a.email, phone: a.phone, role: a.role, isActive: a.isActive, createdAt: a.createdAt })), meta: { total, page: pageNum, limit: perPage } });
 });
 
 // Create a new admin (admin-only)
 router.post('/', authenticate, requireAdmin, async (req, res) => {
-  const { name, email, password, isActive } = req.body || {};
+  const { name, email, phone, password, isActive } = req.body || {};
 
   if (!name || !email || !password) {
     res.status(400);
@@ -59,6 +59,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   const admin = await Admin.create({
     name: String(name).trim(),
     email: normalizedEmail,
+    phone: phone ? String(phone).trim() : undefined,
     passwordHash,
     isActive: isActive === false ? false : true,
     role: 'admin'
@@ -77,6 +78,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
       id: admin._id,
       name: admin.name,
       email: admin.email,
+      phone: admin.phone,
       role: admin.role,
       isActive: admin.isActive,
       userLinkId: user?._id || null
@@ -87,7 +89,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 // Update admin
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, email, password, isActive } = req.body || {};
+  const { name, email, phone, password, isActive } = req.body || {};
   const admin = await Admin.findById(id);
   if (!admin) { res.status(404); throw new Error('admin not found'); }
   if (name !== undefined) admin.name = String(name).trim();
@@ -95,18 +97,24 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     if (!isValidEmail(email)) { res.status(400); throw new Error('Invalid email format'); }
     admin.email = String(email).trim().toLowerCase();
   }
+  if (phone !== undefined) admin.phone = phone ? String(phone).trim() : undefined;
   if (password !== undefined) {
     if (String(password).length < 8) { res.status(400); throw new Error('Password must be at least 8 characters'); }
     admin.passwordHash = await bcrypt.hash(password, 10);
   }
   if (isActive !== undefined) admin.isActive = Boolean(isActive);
   const updated = await admin.save();
-  res.json({ success: true, data: { id: updated._id, name: updated.name, email: updated.email, role: updated.role, isActive: updated.isActive, createdAt: updated.createdAt } });
+  res.json({ success: true, data: { id: updated._id, name: updated.name, email: updated.email, phone: updated.phone, role: updated.role, isActive: updated.isActive, createdAt: updated.createdAt } });
 });
 
 // Delete admin
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
+  // Prevent admin from deleting themselves
+  if (req.user.id === id) {
+    res.status(403);
+    throw new Error('You cannot delete your own account');
+  }
   const deleted = await Admin.findByIdAndDelete(id).lean();
   if (!deleted) { res.status(404); throw new Error('admin not found'); }
   res.json({ success: true });

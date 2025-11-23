@@ -21,6 +21,16 @@ const AdminUsers = () => {
 
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm();
 
+  // Get current logged-in admin user ID
+  const getCurrentAdminId = () => {
+    try {
+      const adminUser = JSON.parse(localStorage.getItem('adminUser') || 'null');
+      return adminUser?.id || adminUser?._id || null;
+    } catch {
+      return null;
+    }
+  };
+
   const authHeaders = () => {
     const token = localStorage.getItem('adminToken');
     return { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' };
@@ -37,6 +47,98 @@ const AdminUsers = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showModal, tab, roles.length]);
+
+  // Set form values when editing item changes
+  useEffect(() => {
+    if (!showModal) return;
+    
+    if (editingItem) {
+      // Edit mode - populate form with item data
+      const currentTab = tab;
+      setTimeout(() => {
+        if (currentTab === 'admins') {
+          reset({
+            name: editingItem.name || '',
+            email: editingItem.email || '',
+            phone: editingItem.phone || '',
+            password: '',
+            isActive: editingItem.isActive
+          });
+        } else if (currentTab === 'vendorUsers') {
+          // Vendors
+          let vendorIds = [];
+          if (Array.isArray(editingItem.vendors) && editingItem.vendors.length > 0) {
+            vendorIds = editingItem.vendors.map(v => v._id || v);
+          } else if (editingItem.vendor) {
+            vendorIds = [editingItem.vendor._id || editingItem.vendor];
+          }
+          const vendorIdsStr = (vendorIds || []).map(v => String(v));
+          setSelectedVendorIds(vendorIdsStr);
+          // Role
+          let roleId = '';
+          if (editingItem.roleRef) {
+            roleId = typeof editingItem.roleRef === 'object' ? editingItem.roleRef._id : editingItem.roleRef;
+          } else if (editingItem.role) {
+            roleId = typeof editingItem.role === 'object' ? editingItem.role._id : editingItem.role;
+          }
+          
+          // Get phone value - check both vendorUser.phone and fallback to vendor phone
+          const phoneValue = editingItem.phone || (editingItem.vendors && editingItem.vendors.length > 0 ? editingItem.vendors[0]?.phone : '') || (editingItem.vendor?.phone || '');
+          
+          const formData = {
+            name: editingItem.name || '',
+            email: editingItem.email || '',
+            phone: phoneValue,
+            password: '',
+            vendors: vendorIdsStr,
+            roleRef: roleId,
+            isActive: editingItem.isActive
+          };
+          
+          reset(formData);
+          // Ensure phone is set explicitly
+          setValue('phone', phoneValue, { shouldValidate: false, shouldDirty: false });
+        } else if (currentTab === 'roles') {
+          reset({
+            name: editingItem.name || '',
+            description: editingItem.description || '',
+            permissions: editingItem.permissions || []
+          });
+        }
+      }, 100);
+    } else {
+      // Add mode - explicitly reset form with empty values
+      setTimeout(() => {
+        if (tab === 'admins') {
+          reset({
+            name: '',
+            email: '',
+            phone: '',
+            password: '',
+            isActive: true
+          });
+        } else if (tab === 'vendorUsers') {
+          reset({
+            name: '',
+            email: '',
+            phone: '',
+            password: '',
+            vendors: [],
+            roleRef: '',
+            isActive: true
+          });
+          setSelectedVendorIds([]);
+        } else if (tab === 'roles') {
+          reset({
+            name: '',
+            description: '',
+            permissions: []
+          });
+        }
+      }, 100);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModal, editingItem, tab]);
 
   const loadLists = async () => {
     try {
@@ -74,50 +176,40 @@ const AdminUsers = () => {
 
   const openAdd = () => {
     setEditingItem(null);
-    reset();
     setSelectedVendorIds([]);
+    // Explicitly reset form with empty values based on current tab
+    if (tab === 'admins') {
+      reset({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        isActive: true
+      });
+    } else if (tab === 'vendorUsers') {
+      reset({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        vendors: [],
+        roleRef: '',
+        isActive: true
+      });
+    } else if (tab === 'roles') {
+      reset({
+        name: '',
+        description: '',
+        permissions: []
+      });
+    } else {
+      reset();
+    }
     setShowModal(true);
   };
 
   const openEdit = (item, itemType = null) => {
     setEditingItem(item);
-    // Ensure form values are set after modal opens
-    setTimeout(() => {
-      const currentTab = itemType || tab;
-      if (currentTab === 'admins') {
-        setValue('name', item.name);
-        setValue('email', item.email);
-        setValue('password', '');
-        setValue('isActive', item.isActive);
-      } else if (currentTab === 'vendorUsers') {
-        setValue('name', item.name);
-        setValue('email', item.email);
-        setValue('password', '');
-        // Vendors
-        let vendorIds = [];
-        if (Array.isArray(item.vendors) && item.vendors.length > 0) {
-          vendorIds = item.vendors.map(v => v._id || v);
-        } else if (item.vendor) {
-          vendorIds = [item.vendor._id || item.vendor];
-        }
-        const vendorIdsStr = (vendorIds || []).map(v => String(v));
-        setValue('vendors', vendorIdsStr);
-        setSelectedVendorIds(vendorIdsStr);
-        // Role
-        let roleId = '';
-        if (item.roleRef) {
-          roleId = typeof item.roleRef === 'object' ? item.roleRef._id : item.roleRef;
-        } else if (item.role) {
-          roleId = typeof item.role === 'object' ? item.role._id : item.role;
-        }
-        setValue('roleRef', roleId);
-        setValue('isActive', item.isActive);
-      } else if (currentTab === 'roles') {
-        setValue('name', item.name);
-        setValue('description', item.description || '');
-        setValue('permissions', item.permissions || []);
-      }
-    }, 50);
     setShowModal(true);
   };
 
@@ -125,12 +217,12 @@ const AdminUsers = () => {
     try {
       if (tab === 'admins') {
         if (editingItem) {
-          const res = await fetch(`${API_BASE}/api/v1/admins/${editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/admins/${editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, phone: data.phone || undefined, password: data.password || undefined, isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to update admin');
           toast.success('Admin updated');
         } else {
-          const res = await fetch(`${API_BASE}/api/v1/admins`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password, isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/admins`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, phone: data.phone || undefined, password: data.password, isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to create admin');
           toast.success('Admin created');
@@ -149,12 +241,12 @@ const AdminUsers = () => {
         }
       } else {
         if (editingItem) {
-          const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password || undefined, vendors: data.vendors || [], roleRef: data.roleRef || undefined, isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/vendor-users/${editingItem._id || editingItem.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, phone: data.phone || undefined, password: data.password || undefined, vendors: data.vendors || [], roleRef: data.roleRef || undefined, isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to update vendor user');
           toast.success('Vendor user updated');
         } else {
-          const res = await fetch(`${API_BASE}/api/v1/vendor-users`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, password: data.password, vendors: data.vendors || [], roleRef: data.roleRef || undefined, isActive: !!data.isActive }) });
+          const res = await fetch(`${API_BASE}/api/v1/vendor-users`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: data.name, email: data.email, phone: data.phone || undefined, password: data.password, vendors: data.vendors || [], roleRef: data.roleRef || undefined, isActive: !!data.isActive }) });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json?.message || 'Failed to create vendor user');
           toast.success('Vendor user created');
@@ -258,7 +350,7 @@ const AdminUsers = () => {
                 <tr>
                   <th>Name</th>
                   <th>Email</th>
-                  {tab==='vendorUsers' && <th>Phone</th>}
+                  <th>Phone</th>
                   {tab==='vendorUsers' && <th>Vendor</th>}
                   {tab==='vendorUsers' && <th>Role</th>}
                   <th>Status</th>
@@ -276,9 +368,11 @@ const AdminUsers = () => {
                       </div>
                     </td>
                     <td>{item.email}</td>
-                    {tab==='vendorUsers' && (
-                      <td>
-                        {(() => {
+                    <td>
+                      {tab==='admins' ? (
+                        item.phone || '—'
+                      ) : (
+                        item.phone || (() => {
                           try {
                             if (Array.isArray(item.vendors) && item.vendors.length > 0) {
                               const first = item.vendors[0];
@@ -286,9 +380,9 @@ const AdminUsers = () => {
                             }
                             return item.vendor?.phone || '—';
                           } catch (_) { return '—'; }
-                        })()}
-                      </td>
-                    )}
+                        })()
+                      )}
+                    </td>
                     {tab==='vendorUsers' && (
                       <td>
                         {item.vendors && Array.isArray(item.vendors) ? 
@@ -311,7 +405,9 @@ const AdminUsers = () => {
                     <td>
                       <div className="action-buttons">
                         <button className="btn btn-sm btn-primary" onClick={() => openEdit(item)}>Edit</button>
-                        <button className="btn btn-sm btn-danger" onClick={() => askDelete(item)}>Delete</button>
+                        {!(tab === 'admins' && (item.id || item._id) === getCurrentAdminId()) && (
+                          <button className="btn btn-sm btn-danger" onClick={() => askDelete(item)}>Delete</button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -415,6 +511,16 @@ const AdminUsers = () => {
                       <input type="email" className={`form-control ${errors.email ? 'error' : ''}`} {...register('email', { required: 'Email is required' })} />
                       {errors.email && <span className="error-message">{errors.email.message}</span>}
                     </div>
+                    {(tab==='admins' || tab==='vendorUsers') && (
+                      <div className="form-group">
+                        <label className="form-label">Phone</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          {...register('phone')}
+                        />
+                      </div>
+                    )}
                     <div className="form-group">
                       <label className="form-label">Password {editingItem && '(leave blank to keep)'}</label>
                       <input type="password" className={`form-control ${errors.password ? 'error' : ''}`} {...register('password', { required: editingItem ? false : 'Password is required' })} />

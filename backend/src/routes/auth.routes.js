@@ -145,9 +145,23 @@ router.post('/login', async (req, res) => {
     // If email was provided but no match, fall through to phone if provided
   }
 
-  // Phone-based login (customer, driver, vendor)
+  // Phone-based login (admin, customer, driver, vendor)
   const phoneNorm = String(phone || '').trim();
   if (phoneNorm) {
+    // Admin by phone
+    const adminByPhone = await Admin.findOne({ phone: phoneNorm, $or: [{ isActive: true }, { isActive: { $exists: false } }] });
+    if (adminByPhone) {
+      const ok = await bcrypt.compare(password, adminByPhone.passwordHash);
+      if (ok) {
+        const token = jwt.sign(
+          { id: adminByPhone._id.toString(), role: 'admin', email: adminByPhone.email },
+          getJwtSecret(),
+          { expiresIn: getJwtExpiry() }
+        );
+        return res.json({ success: true, token, user: { id: adminByPhone._id, name: adminByPhone.name, email: adminByPhone.email, phone: adminByPhone.phone, role: 'admin' } });
+      }
+    }
+
     // Customer by phone
     const customerByPhone = await User.findOne({ phone: phoneNorm, isActive: true });
     if (customerByPhone && customerByPhone.passwordHash) {
