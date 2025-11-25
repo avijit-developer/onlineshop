@@ -23,6 +23,152 @@ function computeTotals(items, taxPercent = 0, shippingCost = 0, discountAmount =
 	return { subtotal, total };
 }
 
+// Helper to reduce stock for order items
+async function reduceStockForOrderItems(items) {
+	try {
+		const productIds = Array.from(new Set(items.map(it => String(it.product)).filter(Boolean)));
+		if (productIds.length === 0) return;
+
+		const products = await Product.find({ _id: { $in: productIds } }).lean();
+		const idToProduct = new Map(products.map(p => [String(p._id), p]));
+
+		for (const item of items) {
+			const productId = String(item.product);
+			const product = idToProduct.get(productId);
+			if (!product) continue;
+
+			const quantity = Number(item.quantity || 0);
+			if (quantity <= 0) continue;
+
+			const sku = String(item.sku || '').trim();
+			const selectedAttributes = item.selectedAttributes || {};
+
+			// Check if product has variants
+			const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+
+			if (hasVariants) {
+				// Find variant by SKU first, then by attributes
+				let variant = null;
+				if (sku) {
+					const targetSku = sku.toLowerCase();
+					variant = product.variants.find(v => String(v.sku || '').trim().toLowerCase() === targetSku);
+				}
+				
+				if (!variant && selectedAttributes && Object.keys(selectedAttributes).length > 0) {
+					variant = product.variants.find(v => {
+						let vAttrs = {};
+						try {
+							if (v.attributes && typeof v.attributes.toJSON === 'function') vAttrs = v.attributes.toJSON();
+							else if (v.attributes && typeof v.attributes.get === 'function') {
+								try { vAttrs = Object.fromEntries(v.attributes); } catch (_) { vAttrs = {}; }
+							}
+							else vAttrs = v.attributes || {};
+						} catch (_) { vAttrs = v.attributes || {}; }
+						
+						return Object.keys(selectedAttributes).every(k => String(vAttrs[k]) === String(selectedAttributes[k]));
+					});
+				}
+
+				if (variant) {
+					// Update variant stock
+					const currentStock = Number(variant.stock || 0);
+					const newStock = Math.max(0, currentStock - quantity);
+					
+					await Product.updateOne(
+						{ _id: product._id, 'variants.sku': variant.sku },
+						{ $set: { 'variants.$.stock': newStock } }
+					);
+				}
+			} else {
+				// Simple product - update product stock
+				const currentStock = Number(product.stock || 0);
+				const newStock = Math.max(0, currentStock - quantity);
+				
+				await Product.updateOne(
+					{ _id: product._id },
+					{ $set: { stock: newStock } }
+				);
+			}
+		}
+	} catch (error) {
+		console.error('Error reducing stock:', error);
+		// Don't throw - stock reduction failure shouldn't prevent order creation
+	}
+}
+
+// Helper to restore stock for order items
+async function restoreStockForOrderItems(items) {
+	try {
+		const productIds = Array.from(new Set(items.map(it => String(it.product)).filter(Boolean)));
+		if (productIds.length === 0) return;
+
+		const products = await Product.find({ _id: { $in: productIds } }).lean();
+		const idToProduct = new Map(products.map(p => [String(p._id), p]));
+
+		for (const item of items) {
+			const productId = String(item.product);
+			const product = idToProduct.get(productId);
+			if (!product) continue;
+
+			const quantity = Number(item.quantity || 0);
+			if (quantity <= 0) continue;
+
+			const sku = String(item.sku || '').trim();
+			const selectedAttributes = item.selectedAttributes || {};
+
+			// Check if product has variants
+			const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+
+			if (hasVariants) {
+				// Find variant by SKU first, then by attributes
+				let variant = null;
+				if (sku) {
+					const targetSku = sku.toLowerCase();
+					variant = product.variants.find(v => String(v.sku || '').trim().toLowerCase() === targetSku);
+				}
+				
+				if (!variant && selectedAttributes && Object.keys(selectedAttributes).length > 0) {
+					variant = product.variants.find(v => {
+						let vAttrs = {};
+						try {
+							if (v.attributes && typeof v.attributes.toJSON === 'function') vAttrs = v.attributes.toJSON();
+							else if (v.attributes && typeof v.attributes.get === 'function') {
+								try { vAttrs = Object.fromEntries(v.attributes); } catch (_) { vAttrs = {}; }
+							}
+							else vAttrs = v.attributes || {};
+						} catch (_) { vAttrs = v.attributes || {}; }
+						
+						return Object.keys(selectedAttributes).every(k => String(vAttrs[k]) === String(selectedAttributes[k]));
+					});
+				}
+
+				if (variant) {
+					// Restore variant stock
+					const currentStock = Number(variant.stock || 0);
+					const newStock = currentStock + quantity;
+					
+					await Product.updateOne(
+						{ _id: product._id, 'variants.sku': variant.sku },
+						{ $set: { 'variants.$.stock': newStock } }
+					);
+				}
+			} else {
+				// Simple product - restore product stock
+				const currentStock = Number(product.stock || 0);
+				const newStock = currentStock + quantity;
+				
+				await Product.updateOne(
+					{ _id: product._id },
+					{ $set: { stock: newStock } }
+				);
+			}
+		}
+	} catch (error) {
+		console.error('Error restoring stock:', error);
+		// Don't throw - stock restoration failure shouldn't prevent order cancellation
+	}
+}
+
 // Customer: create order (uses provided items or cart)
 router.post('/me', authenticate, requireRole(['customer']), async (req, res) => {
 	try {
@@ -162,6 +308,10 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			customerPhone,
 			statusHistory: [{ status: 'confirmed', updatedBy: 'system' }],
 		});
+		
+		// Reduce stock for order items
+		await reduceStockForOrderItems(items);
+		
 		// Increment coupon usage if applied
 		if (appliedCouponCode) {
 			try {
@@ -458,9 +608,23 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 		if (!status) return res.status(400).json({ success: false, message: 'status is required' });
 		const order = await Order.findById(req.params.id);
 		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+		
+		const previousStatus = order.status;
+		const isCancelling = (status === 'cancelled' || status === 'refunded') && previousStatus !== 'cancelled' && previousStatus !== 'refunded';
+		const isRestoring = (previousStatus === 'cancelled' || previousStatus === 'refunded') && status !== 'cancelled' && status !== 'refunded';
+		
 		order.status = status;
 		order.statusHistory.push({ status, updatedBy: req.user?.name || 'admin' });
 		await order.save();
+		
+		// Restore stock if order is being cancelled
+		if (isCancelling) {
+			await restoreStockForOrderItems(order.items || []);
+		}
+		// Reduce stock if order is being restored from cancelled status
+		if (isRestoring && (status === 'confirmed' || status === 'processing')) {
+			await reduceStockForOrderItems(order.items || []);
+		}
 		// Notify customer
 		try {
 			const u = await User.findById(order.user).select('email name').lean();
@@ -526,8 +690,15 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 // Admin: delete order
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 	try {
-		const deleted = await Order.findByIdAndDelete(req.params.id).lean();
-		if (!deleted) return res.status(404).json({ success: false, message: 'Order not found' });
+		const order = await Order.findById(req.params.id);
+		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+		
+		// Restore stock if order was not already cancelled/refunded
+		if (order.status !== 'cancelled' && order.status !== 'refunded') {
+			await restoreStockForOrderItems(order.items || []);
+		}
+		
+		await Order.findByIdAndDelete(req.params.id);
 		res.json({ success: true, message: 'Order deleted' });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to delete order' });
@@ -625,19 +796,31 @@ router.patch('/vendor/:id/status', authenticate, requireRole(['vendor']), async 
         }
 
         // Do not update global order status; only record vendor-specific status
+        const primaryVendorId = vendorIds[0];
+        const previousVendorStatus = order.vendorStatuses?.get ? order.vendorStatuses.get(String(primaryVendorId)) : (order.vendorStatuses?.[String(primaryVendorId)] || order.status);
+        const isVendorCancelling = (status === 'cancelled' || status === 'refunded') && previousVendorStatus !== 'cancelled' && previousVendorStatus !== 'refunded';
+        const isVendorRestoring = (previousVendorStatus === 'cancelled' || previousVendorStatus === 'refunded') && status !== 'cancelled' && status !== 'refunded';
+        
         order.statusHistory.push({ status: `vendor:${status}`, updatedBy: req.user?.email || 'vendor' });
         // Record vendor-specific status
         try {
-            const primaryVendorId = vendorIds[0];
             order.vendorStatuses = order.vendorStatuses || new Map();
             order.vendorStatuses.set(String(primaryVendorId), status);
             order.vendorStatusHistory = Array.isArray(order.vendorStatusHistory) ? order.vendorStatusHistory : [];
             order.vendorStatusHistory.push({ vendor: primaryVendorId, status, updatedBy: req.user?.email || 'vendor' });
         } catch (_) {}
         await order.save();
+        
+        // Restore stock for vendor's items if vendor is cancelling
+        if (isVendorCancelling) {
+            await restoreStockForOrderItems(vendorItems);
+        }
+        // Reduce stock if vendor is restoring from cancelled status
+        if (isVendorRestoring && (status === 'confirmed' || status === 'processing')) {
+            await reduceStockForOrderItems(vendorItems);
+        }
 
         // Build vendor-scoped response payload
-        const primaryVendorId = vendorIds[0];
         const itemsScoped = (order.items || []).filter(it => String(it.vendor) === String(primaryVendorId));
 
         // Resolve vendor unit prices for each item (by SKU first, then attributes),

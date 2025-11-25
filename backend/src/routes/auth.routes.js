@@ -162,6 +162,62 @@ router.post('/login', async (req, res) => {
       }
     }
 
+    // Vendor user directly by phone
+    const vendorUserByPhone = await VendorUser.findOne({ phone: phoneNorm, isActive: true })
+      .populate('vendor', '_id companyName enabled status')
+      .populate('vendors', '_id companyName enabled status');
+    if (vendorUserByPhone) {
+      const ok = await bcrypt.compare(password, vendorUserByPhone.passwordHash);
+      if (ok) {
+        const primaryVendorId = vendorUserByPhone.vendors && vendorUserByPhone.vendors.length > 0
+          ? vendorUserByPhone.vendors[0]
+          : vendorUserByPhone.vendor;
+        const vendor = primaryVendorId ? await Vendor.findById(primaryVendorId).lean() : null;
+        if (!vendor || vendor.enabled === false || vendor.status !== 'approved') {
+          res.status(403);
+          throw new Error('Vendor is not approved or is disabled');
+        }
+
+        const populatedVu = await VendorUser.findById(vendorUserByPhone._id).populate('roleRef').lean();
+        const mergedPermissions = Array.from(new Set([
+          ...(Array.isArray(populatedVu?.roleRef?.permissions) ? populatedVu.roleRef.permissions : [])
+        ]));
+
+        const vendorIdList = Array.isArray(vendorUserByPhone.vendors)
+          ? vendorUserByPhone.vendors.map(v => (v && v._id ? v._id.toString() : String(v)))
+          : [];
+
+        const token = jwt.sign(
+          {
+            id: vendorUserByPhone._id.toString(),
+            role: 'vendor',
+            email: vendorUserByPhone.email,
+            vendorId: vendor._id.toString(),
+            vendors: vendorIdList,
+            permissions: mergedPermissions
+          },
+          getJwtSecret(),
+          { expiresIn: getJwtExpiry() }
+        );
+
+        return res.json({
+          success: true,
+          token,
+          user: {
+            id: vendorUserByPhone._id,
+            name: vendorUserByPhone.name,
+            email: vendorUserByPhone.email,
+            phone: vendorUserByPhone.phone,
+            role: 'vendor',
+            vendorId: vendor._id,
+            vendorCompany: vendor.companyName,
+            vendors: vendorUserByPhone.vendors,
+            permissions: mergedPermissions
+          }
+        });
+      }
+    }
+
     // Customer by phone
     const customerByPhone = await User.findOne({ phone: phoneNorm, isActive: true });
     if (customerByPhone && customerByPhone.passwordHash) {

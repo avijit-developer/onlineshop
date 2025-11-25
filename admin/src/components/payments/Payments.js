@@ -36,19 +36,32 @@ const Payments = () => {
   }, [searchTerm, filterStatus, sortBy, sortOrder, activeTab]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
-      const [earnRes, venRes, sumRes] = await Promise.all([
+      const [earnRes, venRes, sumRes, payoutRes] = await Promise.all([
         fetch(`${baseUrl}/api/v1/payments/admin-earnings?status=completed`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
         fetch(`${baseUrl}/api/v1/vendors?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
-        fetch(`${baseUrl}/api/v1/payments/vendor-summary?status=completed`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+        fetch(`${baseUrl}/api/v1/payments/vendor-summary?status=completed`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
+        fetch(`${baseUrl}/api/v1/payments/payouts`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
       ]);
+
+      let vendorRows = [];
+      const vendorLookup = new Map();
       if (venRes && venRes.ok) {
         const vjson = await venRes.json();
-        setVendors((vjson.data || []).map(v => ({ id: v._id || v.id, companyName: v.companyName, email: v.email, logo: v.logo })));
+        vendorRows = (vjson.data || []).map(v => ({
+          id: v._id || v.id,
+          companyName: v.companyName,
+          email: v.email,
+          logo: v.logo
+        }));
+        vendorRows.forEach(v => vendorLookup.set(String(v.id), v));
       }
+      setVendors(vendorRows);
+
       if (!earnRes.ok) throw new Error('Failed to load earnings');
       const ej = await earnRes.json();
       const rows = (ej?.data || []).map((r, idx) => ({
@@ -64,15 +77,54 @@ const Payments = () => {
         vendorId: r.vendorId,
       }));
       setPayments(rows);
+
+      let vendorSummaryData = [];
       if (sumRes && sumRes.ok) {
         const sj = await sumRes.json();
-        setVendorSummary(sj?.data || []);
+        vendorSummaryData = sj?.data || [];
       }
-      // Keep withdrawals as manual flow for now
-      setLoading(false);
+      setVendorSummary(vendorSummaryData);
+
+      if (!payoutRes.ok) throw new Error('Failed to load payouts');
+      const pj = await payoutRes.json();
+      const payoutHistory = (pj?.data || []).map((p) => ({
+        id: p.id || p._id,
+        vendorId: p.vendorId,
+        vendorName: p.vendorName || vendorLookup.get(String(p.vendorId))?.companyName || 'Unknown Vendor',
+        amount: Number(p.amount || 0),
+        status: 'approved',
+        paymentMethod: p.method || 'Manual',
+        accountDetails: p.note || 'N/A',
+        requestDate: p.createdAt,
+        processedDate: p.updatedAt,
+        note: p.note || '',
+        processedBy: p.processedBy || ''
+      }));
+
+      const pendingRequests = vendorSummaryData
+        .filter(v => Number(v.due ?? (v.vendorEarnings - (v.paid || 0))) > 0)
+        .map(v => {
+          const vendor = vendorLookup.get(String(v.vendorId));
+          const pendingAmount = Number(v.due ?? (v.vendorEarnings - (v.paid || 0)));
+          return {
+            id: `pending-${v.vendorId}`,
+            vendorId: v.vendorId,
+            vendorName: vendor?.companyName || 'Unknown Vendor',
+            amount: round2(pendingAmount),
+            status: 'pending',
+            paymentMethod: '—',
+            accountDetails: vendor?.email || '—',
+            requestDate: new Date().toISOString(),
+            processedDate: null,
+            note: 'Outstanding balance',
+          };
+        });
+
+      setWithdrawals([...pendingRequests, ...payoutHistory]);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
+    } finally {
       setLoading(false);
     }
   };
@@ -155,59 +207,45 @@ const Payments = () => {
     ];
   };
 
-  const handleWithdrawalAction = (withdrawalId, action) => {
-    const updatedWithdrawals = withdrawals.map(withdrawal => {
-      if (withdrawal.id === withdrawalId) {
-        return {
-          ...withdrawal,
-          status: action,
-          processedDate: action === 'approved' ? new Date().toISOString() : undefined,
-          rejectionReason: action === 'rejected' ? 'Admin decision' : undefined
-        };
-      }
-      return withdrawal;
-    });
-    setWithdrawals(updatedWithdrawals);
+  const handleWithdrawalAction = (withdrawalId) => {
+    const withdrawal = withdrawals.find(w => w.id === withdrawalId);
+    if (!withdrawal) return;
     setShowWithdrawalModal(false);
-    toast.success(`Withdrawal ${action} successfully`);
+    const vendor = vendors.find(v => String(v.id) === String(withdrawal.vendorId));
+    if (!vendor) {
+      toast.error('Vendor details not found. Please refresh data.');
+      return;
+    }
+    setSelectedVendor(vendor);
+    setPayoutAmount(Number(withdrawal.amount || 0).toFixed(2));
+    setShowPayoutModal(true);
   };
 
-  const handleManualPayout = () => {
-    (async () => {
-      if (selectedVendor && payoutAmount) {
-        try {
-          const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
-          const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
-          const token = localStorage.getItem('adminToken');
-          const resp = await fetch(`${baseUrl}/api/v1/payments/payouts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
-            body: JSON.stringify({ vendorId: selectedVendor.id, amount: round2(Number(payoutAmount)), method: 'Manual', note: 'Admin manual payout' })
-          });
-          const json = await resp.json().catch(() => ({}));
-          if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to record payout');
-          const newWithdrawal = {
-            id: json?.data?.id || Date.now(),
-            vendorId: selectedVendor.id,
-            vendorName: selectedVendor.companyName,
-            amount: parseFloat(payoutAmount),
-            status: 'approved',
-            requestDate: new Date().toISOString(),
-            processedDate: new Date().toISOString(),
-            paymentMethod: 'Manual Payout',
-            accountDetails: 'Admin initiated'
-          };
-          setWithdrawals([newWithdrawal, ...withdrawals]);
-          // Refresh vendor summary to recalc due
-          await fetchData();
-          setShowPayoutModal(false);
-          setPayoutAmount('');
-          toast.success('Manual payout processed successfully');
-        } catch (e) {
-          toast.error(e?.message || 'Failed to process payout');
-        }
-      }
-    })();
+  const handleManualPayout = async () => {
+    if (!selectedVendor || !payoutAmount) return;
+    try {
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/payments/payouts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({
+          vendorId: selectedVendor.id,
+          amount: round2(Number(payoutAmount)),
+          method: 'Manual',
+          note: 'Admin manual payout'
+        })
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to record payout');
+      await fetchData();
+      setShowPayoutModal(false);
+      setPayoutAmount('');
+      toast.success('Manual payout processed successfully');
+    } catch (e) {
+      toast.error(e?.message || 'Failed to process payout');
+    }
   };
 
   const getVendorName = (vendorId) => {
@@ -234,9 +272,7 @@ const Payments = () => {
   };
 
   const getTotalVendorPayouts = () => {
-    return withdrawals
-      .filter(w => w.status === 'approved')
-      .reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
+    return round2(vendorSummary.reduce((sum, vendor) => sum + Number(vendor.paid || 0), 0));
   };
 
   const getPendingWithdrawals = () => {
@@ -245,10 +281,7 @@ const Payments = () => {
 
   const getVendorBalance = (vendorId) => {
     const vs = vendorSummary.find(v => String(v.vendorId) === String(vendorId));
-    const due = vs ? Number(vs.due || (vs.vendorEarnings - (vs.paid || 0))) : 0;
-    const vendorWithdrawals = withdrawals.filter(w => String(w.vendorId) === String(vendorId) && w.status === 'approved');
-    const manualPaid = vendorWithdrawals.reduce((sum, w) => sum + Number(w.amount || 0), 0);
-    return round2(Math.max(0, due - manualPaid));
+    return round2(vs ? Number(vs.due ?? (vs.vendorEarnings - (vs.paid || 0))) : 0);
   };
 
   // Filter and sort functions
@@ -632,16 +665,10 @@ const Payments = () => {
                                   View Details
                                 </button>
                                 <button
-                                  onClick={() => handleWithdrawalAction(withdrawal.id, 'approved')}
+                                  onClick={() => handleWithdrawalAction(withdrawal.id)}
                                   className="btn btn-success btn-sm"
                                 >
                                   Approve
-                                </button>
-                                <button
-                                  onClick={() => handleWithdrawalAction(withdrawal.id, 'rejected')}
-                                  className="btn btn-danger btn-sm"
-                                >
-                                  Reject
                                 </button>
                               </>
                             )}
@@ -748,16 +775,10 @@ const Payments = () => {
               {selectedWithdrawal.status === 'pending' && (
                 <>
                   <button
-                    onClick={() => handleWithdrawalAction(selectedWithdrawal.id, 'approved')}
+                    onClick={() => handleWithdrawalAction(selectedWithdrawal.id)}
                     className="btn btn-success"
                   >
                     Approve
-                  </button>
-                  <button
-                    onClick={() => handleWithdrawalAction(selectedWithdrawal.id, 'rejected')}
-                    className="btn btn-danger"
-                  >
-                    Reject
                   </button>
                 </>
               )}
