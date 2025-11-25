@@ -120,7 +120,8 @@ const Payments = () => {
           };
         });
 
-      setWithdrawals([...pendingRequests, ...payoutHistory]);
+      const combinedWithdrawals = [...pendingRequests, ...payoutHistory];
+      setWithdrawals(combinedWithdrawals);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -216,14 +217,31 @@ const Payments = () => {
       toast.error('Vendor details not found. Please refresh data.');
       return;
     }
+    const availableBalance = getVendorBalance(vendor.id);
+    if (!(availableBalance > 0)) {
+      toast.error('Vendor has no payable balance right now.');
+      return;
+    }
     setSelectedVendor(vendor);
-    setPayoutAmount(Number(withdrawal.amount || 0).toFixed(2));
+    const requestedAmount = Number(withdrawal.amount || availableBalance);
+    const prefillAmount = Math.min(availableBalance, requestedAmount);
+    setPayoutAmount(prefillAmount.toFixed(2));
     setShowPayoutModal(true);
   };
 
   const handleManualPayout = async () => {
     if (!selectedVendor || !payoutAmount) return;
     try {
+      const availableBalance = getVendorBalance(selectedVendor.id);
+      const amountValue = round2(Number(payoutAmount));
+      if (!(amountValue > 0)) {
+        toast.error('Enter a valid payout amount');
+        return;
+      }
+      if (amountValue - availableBalance > 0.01) {
+        toast.error('Payout amount exceeds available balance');
+        return;
+      }
       const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
@@ -232,7 +250,7 @@ const Payments = () => {
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify({
           vendorId: selectedVendor.id,
-          amount: round2(Number(payoutAmount)),
+          amount: amountValue,
           method: 'Manual',
           note: 'Admin manual payout'
         })
@@ -245,6 +263,31 @@ const Payments = () => {
       toast.success('Manual payout processed successfully');
     } catch (e) {
       toast.error(e?.message || 'Failed to process payout');
+    }
+  };
+
+  const handleDeleteWithdrawal = async (withdrawal) => {
+    if (!withdrawal || withdrawal.status !== 'approved') return;
+    const payoutId = withdrawal.id;
+    if (!payoutId || String(payoutId).startsWith('pending-')) {
+      toast.error('Only recorded payouts can be deleted');
+      return;
+    }
+    if (!window.confirm('Delete this payout record? This will restore the amount to the vendor balance.')) return;
+    try {
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/payments/payouts/${payoutId}`, {
+        method: 'DELETE',
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to delete payout');
+      await fetchData();
+      toast.success('Payout deleted successfully');
+    } catch (e) {
+      toast.error(e?.message || 'Failed to delete payout');
     }
   };
 
@@ -272,11 +315,19 @@ const Payments = () => {
   };
 
   const getTotalVendorPayouts = () => {
-    return round2(vendorSummary.reduce((sum, vendor) => sum + Number(vendor.paid || 0), 0));
+    return round2(
+      withdrawals
+        .filter(w => w.status === 'approved')
+        .reduce((sum, withdrawal) => sum + Number(withdrawal.amount || 0), 0)
+    );
   };
 
-  const getPendingWithdrawals = () => {
-    return withdrawals.filter(w => w.status === 'pending');
+  const getPendingWithdrawalAmount = () => {
+    return round2(
+      withdrawals
+        .filter(w => w.status === 'pending')
+        .reduce((sum, withdrawal) => sum + Number(withdrawal.amount || 0), 0)
+    );
   };
 
   const getVendorBalance = (vendorId) => {
@@ -408,8 +459,8 @@ const Payments = () => {
           <p>{formatCurrency(getTotalVendorPayouts())}</p>
         </div>
         <div className="stat-card">
-          <h3>Pending Withdrawals</h3>
-          <p>{getPendingWithdrawals().length}</p>
+          <h3>Total Pending Withdrawal</h3>
+          <p>{formatCurrency(getPendingWithdrawalAmount())}</p>
         </div>
         <div className="stat-card">
           <h3>Total Transactions</h3>
@@ -673,15 +724,25 @@ const Payments = () => {
                               </>
                             )}
                             {withdrawal.status !== 'pending' && (
-                              <button
-                                onClick={() => {
-                                  setSelectedWithdrawal(withdrawal);
-                                  setShowWithdrawalModal(true);
-                                }}
-                                className="btn btn-secondary btn-sm"
-                              >
-                                View Details
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setSelectedWithdrawal(withdrawal);
+                                    setShowWithdrawalModal(true);
+                                  }}
+                                  className="btn btn-secondary btn-sm"
+                                >
+                                  View Details
+                                </button>
+                                {withdrawal.status === 'approved' && !String(withdrawal.id || '').startsWith('pending-') && (
+                                  <button
+                                    onClick={() => handleDeleteWithdrawal(withdrawal)}
+                                    className="btn btn-danger btn-sm"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </td>
@@ -781,6 +842,17 @@ const Payments = () => {
                     Approve
                   </button>
                 </>
+              )}
+              {selectedWithdrawal.status === 'approved' && !String(selectedWithdrawal.id || '').startsWith('pending-') && (
+                <button
+                  onClick={() => {
+                    setShowWithdrawalModal(false);
+                    handleDeleteWithdrawal(selectedWithdrawal);
+                  }}
+                  className="btn btn-danger"
+                >
+                  Delete
+                </button>
               )}
             </div>
           </div>

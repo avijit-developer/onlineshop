@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const Order = require('../models/Order');
 const Payout = require('../models/Payout');
@@ -40,6 +41,36 @@ const getVendorStatus = (order, vendorId) => {
   }
   return toLowerStatus(vendorStatus || order?.status || 'pending');
 };
+
+async function computeVendorBalance(vendorId, statusFilter = 'completed') {
+  const vendorIdStr = normalizeId(vendorId);
+  if (!vendorIdStr || !mongoose.Types.ObjectId.isValid(vendorIdStr)) {
+    return { vendorEarnings: 0, paid: 0, due: 0 };
+  }
+  const vendorObjectId = new mongoose.Types.ObjectId(vendorIdStr);
+  const orders = await Order.find({ 'items.vendor': vendorObjectId }).lean();
+  let vendorEarnings = 0;
+  for (const order of orders) {
+    const vendorStatusLower = getVendorStatus(order, vendorIdStr);
+    if (!matchesStatusFilter(vendorStatusLower, statusFilter)) continue;
+    const items = Array.isArray(order.items) ? order.items : [];
+    for (const item of items) {
+      if (normalizeId(item.vendor) !== vendorIdStr) continue;
+      const qty = Number(item.quantity || 0);
+      if (!(qty > 0)) continue;
+      const vendorUnit = Number(
+        item.vendorUnitPrice ??
+        item.vendorPrice ??
+        0
+      );
+      vendorEarnings += vendorUnit * qty;
+    }
+  }
+  const payouts = await Payout.find({ vendor: vendorObjectId }).lean();
+  const paid = payouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const due = Math.max(0, vendorEarnings - paid);
+  return { vendorEarnings, paid, due };
+}
 
 // Admin earnings per vendor per order
 router.get('/admin-earnings', authenticate, requireAdmin, async (req, res) => {
@@ -122,11 +153,35 @@ module.exports = router;
 router.post('/payouts', authenticate, requireAdmin, async (req, res) => {
   try {
     const { vendorId, amount, method, note } = req.body || {};
-    if (!vendorId || !(Number(amount) > 0)) return res.status(400).json({ success: false, message: 'vendorId and positive amount required' });
-    const doc = await Payout.create({ vendor: vendorId, amount: Number(amount), method: method || 'Manual', note: note || '', processedBy: req.user?.id });
+    const numericAmount = Number(amount);
+    if (!vendorId || !(numericAmount > 0)) return res.status(400).json({ success: false, message: 'vendorId and positive amount required' });
+
+    const amountValue = Math.round(numericAmount * 100) / 100;
+    const { due } = await computeVendorBalance(vendorId, 'completed');
+    if (!(due > 0)) {
+      return res.status(400).json({ success: false, message: 'Vendor has no payable balance' });
+    }
+    if (amountValue - due > 0.01) {
+      return res.status(400).json({ success: false, message: 'Payout exceeds available balance' });
+    }
+
+    const doc = await Payout.create({ vendor: vendorId, amount: amountValue, method: method || 'Manual', note: note || '', processedBy: req.user?.id });
     return res.status(201).json({ success: true, data: { id: doc._id, vendorId: doc.vendor, amount: doc.amount, method: doc.method, note: doc.note, createdAt: doc.createdAt } });
   } catch (e) {
     return res.status(500).json({ success: false, message: 'Failed to record payout' });
+  }
+});
+
+router.delete('/payouts/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const payout = await Payout.findById(req.params.id);
+    if (!payout) {
+      return res.status(404).json({ success: false, message: 'Payout not found' });
+    }
+    await payout.deleteOne();
+    return res.json({ success: true, message: 'Payout deleted' });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Failed to delete payout' });
   }
 });
 
