@@ -7,10 +7,42 @@ const { validateAndComputeCoupon } = require('../utils/coupons');
 
 const router = express.Router();
 
+async function populateCartItems(cart) {
+  if (!cart) return cart;
+  await cart.populate({
+    path: 'items.product',
+    populate: { path: 'vendor', select: 'enabled status' }
+  });
+  cart.items.forEach(item => {
+    let product = item.product;
+    if (!product) {
+      product = {
+        _id: null,
+        name: 'Unavailable product',
+        enabled: false,
+        status: 'unavailable',
+        images: [],
+        regularPrice: null,
+        specialPrice: null,
+        stock: 0
+      };
+      item.product = product;
+      return;
+    }
+    const vendor = product.vendor;
+    const vendorStatus = typeof vendor?.status === 'string' ? vendor.status.toLowerCase() : '';
+    const productStatus = typeof product.status === 'string' ? product.status.toLowerCase() : '';
+    if (!vendor || vendor.enabled === false || vendorStatus !== 'approved' || product.enabled === false || productStatus !== 'approved') {
+      product.enabled = false;
+    }
+  });
+  return cart;
+}
+
 // Get user's cart
 router.get('/me', authenticate, requireRole(['customer']), async (req, res) => {
   try {
-    let cart = await Cart.findOne({ user: req.user.id }).populate('items.product');
+    let cart = await Cart.findOne({ user: req.user.id });
     
     if (!cart) {
       // Create empty cart if it doesn't exist
@@ -18,6 +50,7 @@ router.get('/me', authenticate, requireRole(['customer']), async (req, res) => {
       await cart.save();
     }
 
+    await populateCartItems(cart);
     res.json({ success: true, data: cart });
   } catch (error) {
     console.error('Error getting cart:', error);
@@ -40,13 +73,28 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
       : (product?.id || product?._id);
 
     // Verify product exists
-    const productDoc = await Product.findById(bodyProductId);
+    const productDoc = await Product.findById(bodyProductId).populate('vendor', 'enabled status');
     if (!productDoc) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
     // Only approved, enabled products can be added to cart for customers
-    if (productDoc.status !== 'approved' || !productDoc.enabled) {
+    const productStatus = typeof productDoc.status === 'string'
+      ? productDoc.status.toLowerCase()
+      : '';
+    if (productStatus !== 'approved' || !productDoc.enabled) {
       return res.status(400).json({ success: false, message: 'Product not available for purchase' });
+    }
+    const vendorStatus = typeof productDoc.vendor?.status === 'string'
+      ? productDoc.vendor.status.toLowerCase()
+      : '';
+    if (!productDoc.vendor || productDoc.vendor.enabled === false || vendorStatus !== 'approved') {
+      console.warn('Cart:add blocked due to vendor state', {
+        product: bodyProductId,
+        vendor: productDoc.vendor?._id || productDoc.vendor,
+        vendorEnabled: productDoc.vendor?.enabled,
+        vendorStatus: productDoc.vendor?.status
+      });
+      return res.status(400).json({ success: false, message: 'Vendor not available for purchase' });
     }
 
     // Normalize selectedAttributes: only keep keys with non-empty values
@@ -146,7 +194,7 @@ router.post('/me/items', authenticate, requireRole(['customer']), async (req, re
     }
 
     // Populate product details for response
-    await cart.populate('items.product');
+    await populateCartItems(cart);
 
     res.status(201).json({ success: true, data: cart });
   } catch (error) {
@@ -179,7 +227,7 @@ router.put('/me/items/:cartId', authenticate, requireRole(['customer']), async (
     await cart.save();
 
     // Populate product details for response
-    await cart.populate('items.product');
+    await populateCartItems(cart);
 
     res.json({ success: true, data: cart });
   } catch (error) {
@@ -207,7 +255,7 @@ router.delete('/me/items/:cartId', authenticate, requireRole(['customer']), asyn
     await cart.save();
 
     // Populate product details for response
-    await cart.populate('items.product');
+    await populateCartItems(cart);
 
     res.json({ success: true, data: cart });
   } catch (error) {
@@ -272,7 +320,7 @@ router.post('/me/coupon', authenticate, requireRole(['customer']), async (req, r
     const { couponCode, paymentMethod } = req.body || {};
     if (!couponCode) return res.status(400).json({ success: false, message: 'couponCode is required' });
     const code = String(couponCode).toUpperCase();
-    const cart = await Cart.findOne({ user: req.user.id }).populate('items.product');
+    const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) return res.status(404).json({ success: false, message: 'Cart not found' });
     if (!cart.items || cart.items.length === 0) return res.status(400).json({ success: false, message: 'Cart is empty' });
 
@@ -288,7 +336,7 @@ router.post('/me/coupon', authenticate, requireRole(['customer']), async (req, r
     cart.couponDiscount = result.discountAmount || 0;
     cart.freeShippingApplied = !!result.freeShipping;
     await cart.save();
-    await cart.populate('items.product');
+    await populateCartItems(cart);
     return res.json({ success: true, data: { cart, couponCode: code, discountAmount: result.discountAmount, freeShipping: !!result.freeShipping } });
   } catch (e) {
     console.error('Error applying coupon to cart:', e);
@@ -299,13 +347,13 @@ router.post('/me/coupon', authenticate, requireRole(['customer']), async (req, r
 // Remove coupon from cart
 router.delete('/me/coupon', authenticate, requireRole(['customer']), async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.user.id }).populate('items.product');
+    const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) return res.status(404).json({ success: false, message: 'Cart not found' });
     cart.couponCode = null;
     cart.couponDiscount = 0;
     cart.freeShippingApplied = false;
     await cart.save();
-    await cart.populate('items.product');
+    await populateCartItems(cart);
     return res.json({ success: true, data: cart });
   } catch (e) {
     console.error('Error removing coupon from cart:', e);

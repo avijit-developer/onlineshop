@@ -295,12 +295,12 @@ export default function ProductDetailsScreen() {
         }
     };
 
-    const handleAddToCart = () => {
-        if (!product) return;
+    const handleAddToCart = async () => {
+        if (!product) return false;
         
         if (isOutOfStock()) {
             Alert.alert('Out of Stock', 'This product is currently out of stock.');
-            return;
+            return false;
         }
         
         // Prepare product data for cart
@@ -312,27 +312,42 @@ export default function ProductDetailsScreen() {
             currentImages: currentImages() // Include the current images
         };
         
-        // Add to cart with proper parameters
-        addToCart(cartProduct, quantity, selectedAttributes);
-        
-        // Show success animation only
-        setShowAddAnimation(true);
-        setTimeout(() => setShowAddAnimation(false), 1500);
+        try {
+            const result = await addToCart(cartProduct, quantity, selectedAttributes);
+            
+            if (!result?.success) {
+                const message = String(result?.error || '').toLowerCase().includes('not authenticated')
+                    ? 'Please log in to add items to your cart.'
+                    : (result?.error || 'Unable to add this product to your cart right now.');
+                
+                Alert.alert(
+                    String(result?.error || '').toLowerCase().includes('not authenticated') ? 'Login Required' : 'Add to Cart Failed',
+                    message,
+                    String(result?.error || '').toLowerCase().includes('not authenticated')
+                        ? [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Go to Login', onPress: () => navigation.navigate('Login') }
+                          ]
+                        : [{ text: 'OK' }]
+                );
+                return false;
+            }
+            
+            // Show success animation only on success
+            setShowAddAnimation(true);
+            setTimeout(() => setShowAddAnimation(false), 1500);
+            return true;
+        } catch (error) {
+            Alert.alert('Add to Cart Failed', error?.message || 'Unable to add this product to your cart right now.');
+            return false;
+        }
     };
 
-    const handleBuyNow = () => {
-        if (!product) return;
-        
-        if (isOutOfStock()) {
-            Alert.alert('Out of Stock', 'This product is currently out of stock.');
-            return;
-        }
-        
-        // Add to cart first, then navigate to checkout
-        handleAddToCart();
-        setTimeout(() => {
+    const handleBuyNow = async () => {
+        const added = await handleAddToCart();
+        if (added) {
             navigation.navigate('Cart');
-        }, 500);
+        }
     };
 
     const handleToggleWishlist = async () => {
@@ -366,8 +381,6 @@ export default function ProductDetailsScreen() {
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#1976d2" />
                 <Text style={styles.loadingText}>Loading product details...</Text>
-                <Text style={styles.debugText}>productId: {productId || 'undefined'}</Text>
-                <Text style={styles.debugText}>productData: {productData ? 'provided' : 'not provided'}</Text>
             </View>
         );
     }

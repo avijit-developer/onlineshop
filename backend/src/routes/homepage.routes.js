@@ -2,9 +2,18 @@ const express = require('express');
 const HomePageSection = require('../models/HomePageSection');
 const Product = require('../models/Product');
 const Review = require('../models/Review');
+const Vendor = require('../models/Vendor');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
+
+async function getActiveVendorIds() {
+  const vendors = await Vendor.find({
+    enabled: true,
+    status: { $regex: /^approved$/i }
+  }).select('_id').lean();
+  return vendors.map(v => v._id);
+}
 
 // Seed default sections (Admin)
 router.post('/sections/init', authenticate, requireAdmin, async (req, res) => {
@@ -68,7 +77,7 @@ router.post('/sections/init', authenticate, requireAdmin, async (req, res) => {
 router.get('/sections', authenticate, requireAdmin, async (req, res) => {
   try {
     const sections = await HomePageSection.find()
-      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled rating')
+      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled rating vendor')
       .sort({ order: 1 });
     // Filter out entries whose productId got deleted (null after populate)
     const cleaned = sections.map(s => ({
@@ -86,10 +95,13 @@ router.get('/sections/public', async (req, res) => {
   try {
     console.log('Homepage: Fetching public sections...');
     const sections = await HomePageSection.find({ isActive: true })
-      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled rating')
+      .populate('products.productId', 'name images regularPrice specialPrice featured salesCount status enabled rating vendor')
       .sort({ order: 1 });
 
     console.log('Homepage: Found sections:', sections.length);
+
+    const activeVendorIds = await getActiveVendorIds();
+    const activeVendorSet = new Set(activeVendorIds.map(id => id.toString()));
 
     // Filter out inactive products and populate auto-generated products
     const processedSections = await Promise.all(sections.map(async (section) => {
@@ -97,7 +109,14 @@ router.get('/sections/public', async (req, res) => {
       
       // Try strict filter first (approved + enabled)
       let products = section.products
-        .filter(p => p.productId && p.productId.status === 'approved' && p.productId.enabled)
+        .filter(p => {
+          const vendorId = p.productId?.vendor;
+          return p.productId
+            && p.productId.status === 'approved'
+            && p.productId.enabled
+            && vendorId
+            && activeVendorSet.has(String(vendorId));
+        })
         .sort((a, b) => a.order - b.order)
         .slice(0, section.settings.maxProducts);
 
@@ -110,7 +129,7 @@ router.get('/sections/public', async (req, res) => {
       const curatedOnly = section && ['most-popular','best-seller','just-for-you'].includes(String(section.name));
       if (section.type !== 'manual' && products.length < section.settings.maxProducts) {
         console.log(`Homepage: Section "${section.name}" needs auto-products (has ${products.length}, needs ${section.settings.maxProducts})`);
-        const autoProducts = await getAutoProducts(section);
+        const autoProducts = await getAutoProducts(section, activeVendorIds);
         console.log(`Homepage: Section "${section.name}" got ${autoProducts.length} auto-products`);
         
         const existingIds = products.map(p => p.productId._id.toString());
@@ -167,12 +186,18 @@ router.get('/sections/:name/products/public', async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
 
+    const activeVendorIds = await getActiveVendorIds();
+    if (!activeVendorIds.length) {
+      return res.json({ success: true, data: [], meta: { total: 0, page: pageNum, limit: perPage } });
+    }
+    const vendorFilter = { vendor: { $in: activeVendorIds } };
+
     const section = await HomePageSection.findOne({ name }).lean();
     if (!section || !section.isActive) {
       return res.status(404).json({ success: false, message: 'Section not found or inactive' });
     }
 
-    const baseFilters = { enabled: true, status: 'approved' };
+    const baseFilters = { enabled: true, status: 'approved', ...vendorFilter };
     let filters = { ...baseFilters };
     let sort = { createdAt: -1 };
     // If admin curated products exist for this section, honor that list even if type is auto
@@ -371,8 +396,9 @@ router.patch('/sections/:id/products/reorder', authenticate, requireAdmin, async
 });
 
 // Helper function to get auto-generated products
-async function getAutoProducts(section) {
-  const query = { status: 'approved', enabled: true };
+async function getAutoProducts(section, activeVendorIds = []) {
+  if (!activeVendorIds.length) return [];
+  const query = { status: 'approved', enabled: true, vendor: { $in: activeVendorIds } };
   
   console.log(`getAutoProducts: Getting products for section "${section.name}" (type: ${section.type})`);
   

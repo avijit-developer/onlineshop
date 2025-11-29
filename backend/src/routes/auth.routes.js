@@ -86,7 +86,8 @@ router.post('/login', async (req, res) => {
       // Get the primary vendor (first in vendors array or single vendor)
       const primaryVendorId = vendorUser.vendors && vendorUser.vendors.length > 0 ? vendorUser.vendors[0] : vendorUser.vendor;
       const vendor = await Vendor.findById(primaryVendorId).lean();
-      if (!vendor || vendor.enabled === false || vendor.status !== 'approved') {
+      const vendorStatus = typeof vendor?.status === 'string' ? vendor.status.toLowerCase() : '';
+      if (!vendor || vendor.enabled === false || vendorStatus !== 'approved') {
         res.status(403);
         throw new Error('Vendor is not approved or is disabled');
       }
@@ -173,7 +174,8 @@ router.post('/login', async (req, res) => {
           ? vendorUserByPhone.vendors[0]
           : vendorUserByPhone.vendor;
         const vendor = primaryVendorId ? await Vendor.findById(primaryVendorId).lean() : null;
-        if (!vendor || vendor.enabled === false || vendor.status !== 'approved') {
+        const vendorStatus = typeof vendor?.status === 'string' ? vendor.status.toLowerCase() : '';
+        if (!vendor || vendor.enabled === false || vendorStatus !== 'approved') {
           res.status(403);
           throw new Error('Vendor is not approved or is disabled');
         }
@@ -261,7 +263,8 @@ router.post('/login', async (req, res) => {
             // Ensure vendor status is approved/enabled
             const primaryVendorId = vendorUser.vendors && vendorUser.vendors.length > 0 ? vendorUser.vendors[0] : vendorUser.vendor;
             const v = await Vendor.findById(primaryVendorId).lean();
-            if (!v || v.enabled === false || v.status !== 'approved') {
+            const vendorStatus = typeof v?.status === 'string' ? v.status.toLowerCase() : '';
+            if (!v || v.enabled === false || vendorStatus !== 'approved') {
               res.status(403);
               throw new Error('Vendor is not approved or is disabled');
             }

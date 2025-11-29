@@ -84,6 +84,14 @@ async function generateUniqueVariantSku(productName, existingSkusInPayload = new
   }
 }
 
+async function getActiveVendorIds() {
+  const vendors = await Vendor.find({
+    enabled: true,
+    status: { $regex: /^approved$/i }
+  }).select('_id').lean();
+  return vendors.map(v => v._id);
+}
+
 // GET /products?q=&status=&category=&brand=&vendor=&page=&limit=
 router.get('/', authenticate, requireRole(['admin','vendor']), requirePermission('products.view'), async (req, res) => {
   const { q = '', status = 'all', category, brand, vendor, page = 1, limit = 10 } = req.query;
@@ -483,6 +491,23 @@ router.get('/public/filters', async (req, res) => {
       }
     }
 
+    const activeVendorIds = await getActiveVendorIds();
+    if (!activeVendorIds.length) {
+      return res.json({
+        success: true,
+        data: {
+          priceRange: null,
+          brands: [],
+          productTypes: [],
+          availability: [],
+          ratings: [],
+          childCategories: [],
+          attributes: []
+        }
+      });
+    }
+    filters.vendor = { $in: activeVendorIds };
+
     // Get price range - consider product prices and variant prices
     const priceStats = await Product.aggregate([
       { $match: filters },
@@ -807,15 +832,8 @@ router.get('/public', async (req, res) => {
         filters.$and = [ priceExpr ];
       }
       
-      console.log('🔍 Final filters object:', JSON.stringify(filters, null, 2));
     }
-
-  // Debug: Log the final query being executed
-  console.log('🚀 Executing query with filters:', JSON.stringify(filters, null, 2));
-  
-  // Also log the query parameters for debugging
-  console.log('📋 Query params:', { q, category, minPrice, maxPrice, brands, productType, availability, minRating, sortBy });
-
+    
     // Apply brand filters
     if (brands) {
       const brandIds = brands.split(',').map(id => id.trim()).filter(Boolean);
@@ -871,6 +889,18 @@ router.get('/public', async (req, res) => {
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+
+    const activeVendorIds = await getActiveVendorIds();
+    if (!activeVendorIds.length) {
+      return res.json({ success: true, data: [], meta: { total: 0, page: pageNum, limit: perPage } });
+    }
+    filters.vendor = { $in: activeVendorIds };
+
+    // Debug: Log the final query being executed
+    console.log('🚀 Executing query with filters:', JSON.stringify(filters, null, 2));
+    
+    // Also log the query parameters for debugging
+    console.log('📋 Query params:', { q, category, minPrice, maxPrice, brands, productType, availability, minRating, sortBy });
 
     // Build attribute filters if provided (support both object and attributes[key] style)
     let variantAttrMatch = null; // simple $match structure
@@ -1382,15 +1412,21 @@ router.get('/:id/related/public', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    const activeVendorIds = await getActiveVendorIds();
+    if (!activeVendorIds.length) {
+      return res.json({ success: true, data: [] });
+    }
+    const vendorFilter = { vendor: { $in: activeVendorIds } };
+
     let items = [];
     if (product.relatedProducts && product.relatedProducts.length > 0) {
-      items = await Product.find({ _id: { $in: product.relatedProducts }, enabled: true, status: 'approved' })
+      items = await Product.find({ _id: { $in: product.relatedProducts }, enabled: true, status: 'approved', ...vendorFilter })
         .select('_id name images regularPrice specialPrice rating productType variants')
         .populate('category', 'name')
         .limit(12)
         .lean();
     } else if (product.category) {
-      items = await Product.find({ category: product.category, _id: { $ne: id }, enabled: true, status: 'approved' })
+      items = await Product.find({ category: product.category, _id: { $ne: id }, enabled: true, status: 'approved', ...vendorFilter })
         .select('_id name images regularPrice specialPrice rating productType variants')
         .populate('category', 'name')
         .sort({ createdAt: -1 })
@@ -1444,16 +1480,19 @@ router.get('/:id/related', authenticate, requireRole(['admin','vendor']), requir
 router.get('/:id/public', async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await Product.findById(id)
-      .select('name description shortDescription images regularPrice specialPrice vendorRegularPrice tax stock productType variants category brand vendor enabled status videoUrl')
+    const product = await Product.findOne({ _id: id, status: 'approved', enabled: true })
+      .select('name description shortDescription images regularPrice specialPrice vendorRegularPrice tax stock productType variants category brand vendor videoUrl')
       .populate('brand', 'name')
       .populate('category', 'name')
-      .populate('vendor', 'companyName')
+      .populate('vendor', 'companyName enabled status')
       .lean();
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    if (product.status !== 'approved' || !product.enabled) {
+    const vendorStatus = typeof product.vendor?.status === 'string'
+      ? product.vendor.status.toLowerCase()
+      : '';
+    if (!product.vendor || product.vendor.enabled === false || vendorStatus !== 'approved') {
       return res.status(403).json({ success: false, message: 'Product not available' });
     }
 
