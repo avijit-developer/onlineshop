@@ -91,7 +91,7 @@ router.delete('/me', authenticate, requireRole(['customer']), async (req, res) =
   return res.json({ success: true, message: 'Account deleted successfully' });
 });
 
-// Admin: update customer status (activate/deactivate)
+// Admin: update customer status (activate/deactivate) - Must come before /:id route
 router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { isActive } = req.body || {};
@@ -105,6 +105,60 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
     throw new Error('User not found');
   }
   res.json({ success: true, data: updated });
+});
+
+// Admin: update customer
+router.put('/:id', authenticate, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, email, phone } = req.body || {};
+  
+  const user = await User.findById(id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  // Validate email if provided
+  if (email !== undefined) {
+    if (!isValidEmail(email)) {
+      res.status(400);
+      throw new Error('Invalid email format');
+    }
+    
+    // Check if email is already in use by another user
+    if (email.toLowerCase() !== user.email.toLowerCase()) {
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        res.status(409);
+        throw new Error('Email already in use');
+      }
+    }
+    user.email = String(email).trim().toLowerCase();
+  }
+
+  // Check if phone is already in use by another user
+  if (phone !== undefined) {
+    const phoneNorm = String(phone).trim();
+    if (phoneNorm && phoneNorm !== (user.phone || '').trim()) {
+      const [userPhone, vendorPhone, driverPhone] = await Promise.all([
+        User.findOne({ phone: phoneNorm, _id: { $ne: user._id } }),
+        Vendor.findOne({ phone: phoneNorm }),
+        Driver.findOne({ phone: phoneNorm }),
+      ]);
+      if (userPhone || vendorPhone || driverPhone) {
+        res.status(409);
+        throw new Error('Phone number already in use');
+      }
+    }
+    user.phone = phoneNorm || undefined;
+  }
+
+  if (name !== undefined) user.name = String(name).trim();
+
+  const updated = await user.save();
+  const userObj = updated.toObject();
+  delete userObj.passwordHash;
+  res.json({ success: true, data: userObj });
 });
 
 // Admin: delete customer
