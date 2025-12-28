@@ -153,6 +153,8 @@ const Products = () => {
     videoUrl: ''
   });
   const [videoUploading, setVideoUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [imagesUploading, setImagesUploading] = useState(false);
 
   const normalizeId = (val) => {
     if (!val) return '';
@@ -532,12 +534,13 @@ const Products = () => {
     }));
   };
 
-  const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const processImageFiles = async (files) => {
+    const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+    if (fileArray.length === 0) return;
+    setImagesUploading(true);
     try {
       const uploads = [];
-      for (const f of files) {
+      for (const f of fileArray) {
         const { imageUrl } = await uploadToCloudinary(f, 'products');
         uploads.push(imageUrl);
       }
@@ -545,9 +548,42 @@ const Products = () => {
         ...prev,
         images: [...prev.images, ...uploads]
       }));
+      if (uploads.length > 0) {
+        toast.success(`${uploads.length} image${uploads.length > 1 ? 's' : ''} uploaded successfully`);
+      }
     } catch (err) {
       toast.error(err?.message || 'Failed to upload images');
+    } finally {
+      setImagesUploading(false);
     }
+  };
+
+  const handleImageUpload = async (e) => {
+    const files = e.target.files || [];
+    await processImageFiles(files);
+  };
+
+  const handleDragOver = (e) => {
+    if (imagesUploading) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    if (imagesUploading) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    if (imagesUploading) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const files = e.dataTransfer.files || [];
+    await processImageFiles(files);
   };
 
   const handleVideoUpload = async (e) => {
@@ -1222,26 +1258,90 @@ const Products = () => {
                 </div>
 
                 <div className="form-group full-width">
-                  <label>Product Images</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                  />
-                  <div className="image-preview">
-                    {formData.images.map((image, index) => (
-                      <div key={index} className="image-item">
-                        <img src={image} alt={`Product ${index + 1}`} />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="remove-image"
-                        >
-                          ×
-                        </button>
+                  <label className="images-label">
+                    Product Images
+                    <span className="images-hint">(You can upload multiple images)</span>
+                  </label>
+                  <div className="image-upload-container">
+                    <div 
+                      className={`image-upload-area ${isDragging ? 'dragging' : ''} ${imagesUploading ? 'uploading' : ''}`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      <input
+                        type="file"
+                        id="product-images-input"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="image-upload-input"
+                        disabled={imagesUploading}
+                      />
+                      <label htmlFor="product-images-input" className={`image-upload-label ${imagesUploading ? 'uploading' : ''}`}>
+                        {imagesUploading ? (
+                          <>
+                            <div className="upload-icon loading-spinner">
+                              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="31.416" strokeDashoffset="31.416" opacity="0.3"/>
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="31.416" strokeDashoffset="23.562" transform="rotate(-90 12 12)"/>
+                              </svg>
+                            </div>
+                            <div className="upload-text">
+                              <strong>Uploading images...</strong>
+                            </div>
+                            <div className="upload-subtext">
+                              Please wait while your images are being uploaded
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="upload-icon">
+                              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 15V3M12 3L8 7M12 3L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M2 17L2 19C2 20.1046 2.89543 21 4 21L20 21C21.1046 21 22 20.1046 22 19L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <rect x="2" y="9" width="20" height="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </div>
+                            <div className="upload-text">
+                              <strong>Click to upload</strong> or drag and drop
+                            </div>
+                            <div className="upload-subtext">
+                              Multiple images supported (PNG, JPG, WEBP)
+                            </div>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                    {formData.images && formData.images.length > 0 && (
+                      <div className="images-preview-section">
+                        <div className="images-count-badge">
+                          {formData.images.length} {formData.images.length === 1 ? 'Image' : 'Images'} Uploaded
+                        </div>
+                        <div className="image-preview-grid">
+                          {formData.images.map((image, index) => (
+                            <div key={index} className="image-preview-item">
+                              <div className="image-preview-wrapper">
+                                <img src={image} alt={`Product ${index + 1}`} />
+                                <div className="image-overlay">
+                                  <span className="image-number">{index + 1}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeImage(index)}
+                                    className="remove-image-btn"
+                                    title="Remove image"
+                                  >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
