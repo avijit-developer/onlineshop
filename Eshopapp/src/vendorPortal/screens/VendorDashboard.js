@@ -44,6 +44,26 @@ const VendorDashboard = ({ navigation }) => {
               <Text style={styles.profileName}>{profile?.name || profile?.user?.name || 'Vendor'}</Text>
               <View style={styles.profileRow}><Text style={styles.profileLabel}>Email: </Text><Text style={styles.profileValue}>{profile?.email || profile?.user?.email || '-'}</Text></View>
               <View style={styles.profileRow}><Text style={styles.profileLabel}>Mobile: </Text><Text style={styles.profileValue}>{profile?.phone || profile?.user?.phone || '-'}</Text></View>
+              {(profile?.bankAccountHolderName || profile?.bankAccountNumber || profile?.bankName || profile?.bankIFSC) && (
+                <View style={styles.bankDetailsSection}>
+                  <Text style={styles.sectionTitle}>Bank Details</Text>
+                  {profile?.bankAccountHolderName && (
+                    <View style={styles.profileRow}><Text style={styles.profileLabel}>Account Holder: </Text><Text style={styles.profileValue}>{profile.bankAccountHolderName}</Text></View>
+                  )}
+                  {profile?.bankAccountNumber && (
+                    <View style={styles.profileRow}><Text style={styles.profileLabel}>Account Number: </Text><Text style={styles.profileValue}>{profile.bankAccountNumber}</Text></View>
+                  )}
+                  {profile?.bankName && (
+                    <View style={styles.profileRow}><Text style={styles.profileLabel}>Bank: </Text><Text style={styles.profileValue}>{profile.bankName}</Text></View>
+                  )}
+                  {profile?.bankIFSC && (
+                    <View style={styles.profileRow}><Text style={styles.profileLabel}>IFSC: </Text><Text style={styles.profileValue}>{profile.bankIFSC}</Text></View>
+                  )}
+                  {profile?.bankBranch && (
+                    <View style={styles.profileRow}><Text style={styles.profileLabel}>Branch: </Text><Text style={styles.profileValue}>{profile.bankBranch}</Text></View>
+                  )}
+                </View>
+              )}
             </View>
           )}
           <View style={styles.cards}>
@@ -69,6 +89,8 @@ const styles = StyleSheet.create({
   profileRow: { flexDirection: 'row', marginTop: 2 },
   profileLabel: { color: '#8791a1', fontSize: 12 },
   profileValue: { color: '#333', fontSize: 12, fontWeight: '600' },
+  bankDetailsSection: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#e0e0e0' },
+  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 8 },
   cards: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, padding: 16 },
   card: { width: '47%', backgroundColor: '#fff', borderWidth: 1, borderColor: '#eef2f7', borderRadius: 12, padding: 14 },
   cardLabel: { color: '#8791a1', fontSize: 12, marginBottom: 4 },

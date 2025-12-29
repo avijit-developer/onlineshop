@@ -2,13 +2,20 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useLocation } from '../contexts/LocationContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 
 export default function Header() {
   const navigation = useNavigation();
-  const { address, area, city, postalCode } = useLocation();
+  const { address, area, city, postalCode, loadUserDefaultAddress } = useLocation();
   const { user } = useUser();
+
+  // Reload address when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserDefaultAddress();
+    }, [loadUserDefaultAddress])
+  );
 
   const handleAddressPress = () => {
     navigation.navigate('AddressList', { isSelecting: true, setDefaultOnSelect: true, returnTo: 'Home' });
@@ -33,6 +40,30 @@ export default function Header() {
     );
   };
 
+  // Format address for display - show only essential parts
+  const getDisplayAddress = () => {
+    if (!address || address === 'Select your location') {
+      return 'Select your location';
+    }
+    
+    // If we have both address and city, show "address, city"
+    if (address && city) {
+      return `${address}, ${city}`;
+    }
+    
+    // If only address, show it (truncated if too long)
+    if (address) {
+      return address.length > 20 ? `${address.substring(0, 20)}...` : address;
+    }
+    
+    // If only city, show it
+    if (city) {
+      return city;
+    }
+    
+    return 'Select your location';
+  };
+
   return (
     <View style={styles.container}>
       {/* Profile + My Activity */}
@@ -41,10 +72,10 @@ export default function Header() {
           {renderAvatar()}
         </TouchableOpacity>
         <TouchableOpacity style={styles.addressWrapper} onPress={handleAddressPress}>
-          <Text style={styles.addressText} numberOfLines={1}>
-            {city && postalCode ? `${city}, ${postalCode}` : ((area && city) ? `${area}, ${city}` : (address || 'Select your location'))}
+          <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="tail">
+            {getDisplayAddress()}
           </Text>
-          <Icon name="chevron-down-outline" size={14} color="#3F3F3F" style={styles.downIcon} />
+          <Icon name="chevron-down-outline" size={12} color="#3F3F3F" style={styles.downIcon} />
         </TouchableOpacity>
       </View>
 
@@ -72,6 +103,8 @@ const styles = StyleSheet.create({
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0, // Allow flex children to shrink below their content size
   },
   profileWrapper: {
     width: 44,
@@ -112,21 +145,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
     flex: 1,
-    maxWidth: 200,
+    maxWidth: '60%', // Reduced from 75% to make it more compact
+    minWidth: 0, // Allow shrinking
   },
   addressText: {
-    fontSize: 12,
+    fontSize: 11, // Slightly smaller font
     color: '#3F3F3F',
     fontWeight: '500',
     flex: 1,
+    minWidth: 0, // Allow text to shrink
+    maxWidth: '100%', // Ensure text doesn't overflow container
   },
   downIcon: {
     marginLeft: 4,
     marginTop: 1,
+    flexShrink: 0, // Prevent icon from shrinking
   },
 
 
@@ -134,6 +171,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0, // Prevent icon container from shrinking
   },
   iconWrapper: {
     width: 32,

@@ -759,6 +759,15 @@ const Orders = () => {
                     })()}
                   </div>
 
+                  {selectedOrder.cancellationReason && (
+                    <div className="section">
+                      <h3>Cancellation Reason</h3>
+                      <div style={{ padding: '12px', backgroundColor: '#fff5f5', border: '1px solid #ffebee', borderRadius: '8px' }}>
+                        <p style={{ margin: 0, color: '#333' }}>{selectedOrder.cancellationReason}</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="section">
                     <h3>Order Summary</h3>
                     <div className="order-summary">

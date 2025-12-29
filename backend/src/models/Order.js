@@ -39,6 +39,7 @@ const orderSchema = new mongoose.Schema({
 	subtotal: { type: Number, required: true },
 	total: { type: Number, required: true },
 	orderNote: { type: String, default: '' },
+	cancellationReason: { type: String, default: '' },
 	statusHistory: [statusHistorySchema],
 	// Driver assignment and status
 	driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', index: true, default: null },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -16,6 +17,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAddress } from '../contexts/AddressContext';
 import api from '../utils/api';
 import { useUser } from '../contexts/UserContext';
+import { geocodeAddress } from '../utils/locationUtils';
 
 const CheckoutScreen = () => {
   const navigation = useNavigation();
@@ -59,6 +61,15 @@ const CheckoutScreen = () => {
   const [couponError, setCouponError] = useState('');
   const [validating, setValidating] = useState(false);
   const [shippingSettings, setShippingSettings] = useState(null);
+  const [isAddressValid, setIsAddressValid] = useState(true);
+  const [deliveryAreaError, setDeliveryAreaError] = useState('');
+  const [validatingAddress, setValidatingAddress] = useState(false);
+  const lastValidatedAddressId = useRef(null);
+  
+  // Memoize default address to avoid unnecessary re-renders
+  const defaultAddress = useMemo(() => {
+    return getDefaultAddress();
+  }, [addresses]);
 
   useEffect(() => {
     (async () => {
@@ -71,6 +82,181 @@ const CheckoutScreen = () => {
       }
     })();
   }, []);
+
+  // Calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in kilometers
+  };
+
+  // Validate address against delivery area (only once per address change)
+  useEffect(() => {
+    const validateAddressForDelivery = async () => {
+      const address = selectedAddress || getDefaultAddress();
+      if (!address) {
+        setIsAddressValid(true); // Allow if no address selected yet
+        setDeliveryAreaError('');
+        lastValidatedAddressId.current = null;
+        return;
+      }
+
+      // Check if we already validated this address
+      const addressId = address.id || address._id;
+      const addressKey = `${addressId}_${address.latitude}_${address.longitude}`;
+      
+      if (lastValidatedAddressId.current === addressKey) {
+        console.log('Address already validated, skipping...');
+        return;
+      }
+
+      const deliveryArea = shippingSettings?.deliveryArea;
+      console.log('Validation started. Address:', address);
+      console.log('Shipping settings:', shippingSettings);
+      console.log('Delivery area:', deliveryArea);
+      
+      if (!deliveryArea || deliveryArea.latitude == null || deliveryArea.longitude == null || deliveryArea.radius == null) {
+        // No delivery area restriction configured
+        console.log('No delivery area configured - allowing order');
+        setIsAddressValid(true);
+        setDeliveryAreaError('');
+        lastValidatedAddressId.current = addressKey;
+        return;
+      }
+
+      setValidatingAddress(true);
+      try {
+        let addressLat = null;
+        let addressLon = null;
+
+        // Priority 1: Try direct latitude/longitude fields (from AddressMapScreen)
+        if (address.latitude != null && address.longitude != null) {
+          addressLat = Number(address.latitude);
+          addressLon = Number(address.longitude);
+          console.log('Using direct latitude/longitude from address:', addressLat, addressLon);
+        }
+        // Priority 2: Try coordinates from location object
+        else if (address.location?.coordinates && Array.isArray(address.location.coordinates) && address.location.coordinates.length >= 2) {
+          addressLat = Number(address.location.coordinates[1]);
+          addressLon = Number(address.location.coordinates[0]);
+          console.log('Using coordinates from address.location:', addressLat, addressLon);
+        }
+
+        // If still no coordinates, geocode the address (fallback)
+        if (!addressLat || !addressLon || isNaN(addressLat) || isNaN(addressLon)) {
+          console.log('No coordinates found, attempting geocoding...');
+          // Build address string more carefully - try multiple formats
+          const addressFormats = [];
+          
+          // Format 1: Full address
+          const addressParts = [];
+          if (address.address) addressParts.push(address.address);
+          if (address.city) addressParts.push(address.city);
+          if (address.state) addressParts.push(address.state);
+          if (address.zipCode) addressParts.push(address.zipCode);
+          if (address.country) addressParts.push(address.country);
+          if (addressParts.length > 0) {
+            addressFormats.push(addressParts.join(', ').trim());
+          }
+          
+          // Format 2: City, State, Country (if full address fails)
+          if (address.city && address.state && address.country) {
+            addressFormats.push(`${address.city}, ${address.state}, ${address.country}`.trim());
+          }
+          
+          // Format 3: City, Country (minimal)
+          if (address.city && address.country) {
+            addressFormats.push(`${address.city}, ${address.country}`.trim());
+          }
+          
+          console.log('Trying geocoding with formats:', addressFormats);
+          
+          for (const addressStr of addressFormats) {
+            if (addressStr && addressStr.length > 3) {
+              try {
+                const coords = await geocodeAddress(addressStr);
+                console.log('Geocoding result for', addressStr, ':', coords);
+                if (coords && coords.latitude && coords.longitude) {
+                  addressLat = Number(coords.latitude);
+                  addressLon = Number(coords.longitude);
+                  console.log('Successfully geocoded. Coordinates:', addressLat, addressLon);
+                  break; // Success, stop trying other formats
+                }
+              } catch (err) {
+                console.error('Geocoding error for format', addressStr, ':', err);
+              }
+            }
+          }
+          
+          if (!addressLat || !addressLon || isNaN(addressLat) || isNaN(addressLon)) {
+            console.warn('All geocoding attempts failed for address');
+          }
+        }
+
+        // If still no coordinates, cannot validate - block order to be safe
+        if (!addressLat || !addressLon || isNaN(addressLat) || isNaN(addressLon)) {
+          console.warn('Cannot determine address coordinates for validation');
+          setIsAddressValid(false);
+          setDeliveryAreaError('Delivery is not available at this address. Please select a different address within our delivery area or contact us for assistance.');
+          lastValidatedAddressId.current = addressKey;
+          return;
+        }
+
+        console.log('Delivery area:', deliveryArea);
+        console.log('Address coordinates:', addressLat, addressLon);
+        console.log('Delivery center:', deliveryArea.latitude, deliveryArea.longitude);
+        console.log('Delivery radius:', deliveryArea.radius, 'km');
+
+        const distance = calculateDistance(
+          addressLat,
+          addressLon,
+          Number(deliveryArea.latitude),
+          Number(deliveryArea.longitude)
+        );
+
+        console.log('Calculated distance:', distance, 'km');
+
+        if (distance > Number(deliveryArea.radius)) {
+          setIsAddressValid(false);
+          setDeliveryAreaError(`This address is ${distance.toFixed(2)} km away from our delivery area. Maximum delivery distance is ${deliveryArea.radius} km.`);
+          console.log('Address is OUTSIDE delivery area');
+        } else {
+          setIsAddressValid(true);
+          setDeliveryAreaError('');
+          console.log('Address is WITHIN delivery area');
+        }
+        
+        // Mark this address as validated
+        lastValidatedAddressId.current = addressKey;
+      } catch (error) {
+        console.error('Error validating address:', error);
+        // On error, block order to be safe
+        setIsAddressValid(false);
+        setDeliveryAreaError('Delivery is not available at this address. Please select a different address within our delivery area.');
+        lastValidatedAddressId.current = addressKey;
+      } finally {
+        setValidatingAddress(false);
+      }
+    };
+
+    validateAddressForDelivery();
+  }, [
+    selectedAddress?.id, 
+    selectedAddress?.latitude, 
+    selectedAddress?.longitude,
+    // Also check default address if no selected address
+    defaultAddress?.id,
+    defaultAddress?.latitude,
+    defaultAddress?.longitude,
+    shippingSettings?.deliveryArea?.latitude,
+    shippingSettings?.deliveryArea?.longitude,
+    shippingSettings?.deliveryArea?.radius
+  ]);
 
   // Refresh addresses when screen is focused
   useFocusEffect(
@@ -186,9 +372,63 @@ const CheckoutScreen = () => {
   const handlePlaceOrder = async () => {
     if (!validateCheckout()) return;
 
+    // Check if address is valid for delivery before proceeding
+    if (!isAddressValid) {
+      Alert.alert('Delivery Not Available', deliveryAreaError || 'This address is outside our delivery area. Please select a different address.');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
+      // Get address coordinates for delivery area validation
+      let addressLatitude = null;
+      let addressLongitude = null;
+      
+      // Try to get coordinates from selected address first
+      const addressToUse = selectedAddress || getDefaultAddress();
+      if (addressToUse?.location?.coordinates) {
+        addressLatitude = addressToUse.location.coordinates[1];
+        addressLongitude = addressToUse.location.coordinates[0];
+      } else {
+        // If no coordinates in address, geocode the address string
+        const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
+        try {
+          const coords = await geocodeAddress(shippingAddressStr);
+          if (coords) {
+            addressLatitude = coords.latitude;
+            addressLongitude = coords.longitude;
+          }
+        } catch (err) {
+          console.error('Failed to geocode address:', err);
+        }
+      }
+
+      // Validate delivery area again before placing order (double check)
+      const deliveryArea = shippingSettings?.deliveryArea;
+      if (deliveryArea && deliveryArea.latitude && deliveryArea.longitude && deliveryArea.radius) {
+        if (addressLatitude && addressLongitude) {
+          const distance = calculateDistance(
+            Number(addressLatitude),
+            Number(addressLongitude),
+            Number(deliveryArea.latitude),
+            Number(deliveryArea.longitude)
+          );
+          
+          if (distance > Number(deliveryArea.radius)) {
+            setIsProcessing(false);
+            Alert.alert(
+              'Delivery Not Available',
+              `This address is ${distance.toFixed(2)} km away from our delivery area. Maximum delivery distance is ${deliveryArea.radius} km. Please select a different address.`
+            );
+            return;
+          }
+        } else {
+          // If we can't get coordinates, still try to place order but backend will validate
+          console.warn('Could not determine address coordinates for validation');
+        }
+      }
+
       // Create order via API
       const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
       const response = await api.createOrder({
@@ -207,6 +447,8 @@ const CheckoutScreen = () => {
         shippingCost: appliedCoupon?.freeShipping ? 0 : shipping,
         couponCode: (appliedCoupon?.couponCode || couponCode.trim()) || undefined,
         orderNote: orderNote.trim() || undefined,
+        addressLatitude,
+        addressLongitude,
       });
 
       if (!response?.success) {
@@ -217,7 +459,7 @@ const CheckoutScreen = () => {
       try { await refreshOrders(); } catch (_) {}
       navigation.replace('OrderSuccess', { orderId: response.data._id });
     } catch (error) {
-      Alert.alert('Error', 'Failed to place order. Please try again.');
+      Alert.alert('Error', error?.message || 'Failed to place order. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -396,9 +638,11 @@ const CheckoutScreen = () => {
             <View style={styles.halfInput}>
               <Text style={styles.inputLabel}>Country</Text>
               <TextInput
-                style={[styles.textInput, styles.disabledInput]}
+                style={styles.textInput}
                 value={shippingInfo.country}
-                editable={false}
+                onChangeText={(value) => handleInputChange('country', value)}
+                placeholder="Enter country"
+                autoCapitalize="words"
               />
             </View>
           </View>
@@ -444,6 +688,62 @@ const CheckoutScreen = () => {
         </View>
         {paymentMethod === 'cod' && <Icon name="checkmark-circle" size={24} color="#f7ab18" />}
       </TouchableOpacity>
+    </View>
+  );
+
+  const renderProductInformation = () => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Icon name="cube-outline" size={20} color="#f7ab18" />
+        <Text style={styles.sectionTitle}>Products ({availableItems.length})</Text>
+      </View>
+      
+      <View style={styles.productsContainer}>
+        {availableItems.map((item, index) => {
+          const itemImage = item.variantInfo?.images?.[0] || item.images?.[0] || item.image || null;
+          const itemName = item.name || 'Product';
+          const itemPrice = getItemTotal(item);
+          const itemQuantity = item.quantity || 1;
+          const itemSku = item.variantInfo?.sku || item.sku || '';
+          const selectedAttrs = item.selectedAttributes || {};
+          const attrEntries = Object.entries(selectedAttrs);
+          
+          return (
+            <View key={item.cartId || index} style={styles.productItem}>
+              {itemImage ? (
+                <Image source={{ uri: itemImage }} style={styles.productImage} />
+              ) : (
+                <View style={[styles.productImage, styles.productImagePlaceholder]}>
+                  <Icon name="image-outline" size={24} color="#ccc" />
+                </View>
+              )}
+              
+              <View style={styles.productInfo}>
+                <Text style={styles.productName} numberOfLines={2}>{itemName}</Text>
+                
+                {itemSku ? (
+                  <Text style={styles.productSku}>SKU: {itemSku}</Text>
+                ) : null}
+                
+                {attrEntries.length > 0 && (
+                  <View style={styles.productAttributes}>
+                    {attrEntries.map(([key, value]) => (
+                      <Text key={key} style={styles.productAttribute}>
+                        {key}: {String(value)}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                
+                <View style={styles.productPriceRow}>
+                  <Text style={styles.productQuantity}>Qty: {itemQuantity}</Text>
+                  <Text style={styles.productPrice}>₹{itemPrice.toFixed(2)}</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 
@@ -544,6 +844,7 @@ const CheckoutScreen = () => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {renderProductInformation()}
         {renderAddressSection()}
         {renderPaymentMethods()}
         {/* Coupon Code */}
@@ -602,10 +903,23 @@ const CheckoutScreen = () => {
 
       {/* Place Order Button */}
       <View style={styles.footer}>
+        {deliveryAreaError ? (
+          <View style={styles.deliveryErrorContainer}>
+            <Icon name="alert-circle-outline" size={20} color="#d32f2f" />
+            <Text style={styles.deliveryErrorText}>{deliveryAreaError}</Text>
+          </View>
+        ) : validatingAddress ? (
+          <View style={styles.validatingContainer}>
+            <Text style={styles.validatingText}>Validating address...</Text>
+          </View>
+        ) : null}
         <TouchableOpacity 
-          style={[styles.placeOrderButton, isProcessing && styles.placeOrderButtonDisabled]} 
+          style={[
+            styles.placeOrderButton, 
+            (isProcessing || !isAddressValid || validatingAddress) && styles.placeOrderButtonDisabled
+          ]} 
           onPress={handlePlaceOrder}
-          disabled={isProcessing}
+          disabled={isProcessing || !isAddressValid || validatingAddress}
         >
           {isProcessing ? (
             <>
@@ -902,6 +1216,65 @@ const styles = StyleSheet.create({
     color: '#f7ab18',
     marginLeft: 5,
   },
+  productsContainer: {
+    gap: 12,
+  },
+  productItem: {
+    flexDirection: 'row',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  productImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    marginRight: 12,
+  },
+  productImagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  productInfo: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  productName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  productSku: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  productAttributes: {
+    marginBottom: 4,
+  },
+  productAttribute: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  productPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  productQuantity: {
+    fontSize: 13,
+    color: '#666',
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f7ab18',
+  },
   footer: {
     backgroundColor: '#fff',
     padding: 16,
@@ -966,6 +1339,31 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#666',
+  },
+  deliveryErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ffcdd2',
+  },
+  deliveryErrorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
+  },
+  validatingContainer: {
+    padding: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  validatingText: {
+    color: '#666',
+    fontSize: 14,
   },
 });
 

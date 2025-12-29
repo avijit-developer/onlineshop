@@ -3,7 +3,7 @@ import { Platform, NativeModules } from 'react-native';
 
 // Force ALL builds to use localhost for now.
 // Android physical/emulator: run `adb reverse tcp:5000 tcp:5000` to map device localhost to PC.
-export const API_BASE = 'https://trahimart.com';
+export const API_BASE = 'http://localhost:5000';
 //export const API_BASE = 'https://trahimart.com'; //http://localhost:5000
 
 
@@ -557,6 +557,18 @@ const api = {
       return { success: true, data: res.data || res.order };
     }
     return { success: false, message: 'Order not found' };
+  },
+  async cancelOrder(orderId, cancellationReason) {
+    const token = await this.getStoredToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request(`/api/v1/orders/me/${orderId}/cancel`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ cancellationReason })
+    });
   },
 
   // Vendor-scoped APIs

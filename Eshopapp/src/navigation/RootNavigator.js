@@ -18,6 +18,8 @@ import OrderListScreen from '../screens/OrderListScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import AddressListScreen from '../screens/AddressListScreen';
 import AddressDetailsScreen from '../screens/AddressDetailsScreen';
+import AddressMapScreen from '../screens/AddressMapScreen';
+import AddressSearchScreen from '../screens/AddressSearchScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 import VendorApplyScreen from '../screens/VendorApplyScreen';
 import ReviewFormScreen from '../screens/ReviewFormScreen';
@@ -58,6 +60,8 @@ const RootNavigator = () => {
       <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
       <Stack.Screen name="AddressList" component={AddressListScreen} />
       <Stack.Screen name="AddressDetails" component={AddressDetailsScreen} />
+      <Stack.Screen name="AddressMap" component={AddressMapScreen} />
+      <Stack.Screen name="AddressSearch" component={AddressSearchScreen} />
       <Stack.Screen name="Wishlist" component={WishlistScreen} />
       <Stack.Screen name="VendorApply" component={VendorApplyScreen} />
       <Stack.Screen name="DriverApply" component={DriverApplyScreen} />

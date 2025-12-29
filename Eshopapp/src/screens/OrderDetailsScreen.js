@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   Modal,
+  TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -23,6 +24,9 @@ const OrderDetailsScreen = ({ route }) => {
   
   const order = orders.find(o => String(o._id || o.id) === String(orderId));
   const [freshOrder, setFreshOrder] = React.useState(null);
+  const [showCancelModal, setShowCancelModal] = React.useState(false);
+  const [cancelReason, setCancelReason] = React.useState('');
+  const [cancelling, setCancelling] = React.useState(false);
 
   React.useEffect(() => {
     let mounted = true;
@@ -31,6 +35,35 @@ const OrderDetailsScreen = ({ route }) => {
     })();
     return () => { mounted = false; };
   }, [orderId]);
+
+  const handleCancelOrder = async () => {
+    if (!cancelReason.trim()) {
+      Alert.alert('Error', 'Please provide a cancellation reason');
+      return;
+    }
+    setCancelling(true);
+    try {
+      const res = await api.cancelOrder(orderId, cancelReason.trim());
+      if (res?.success) {
+        Alert.alert('Success', 'Order cancelled successfully', [
+          { text: 'OK', onPress: () => {
+            setShowCancelModal(false);
+            setCancelReason('');
+            // Refresh order
+            api.getMyOrderById(orderId).then(res => {
+              if (res?.success) setFreshOrder(res.data);
+            });
+          }}
+        ]);
+      } else {
+        throw new Error(res?.message || 'Failed to cancel order');
+      }
+    } catch (error) {
+      Alert.alert('Error', error?.message || 'Failed to cancel order');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   if (!order) {
     return (
@@ -227,42 +260,82 @@ const OrderDetailsScreen = ({ route }) => {
 
         {/* Order Progress (single-vendor only) */}
         {itemGroups.length === 1 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Order Progress</Text>
-            <View style={styles.progressContainer}>
-              {orderProgress.map((step, index) => (
-                <View key={index} style={styles.progressStep}>
-                  <View style={styles.progressLine}>
-                    <View style={[
-                      styles.progressDot,
-                      step.completed && styles.completedDot
-                    ]}>
-                      {step.completed && (
-                        <Icon name="checkmark" size={12} color="#fff" />
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Order Progress</Text>
+              <View style={styles.progressContainer}>
+                {orderProgress.map((step, index) => (
+                  <View key={index} style={styles.progressStep}>
+                    <View style={styles.progressLine}>
+                      <View style={[
+                        styles.progressDot,
+                        step.completed && styles.completedDot
+                      ]}>
+                        {step.completed && (
+                          <Icon name="checkmark" size={12} color="#fff" />
+                        )}
+                      </View>
+                      {index < orderProgress.length - 1 && (
+                        <View style={[
+                          styles.progressConnector,
+                          step.completed && styles.completedConnector
+                        ]} />
                       )}
                     </View>
-                    {index < orderProgress.length - 1 && (
-                      <View style={[
-                        styles.progressConnector,
-                        step.completed && styles.completedConnector
-                      ]} />
-                    )}
+                    <View style={styles.progressContent}>
+                      <Text style={[
+                        styles.progressStepText,
+                        step.completed && styles.completedStepText
+                      ]}>
+                        {step.step}
+                      </Text>
+                      {step.date && (
+                        <Text style={styles.progressDate}>{step.date}</Text>
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.progressContent}>
-                    <Text style={[
-                      styles.progressStepText,
-                      step.completed && styles.completedStepText
-                    ]}>
-                      {step.step}
-                    </Text>
-                    {step.date && (
-                      <Text style={styles.progressDate}>{step.date}</Text>
-                    )}
-                  </View>
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
-          </View>
+            {/* Items for single vendor */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Items ({current.items.length})</Text>
+              {(itemGroups[0]?.items || current.items || []).map((it, idx) => {
+                const attrs = it.selectedAttributes && typeof it.selectedAttributes === 'object' ? it.selectedAttributes : null;
+                const attrEntries = attrs ? Object.entries(attrs) : [];
+                const productDetails = it.productDetails || {};
+                return (
+                  <View key={idx} style={styles.orderItem}>
+                    <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
+                      {productDetails.brand && (
+                        <Text style={styles.itemVariant}>Brand: {typeof productDetails.brand === 'object' ? productDetails.brand.name : productDetails.brand}</Text>
+                      )}
+                      {productDetails.category && (
+                        <Text style={styles.itemVariant}>Category: {typeof productDetails.category === 'object' ? productDetails.category.name : productDetails.category}</Text>
+                      )}
+                      {!!it.sku && <Text style={styles.itemVariant}>SKU: {it.sku}</Text>}
+                      {attrEntries.length > 0 && (
+                        <View style={{ marginTop: 2 }}>
+                          {attrEntries.map(([k, v]) => (
+                            <Text key={k} style={styles.itemVariant}>{k}: {String(v)}</Text>
+                          ))}
+                        </View>
+                      )}
+                      {productDetails.shortDescription && (
+                        <Text style={[styles.itemVariant, { marginTop: 4, fontStyle: 'italic' }]} numberOfLines={2}>
+                          {productDetails.shortDescription}
+                        </Text>
+                      )}
+                      <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
+                    </View>
+                    <Text style={styles.itemPrice}>₹{Number(it.price || 0).toFixed(2)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </>
         )}
 
         {/* Packages grouped by vendor (no vendor names) - hidden for single-vendor */}
@@ -288,11 +361,18 @@ const OrderDetailsScreen = ({ route }) => {
                 {grp.items.map((it, idx) => {
                   const attrs = it.selectedAttributes && typeof it.selectedAttributes === 'object' ? it.selectedAttributes : null;
                   const attrEntries = attrs ? Object.entries(attrs) : [];
+                  const productDetails = it.productDetails || {};
                   return (
                     <View key={idx} style={styles.orderItem}>
                       <Image source={{ uri: it.image || '' }} style={styles.itemImage} />
                       <View style={styles.itemInfo}>
                         <Text style={styles.itemName} numberOfLines={2}>{it.name || ''}</Text>
+                        {productDetails.brand && (
+                          <Text style={styles.itemVariant}>Brand: {typeof productDetails.brand === 'object' ? productDetails.brand.name : productDetails.brand}</Text>
+                        )}
+                        {productDetails.category && (
+                          <Text style={styles.itemVariant}>Category: {typeof productDetails.category === 'object' ? productDetails.category.name : productDetails.category}</Text>
+                        )}
                         {!!it.sku && <Text style={styles.itemVariant}>SKU: {it.sku}</Text>}
                         {attrEntries.length > 0 && (
                           <View style={{ marginTop: 2 }}>
@@ -300,6 +380,11 @@ const OrderDetailsScreen = ({ route }) => {
                               <Text key={k} style={styles.itemVariant}>{k}: {String(v)}</Text>
                             ))}
                           </View>
+                        )}
+                        {productDetails.shortDescription && (
+                          <Text style={[styles.itemVariant, { marginTop: 4, fontStyle: 'italic' }]} numberOfLines={2}>
+                            {productDetails.shortDescription}
+                          </Text>
                         )}
                         <Text style={styles.itemQuantity}>Quantity: {it.quantity}</Text>
                       </View>
@@ -370,8 +455,28 @@ const OrderDetailsScreen = ({ route }) => {
           </View>
         </View>
 
+        {/* Cancellation Reason */}
+        {current.cancellationReason && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Cancellation Reason</Text>
+            <View style={styles.cancellationCard}>
+              <Icon name="close-circle-outline" size={20} color="#ff4444" />
+              <Text style={styles.cancellationText}>{current.cancellationReason}</Text>
+            </View>
+          </View>
+        )}
+
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
+          {status !== 'Cancelled' && status !== 'Delivered' && status !== 'Shipped' && (
+            <TouchableOpacity 
+              style={[styles.reorderButton, styles.cancelButton]} 
+              onPress={() => setShowCancelModal(true)}
+            >
+              <Icon name="close-circle-outline" size={16} color="#ff4444" />
+              <Text style={[styles.reorderButtonText, styles.cancelButtonText]}>Cancel Order</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.reorderButton} onPress={handleReorder}>
             <Icon name="refresh-outline" size={16} color="#f7ab18" />
             <Text style={styles.reorderButtonText}>Reorder</Text>
@@ -413,6 +518,61 @@ const OrderDetailsScreen = ({ route }) => {
                     </View>
                   );
                 })}
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cancel Order Modal */}
+      <Modal visible={showCancelModal} transparent animationType="fade" onRequestClose={() => setShowCancelModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 12, width: '100%', maxWidth: 420 }}>
+            <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontWeight: '800', color: '#333', fontSize: 18 }}>Cancel Order</Text>
+              <TouchableOpacity onPress={() => setShowCancelModal(false)}>
+                <Icon name="close" size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 16 }}>
+              <Text style={{ color: '#666', marginBottom: 12, fontSize: 14 }}>Please provide a reason for cancelling this order:</Text>
+              <TextInput
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 16,
+                  minHeight: 100,
+                  textAlignVertical: 'top',
+                  fontSize: 14,
+                  color: '#333'
+                }}
+                placeholder="Enter cancellation reason..."
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={4}
+                value={cancelReason}
+                onChangeText={setCancelReason}
+              />
+              <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }}>
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ddd' }}
+                  onPress={() => {
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                  }}
+                  disabled={cancelling}
+                >
+                  <Text style={{ color: '#666', fontWeight: '600' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: '#ff4444', opacity: cancelling ? 0.6 : 1 }}
+                  onPress={handleCancelOrder}
+                  disabled={cancelling}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '600' }}>{cancelling ? 'Cancelling...' : 'Confirm Cancel'}</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -718,6 +878,29 @@ const styles = StyleSheet.create({
   notFoundText: {
     fontSize: 18,
     color: '#666',
+  },
+  cancellationCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff5f5',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ffebee',
+  },
+  cancellationText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 12,
+    flex: 1,
+    lineHeight: 20,
+  },
+  cancelButton: {
+    backgroundColor: '#fff',
+    borderColor: '#ff4444',
+  },
+  cancelButtonText: {
+    color: '#ff4444',
   },
 });
 

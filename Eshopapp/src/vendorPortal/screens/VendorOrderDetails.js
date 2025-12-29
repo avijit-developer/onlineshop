@@ -70,7 +70,7 @@ const VendorOrderDetails = ({ route, navigation }) => {
   const vendor = pick(order, ['vendor', 'vendorInfo'], {}) || (Array.isArray(items) && items.find(i => i?.product?.vendor)?.product?.vendor) || {};
   const status = String(pick(order, ['status', 'orderStatus'], '') || '').toUpperCase();
   const displayed = new Set([
-    '_id','id','user','customer','orderNumber','status','items','shippingAddress','address','paymentMethod','tax','shippingCost','discountAmount','couponCode','customerPhone','subtotal','total','orderNote','statusHistory','createdAt','updatedAt','__v','vendor','vendorInfo'
+    '_id','id','user','customer','orderNumber','status','items','shippingAddress','address','paymentMethod','tax','shippingCost','discountAmount','couponCode','customerPhone','subtotal','total','orderNote','cancellationReason','statusHistory','createdAt','updatedAt','__v','vendor','vendorInfo'
   ]);
   const otherEntries = Object.entries(order).filter(([k, v]) => {
     const isScalar = ['string','number','boolean'].includes(typeof v);
@@ -169,6 +169,17 @@ const VendorOrderDetails = ({ route, navigation }) => {
           <Text style={styles.grandValue}>{currency(totals.total)}</Text>
         </View>
       </View>
+
+      {/* Cancellation Reason */}
+      {pick(order, ['cancellationReason']) && (
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}><Text style={styles.sectionHeaderText}>Cancellation Reason</Text></View>
+          <View style={styles.divider} />
+          <View style={{ padding: 12, backgroundColor: '#fff5f5', borderRadius: 8, borderWidth: 1, borderColor: '#ffebee' }}>
+            <Text style={{ color: '#333', fontSize: 14, lineHeight: 20 }}>{pick(order, ['cancellationReason'])}</Text>
+          </View>
+        </View>
+      )}
 
       {/* Status History */}
       {Array.isArray(order.statusHistory) && order.statusHistory.length > 0 && (

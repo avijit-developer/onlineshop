@@ -85,7 +85,24 @@ export const LocationProvider = ({ children }) => {
   };
 
   const updateAddress = (newAddress) => {
-    setAddress(newAddress);
+    // If newAddress is a string, just update address
+    if (typeof newAddress === 'string') {
+      setAddress(newAddress);
+    } else if (typeof newAddress === 'object' && newAddress !== null) {
+      // If it's an object, update all address fields
+      if (newAddress.address !== undefined) setAddress(newAddress.address || '');
+      if (newAddress.city !== undefined) setCity(newAddress.city || '');
+      if (newAddress.area !== undefined) setArea(newAddress.area || '');
+      if (newAddress.postalCode !== undefined || newAddress.zipCode !== undefined) {
+        setPostalCode(newAddress.postalCode || newAddress.zipCode || '');
+      }
+      if (newAddress.location) {
+        setLocation({
+          latitude: newAddress.location.latitude || newAddress.location.coordinates?.[1],
+          longitude: newAddress.location.longitude || newAddress.location.coordinates?.[0],
+        });
+      }
+    }
   };
 
   const value = {

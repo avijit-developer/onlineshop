@@ -236,6 +236,8 @@ export const AddressProvider = ({ children }) => {
             zipCode: address.zipCode,
             country: address.country || 'India',
             isDefault: !!address.isDefault,
+            latitude: address.latitude || null,
+            longitude: address.longitude || null,
           });
           await refreshFromAPI();
           return null;

@@ -48,7 +48,12 @@ const Vendors = () => {
     zip: '',
     // commission field removed per new logic; keep placeholder for backend compatibility if needed
     commission: undefined,
-    logoPreview: ''
+    logoPreview: '',
+    bankAccountHolderName: '',
+    bankAccountNumber: '',
+    bankName: '',
+    bankIFSC: '',
+    bankBranch: ''
   });
   const [imageFile, setImageFile] = useState(null);
 
@@ -213,7 +218,7 @@ const Vendors = () => {
   };
 
   const handleOpenAdd = () => {
-    setFormData({ name: '', companyName: '', email: '', phone: '', address1: '', address2: '', city: '', zip: '', commission: undefined, logoPreview: '' });
+    setFormData({ name: '', companyName: '', email: '', phone: '', address1: '', address2: '', city: '', zip: '', commission: undefined, logoPreview: '', bankAccountHolderName: '', bankAccountNumber: '', bankName: '', bankIFSC: '', bankBranch: '' });
     setImageFile(null);
     setShowAddModal(true);
   };
@@ -251,6 +256,11 @@ const Vendors = () => {
         city: formData.city.trim(),
         zip: formData.zip.trim(),
         // commission removed; do not send unless explicitly set
+        bankAccountHolderName: formData.bankAccountHolderName.trim(),
+        bankAccountNumber: formData.bankAccountNumber.trim(),
+        bankName: formData.bankName.trim(),
+        bankIFSC: formData.bankIFSC.trim(),
+        bankBranch: formData.bankBranch.trim()
       };
       if (imageFile) {
         const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'vendors');
@@ -287,7 +297,12 @@ const Vendors = () => {
       city: vendor.city || '',
       zip: vendor.zip || '',
       commission: undefined,
-      logoPreview: vendor.logo || ''
+      logoPreview: vendor.logo || '',
+      bankAccountHolderName: vendor.bankAccountHolderName || '',
+      bankAccountNumber: vendor.bankAccountNumber || '',
+      bankName: vendor.bankName || '',
+      bankIFSC: vendor.bankIFSC || '',
+      bankBranch: vendor.bankBranch || ''
     });
     setImageFile(null);
     setShowEditModal(true);
@@ -315,6 +330,11 @@ const Vendors = () => {
         city: formData.city.trim(),
         zip: formData.zip.trim(),
         // commission removed; do not send unless explicitly set
+        bankAccountHolderName: formData.bankAccountHolderName.trim(),
+        bankAccountNumber: formData.bankAccountNumber.trim(),
+        bankName: formData.bankName.trim(),
+        bankIFSC: formData.bankIFSC.trim(),
+        bankBranch: formData.bankBranch.trim()
       };
       if (imageFile) {
         const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'vendors');
@@ -553,6 +573,29 @@ const Vendors = () => {
                   <label>ZIP *</label>
                   <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} required />
                 </div>
+                <div className="form-group full-width">
+                  <h4 style={{ margin: '20px 0 10px 0', color: '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Bank Details</h4>
+                </div>
+                <div className="form-group">
+                  <label>Account Holder Name</label>
+                  <input type="text" name="bankAccountHolderName" value={formData.bankAccountHolderName} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>Account Number</label>
+                  <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>Bank Name</label>
+                  <input type="text" name="bankName" value={formData.bankName} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>IFSC Code</label>
+                  <input type="text" name="bankIFSC" value={formData.bankIFSC} onChange={handleAddInput} style={{ textTransform: 'uppercase' }} />
+                </div>
+                <div className="form-group">
+                  <label>Branch</label>
+                  <input type="text" name="bankBranch" value={formData.bankBranch} onChange={handleAddInput} />
+                </div>
                 {/* Commission removed */}
                 <div className="form-group full-width">
                   <label>Logo</label>
@@ -614,6 +657,29 @@ const Vendors = () => {
                 <div className="form-group">
                   <label>ZIP *</label>
                   <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} required />
+                </div>
+                <div className="form-group full-width">
+                  <h4 style={{ margin: '20px 0 10px 0', color: '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Bank Details</h4>
+                </div>
+                <div className="form-group">
+                  <label>Account Holder Name</label>
+                  <input type="text" name="bankAccountHolderName" value={formData.bankAccountHolderName} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>Account Number</label>
+                  <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>Bank Name</label>
+                  <input type="text" name="bankName" value={formData.bankName} onChange={handleAddInput} />
+                </div>
+                <div className="form-group">
+                  <label>IFSC Code</label>
+                  <input type="text" name="bankIFSC" value={formData.bankIFSC} onChange={handleAddInput} style={{ textTransform: 'uppercase' }} />
+                </div>
+                <div className="form-group">
+                  <label>Branch</label>
+                  <input type="text" name="bankBranch" value={formData.bankBranch} onChange={handleAddInput} />
                 </div>
                 {/* Commission removed */}
                 <div className="form-group full-width">
@@ -690,6 +756,43 @@ const Vendors = () => {
                     <span className="label">Total Earnings</span>
                     <span className="value">${selectedVendor.totalEarnings?.toLocaleString() || '0'}</span>
                   </div>
+                  {(selectedVendor.bankAccountHolderName || selectedVendor.bankAccountNumber || selectedVendor.bankName || selectedVendor.bankIFSC) && (
+                    <>
+                      <div className="detail full" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eef2f7' }}>
+                        <span className="label" style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Bank Details</span>
+                      </div>
+                      {selectedVendor.bankAccountHolderName && (
+                        <div className="detail">
+                          <span className="label">Account Holder</span>
+                          <span className="value">{selectedVendor.bankAccountHolderName}</span>
+                        </div>
+                      )}
+                      {selectedVendor.bankAccountNumber && (
+                        <div className="detail">
+                          <span className="label">Account Number</span>
+                          <span className="value">{selectedVendor.bankAccountNumber}</span>
+                        </div>
+                      )}
+                      {selectedVendor.bankName && (
+                        <div className="detail">
+                          <span className="label">Bank Name</span>
+                          <span className="value">{selectedVendor.bankName}</span>
+                        </div>
+                      )}
+                      {selectedVendor.bankIFSC && (
+                        <div className="detail">
+                          <span className="label">IFSC Code</span>
+                          <span className="value">{selectedVendor.bankIFSC}</span>
+                        </div>
+                      )}
+                      {selectedVendor.bankBranch && (
+                        <div className="detail">
+                          <span className="label">Branch</span>
+                          <span className="value">{selectedVendor.bankBranch}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div className="stats-row">
                   <div className="mini-stat">

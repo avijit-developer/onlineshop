@@ -19,7 +19,13 @@ const vendorSchema = new mongoose.Schema(
     totalEarnings: { type: Number, default: 0 },
     commission: { type: Number, default: 10 },
     logo: { type: String, default: '' },
-    logoPublicId: { type: String, default: '' }
+    logoPublicId: { type: String, default: '' },
+    // Bank details
+    bankAccountHolderName: { type: String, trim: true },
+    bankAccountNumber: { type: String, trim: true },
+    bankName: { type: String, trim: true },
+    bankIFSC: { type: String, trim: true },
+    bankBranch: { type: String, trim: true }
   },
   { timestamps: true }
 );

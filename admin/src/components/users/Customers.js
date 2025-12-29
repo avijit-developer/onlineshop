@@ -164,7 +164,8 @@ const Customers = () => {
       id: customer.id,
       name: customer.name || '',
       email: customer.email || '',
-      phone: customer.phone === '-' ? '' : (customer.phone || '')
+      phone: customer.phone === '-' ? '' : (customer.phone || ''),
+      password: ''
     });
     setSelectedCustomer(customer);
     setShowEditModal(true);
@@ -182,17 +183,24 @@ const Customers = () => {
       const token = localStorage.getItem('adminToken');
       if (!token) return;
 
+      const updateData = {
+        name: editFormData.name,
+        email: editFormData.email,
+        phone: editFormData.phone
+      };
+
+      // Only include password if it's provided and not empty
+      if (editFormData.password && editFormData.password.trim() !== '') {
+        updateData.password = editFormData.password;
+      }
+
       const res = await fetch(`${API_BASE}/api/v1/users/${editFormData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          name: editFormData.name,
-          email: editFormData.email,
-          phone: editFormData.phone
-        })
+        body: JSON.stringify(updateData)
       });
 
       const json = await res.json().catch(() => ({}));
@@ -1131,6 +1139,19 @@ const Customers = () => {
                       value={editFormData.phone || ''}
                       onChange={(e) => handleEditFormChange('phone', e.target.value)}
                     />
+                  </div>
+                  <div className="form-group">
+                    <label>New Password (leave blank to keep current)</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      value={editFormData.password || ''}
+                      onChange={(e) => handleEditFormChange('password', e.target.value)}
+                      placeholder="Enter new password (min 8 characters)"
+                    />
+                    <small style={{ color: '#666', fontSize: '12px' }}>
+                      Leave blank if you don't want to change the password
+                    </small>
                   </div>
                 </div>
               </div>

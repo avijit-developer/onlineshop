@@ -16,6 +16,8 @@ import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 import AddressListScreen from '../screens/AddressListScreen';
 import AddressDetailsScreen from '../screens/AddressDetailsScreen';
+import AddressMapScreen from '../screens/AddressMapScreen';
+import AddressSearchScreen from '../screens/AddressSearchScreen';
 import VendorApplyScreen from '../screens/VendorApplyScreen';
 import ReviewFormScreen from '../screens/ReviewFormScreen';
 
@@ -40,6 +42,8 @@ const AppNavigator = () => {
       <Stack.Screen name="Wishlist" component={WishlistScreen} />
       <Stack.Screen name="AddressList" component={AddressListScreen} />
       <Stack.Screen name="AddressDetails" component={AddressDetailsScreen} />
+      <Stack.Screen name="AddressMap" component={AddressMapScreen} />
+      <Stack.Screen name="AddressSearch" component={AddressSearchScreen} />
       <Stack.Screen name="VendorApply" component={VendorApplyScreen} />
       <Stack.Screen name="ReviewForm" component={ReviewFormScreen} />
     </Stack.Navigator>

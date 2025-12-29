@@ -31,6 +31,11 @@ const Settings = () => {
     },
     tax: {
       rate: 0
+    },
+    deliveryArea: {
+      latitude: null,
+      longitude: null,
+      radius: null
     }
   });
 
@@ -153,6 +158,13 @@ const Settings = () => {
             >
               <span className="nav-icon">🏪</span>
               Vendor Settings
+            </button>
+            <button
+              className={`nav-item ${activeTab === 'delivery' ? 'active' : ''}`}
+              onClick={() => setActiveTab('delivery')}
+            >
+              <span className="nav-icon">📍</span>
+              Delivery Area
             </button>
           </nav>
         </div>
@@ -438,7 +450,62 @@ const Settings = () => {
             </div>
           )}
 
-          {/* Vendor Settings removed */}
+          {/* Delivery Area Settings */}
+          {activeTab === 'delivery' && (
+            <div className="settings-section">
+              <div className="section-header">
+                <h2>Delivery Area Settings</h2>
+                <p>Set the center location (latitude/longitude) and delivery radius. Orders outside this radius will be rejected.</p>
+              </div>
+              <div className="settings-form">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Center Latitude *</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={settings.deliveryArea?.latitude || ''}
+                      onChange={(e) => handleInputChange('deliveryArea', 'latitude', e.target.value ? parseFloat(e.target.value) : null)}
+                      placeholder="e.g., 28.6139"
+                    />
+                    <small style={{ color: '#666' }}>Latitude of the delivery center point</small>
+                  </div>
+                  <div className="form-group">
+                    <label>Center Longitude *</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={settings.deliveryArea?.longitude || ''}
+                      onChange={(e) => handleInputChange('deliveryArea', 'longitude', e.target.value ? parseFloat(e.target.value) : null)}
+                      placeholder="e.g., 77.2090"
+                    />
+                    <small style={{ color: '#666' }}>Longitude of the delivery center point</small>
+                  </div>
+                  <div className="form-group">
+                    <label>Delivery Radius (km) *</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={settings.deliveryArea?.radius || ''}
+                      onChange={(e) => handleInputChange('deliveryArea', 'radius', e.target.value ? parseFloat(e.target.value) : null)}
+                      placeholder="e.g., 10"
+                    />
+                    <small style={{ color: '#666' }}>Maximum delivery distance in kilometers from center point</small>
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button
+                    onClick={() => handleSave('Delivery Area')}
+                    disabled={saving}
+                    className="btn btn-primary"
+                  >
+                    {saving ? 'Saving...' : 'Save Delivery Area Settings'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

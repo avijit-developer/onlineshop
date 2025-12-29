@@ -29,6 +29,11 @@ const SettingsSchema = new mongoose.Schema({
 	},
 	tax: {
 		rate: { type: Number, default: 0 }
+	},
+	deliveryArea: {
+		latitude: { type: Number, default: null },
+		longitude: { type: Number, default: null },
+		radius: { type: Number, default: null } // radius in kilometers
 	}
 }, { timestamps: true });
 

@@ -30,8 +30,7 @@ const VendorReports = ({ navigation }) => {
         <View style={{ padding: 16 }}>
           <Text style={styles.row}>Total Orders: {summary?.orderCount || 0}</Text>
           <Text style={styles.row}>Vendor Subtotal: ₹{(summary?.vendorSubtotal || 0).toFixed(2)}</Text>
-          <Text style={styles.row}>Vendor Commission: ₹{(summary?.vendorCommission || 0).toFixed(2)}</Text>
-          <Text style={styles.row}>Vendor Net: ₹{(summary?.vendorNet || 0).toFixed(2)}</Text>
+          <Text style={styles.row}>Total Earnings: ₹{(summary?.vendorSubtotal || 0).toFixed(2)}</Text>
         </View>
       )}
     </View>

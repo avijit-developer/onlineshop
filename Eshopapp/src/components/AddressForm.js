@@ -9,10 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAddress } from '../contexts/AddressContext';
 import { requestLocationAndGetAddress } from '../utils/locationUtils';
+import MapPicker from './MapPicker';
 
 const AddressForm = ({ address, onSave, onCancel }) => {
   const { addAddress, updateAddress } = useAddress();
@@ -29,8 +31,11 @@ const AddressForm = ({ address, onSave, onCancel }) => {
     zipCode: '',
     country: 'India',
     isDefault: false,
+    latitude: null,
+    longitude: null,
   });
   const [geoLoading, setGeoLoading] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   useEffect(() => {
     if (address) {
@@ -45,6 +50,8 @@ const AddressForm = ({ address, onSave, onCancel }) => {
         zipCode: address.zipCode || '',
         country: address.country || 'India',
         isDefault: !!address.isDefault,
+        latitude: address.location?.coordinates?.[1] || address.latitude || null,
+        longitude: address.location?.coordinates?.[0] || address.longitude || null,
       });
     }
   }, [address]);
@@ -211,14 +218,24 @@ const AddressForm = ({ address, onSave, onCancel }) => {
 
         {/* Address Information */}
         <View style={styles.section}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
             <Text style={[styles.sectionTitle, { flex: 1, marginRight: 8 }]}>Address Information</Text>
-            <TouchableOpacity style={styles.geoBtn} onPress={fillFromCurrentLocation} disabled={geoLoading}>
-              <Icon name="locate-outline" size={14} color="#fff" />
-              <Text style={styles.geoBtnText}>{geoLoading ? 'Getting…' : 'Use current location'}</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <TouchableOpacity style={styles.mapBtn} onPress={() => setShowMapPicker(true)}>
+                <Icon name="map-outline" size={14} color="#fff" />
+                <Text style={styles.geoBtnText}>Select on Map</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.geoBtn} onPress={fillFromCurrentLocation} disabled={geoLoading}>
+                <Icon name="locate-outline" size={14} color="#fff" />
+                <Text style={styles.geoBtnText}>{geoLoading ? 'Getting…' : 'Current Location'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={styles.hintText}>Tip: Tap Use current location to auto-fill your address.</Text>
+          <Text style={styles.hintText}>
+            {formData.latitude && formData.longitude 
+              ? `📍 Location selected: ${formData.latitude.toFixed(6)}, ${formData.longitude.toFixed(6)}`
+              : 'Tip: Select location on map for accurate delivery area validation'}
+          </Text>
           
           <Text style={styles.inputLabel}>Full Address *</Text>
           <TextInput
@@ -268,9 +285,11 @@ const AddressForm = ({ address, onSave, onCancel }) => {
             <View style={styles.halfInput}>
               <Text style={styles.inputLabel}>Country</Text>
               <TextInput
-                style={[styles.textInput, styles.disabledInput]}
+                style={styles.textInput}
                 value={formData.country}
-                editable={false}
+                onChangeText={(value) => handleInputChange('country', value)}
+                placeholder="Enter country"
+                autoCapitalize="words"
               />
             </View>
           </View>
@@ -297,6 +316,30 @@ const AddressForm = ({ address, onSave, onCancel }) => {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Map Picker Modal */}
+      <Modal
+        visible={showMapPicker}
+        animationType="slide"
+        onRequestClose={() => setShowMapPicker(false)}
+      >
+        <MapPicker
+          initialLocation={
+            formData.latitude && formData.longitude
+              ? { latitude: formData.latitude, longitude: formData.longitude }
+              : null
+          }
+          onSelectLocation={(location) => {
+            setFormData(prev => ({
+              ...prev,
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }));
+            setShowMapPicker(false);
+          }}
+          onClose={() => setShowMapPicker(false)}
+        />
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -453,6 +496,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   geoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f7ab18', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 6 },
+  mapBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#4caf50', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 6 },
   geoBtnText: { color: '#fff', fontWeight: '700', marginLeft: 4, fontSize: 12 },
   hintText: { color: '#6b7280', fontSize: 12, marginTop: 6 },
 });

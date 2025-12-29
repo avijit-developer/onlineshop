@@ -169,12 +169,49 @@ async function restoreStockForOrderItems(items) {
 	}
 }
 
+// Helper function to calculate distance between two coordinates (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+	const R = 6371; // Earth's radius in kilometers
+	const dLat = (lat2 - lat1) * Math.PI / 180;
+	const dLon = (lon2 - lon1) * Math.PI / 180;
+	const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+		Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+		Math.sin(dLon / 2) * Math.sin(dLon / 2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+	return R * c; // Distance in kilometers
+}
+
 // Customer: create order (uses provided items or cart)
 router.post('/me', authenticate, requireRole(['customer']), async (req, res) => {
 	try {
-		const { items: bodyItems, shippingAddress, paymentMethod = 'cod', tax = 0, shippingCost = 0, couponCode, orderNote } = req.body || {};
+		const { items: bodyItems, shippingAddress, paymentMethod = 'cod', tax = 0, shippingCost = 0, couponCode, orderNote, addressLatitude, addressLongitude } = req.body || {};
 		if (!shippingAddress) {
 			return res.status(400).json({ success: false, message: 'shippingAddress is required' });
+		}
+		
+		// Validate delivery area if settings are configured
+		if (addressLatitude != null && addressLongitude != null) {
+			try {
+				const Settings = require('../models/Settings');
+				const settings = await Settings.findOne().lean();
+				if (settings?.deliveryArea?.latitude != null && settings?.deliveryArea?.longitude != null && settings?.deliveryArea?.radius != null) {
+					const distance = calculateDistance(
+						Number(addressLatitude),
+						Number(addressLongitude),
+						Number(settings.deliveryArea.latitude),
+						Number(settings.deliveryArea.longitude)
+					);
+					if (distance > Number(settings.deliveryArea.radius)) {
+						return res.status(400).json({ 
+							success: false, 
+							message: `Delivery is not available at this location. Your address is ${distance.toFixed(2)} km away from our delivery area (maximum ${settings.deliveryArea.radius} km).` 
+						});
+					}
+				}
+			} catch (err) {
+				console.error('Error validating delivery area:', err);
+				// Don't block order if validation fails, but log error
+			}
 		}
 		let items = bodyItems;
 		if (!Array.isArray(items) || items.length === 0) {
@@ -387,6 +424,34 @@ router.get('/me/:id', authenticate, requireRole(['customer']), async (req, res) 
 	try {
 		const order = await Order.findOne({ _id: req.params.id, user: req.user.id }).lean();
 		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+		
+		// Populate product details for items
+		try {
+			const productIds = Array.from(new Set((order.items || []).map(it => String(it.product)).filter(Boolean)));
+			if (productIds.length > 0) {
+				const products = await Product.find({ _id: { $in: productIds } })
+					.select('name description shortDescription brand category images')
+					.populate('brand', 'name')
+					.populate('category', 'name')
+					.lean();
+				const productMap = new Map(products.map(p => [String(p._id), p]));
+				for (const item of (order.items || [])) {
+					const productId = String(item.product);
+					const product = productMap.get(productId);
+					if (product) {
+						item.productDetails = {
+							name: product.name,
+							description: product.description,
+							shortDescription: product.shortDescription,
+							brand: product.brand,
+							category: product.category,
+							images: product.images
+						};
+					}
+				}
+			}
+		} catch (_) {}
+		
 		// Build vendor summaries for UI
 		const vendorIds = Array.from(new Set((order.items || []).map(it => String(it.vendor)).filter(Boolean)));
 		let vendors = [];
@@ -415,6 +480,42 @@ router.get('/me/:id', authenticate, requireRole(['customer']), async (req, res) 
 		res.json({ success: true, data: { ...order, vendorSummaries: summaries, vendors } });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to get order' });
+	}
+});
+
+// Customer: cancel order
+router.post('/me/:id/cancel', authenticate, requireRole(['customer']), async (req, res) => {
+	try {
+		const { cancellationReason } = req.body || {};
+		if (!cancellationReason || !cancellationReason.trim()) {
+			return res.status(400).json({ success: false, message: 'cancellationReason is required' });
+		}
+		const order = await Order.findOne({ _id: req.params.id, user: req.user.id });
+		if (!order) {
+			return res.status(404).json({ success: false, message: 'Order not found' });
+		}
+		// Only allow cancellation if order is not already cancelled, delivered, or shipped
+		if (order.status === 'cancelled' || order.status === 'refunded') {
+			return res.status(400).json({ success: false, message: 'Order is already cancelled' });
+		}
+		if (order.status === 'delivered') {
+			return res.status(400).json({ success: false, message: 'Cannot cancel delivered order' });
+		}
+		if (order.status === 'shipped') {
+			return res.status(400).json({ success: false, message: 'Cannot cancel shipped order. Please contact support.' });
+		}
+		const previousStatus = order.status;
+		order.status = 'cancelled';
+		order.cancellationReason = String(cancellationReason).trim();
+		order.statusHistory.push({ status: 'cancelled', updatedBy: req.user?.name || 'customer' });
+		await order.save();
+		
+		// Restore stock
+		await restoreStockForOrderItems(order.items || []);
+		
+		res.json({ success: true, message: 'Order cancelled successfully', data: order });
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Failed to cancel order' });
 	}
 });
 
@@ -604,7 +705,7 @@ router.get('/summary', authenticate, requireAdmin, async (req, res) => {
 // Admin: update order status
 router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 	try {
-		const { status } = req.body || {};
+		const { status, cancellationReason } = req.body || {};
 		if (!status) return res.status(400).json({ success: false, message: 'status is required' });
 		const order = await Order.findById(req.params.id);
 		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
@@ -614,6 +715,9 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 		const isRestoring = (previousStatus === 'cancelled' || previousStatus === 'refunded') && status !== 'cancelled' && status !== 'refunded';
 		
 		order.status = status;
+		if (isCancelling && cancellationReason) {
+			order.cancellationReason = String(cancellationReason).trim();
+		}
 		order.statusHistory.push({ status, updatedBy: req.user?.name || 'admin' });
 		await order.save();
 		

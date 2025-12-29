@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, Modal, ActivityIndicator, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AntDesign from 'react-native-vector-icons/AntDesign';
@@ -10,7 +10,9 @@ import ViewCartFooter from '../components/ViewCartFooter';
 import LottieView from 'lottie-react-native';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
+import { useAddress } from '../contexts/AddressContext';
 import api from '../utils/api';
+import { geocodeAddress } from '../utils/locationUtils';
 
 export default function ProductDetailsScreen() {
     const navigation = useNavigation();
@@ -19,6 +21,7 @@ export default function ProductDetailsScreen() {
 
     const { addToCart } = useCart();
     const { toggleWishlist, isInWishlist, checkWishlistStatus } = useWishlist();
+    const { getDefaultAddress } = useAddress();
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -28,6 +31,11 @@ export default function ProductDetailsScreen() {
     const [showAddAnimation, setShowAddAnimation] = useState(false);
     const lastFetchedProductIdRef = useRef(null);
     const [actionBarHeight, setActionBarHeight] = useState(84);
+    const [shippingSettings, setShippingSettings] = useState(null);
+    const [isAddressValid, setIsAddressValid] = useState(true);
+    const [deliveryAreaError, setDeliveryAreaError] = useState('');
+    const [validatingAddress, setValidatingAddress] = useState(false);
+    const lastValidatedAddressId = useRef(null);
 
     // Variant handling
     const [attributeOptions, setAttributeOptions] = useState({}); // { Color: ['Red','Blue'], Size: ['M','L'] }
@@ -281,6 +289,195 @@ export default function ProductDetailsScreen() {
         return '#4caf50'; // Green for in stock
     };
 
+    // Load shipping settings
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await api.getShippingSettings();
+                const data = res?.data || res;
+                setShippingSettings(data || {});
+            } catch (_) {
+                setShippingSettings(null);
+            }
+        })();
+    }, []);
+
+    // Calculate distance between two coordinates using Haversine formula
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371; // Earth's radius in kilometers
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c; // Distance in kilometers
+    };
+
+    // Memoize default address to avoid unnecessary re-renders
+    const defaultAddress = useMemo(() => {
+        return getDefaultAddress();
+    }, []);
+
+    // Validate address against delivery area (only once per address change)
+    useEffect(() => {
+        const validateAddressForDelivery = async () => {
+            const address = defaultAddress;
+            if (!address) {
+                setIsAddressValid(true); // Allow if no address selected yet
+                setDeliveryAreaError('');
+                lastValidatedAddressId.current = null;
+                return;
+            }
+
+            // Check if we already validated this address
+            const addressId = address.id || address._id;
+            const addressKey = `${addressId}_${address.latitude}_${address.longitude}`;
+            
+            if (lastValidatedAddressId.current === addressKey) {
+                console.log('ProductDetails: Address already validated, skipping...');
+                return;
+            }
+
+            const deliveryArea = shippingSettings?.deliveryArea;
+            console.log('ProductDetails: Validation started. Address:', address);
+            console.log('ProductDetails: Shipping settings:', shippingSettings);
+            console.log('ProductDetails: Delivery area:', deliveryArea);
+            
+            if (!deliveryArea || deliveryArea.latitude == null || deliveryArea.longitude == null || deliveryArea.radius == null) {
+                // No delivery area restriction configured
+                console.log('ProductDetails: No delivery area configured - allowing order');
+                setIsAddressValid(true);
+                setDeliveryAreaError('');
+                lastValidatedAddressId.current = addressKey;
+                return;
+            }
+
+            setValidatingAddress(true);
+            try {
+                let addressLat = null;
+                let addressLon = null;
+
+                // Priority 1: Try direct latitude/longitude fields (from AddressMapScreen)
+                if (address.latitude != null && address.longitude != null) {
+                    addressLat = Number(address.latitude);
+                    addressLon = Number(address.longitude);
+                    console.log('ProductDetails: Using direct latitude/longitude from address:', addressLat, addressLon);
+                }
+                // Priority 2: Try coordinates from location object
+                else if (address.location?.coordinates && Array.isArray(address.location.coordinates) && address.location.coordinates.length >= 2) {
+                    addressLat = Number(address.location.coordinates[1]);
+                    addressLon = Number(address.location.coordinates[0]);
+                    console.log('ProductDetails: Using coordinates from address.location:', addressLat, addressLon);
+                }
+
+                // If still no coordinates, geocode the address (fallback)
+                if (!addressLat || !addressLon || isNaN(addressLat) || isNaN(addressLon)) {
+                    console.log('ProductDetails: No coordinates found, attempting geocoding...');
+                    // Build address string more carefully - try multiple formats
+                    const addressFormats = [];
+                    
+                    // Format 1: Full address
+                    const addressParts = [];
+                    if (address.address) addressParts.push(address.address);
+                    if (address.city) addressParts.push(address.city);
+                    if (address.state) addressParts.push(address.state);
+                    if (address.zipCode) addressParts.push(address.zipCode);
+                    if (address.country) addressParts.push(address.country);
+                    if (addressParts.length > 0) {
+                        addressFormats.push(addressParts.join(', ').trim());
+                    }
+                    
+                    // Format 2: City, State, Country (if full address fails)
+                    if (address.city && address.state && address.country) {
+                        addressFormats.push(`${address.city}, ${address.state}, ${address.country}`.trim());
+                    }
+                    
+                    // Format 3: City, Country (minimal)
+                    if (address.city && address.country) {
+                        addressFormats.push(`${address.city}, ${address.country}`.trim());
+                    }
+                    
+                    console.log('ProductDetails: Trying geocoding with formats:', addressFormats);
+                    
+                    for (const addressStr of addressFormats) {
+                        if (addressStr && addressStr.length > 3) {
+                            try {
+                                const coords = await geocodeAddress(addressStr);
+                                console.log('ProductDetails: Geocoding result for', addressStr, ':', coords);
+                                if (coords && coords.latitude && coords.longitude) {
+                                    addressLat = Number(coords.latitude);
+                                    addressLon = Number(coords.longitude);
+                                    console.log('ProductDetails: Successfully geocoded. Coordinates:', addressLat, addressLon);
+                                    break; // Success, stop trying other formats
+                                }
+                            } catch (err) {
+                                console.error('ProductDetails: Geocoding error for format', addressStr, ':', err);
+                            }
+                        }
+                    }
+                    
+                    if (!addressLat || !addressLon || isNaN(addressLat) || isNaN(addressLon)) {
+                        console.warn('ProductDetails: All geocoding attempts failed for address');
+                    }
+                }
+
+                // If still no coordinates, cannot validate - block order to be safe
+                if (!addressLat || !addressLon || isNaN(addressLat) || isNaN(addressLon)) {
+                    console.warn('ProductDetails: Cannot determine address coordinates for validation');
+                    setIsAddressValid(false);
+                    setDeliveryAreaError('Delivery is not available at this address. Please select a different address within our delivery area or contact us for assistance.');
+                    lastValidatedAddressId.current = addressKey;
+                    return;
+                }
+
+                console.log('ProductDetails: Delivery area:', deliveryArea);
+                console.log('ProductDetails: Address coordinates:', addressLat, addressLon);
+                console.log('ProductDetails: Delivery center:', deliveryArea.latitude, deliveryArea.longitude);
+                console.log('ProductDetails: Delivery radius:', deliveryArea.radius, 'km');
+
+                const distance = calculateDistance(
+                    addressLat,
+                    addressLon,
+                    Number(deliveryArea.latitude),
+                    Number(deliveryArea.longitude)
+                );
+
+                console.log('ProductDetails: Calculated distance:', distance, 'km');
+
+                if (distance > Number(deliveryArea.radius)) {
+                    setIsAddressValid(false);
+                    setDeliveryAreaError(`This address is ${distance.toFixed(2)} km away from our delivery area. Maximum delivery distance is ${deliveryArea.radius} km.`);
+                    console.log('ProductDetails: Address is OUTSIDE delivery area');
+                } else {
+                    setIsAddressValid(true);
+                    setDeliveryAreaError('');
+                    console.log('ProductDetails: Address is WITHIN delivery area');
+                }
+                
+                // Mark this address as validated
+                lastValidatedAddressId.current = addressKey;
+            } catch (error) {
+                console.error('ProductDetails: Error validating address:', error);
+                // On error, block order to be safe
+                setIsAddressValid(false);
+                setDeliveryAreaError('Delivery is not available at this address. Please select a different address within our delivery area.');
+                lastValidatedAddressId.current = addressKey;
+            } finally {
+                setValidatingAddress(false);
+            }
+        };
+
+        validateAddressForDelivery();
+    }, [
+        defaultAddress?.id,
+        defaultAddress?.latitude,
+        defaultAddress?.longitude,
+        shippingSettings?.deliveryArea?.latitude,
+        shippingSettings?.deliveryArea?.longitude,
+        shippingSettings?.deliveryArea?.radius
+    ]);
+
     const handleSelectAttribute = (name, value) => {
         const newAttributes = { ...selectedAttributes, [name]: value };
         setSelectedAttributes(newAttributes);
@@ -300,6 +497,22 @@ export default function ProductDetailsScreen() {
         
         if (isOutOfStock()) {
             Alert.alert('Out of Stock', 'This product is currently out of stock.');
+            return false;
+        }
+
+        // Check delivery area validation
+        if (!isAddressValid) {
+            Alert.alert(
+                'Delivery Not Available',
+                deliveryAreaError || 'Delivery is not available at your current address. Please select a different address within our delivery area.',
+                [
+                    { text: 'OK', style: 'cancel' },
+                    { 
+                        text: 'Change Address', 
+                        onPress: () => navigation.navigate('AddressList')
+                    }
+                ]
+            );
             return false;
         }
         

@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Vendor = require('../models/Vendor');
 const Driver = require('../models/Driver');
@@ -110,7 +111,7 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 // Admin: update customer
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone } = req.body || {};
+  const { name, email, phone, password } = req.body || {};
   
   const user = await User.findById(id);
   if (!user) {
@@ -154,6 +155,15 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   }
 
   if (name !== undefined) user.name = String(name).trim();
+
+  // Update password if provided
+  if (password !== undefined && password !== '') {
+    if (String(password).length < 8) {
+      res.status(400);
+      throw new Error('Password must be at least 8 characters');
+    }
+    user.passwordHash = await bcrypt.hash(String(password), 10);
+  }
 
   const updated = await user.save();
   const userObj = updated.toObject();
@@ -210,6 +220,14 @@ router.post('/me/addresses', authenticate, requireRole(['customer']), async (req
   addressData.state = addressData.state || '';
   addressData.zipCode = addressData.zipCode || '';
   addressData.country = addressData.country || 'United States';
+  
+  // Handle location coordinates if latitude/longitude provided
+  if (addressData.latitude != null && addressData.longitude != null) {
+    addressData.location = {
+      type: 'Point',
+      coordinates: [Number(addressData.longitude), Number(addressData.latitude)] // [lon, lat] format for MongoDB
+    };
+  }
   
   const user = await User.findById(req.user.id);
   if (!user) { res.status(404); throw new Error('User not found'); }
@@ -277,6 +295,14 @@ router.put('/me/addresses/:addressId', authenticate, requireRole(['customer']), 
   // Handle firstName/lastName combination for the name field
   if (addressData.firstName || addressData.lastName) {
     addressData.name = `${addressData.firstName || ''} ${addressData.lastName || ''}`.trim();
+  }
+
+  // Handle location coordinates if latitude/longitude provided
+  if (addressData.latitude != null && addressData.longitude != null) {
+    addressData.location = {
+      type: 'Point',
+      coordinates: [Number(addressData.longitude), Number(addressData.latitude)] // [lon, lat] format for MongoDB
+    };
   }
 
   const user = await User.findById(req.user.id);
@@ -502,6 +528,14 @@ router.post('/:id/addresses', authenticate, requireAdmin, async (req, res) => {
   // If this address is set as default, unset others
   if (addressData.isDefault) {
     user.addresses.forEach(addr => addr.isDefault = false);
+  }
+
+  // Handle location coordinates if latitude/longitude provided
+  if (addressData.latitude != null && addressData.longitude != null) {
+    addressData.location = {
+      type: 'Point',
+      coordinates: [Number(addressData.longitude), Number(addressData.latitude)] // [lon, lat] format for MongoDB
+    };
   }
 
   user.addresses.push(addressData);

@@ -32,7 +32,12 @@ router.post('/apply', async (req, res) => {
       useExistingVendorUser,
       vendorUserEmail,
       vendorUserName,
-      vendorUserPassword
+      vendorUserPassword,
+      bankAccountHolderName,
+      bankAccountNumber,
+      bankName,
+      bankIFSC,
+      bankBranch
     } = req.body || {};
 
     const applicantEmail = (email || req.user.email || '').trim().toLowerCase();
@@ -79,7 +84,12 @@ router.post('/apply', async (req, res) => {
       address: address ? String(address).trim() : '',
       commission: commission !== undefined ? Number(commission) : undefined,
       status: 'pending',
-      enabled: false
+      enabled: false,
+      bankAccountHolderName: bankAccountHolderName ? String(bankAccountHolderName).trim() : '',
+      bankAccountNumber: bankAccountNumber ? String(bankAccountNumber).trim() : '',
+      bankName: bankName ? String(bankName).trim() : '',
+      bankIFSC: bankIFSC ? String(bankIFSC).trim() : '',
+      bankBranch: bankBranch ? String(bankBranch).trim() : ''
     });
 
     // Handle vendor user association/creation logic
@@ -212,7 +222,7 @@ router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit'
 
 // POST /vendors (accepts direct upload fields imageUrl/imagePublicId for logo)
 router.post('/', authenticate, requirePermission('vendor.add'), async (req, res) => {
-  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId } = req.body || {};
+  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, bankAccountHolderName, bankAccountNumber, bankName, bankIFSC, bankBranch } = req.body || {};
   if (!name || !companyName || !email || !phone || !address1 || !city || !zip) {
     res.status(400);
     throw new Error('name, companyName, email, phone, address1, city and zip are required');
@@ -254,7 +264,12 @@ router.post('/', authenticate, requirePermission('vendor.add'), async (req, res)
     address: address ? String(address).trim() : '',
     commission: commission !== undefined ? Number(commission) : undefined,
     logo: imageUrl || '',
-    logoPublicId: imagePublicId || ''
+    logoPublicId: imagePublicId || '',
+    bankAccountHolderName: bankAccountHolderName ? String(bankAccountHolderName).trim() : '',
+    bankAccountNumber: bankAccountNumber ? String(bankAccountNumber).trim() : '',
+    bankName: bankName ? String(bankName).trim() : '',
+    bankIFSC: bankIFSC ? String(bankIFSC).trim() : '',
+    bankBranch: bankBranch ? String(bankBranch).trim() : ''
   });
 
   // If the user creating the vendor is a vendor user, automatically assign them to this new vendor
@@ -277,7 +292,7 @@ router.post('/', authenticate, requirePermission('vendor.add'), async (req, res)
 // PUT /vendors/:id
 router.put('/:id', authenticate, requirePermission('vendor.edit'), async (req, res) => {
   const { id } = req.params;
-  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, status, enabled } = req.body || {};
+  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, status, enabled, bankAccountHolderName, bankAccountNumber, bankName, bankIFSC, bankBranch } = req.body || {};
 
   // If user is a vendor, ensure they can only edit their own vendor
   if (req.user.role === 'vendor' && req.user.vendorId !== id) {
@@ -326,6 +341,11 @@ router.put('/:id', authenticate, requirePermission('vendor.edit'), async (req, r
   if (enabled !== undefined) vendor.enabled = Boolean(enabled);
   if (imageUrl !== undefined) vendor.logo = imageUrl;
   if (imagePublicId !== undefined) vendor.logoPublicId = imagePublicId;
+  if (bankAccountHolderName !== undefined) vendor.bankAccountHolderName = String(bankAccountHolderName).trim();
+  if (bankAccountNumber !== undefined) vendor.bankAccountNumber = String(bankAccountNumber).trim();
+  if (bankName !== undefined) vendor.bankName = String(bankName).trim();
+  if (bankIFSC !== undefined) vendor.bankIFSC = String(bankIFSC).trim();
+  if (bankBranch !== undefined) vendor.bankBranch = String(bankBranch).trim();
 
   const updated = await vendor.save();
   res.json({ success: true, data: updated });

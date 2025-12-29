@@ -19,7 +19,13 @@ const VendorApplyScreen = ({ navigation }) => {
 		vendorUserName: '',
 		// New: allow vendor to set credential during registration (optional when linking existing user)
 		vendorUserPassword: '',
-		confirmVendorUserPassword: ''
+		confirmVendorUserPassword: '',
+		// Bank details
+		bankAccountHolderName: '',
+		bankAccountNumber: '',
+		bankName: '',
+		bankIFSC: '',
+		bankBranch: ''
 	});
 	const [submitting, setSubmitting] = useState(false);
 	const [showPw, setShowPw] = useState(false);
@@ -126,6 +132,29 @@ const VendorApplyScreen = ({ navigation }) => {
 					<View style={styles.formGroup}> 
 						<Text style={styles.label}>Additional Address Info</Text>
 						<TextInput style={styles.input} value={form.address} onChangeText={v => update('address', v)} placeholder="Landmark, notes" placeholderTextColor="#777" />
+					</View>
+					<Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>Bank Details</Text>
+					<View style={styles.formGroup}>
+						<Text style={styles.label}>Account Holder Name</Text>
+						<TextInput style={styles.input} value={form.bankAccountHolderName} onChangeText={v => update('bankAccountHolderName', v)} placeholder="Account holder name" placeholderTextColor="#777" />
+					</View>
+					<View style={styles.formGroup}>
+						<Text style={styles.label}>Account Number</Text>
+						<TextInput style={styles.input} value={form.bankAccountNumber} onChangeText={v => update('bankAccountNumber', v)} placeholder="Bank account number" keyboardType="numeric" placeholderTextColor="#777" />
+					</View>
+					<View style={styles.formGroup}>
+						<Text style={styles.label}>Bank Name</Text>
+						<TextInput style={styles.input} value={form.bankName} onChangeText={v => update('bankName', v)} placeholder="Bank name" placeholderTextColor="#777" />
+					</View>
+					<View style={styles.formRow}>
+						<View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+							<Text style={styles.label}>IFSC Code</Text>
+							<TextInput style={styles.input} value={form.bankIFSC} onChangeText={v => update('bankIFSC', v.toUpperCase())} placeholder="IFSC Code" autoCapitalize="characters" placeholderTextColor="#777" />
+						</View>
+						<View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+							<Text style={styles.label}>Branch</Text>
+							<TextInput style={styles.input} value={form.bankBranch} onChangeText={v => update('bankBranch', v)} placeholder="Branch name" placeholderTextColor="#777" />
+						</View>
 					</View>
 					<Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>Vendor User Link</Text>
 					<View style={styles.formGroup}>

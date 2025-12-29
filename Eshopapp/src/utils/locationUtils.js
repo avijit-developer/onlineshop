@@ -114,7 +114,7 @@ export const reverseGeocode = async (latitude, longitude) => {
     if (Platform.OS === 'android') {
       // Try a simple geocoding service that works better in emulators
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`,
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
         {
           headers: {
             'User-Agent': 'EshopApp/1.0'
@@ -148,6 +148,133 @@ export const reverseGeocode = async (latitude, longitude) => {
     // Return a realistic mock address instead of coordinates
     const fallback = { area: 'Downtown Area', city: 'NY', state: '', postalCode: '', country: 'United States', display: 'Downtown Area, NY' };
     return fallback;
+  }
+};
+
+// Forward geocoding: convert address string to coordinates
+export const geocodeAddress = async (addressString) => {
+  if (!addressString || addressString.trim().length < 3) {
+    console.warn('Address string too short for geocoding');
+    return null;
+  }
+
+  try {
+    const encodedAddress = encodeURIComponent(addressString.trim());
+    
+    // Try multiple geocoding providers in parallel
+    const providers = [
+      // Provider 1: Nominatim (OpenStreetMap)
+      fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'EshopApp/1.0'
+          }
+        }
+      ).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0 && data[0].lat && data[0].lon) {
+            return {
+              latitude: parseFloat(data[0].lat),
+              longitude: parseFloat(data[0].lon),
+              provider: 'nominatim'
+            };
+          }
+        }
+        throw new Error('Nominatim failed');
+      }),
+      
+      // Provider 2: Geocode.maps.co (backup)
+      fetch(
+        `https://geocode.maps.co/search?q=${encodedAddress}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'EshopApp/1.0'
+          }
+        }
+      ).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0 && data[0].lat && data[0].lon) {
+            return {
+              latitude: parseFloat(data[0].lat),
+              longitude: parseFloat(data[0].lon),
+              provider: 'geocode.maps.co'
+            };
+          }
+        }
+        throw new Error('Geocode.maps.co failed');
+      }),
+      
+      // Provider 3: BigDataCloud (backup)
+      fetch(
+        `https://api.bigdatacloud.net/data/forward-geocode-client?q=${encodedAddress}&limit=1`
+      ).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0 && data[0].latitude && data[0].longitude) {
+            return {
+              latitude: parseFloat(data[0].latitude),
+              longitude: parseFloat(data[0].longitude),
+              provider: 'bigdatacloud'
+            };
+          }
+        }
+        throw new Error('BigDataCloud failed');
+      })
+    ];
+
+    // Try all providers with timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Geocoding timeout')), 10000)
+    );
+
+    const results = await Promise.allSettled([
+      Promise.race([...providers, timeoutPromise])
+    ]);
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value && result.value.latitude && result.value.longitude) {
+        console.log(`Geocoding successful using ${result.value.provider}:`, result.value.latitude, result.value.longitude);
+        return {
+          latitude: result.value.latitude,
+          longitude: result.value.longitude
+        };
+      }
+    }
+
+    // If all providers fail, try a simplified address search
+    console.log('All geocoding providers failed, trying simplified address...');
+    const simplifiedAddress = addressString.split(',').slice(-2).join(',').trim(); // Try with just city and state/country
+    if (simplifiedAddress && simplifiedAddress !== addressString && simplifiedAddress.length > 3) {
+      const encodedSimplified = encodeURIComponent(simplifiedAddress);
+      const fallbackResponse = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedSimplified}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'EshopApp/1.0'
+          }
+        }
+      );
+      
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        if (fallbackData && fallbackData.length > 0 && fallbackData[0].lat && fallbackData[0].lon) {
+          console.log('Geocoding successful with simplified address');
+          return {
+            latitude: parseFloat(fallbackData[0].lat),
+            longitude: parseFloat(fallbackData[0].lon)
+          };
+        }
+      }
+    }
+
+    console.warn('All geocoding attempts failed for address:', addressString);
+    return null;
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    return null;
   }
 };
 
@@ -205,27 +332,61 @@ function withTimeout(promise, ms) {
 
 function parseNominatim(json) {
   const addr = json?.address || {};
+  const road = addr.road || addr.street || addr.pedestrian || '';
+  const locality = addr.locality || addr.suburb || addr.neighbourhood || addr.hamlet || addr.village || '';
   const area = addr.suburb || addr.neighbourhood || addr.hamlet || addr.village || addr.town || '';
   const city = addr.city || addr.town || addr.village || addr.county || '';
   const state = addr.state || addr.region || '';
   const postalCode = addr.postcode || '';
   const country = addr.country || '';
-  const display = json?.display_name || [area, city].filter(Boolean).join(', ');
-  return { area, city, state, postalCode, country, display };
+  
+  // Build detailed display address: road, locality, area, city
+  const addressParts = [road, locality, area, city].filter(Boolean);
+  const display = json?.display_name || addressParts.join(', ') || [area, city].filter(Boolean).join(', ');
+  
+  return { 
+    road,
+    locality,
+    area, 
+    city, 
+    state, 
+    postalCode, 
+    country, 
+    display,
+    fullAddress: addressParts.join(', ')
+  };
 }
 
 function parseBigDataCloud(json) {
+  const road = json?.street || json?.streetName || '';
+  const locality = json?.locality || json?.localityInfo?.administrative?.[0]?.name || '';
   const area = json?.locality || json?.localityInfo?.administrative?.[0]?.name || '';
   const city = json?.city || json?.locality || json?.localityInfo?.administrative?.[1]?.name || '';
   const state = json?.principalSubdivision || json?.localityInfo?.administrative?.[2]?.name || '';
   const postalCode = json?.postcode || '';
   const country = json?.countryName || '';
-  const display = (json && (json.locality || json.city)) ? `${(json.locality || json.city)}, ${(json.principalSubdivision || json.countryName || '')}`.trim().replace(/,\s*$/, '') : `${area}${city ? ', ' + city : ''}`;
-  return { area, city, state, postalCode, country, display };
+  
+  // Build detailed display address
+  const addressParts = [road, locality, area, city].filter(Boolean);
+  const display = (json && (json.locality || json.city)) 
+    ? `${(json.locality || json.city)}, ${(json.principalSubdivision || json.countryName || '')}`.trim().replace(/,\s*$/, '') 
+    : (addressParts.length > 0 ? addressParts.join(', ') : `${area}${city ? ', ' + city : ''}`);
+  
+  return { 
+    road,
+    locality,
+    area, 
+    city, 
+    state, 
+    postalCode, 
+    country, 
+    display,
+    fullAddress: addressParts.join(', ')
+  };
 }
 
 async function reverseNominatim(lat, lon, timeoutMs) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
   const res = await withTimeout(fetch(url, { headers: { 'User-Agent': 'EshopApp/1.0' } }), timeoutMs);
   if (!res.ok) throw new Error('nominatim fail');
   const json = await res.json();
@@ -233,7 +394,7 @@ async function reverseNominatim(lat, lon, timeoutMs) {
 }
 
 async function reverseNominatimMirror(lat, lon, timeoutMs) {
-  const url = `https://geocode.maps.co/reverse?format=json&lat=${lat}&lon=${lon}`;
+  const url = `https://geocode.maps.co/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`;
   const res = await withTimeout(fetch(url, { headers: { 'User-Agent': 'EshopApp/1.0' } }), timeoutMs);
   if (!res.ok) throw new Error('nominatim mirror fail');
   const json = await res.json();
