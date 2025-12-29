@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useLocation } from '../contexts/LocationContext';
 import { useUser } from '../contexts/UserContext';
+import { useCart } from '../contexts/CartContext';
 
 const LoginScreen = ({ navigation }) => {
   const [phone, setPhone] = useState('');
@@ -23,6 +24,7 @@ const LoginScreen = ({ navigation }) => {
   const { requestLocation, isLoading: locationLoading, loadUserDefaultAddress } = useLocation();
   const [showPw, setShowPw] = useState(false);
   const { login } = useUser();
+  const { refreshCart } = useCart();
 
   const handleLogin = async () => {
     if (!phone || !password) {
@@ -38,6 +40,15 @@ const LoginScreen = ({ navigation }) => {
       if (result.success) {
         // Trigger default address fetch in background to populate header quickly
         setTimeout(async () => { try { await loadUserDefaultAddress(); } catch (_) {} }, 0);
+        // Refresh cart after successful login
+        setTimeout(async () => { 
+          try { 
+            await refreshCart(true); 
+            console.log('Cart refreshed after login');
+          } catch (error) {
+            console.log('Error refreshing cart after login:', error);
+          }
+        }, 500); // Small delay to ensure token is stored
         navigation.replace('Home');
       } else {
         Alert.alert('Login Failed', result.error || 'Please check your credentials and try again');

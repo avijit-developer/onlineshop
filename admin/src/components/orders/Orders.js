@@ -12,11 +12,11 @@ const Orders = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [emailFilter, setEmailFilter] = useState('');
+  const [orderIdFilter, setOrderIdFilter] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
   // Draft filters (edited in UI before Apply)
   const [draftStatus, setDraftStatus] = useState('all');
-  const [draftEmail, setDraftEmail] = useState('');
+  const [draftOrderId, setDraftOrderId] = useState('');
   const [draftFrom, setDraftFrom] = useState('');
   const [draftTo, setDraftTo] = useState('');
   const [draftVendor, setDraftVendor] = useState('');
@@ -95,7 +95,7 @@ const Orders = () => {
 
   useEffect(() => {
     filterOrders();
-  }, [orders, searchTerm, statusFilter, dateFrom, dateTo, emailFilter, vendorFilter]);
+  }, [orders, searchTerm, statusFilter, dateFrom, dateTo, orderIdFilter, vendorFilter]);
 
   const fetchData = async () => {
     try {
@@ -113,7 +113,14 @@ const Orders = () => {
           const json = await resp.json();
           if (json?.success) {
             // Vendor API returns mapped objects with id and vendor totals
-            setOrders(json.data || []);
+            const ordersData = json.data || [];
+            console.log('📦 Orders fetched from API:', ordersData.length);
+            if (ordersData.length > 0) {
+              console.log('📦 First order sample:', JSON.stringify(ordersData[0], null, 2));
+              console.log('📦 First order deliveryLatitude:', ordersData[0].deliveryLatitude);
+              console.log('📦 First order deliveryLongitude:', ordersData[0].deliveryLongitude);
+            }
+            setOrders(ordersData);
             loadedFromBackend = true;
           }
         }
@@ -168,25 +175,31 @@ const Orders = () => {
   const filterOrders = () => {
     let filtered = orders;
 
-    // Search filter
+    // Search filter - only by Order ID
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(order => {
-        const orderNum = String(order.orderNumber || '').toLowerCase();
-        const custEmail = String(order.user?.email || order.customerEmail || '').toLowerCase();
-        return orderNum.includes(q) || custEmail.includes(q);
+        const orderNum = String(order.orderNumber || order._id || order.id || '').toLowerCase();
+        return orderNum.includes(q);
       });
     }
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.status === statusFilter);
+      filtered = filtered.filter(order => {
+        const orderStatus = normalizeStatus(order.status);
+        const filterStatus = normalizeStatus(statusFilter);
+        return orderStatus === filterStatus;
+      });
     }
 
-    // Email filter
-    if (emailFilter) {
-      const e = emailFilter.toLowerCase();
-      filtered = filtered.filter(order => (order.user?.email || order.customerEmail || '').toLowerCase().includes(e));
+    // Order ID filter
+    if (orderIdFilter) {
+      const orderId = orderIdFilter.toLowerCase();
+      filtered = filtered.filter(order => {
+        const orderNum = String(order.orderNumber || order._id || order.id || '').toLowerCase();
+        return orderNum.includes(orderId);
+      });
     }
 
     // Date range filter
@@ -219,7 +232,7 @@ const Orders = () => {
 
   const applyFilters = () => {
     setStatusFilter(draftStatus);
-    setEmailFilter(draftEmail);
+    setOrderIdFilter(draftOrderId);
     setDateFrom(draftFrom);
     setDateTo(draftTo);
     setVendorFilter(draftVendor);
@@ -227,12 +240,12 @@ const Orders = () => {
 
   const resetFilters = () => {
     setDraftStatus('all');
-    setDraftEmail('');
+    setDraftOrderId('');
     setDraftFrom('');
     setDraftTo('');
     setDraftVendor('');
     setStatusFilter('all');
-    setEmailFilter('');
+    setOrderIdFilter('');
     setDateFrom('');
     setDateTo('');
     setVendorFilter('');
@@ -276,6 +289,9 @@ const Orders = () => {
   };
 
   const handleViewDetails = (order) => {
+    console.log('📦 Selected Order for Details:', JSON.stringify(order, null, 2));
+    console.log('📦 Order deliveryLatitude:', order?.deliveryLatitude);
+    console.log('📦 Order deliveryLongitude:', order?.deliveryLongitude);
     setSelectedOrder(order);
     setShowDetailsModal(true);
   };
@@ -438,7 +454,7 @@ const Orders = () => {
           <div className="search-filter-container" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="text"
-              placeholder="Search orders..."
+              placeholder="Search by Order ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -476,8 +492,8 @@ const Orders = () => {
               </select>
             </div>
             <div className="filter-control" style={{ gridColumn: '1 / -1' }}>
-              <label>Customer Email</label>
-              <input type="email" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} placeholder="email@example.com" className="filter-input" />
+              <label>Order ID</label>
+              <input type="text" value={draftOrderId} onChange={(e) => setDraftOrderId(e.target.value)} placeholder="Enter Order ID" className="filter-input" />
             </div>
             <div className="filter-control">
               <label>From</label>
@@ -638,51 +654,73 @@ const Orders = () => {
       {/* Order Details Modal */}
       {showDetailsModal && selectedOrder && (
         <div className="modal-overlay">
-          <div className="modal order-details-modal">
-            <div className="modal-header">
-              <h2>Order Details - #{selectedOrder.orderNumber}</h2>
-              <button onClick={() => setShowDetailsModal(false)} className="close-btn">&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="order-details">
-                <div className="order-header">
-                  <div className="order-status">
-                    <span className={`status-badge ${getStatusBadgeClass(selectedOrder.status)}`}>
-                      {(() => {
-                        const vendorCount = Array.from(new Set((selectedOrder.items || []).map(i => String(i.vendor)).filter(Boolean))).length;
-                        return vendorCount > 1 ? aggregateMultiVendorStatus(selectedOrder) : selectedOrder.status;
-                      })()}
-                    </span>
-                    <span className="order-date">
-                      {require('../../utils/date').formatDateTime(selectedOrder.createdAt)}
-                    </span>
+            <div className="modal order-details-modal">
+              <div className="modal-header">
+                <h2>Order Details - #{selectedOrder.orderNumber}</h2>
+                <button onClick={() => setShowDetailsModal(false)} className="close-btn">&times;</button>
+              </div>
+              <div className="modal-body">
+                <div className="order-details">
+                  <div className="order-header">
+                    <div className="order-status">
+                      <span className={`status-badge ${getStatusBadgeClass(selectedOrder.status)}`}>
+                        {(() => {
+                          const vendorCount = Array.from(new Set((selectedOrder.items || []).map(i => String(i.vendor)).filter(Boolean))).length;
+                          return vendorCount > 1 ? aggregateMultiVendorStatus(selectedOrder) : selectedOrder.status;
+                        })()}
+                      </span>
+                      <span className="order-date">
+                        {require('../../utils/date').formatDateTime(selectedOrder.createdAt)}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="order-sections">
-                  {!isVendor && (
-                    <div className="section">
-                      <h3>Customer Information</h3>
-                      <div className="info-grid">
-                        <div className="info-item">
-                          <label>Name:</label>
-                          <span>{getCustomerName(selectedOrder)}</span>
-                        </div>
-                        <div className="info-item">
-                          <label>Email:</label>
-                          <span>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</span>
-                        </div>
-                        <div className="info-item">
-                          <label>Phone:</label>
-                          <span>{selectedOrder.customerPhone || selectedOrder.user?.phone || 'N/A'}</span>
-                        </div>
-                        <div className="info-item">
-                          <label>Address:</label>
-                          <span>{normalizeAddress(selectedOrder.shippingAddress)}</span>
+                  <div className="order-sections">
+                    {!isVendor && (
+                      <div className="section">
+                        <h3>Customer Information</h3>
+                        <div className="info-grid">
+                          <div className="info-item">
+                            <label>Name:</label>
+                            <span>{getCustomerName(selectedOrder)}</span>
+                          </div>
+                          <div className="info-item">
+                            <label>Email:</label>
+                            <span>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</span>
+                          </div>
+                          <div className="info-item">
+                            <label>Phone:</label>
+                            <span>{selectedOrder.customerPhone || selectedOrder.user?.phone || 'N/A'}</span>
+                          </div>
+                          <div className="info-item">
+                            <label>Address:</label>
+                            <span>{normalizeAddress(selectedOrder.shippingAddress)}</span>
+                          </div>
+                          {/* Always show lat/long fields, even if null */}
+                          <div className="info-item">
+                            <label>Latitude:</label>
+                            <span>{selectedOrder.deliveryLatitude != null ? Number(selectedOrder.deliveryLatitude).toFixed(6) : 'N/A'}</span>
+                          </div>
+                          <div className="info-item">
+                            <label>Longitude:</label>
+                            <span>{selectedOrder.deliveryLongitude != null ? Number(selectedOrder.deliveryLongitude).toFixed(6) : 'N/A'}</span>
+                          </div>
+                          {(selectedOrder.deliveryLatitude != null && selectedOrder.deliveryLongitude != null) && (
+                            <div className="info-item">
+                              <label>Location:</label>
+                              <a 
+                                href={`https://www.google.com/maps?q=${selectedOrder.deliveryLatitude},${selectedOrder.deliveryLongitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#007bff', textDecoration: 'underline', cursor: 'pointer' }}
+                              >
+                                View on Google Maps
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   <div className="section">
                     <h3>Order Items</h3>
@@ -877,6 +915,27 @@ const Orders = () => {
                       <p>{getCustomerName(selectedOrder)}</p>
                       <p>{selectedOrder.user?.email || selectedOrder.customerEmail || ''}</p>
                       <p>{normalizeAddress(selectedOrder.shippingAddress)}</p>
+                      {/* Always show lat/long fields */}
+                      <div style={{ marginTop: '8px' }}>
+                        <p style={{ margin: '4px 0', fontSize: '14px' }}>
+                          <strong>Latitude:</strong> {selectedOrder.deliveryLatitude != null ? Number(selectedOrder.deliveryLatitude).toFixed(6) : 'N/A'}
+                        </p>
+                        <p style={{ margin: '4px 0', fontSize: '14px' }}>
+                          <strong>Longitude:</strong> {selectedOrder.deliveryLongitude != null ? Number(selectedOrder.deliveryLongitude).toFixed(6) : 'N/A'}
+                        </p>
+                        {(selectedOrder.deliveryLatitude != null && selectedOrder.deliveryLongitude != null) && (
+                          <p style={{ margin: '4px 0', fontSize: '14px' }}>
+                            <a 
+                              href={`https://www.google.com/maps?q=${selectedOrder.deliveryLatitude},${selectedOrder.deliveryLongitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#007bff', textDecoration: 'underline' }}
+                            >
+                              View on Google Maps
+                            </a>
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
 

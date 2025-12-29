@@ -42,6 +42,65 @@ export const CartProvider = ({ children }) => {
     };
   }, []);
 
+  // Watch for auth token changes (login/logout) and refresh cart
+  useEffect(() => {
+    let isMounted = true;
+    let checkInterval = null;
+    
+    const watchAuthToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        const wasAuthenticated = isAuthenticated;
+        const isNowAuthenticated = !!token;
+        
+        // If auth state changed (login or logout), refresh cart
+        if (wasAuthenticated !== isNowAuthenticated) {
+          setIsAuthenticated(isNowAuthenticated);
+          if (isNowAuthenticated) {
+            // User just logged in - force refresh cart
+            console.log('Auth token detected, refreshing cart...');
+            await loadCart(true); // Force load
+          } else {
+            // User just logged out - clear cart
+            setCartItems([]);
+            setCartCoupon(null);
+          }
+        } else if (isNowAuthenticated && isInitialized) {
+          // User is authenticated and cart is initialized - periodically check for updates
+          // This handles the case where user logs in but cart wasn't loaded initially
+          if (cartItems.length === 0) {
+            console.log('User authenticated but cart empty, refreshing...');
+            await loadCart(true); // Force load
+          }
+        }
+      } catch (error) {
+        console.log('Error watching auth token:', error);
+      }
+    };
+    
+    // Check immediately
+    watchAuthToken();
+    
+    // Set up interval to check for auth token changes (every 1 second for first 10 seconds)
+    let checkCount = 0;
+    checkInterval = setInterval(() => {
+      if (isMounted && checkCount < 10) {
+        watchAuthToken();
+        checkCount++;
+      } else if (checkCount >= 10 && checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    }, 1000);
+    
+    return () => {
+      isMounted = false;
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
+    };
+  }, [isAuthenticated, isInitialized, cartItems.length]);
+
   const checkAuthAndLoadCart = async () => {
     // Prevent multiple initializations
     if (isInitialized) {
@@ -55,7 +114,7 @@ export const CartProvider = ({ children }) => {
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
         setIsAuthenticated(true);
-        await loadCart();
+        await loadCart(true); // Force load on initial check
       } else {
         setIsAuthenticated(false);
         setCartItems([]);
@@ -71,6 +130,67 @@ export const CartProvider = ({ children }) => {
       setIsLoading(false);
     }
   };
+
+  // Watch for auth token changes (login/logout) and refresh cart
+  useEffect(() => {
+    let isMounted = true;
+    let checkInterval = null;
+    let lastToken = null;
+    
+    const watchAuthToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        
+        // If token changed (login or logout), refresh cart
+        if (token !== lastToken) {
+          lastToken = token;
+          const wasAuthenticated = isAuthenticated;
+          const isNowAuthenticated = !!token;
+          
+          if (wasAuthenticated !== isNowAuthenticated && isMounted) {
+            setIsAuthenticated(isNowAuthenticated);
+            if (isNowAuthenticated) {
+              // User just logged in - force refresh cart
+              console.log('Auth token detected, refreshing cart...');
+              await loadCart(true); // Force load
+            } else {
+              // User just logged out - clear cart
+              setCartItems([]);
+              setCartCoupon(null);
+            }
+          }
+        } else if (isNowAuthenticated && isInitialized && cartItems.length === 0 && isMounted) {
+          // User is authenticated, cart initialized but empty - refresh once
+          console.log('User authenticated but cart empty, refreshing...');
+          await loadCart(true); // Force load
+        }
+      } catch (error) {
+        console.log('Error watching auth token:', error);
+      }
+    };
+    
+    // Check immediately
+    watchAuthToken();
+    
+    // Set up interval to check for auth token changes (every 1 second for first 5 seconds after mount)
+    let checkCount = 0;
+    checkInterval = setInterval(() => {
+      if (isMounted && checkCount < 5) {
+        watchAuthToken();
+        checkCount++;
+      } else if (checkCount >= 5 && checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    }, 1000);
+    
+    return () => {
+      isMounted = false;
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
+    };
+  }, [isAuthenticated, isInitialized, cartItems.length]);
 
   const loadCart = async (force = false) => {
     // Prevent multiple simultaneous cart loads using ref
@@ -368,13 +488,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const getItemPrice = (item) => {
-    console.log('🔍 getItemPrice Debug - Item:', {
-      id: item._id || item.id,
-      price: item.price,
-      regularPrice: item.regularPrice,
-      specialPrice: item.specialPrice,
-      variantInfo: item.variantInfo
-    });
+ 
     
     // Prefer variant special price, then variant price, then base special, base regular, finally item.price
     if (item.variantInfo?.specialPrice != null) {
@@ -386,11 +500,11 @@ export const CartProvider = ({ children }) => {
       return Number(item.variantInfo.price);
     }
     if (item.specialPrice != null) {
-      console.log('✅ Using item.specialPrice:', item.specialPrice);
+     //console.log('✅ Using item.specialPrice:', item.specialPrice);
       return Number(item.specialPrice);
     }
     if (item.regularPrice != null) {
-      console.log('✅ Using item.regularPrice:', item.regularPrice);
+     // console.log('✅ Using item.regularPrice:', item.regularPrice);
       return Number(item.regularPrice);
     }
     if (item.price != null) {
@@ -437,9 +551,9 @@ export const CartProvider = ({ children }) => {
     return null;
   };
 
-  const refreshCart = useCallback(async () => {
-    console.log('🔄 refreshCart called');
-    await loadCart();
+  const refreshCart = useCallback(async (force = true) => {
+    console.log('🔄 refreshCart called', force ? '(forced)' : '');
+    await loadCart(force);
   }, []);
 
   // Memoize the context value to prevent unnecessary re-renders

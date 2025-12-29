@@ -1,0 +1,221 @@
+.map-picker-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-picker-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+}
+
+.map-picker-container {
+  position: relative;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 10001;
+}
+
+.map-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.map-picker-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.map-picker-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.map-picker-close:hover {
+  background-color: #f0f0f0;
+}
+
+.map-picker-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.map-picker-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.map-coordinates {
+  font-size: 12px;
+  color: #666;
+  font-family: monospace;
+}
+
+.map-picker-instructions {
+  padding: 12px 20px;
+  background-color: #f0f7ff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.map-picker-instructions p {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.map-container {
+  flex: 1;
+  position: relative;
+  min-height: 400px;
+  height: 500px;
+  overflow: hidden;
+}
+
+.map-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 1000;
+}
+
+.spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.map-loading p {
+  margin-top: 12px;
+  color: #666;
+}
+
+.map-address-preview {
+  padding: 12px 20px;
+  background-color: #f9f9f9;
+  border-top: 1px solid #e0e0e0;
+  font-size: 14px;
+  color: #333;
+}
+
+.map-address-preview strong {
+  color: #007bff;
+}
+
+.map-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #f9f9f9;
+}
+
+/* Leaflet custom marker styles */
+.custom-marker {
+  background: transparent;
+  border: none;
+}
+
+.marker-pin {
+  background-color: #d32f2f;
+  width: 40px;
+  height: 40px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 4px solid #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+  position: relative;
+}
+
+.marker-pin::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.custom-tooltip {
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  max-width: 200px !important;
+  pointer-events: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .map-picker-container {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .map-container {
+    height: 400px;
+    min-height: 300px;
+  }
+}
+

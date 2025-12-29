@@ -631,6 +631,14 @@ const api = {
     return { success: true, data: { ...totals, orderCount: orders.length } };
   },
 
+  async getVendorReport() {
+    const token = await this.getVendorToken();
+    if (!token) throw new Error('No authentication token');
+    return this.request('/api/v1/payments/vendor-report', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  },
+
   async getAssignedVendors() {
     const token = await this.getVendorToken();
     if (!token) throw new Error('No authentication token');

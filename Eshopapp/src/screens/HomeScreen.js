@@ -13,6 +13,11 @@ import {
 import Header from '../components/Header';
 import HomeSkeleton from '../components/HomeSkeleton';
 import { useWishlist } from '../contexts/WishlistContext';
+import { useLocation } from '../contexts/LocationContext';
+import { useAddress } from '../contexts/AddressContext';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../utils/api';
 
 // Removed static Best Seller (RecentView)
 
@@ -26,6 +31,8 @@ import BestSellerSection from '../components/BestSellerSection';
 
 
 const HomeScreen = ({ navigation }) => {
+  const { address, loadUserDefaultAddress } = useLocation();
+  const { addresses, loadAddresses } = useAddress();
   const translateY = useRef(new Animated.Value(0)).current;
   const [prevScrollY, setPrevScrollY] = useState(0);
   const hasMountedOnce = !!(global && global.__HOME_MOUNTED_ONCE__);
@@ -44,6 +51,35 @@ const HomeScreen = ({ navigation }) => {
       setTimeout(() => setRefreshing(false), 600);
     }
   }, []);
+
+  // Check if user has address, redirect to AddressMap if not
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkAddress = async () => {
+        try {
+          const token = await AsyncStorage.getItem('authToken');
+          if (!token) return;
+          
+          // Check if user has any addresses
+          const response = await api.getUserAddresses().catch(() => null);
+          const userAddresses = response?.data || [];
+          
+          if (userAddresses.length === 0) {
+            // No address found, redirect to AddressMap
+            navigation.replace('AddressMap', { isNewUser: false });
+          } else {
+            // Load addresses and default address
+            await loadAddresses();
+            await loadUserDefaultAddress();
+          }
+        } catch (error) {
+          console.error('Error checking address:', error);
+        }
+      };
+      
+      checkAddress();
+    }, [navigation, loadAddresses, loadUserDefaultAddress])
+  );
 
   useEffect(() => {
     if (!hasMountedOnce) {

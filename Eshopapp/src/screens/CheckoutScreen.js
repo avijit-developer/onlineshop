@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -65,6 +66,8 @@ const CheckoutScreen = () => {
   const [deliveryAreaError, setDeliveryAreaError] = useState('');
   const [validatingAddress, setValidatingAddress] = useState(false);
   const lastValidatedAddressId = useRef(null);
+  // Store validated coordinates to reuse during order placement
+  const validatedCoordinates = useRef({ latitude: null, longitude: null, addressKey: null });
   
   // Memoize default address to avoid unnecessary re-renders
   const defaultAddress = useMemo(() => {
@@ -74,10 +77,16 @@ const CheckoutScreen = () => {
   useEffect(() => {
     (async () => {
       try {
+        console.log('🔍 Fetching shipping settings...');
         const res = await api.getShippingSettings();
+        console.log('🔍 Raw API Response:', JSON.stringify(res, null, 2));
         const data = res?.data || res;
+        console.log('🔍 Extracted Data:', JSON.stringify(data, null, 2));
+        console.log('🔍 Delivery Area in Data:', data?.deliveryArea);
         setShippingSettings(data || {});
-      } catch (_) {
+        console.log('🔍 Shipping Settings State Set:', JSON.stringify(data || {}, null, 2));
+      } catch (error) {
+        console.error('❌ Error fetching shipping settings:', error);
         setShippingSettings(null);
       }
     })();
@@ -98,11 +107,18 @@ const CheckoutScreen = () => {
   // Validate address against delivery area (only once per address change)
   useEffect(() => {
     const validateAddressForDelivery = async () => {
+      // Wait for shipping settings to be loaded
+      if (!shippingSettings) {
+        console.log('⏳ Waiting for shipping settings to load...');
+        return;
+      }
+
       const address = selectedAddress || getDefaultAddress();
       if (!address) {
         setIsAddressValid(true); // Allow if no address selected yet
         setDeliveryAreaError('');
         lastValidatedAddressId.current = null;
+        validatedCoordinates.current = { latitude: null, longitude: null, addressKey: null };
         return;
       }
 
@@ -116,16 +132,24 @@ const CheckoutScreen = () => {
       }
 
       const deliveryArea = shippingSettings?.deliveryArea;
-      console.log('Validation started. Address:', address);
-      console.log('Shipping settings:', shippingSettings);
-      console.log('Delivery area:', deliveryArea);
+      console.log('========================================');
+      console.log('🔍 ADDRESS VALIDATION DEBUG');
+      console.log('========================================');
+      console.log('📍 Validation started. Address:', JSON.stringify(address, null, 2));
+      console.log('⚙️ Shipping settings FULL:', JSON.stringify(shippingSettings, null, 2));
+      console.log('⚙️ Shipping settings keys:', shippingSettings ? Object.keys(shippingSettings) : 'null');
+      console.log('📍 Delivery area:', deliveryArea);
+      console.log('📍 Delivery area type:', typeof deliveryArea);
+      console.log('📍 Delivery area keys:', deliveryArea ? Object.keys(deliveryArea) : 'null');
+      console.log('========================================');
       
       if (!deliveryArea || deliveryArea.latitude == null || deliveryArea.longitude == null || deliveryArea.radius == null) {
         // No delivery area restriction configured
-        console.log('No delivery area configured - allowing order');
+        console.log('⚠️ No delivery area configured - allowing order');
         setIsAddressValid(true);
         setDeliveryAreaError('');
         lastValidatedAddressId.current = addressKey;
+        validatedCoordinates.current = { latitude: null, longitude: null, addressKey: null };
         return;
       }
 
@@ -204,6 +228,7 @@ const CheckoutScreen = () => {
           setIsAddressValid(false);
           setDeliveryAreaError('Delivery is not available at this address. Please select a different address within our delivery area or contact us for assistance.');
           lastValidatedAddressId.current = addressKey;
+          validatedCoordinates.current = { latitude: null, longitude: null, addressKey: null };
           return;
         }
 
@@ -219,16 +244,32 @@ const CheckoutScreen = () => {
           Number(deliveryArea.longitude)
         );
 
-        console.log('Calculated distance:', distance, 'km');
+        console.log('========================================');
+        console.log('📍 DELIVERY AREA VALIDATION');
+        console.log('========================================');
+        console.log('📍 Address Coordinates:', addressLat, addressLon);
+        console.log('📍 Delivery Center:', deliveryArea.latitude, deliveryArea.longitude);
+        console.log('📍 Calculated Distance:', distance.toFixed(2), 'km');
+        console.log('📍 Delivery Radius:', deliveryArea.radius, 'km');
+        console.log('📍 Distance Comparison:', distance.toFixed(2), 'km <=', deliveryArea.radius, 'km =', distance <= Number(deliveryArea.radius));
+        console.log('📍 Status:', distance <= Number(deliveryArea.radius) ? '✅ WITHIN DELIVERY AREA' : '❌ OUTSIDE DELIVERY AREA');
+        console.log('========================================');
 
         if (distance > Number(deliveryArea.radius)) {
           setIsAddressValid(false);
           setDeliveryAreaError(`This address is ${distance.toFixed(2)} km away from our delivery area. Maximum delivery distance is ${deliveryArea.radius} km.`);
           console.log('Address is OUTSIDE delivery area');
+          validatedCoordinates.current = { latitude: null, longitude: null, addressKey: null };
         } else {
           setIsAddressValid(true);
           setDeliveryAreaError('');
           console.log('Address is WITHIN delivery area');
+          // Store validated coordinates for use during order placement
+          validatedCoordinates.current = { 
+            latitude: addressLat, 
+            longitude: addressLon, 
+            addressKey: addressKey 
+          };
         }
         
         // Mark this address as validated
@@ -255,7 +296,8 @@ const CheckoutScreen = () => {
     defaultAddress?.longitude,
     shippingSettings?.deliveryArea?.latitude,
     shippingSettings?.deliveryArea?.longitude,
-    shippingSettings?.deliveryArea?.radius
+    shippingSettings?.deliveryArea?.radius,
+    shippingSettings // Add full shippingSettings to trigger when it's loaded
   ]);
 
   // Refresh addresses when screen is focused
@@ -381,57 +423,67 @@ const CheckoutScreen = () => {
     setIsProcessing(true);
 
     try {
-      // Get address coordinates for delivery area validation
+      // Get address coordinates - use validated coordinates if available, otherwise extract from address
       let addressLatitude = null;
       let addressLongitude = null;
       
-      // Try to get coordinates from selected address first
+      // Check if we have validated coordinates for this address
       const addressToUse = selectedAddress || getDefaultAddress();
-      if (addressToUse?.location?.coordinates) {
-        addressLatitude = addressToUse.location.coordinates[1];
-        addressLongitude = addressToUse.location.coordinates[0];
+      const addressId = addressToUse?.id || addressToUse?._id;
+      const currentAddressKey = addressToUse ? `${addressId}_${addressToUse.latitude}_${addressToUse.longitude}` : null;
+      
+      // Use validated coordinates if they match the current address
+      if (validatedCoordinates.current.addressKey === currentAddressKey && 
+          validatedCoordinates.current.latitude != null && 
+          validatedCoordinates.current.longitude != null) {
+        addressLatitude = validatedCoordinates.current.latitude;
+        addressLongitude = validatedCoordinates.current.longitude;
+        console.log('Order placement: Using validated coordinates from previous validation:', addressLatitude, addressLongitude);
       } else {
-        // If no coordinates in address, geocode the address string
-        const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
-        try {
-          const coords = await geocodeAddress(shippingAddressStr);
-          if (coords) {
-            addressLatitude = coords.latitude;
-            addressLongitude = coords.longitude;
+        // Extract coordinates from address (same logic as validation)
+        // Priority 1: Direct latitude/longitude fields (from AddressMapScreen)
+        if (addressToUse?.latitude != null && addressToUse?.longitude != null) {
+          addressLatitude = Number(addressToUse.latitude);
+          addressLongitude = Number(addressToUse.longitude);
+          console.log('Order placement: Using direct lat/long from address:', addressLatitude, addressLongitude);
+        }
+        // Priority 2: Location coordinates array
+        else if (addressToUse?.location?.coordinates && Array.isArray(addressToUse.location.coordinates) && addressToUse.location.coordinates.length >= 2) {
+          addressLatitude = Number(addressToUse.location.coordinates[1]);
+          addressLongitude = Number(addressToUse.location.coordinates[0]);
+          console.log('Order placement: Using location coordinates from address:', addressLatitude, addressLongitude);
+        } else {
+          // If no coordinates in address, geocode the address string
+          const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
+          try {
+            const coords = await geocodeAddress(shippingAddressStr);
+            if (coords) {
+              addressLatitude = Number(coords.latitude);
+              addressLongitude = Number(coords.longitude);
+              console.log('Order placement: Geocoded coordinates:', addressLatitude, addressLongitude);
+            }
+          } catch (err) {
+            console.error('Failed to geocode address:', err);
           }
-        } catch (err) {
-          console.error('Failed to geocode address:', err);
         }
       }
 
-      // Validate delivery area again before placing order (double check)
-      const deliveryArea = shippingSettings?.deliveryArea;
-      if (deliveryArea && deliveryArea.latitude && deliveryArea.longitude && deliveryArea.radius) {
-        if (addressLatitude && addressLongitude) {
-          const distance = calculateDistance(
-            Number(addressLatitude),
-            Number(addressLongitude),
-            Number(deliveryArea.latitude),
-            Number(deliveryArea.longitude)
-          );
-          
-          if (distance > Number(deliveryArea.radius)) {
-            setIsProcessing(false);
-            Alert.alert(
-              'Delivery Not Available',
-              `This address is ${distance.toFixed(2)} km away from our delivery area. Maximum delivery distance is ${deliveryArea.radius} km. Please select a different address.`
-            );
-            return;
-          }
-        } else {
-          // If we can't get coordinates, still try to place order but backend will validate
-          console.warn('Could not determine address coordinates for validation');
-        }
-      }
+      // Delivery area validation is already done on checkout screen
+      // No need to validate again during order placement
 
       // Create order via API
       const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
-      const response = await api.createOrder({
+      
+      console.log('========================================');
+      console.log('📦 PLACING ORDER - COORDINATES CHECK');
+      console.log('========================================');
+      console.log('📍 addressLatitude:', addressLatitude, 'Type:', typeof addressLatitude);
+      console.log('📍 addressLongitude:', addressLongitude, 'Type:', typeof addressLongitude);
+      console.log('📍 Address to use:', JSON.stringify(addressToUse, null, 2));
+      console.log('📍 Validated coordinates:', JSON.stringify(validatedCoordinates.current, null, 2));
+      console.log('========================================');
+      
+      const orderPayload = {
         items: availableItems.map(ci => ({
           product: ci.id,
           name: ci.name,
@@ -449,7 +501,14 @@ const CheckoutScreen = () => {
         orderNote: orderNote.trim() || undefined,
         addressLatitude,
         addressLongitude,
+      };
+      
+      console.log('📦 Order payload (coordinates):', {
+        addressLatitude: orderPayload.addressLatitude,
+        addressLongitude: orderPayload.addressLongitude
       });
+      
+      const response = await api.createOrder(orderPayload);
 
       if (!response?.success) {
         throw new Error(response?.message || 'Failed to place order');
@@ -512,6 +571,28 @@ const CheckoutScreen = () => {
               📧 {effectiveAddress.email} | 📱 {effectiveAddress.phone}
             </Text>
           </View>
+          
+          {/* Delivery Area Validation Status */}
+          {validatingAddress ? (
+            <View style={styles.validationStatusContainer}>
+              <ActivityIndicator size="small" color="#f7ab18" />
+              <Text style={styles.validationStatusText}>Validating delivery area...</Text>
+            </View>
+          ) : deliveryAreaError ? (
+            <View style={[styles.validationStatusContainer, styles.validationErrorContainer]}>
+              <Icon name="close-circle" size={18} color="#d32f2f" />
+              <Text style={[styles.validationStatusText, styles.validationErrorText]}>
+                {deliveryAreaError}
+              </Text>
+            </View>
+          ) : isAddressValid && effectiveAddress ? (
+            <View style={[styles.validationStatusContainer, styles.validationSuccessContainer]}>
+              <Icon name="checkmark-circle" size={18} color="#4caf50" />
+              <Text style={[styles.validationStatusText, styles.validationSuccessText]}>
+                Delivery available at this address
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : addresses.length === 0 ? (
         <View style={styles.noAddressContainer}>
@@ -1364,6 +1445,34 @@ const styles = StyleSheet.create({
   validatingText: {
     color: '#666',
     fontSize: 14,
+  },
+  validationStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  validationSuccessContainer: {
+    backgroundColor: '#e8f5e9',
+  },
+  validationErrorContainer: {
+    backgroundColor: '#ffebee',
+  },
+  validationStatusText: {
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#666',
+    flex: 1,
+  },
+  validationSuccessText: {
+    color: '#2e7d32',
+    fontWeight: '600',
+  },
+  validationErrorText: {
+    color: '#d32f2f',
+    fontWeight: '600',
   },
 });
 

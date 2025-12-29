@@ -30,6 +30,9 @@ const orderSchema = new mongoose.Schema({
 	status: { type: String, enum: ['pending','confirmed','processing','shipped','delivered','cancelled','refunded'], default: 'pending' },
 	items: [orderItemSchema],
 	shippingAddress: { type: String, required: true },
+	// Delivery location coordinates for driver tracking
+	deliveryLatitude: { type: Number, default: null },
+	deliveryLongitude: { type: Number, default: null },
 	paymentMethod: { type: String, required: true },
 	tax: { type: Number, default: 0 },
 	shippingCost: { type: Number, default: 0 },

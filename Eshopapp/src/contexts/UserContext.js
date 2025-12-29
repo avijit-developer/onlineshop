@@ -124,6 +124,9 @@ export const UserProvider = ({ children }) => {
     try {
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('userData');
+      // Clear user addresses on logout to prevent showing other user's addresses
+      await AsyncStorage.removeItem('userAddresses');
+      await AsyncStorage.removeItem('defaultAddressId');
       
       setToken(null);
       setUser(null);

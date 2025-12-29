@@ -340,7 +340,7 @@ const Dashboard = () => {
             </div>
             <div className="stat-card">
               <h3>{vendorSummary.ordersCount}</h3>
-              <p>Orders</p>
+              <p>Total Completed Orders</p>
             </div>
           </>
         ) : (

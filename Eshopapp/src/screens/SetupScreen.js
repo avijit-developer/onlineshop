@@ -61,57 +61,30 @@ const SetupScreen = ({ navigation, route }) => {
       return () => { move.stop(); spin.stop(); pulse.stop(); };
     });
 
-    // Kick off background setup: fetch location and save address, then navigate
+    // Kick off background setup: check if address exists, then navigate
     const doSetup = async () => {
       let targetRoute = 'Home';
       try {
         const token = await AsyncStorage.getItem('authToken');
         if (token) {
-          const location = await requestLocationAndGetAddress();
-          if (location) {
-            const userDataRaw = await AsyncStorage.getItem('userData');
-            const userName = userDataRaw ? (JSON.parse(userDataRaw).name || 'You') : 'You';
-            const addressPayload = {
-              label: 'Home',
-              name: String(userName),
-              address: location.address,
-              city: '',
-              state: '',
-              zipCode: '',
-              country: 'United States',
-              isDefault: true,
-              location: {
-                type: 'Point',
-                coordinates: [Number(location.longitude), Number(location.latitude)],
-              },
-            };
-            try {
-              // Deduplicate: fetch existing addresses and avoid re-adding the same one
-              const existingRes = await api.getMyAddresses(token).catch(() => null);
-              const existing = existingRes?.data || [];
-              const round3 = (n) => Math.round(Number(n) * 1000) / 1000;
-              const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-              const dup = existing.find((a) => {
-                const sameLine = norm(a.address) === norm(addressPayload.address);
-                const ex = Array.isArray(a?.location?.coordinates) ? a.location.coordinates : null;
-                const sameCoords = ex && round3(ex[1]) === round3(location.latitude) && round3(ex[0]) === round3(location.longitude);
-                return sameLine || sameCoords;
-              });
-
-              if (dup) {
-                // Ensure it's default
-                if (!dup.isDefault && dup._id) {
-                  try { await api.setDefaultAddress(token, dup._id); } catch (_) {}
-                }
-              } else {
-                await api.addMyAddress(token, addressPayload);
-              }
-            } catch (e) {
-              // Non-blocking: proceed even if address save fails
+          // Check if user has any addresses
+          try {
+            const existingRes = await api.getMyAddresses(token).catch(() => null);
+            const existing = existingRes?.data || [];
+            
+            if (existing.length === 0) {
+              // No address found, navigate to AddressMap to add address
+              targetRoute = 'AddressMap';
+            } else {
+              // Address exists, load it and go to Home
+              try {
+                await loadUserDefaultAddress();
+              } catch {}
+              targetRoute = 'Home';
             }
-            try {
-              await loadUserDefaultAddress();
-            } catch {}
+          } catch (e) {
+            // If check fails, navigate to AddressMap to add address
+            targetRoute = 'AddressMap';
           }
         } else {
           targetRoute = 'Login';

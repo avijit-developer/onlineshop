@@ -281,3 +281,104 @@ router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to compute vendor summary' });
   }
 });
+
+// GET /api/v1/payments/vendor-report?vendorId=...
+// Vendor-specific payment report with earnings, payouts, and balance
+router.get('/vendor-report', authenticate, async (req, res) => {
+  try {
+    const { vendorId } = req.query || {};
+    const vendorIdStr = normalizeId(vendorId);
+    
+    // For vendor users, use their vendorId
+    let targetVendorId = vendorIdStr;
+    if (req.user.role === 'vendor') {
+      const userVendorId = req.user.vendorId || (req.user.vendors && req.user.vendors[0]);
+      if (userVendorId) {
+        targetVendorId = normalizeId(userVendorId);
+      } else {
+        return res.status(403).json({ success: false, message: 'Vendor ID not found' });
+      }
+    } else if (!targetVendorId) {
+      return res.status(400).json({ success: false, message: 'Vendor ID required' });
+    }
+    
+    if (!targetVendorId || !mongoose.Types.ObjectId.isValid(targetVendorId)) {
+      return res.status(400).json({ success: false, message: 'Invalid vendor ID' });
+    }
+    
+    // Get vendor balance
+    const balance = await computeVendorBalance(targetVendorId, 'completed');
+    
+    // Get vendor orders for payment history
+    const vendorObjectId = new mongoose.Types.ObjectId(targetVendorId);
+    const orders = await Order.find({ 'items.vendor': vendorObjectId })
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    const payments = [];
+    for (const o of orders) {
+      const vendorStatusLower = getVendorStatus(o, targetVendorId);
+      if (!COMPLETED_STATUSES.has(vendorStatusLower)) continue;
+      
+      const items = Array.isArray(o.items) ? o.items : [];
+      let vendorEarnings = 0;
+      let orderTotal = 0;
+      
+      for (const it of items) {
+        if (normalizeId(it.vendor) !== targetVendorId) continue;
+        const qty = Number(it.quantity || 0);
+        const customerUnit = Number(it.price || 0);
+        const vendorUnit = Number(it.vendorUnitPrice ?? it.vendorPrice ?? 0);
+        vendorEarnings += vendorUnit * qty;
+        orderTotal += customerUnit * qty;
+      }
+      
+      if (vendorEarnings > 0) {
+        payments.push({
+          id: `${o._id}_${targetVendorId}`,
+          orderId: o.orderNumber || String(o._id).slice(-6),
+          customerName: (o.user && (o.user.name || o.user.email)) || '',
+          amount: orderTotal,
+          vendorEarnings: vendorEarnings,
+          paymentMethod: o.paymentMethod || '',
+          status: vendorStatusLower,
+          date: o.createdAt,
+        });
+      }
+    }
+    
+    // Get payout history
+    const payouts = await Payout.find({ vendor: vendorObjectId })
+      .sort({ createdAt: -1 })
+      .populate('processedBy', 'name email')
+      .lean();
+    
+    const payoutHistory = payouts.map((p) => ({
+      id: p._id.toString(),
+      vendorId: targetVendorId,
+      amount: Number(p.amount || 0),
+      method: p.method || 'Manual',
+      note: p.note || '',
+      status: 'approved',
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      processedBy: p.processedBy?.name || p.processedBy?.email || '',
+    }));
+    
+    res.json({
+      success: true,
+      data: {
+        vendorId: targetVendorId,
+        totalEarnings: balance.vendorEarnings,
+        totalPaid: balance.paid,
+        balance: balance.due,
+        payments: payments,
+        payouts: payoutHistory
+      }
+    });
+  } catch (e) {
+    console.error('Vendor report error:', e);
+    res.status(500).json({ success: false, message: e?.message || 'Failed to fetch vendor report' });
+  }
+});

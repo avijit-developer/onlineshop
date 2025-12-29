@@ -51,9 +51,46 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 router.put('/', authenticate, requireAdmin, async (req, res) => {
   try {
     const payload = req.body || {};
-    const updated = await Settings.findOneAndUpdate({}, payload, { new: true, upsert: true, setDefaultsOnInsert: true });
-    res.json({ success: true, data: updated });
+    
+    // Ensure lowStockQuantity is a number if provided
+    if (payload.general && payload.general.lowStockQuantity !== undefined) {
+      payload.general.lowStockQuantity = parseInt(payload.general.lowStockQuantity) || 10;
+    }
+    
+    // Find existing settings or create new one
+    let settings = await Settings.findOne();
+    
+    if (!settings) {
+      // Create new settings document
+      settings = new Settings(payload);
+      await settings.save();
+    } else {
+      // Update existing settings - merge nested objects properly
+      if (payload.general) {
+        settings.general = { ...settings.general.toObject(), ...payload.general };
+      }
+      if (payload.localization) {
+        settings.localization = { ...settings.localization.toObject(), ...payload.localization };
+      }
+      if (payload.shipping) {
+        settings.shipping = { ...settings.shipping.toObject(), ...payload.shipping };
+      }
+      if (payload.tax) {
+        settings.tax = { ...settings.tax.toObject(), ...payload.tax };
+      }
+      if (payload.email) {
+        settings.email = { ...settings.email.toObject(), ...payload.email };
+      }
+      if (payload.deliveryArea) {
+        settings.deliveryArea = { ...settings.deliveryArea.toObject(), ...payload.deliveryArea };
+      }
+      
+      await settings.save();
+    }
+    
+    res.json({ success: true, data: settings });
   } catch (e) {
+    console.error('Settings save error:', e);
     res.status(500).json({ success: false, message: e?.message || 'Failed to save settings' });
   }
 });

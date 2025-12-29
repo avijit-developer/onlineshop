@@ -20,6 +20,7 @@ import { useAddress } from '../contexts/AddressContext';
 const AddressMapScreen = ({ navigation, route }) => {
   const existingAddress = route?.params?.address || null;
   const onSaveAddress = route?.params?.onSave || null;
+  const isNewUser = route?.params?.isNewUser || false;
   const { addAddress, updateAddress } = useAddress();
 
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -436,7 +437,13 @@ const AddressMapScreen = ({ navigation, route }) => {
       if (onSaveAddress) {
         onSaveAddress(addressData);
       }
-      navigation.goBack();
+      
+      // If new user, navigate to Home after saving address
+      if (isNewUser) {
+        navigation.replace('Home');
+      } else {
+        navigation.goBack();
+      }
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to save address. Please try again.');
     }

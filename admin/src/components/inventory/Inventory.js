@@ -16,6 +16,7 @@ const Inventory = () => {
   const [showStockModal, setShowStockModal] = useState(false);
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [lowStockQuantity, setLowStockQuantity] = useState(10); // Default low stock quantity from settings
   const [stockUpdate, setStockUpdate] = useState({
     quantity: '',
     lowStockAlert: ''
@@ -27,13 +28,32 @@ const Inventory = () => {
 
   useEffect(() => {
     filterProducts();
-  }, [products, searchTerm, stockFilter, categoryFilter]);
+  }, [products, searchTerm, stockFilter, categoryFilter, lowStockQuantity]);
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('adminToken');
       const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const base = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+      
+      // Fetch settings first to get low stock quantity
+      const settingsRes = await fetch(`${base}/api/v1/settings`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (settingsRes.ok) {
+        const settingsJson = await settingsRes.json();
+        const lowStockQty = settingsJson?.data?.general?.lowStockQuantity;
+        // Parse as number and ensure it's valid
+        const parsedQty = lowStockQty !== undefined && lowStockQty !== null ? parseInt(lowStockQty) : null;
+        if (parsedQty !== null && !isNaN(parsedQty) && parsedQty > 0) {
+          setLowStockQuantity(parsedQty);
+        } else {
+          // Use default if not set or invalid
+          setLowStockQuantity(10);
+        }
+      } else {
+        // Use default if fetch fails
+        setLowStockQuantity(10);
+      }
+      
       const [prodRes, catRes, venRes] = await Promise.all([
         fetch(`${base}/api/v1/products?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
         fetch(`${base}/api/v1/categories?parent=all&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
@@ -83,7 +103,7 @@ const Inventory = () => {
           break;
         case 'low-stock':
           filtered = filtered.filter(product => 
-            product.stock > 0 && product.stock <= (product.lowStockAlert || 10)
+            product.stock > 0 && product.stock <= lowStockQuantity
           );
           break;
         case 'out-of-stock':
@@ -204,19 +224,19 @@ const Inventory = () => {
 
   const getStockStatus = (product) => {
     if (product.stock === 0) return 'Out of Stock';
-    if (product.stock <= (product.lowStockAlert || 10)) return 'Low Stock';
+    if (product.stock <= lowStockQuantity) return 'Low Stock';
     return 'In Stock';
   };
 
   const getStockStatusClass = (product) => {
     if (product.stock === 0) return 'out-of-stock';
-    if (product.stock <= (product.lowStockAlert || 10)) return 'low-stock';
+    if (product.stock <= lowStockQuantity) return 'low-stock';
     return 'in-stock';
   };
 
   const getLowStockProducts = () => {
     return products.filter(product => 
-      product.stock > 0 && product.stock <= (product.lowStockAlert || 10)
+      product.stock > 0 && product.stock <= lowStockQuantity
     );
   };
 

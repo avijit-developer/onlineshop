@@ -15,7 +15,8 @@ const Settings = () => {
       contactEmail: '',
       contactPhone: '',
       address: '',
-      minAppVersion: ''
+      minAppVersion: '',
+      lowStockQuantity: 10
     },
     localization: {
       dateFormat: 'MM/DD/YYYY',
@@ -53,7 +54,34 @@ const Settings = () => {
       });
       if (res.ok) {
         const json = await res.json();
-        if (json?.data) setSettings(prev => ({ ...prev, ...json.data }));
+        if (json?.data) {
+          const fetchedSettings = json.data;
+          setSettings(prev => {
+            const newSettings = {
+              ...prev,
+              ...fetchedSettings
+            };
+            
+            // Properly merge general settings including lowStockQuantity
+            if (fetchedSettings.general) {
+              newSettings.general = {
+                ...prev.general,
+                ...fetchedSettings.general
+              };
+              
+              // Ensure lowStockQuantity is properly parsed as number
+              if (fetchedSettings.general.lowStockQuantity !== undefined && fetchedSettings.general.lowStockQuantity !== null) {
+                newSettings.general.lowStockQuantity = parseInt(fetchedSettings.general.lowStockQuantity) || 10;
+              } else if (prev.general?.lowStockQuantity !== undefined) {
+                newSettings.general.lowStockQuantity = prev.general.lowStockQuantity;
+              } else {
+                newSettings.general.lowStockQuantity = 10;
+              }
+            }
+            
+            return newSettings;
+          });
+        }
       }
       setLoading(false);
     } catch (error) {
@@ -69,33 +97,53 @@ const Settings = () => {
       const token = localStorage.getItem('adminToken');
       const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+      
+      // Ensure lowStockQuantity is a number before saving
+      const settingsToSave = {
+        ...settings,
+        general: {
+          ...settings.general,
+          lowStockQuantity: parseInt(settings.general?.lowStockQuantity) || 10
+        }
+      };
+      
       const res = await fetch(BASE + '/api/v1/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: token ? `Bearer ${token}` : ''
         },
-        body: JSON.stringify(settings)
+        body: JSON.stringify(settingsToSave)
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData?.message || 'Save failed');
+      }
       toast.success(`${category} settings saved successfully`);
       await fetchSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast.error('Failed to save settings');
+      toast.error(error.message || 'Failed to save settings');
     } finally {
       setSaving(false);
     }
   };
 
   const handleInputChange = (category, field, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [field]: value
+    setSettings(prev => {
+      const newSettings = {
+        ...prev,
+        [category]: {
+          ...prev[category],
+          [field]: value
+        }
+      };
+      // Ensure lowStockQuantity is a number
+      if (category === 'general' && field === 'lowStockQuantity') {
+        newSettings.general.lowStockQuantity = parseInt(value) || 10;
       }
-    }));
+      return newSettings;
+    });
   };
 
   const handleFileUpload = (field, event) => {
@@ -259,6 +307,21 @@ const Settings = () => {
                       placeholder="Your business address"
                       rows="3"
                     />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Low Stock Quantity *</label>
+                    <input
+                      type="number"
+                      value={settings.general?.lowStockQuantity ?? 10}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? 10 : parseInt(e.target.value) || 10;
+                        handleInputChange('general', 'lowStockQuantity', val);
+                      }}
+                      min="1"
+                      placeholder="10"
+                    />
+                    <small style={{ color: '#666' }}>Products with stock below this quantity will be marked as low stock in Inventory Management</small>
                   </div>
                   
                   {/* Site Logo and Favicon removed (integrate with API) */}

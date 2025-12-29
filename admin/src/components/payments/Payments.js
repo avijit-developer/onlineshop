@@ -10,6 +10,18 @@ const Payments = () => {
   const [withdrawals, setWithdrawals] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Get current user info
+  const getCurrentUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('adminUser') || 'null');
+    } catch {
+      return null;
+    }
+  };
+  const currentUser = getCurrentUser();
+  const isVendor = currentUser?.role === 'vendor';
+  const currentVendorId = currentUser?.vendorId || (currentUser?.vendors && currentUser.vendors[0]) || null;
   const [activeTab, setActiveTab] = useState('earnings');
   const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
@@ -41,6 +53,102 @@ const Payments = () => {
       const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
+      
+      // For vendor users, fetch vendor-specific data
+      if (isVendor && currentVendorId) {
+        const [venRes, sumRes, payoutRes] = await Promise.all([
+          fetch(`${baseUrl}/api/v1/vendors?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
+          fetch(`${baseUrl}/api/v1/payments/vendor-report?vendorId=${currentVendorId}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
+          fetch(`${baseUrl}/api/v1/payments/payouts?vendorId=${currentVendorId}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+        ]);
+        
+        let vendorRows = [];
+        const vendorLookup = new Map();
+        if (venRes && venRes.ok) {
+          const vjson = await venRes.json();
+          vendorRows = (vjson.data || []).map(v => ({
+            id: v._id || v.id,
+            companyName: v.companyName,
+            email: v.email,
+            logo: v.logo
+          }));
+          vendorRows.forEach(v => vendorLookup.set(String(v.id), v));
+        }
+        setVendors(vendorRows);
+        
+        // Get vendor report data
+        if (sumRes && sumRes.ok) {
+          const reportJson = await sumRes.json();
+          const reportData = reportJson.data || {};
+          setVendorSummary([{
+            vendorId: currentVendorId,
+            vendorEarnings: reportData.totalEarnings || 0,
+            paid: reportData.totalPaid || 0,
+            due: reportData.balance || 0
+          }]);
+          // Set payments from report
+          setPayments((reportData.payments || []).map((r, idx) => ({
+            id: r.id || idx,
+            orderId: r.orderId || '',
+            customerName: r.customerName || '',
+            amount: Number(r.amount || 0),
+            commission: 0,
+            vendorEarnings: Number(r.vendorEarnings || 0),
+            paymentMethod: r.paymentMethod || '',
+            status: r.status || 'pending',
+            date: r.date,
+            vendorId: currentVendorId,
+          })));
+          
+          // Set payouts from report data (Admin Payments)
+          if (reportData.payouts && Array.isArray(reportData.payouts)) {
+            const payoutHistory = reportData.payouts.map((p) => ({
+              id: p.id || p._id || String(p.id),
+              vendorId: currentVendorId,
+              vendorName: vendorLookup.get(String(currentVendorId))?.companyName || 'Unknown Vendor',
+              amount: Number(p.amount || 0),
+              status: 'approved',
+              paymentMethod: p.method || 'Manual',
+              accountDetails: p.note || 'N/A',
+              requestDate: p.createdAt,
+              processedDate: p.updatedAt || p.createdAt,
+              note: p.note || '',
+              processedBy: p.processedBy || (typeof p.processedBy === 'object' ? (p.processedBy.name || p.processedBy.email || '') : '')
+            }));
+            setWithdrawals(payoutHistory);
+          }
+        }
+        
+        // Also get payout history from separate endpoint as fallback
+        if (payoutRes && payoutRes.ok) {
+          const pj = await payoutRes.json();
+          const payoutHistory = (pj?.data || []).map((p) => ({
+            id: p.id || p._id,
+            vendorId: p.vendorId || currentVendorId,
+            vendorName: p.vendorName || vendorLookup.get(String(p.vendorId || currentVendorId))?.companyName || 'Unknown Vendor',
+            amount: Number(p.amount || 0),
+            status: 'approved',
+            paymentMethod: p.method || 'Manual',
+            accountDetails: p.note || 'N/A',
+            requestDate: p.createdAt,
+            processedDate: p.updatedAt || p.createdAt,
+            note: p.note || '',
+            processedBy: p.processedBy || (typeof p.processedBy === 'object' ? (p.processedBy.name || p.processedBy.email || '') : '')
+          }));
+          // Merge with existing withdrawals if any
+          if (payoutHistory.length > 0) {
+            setWithdrawals(prev => {
+              const existingIds = new Set(prev.map(w => w.id));
+              const newPayouts = payoutHistory.filter(p => !existingIds.has(p.id));
+              return [...prev, ...newPayouts];
+            });
+          }
+        }
+        setLoading(false);
+        return;
+      }
+      
+      // Admin path - original code
       const [earnRes, venRes, sumRes, payoutRes] = await Promise.all([
         fetch(`${baseUrl}/api/v1/payments/admin-earnings?status=completed`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
         fetch(`${baseUrl}/api/v1/vendors?page=1&limit=1000`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }).catch(() => ({ ok: true, json: async () => ({ data: [] }) })),
@@ -450,22 +558,45 @@ const Payments = () => {
       </div>
 
       <div className="stats-cards">
-        <div className="stat-card">
-          <h3>Total Admin Earnings</h3>
-          <p>{formatCurrency(getTotalEarnings())}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Total Vendor Payouts</h3>
-          <p>{formatCurrency(getTotalVendorPayouts())}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Total Pending Withdrawal</h3>
-          <p>{formatCurrency(getPendingWithdrawalAmount())}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Total Transactions</h3>
-          <p>{payments.length}</p>
-        </div>
+        {isVendor ? (
+          <>
+            <div className="stat-card">
+              <h3>Total Earnings</h3>
+              <p>{formatCurrency(vendorSummary[0]?.vendorEarnings || 0)}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Total Paid</h3>
+              <p>{formatCurrency(vendorSummary[0]?.paid || 0)}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Balance (Due)</h3>
+              <p>{formatCurrency(vendorSummary[0]?.due || 0)}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Total Transactions</h3>
+              <p>{payments.length}</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="stat-card">
+              <h3>Total Admin Earnings</h3>
+              <p>{formatCurrency(getTotalEarnings())}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Total Vendor Payouts</h3>
+              <p>{formatCurrency(getTotalVendorPayouts())}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Total Pending Withdrawal</h3>
+              <p>{formatCurrency(getPendingWithdrawalAmount())}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Total Transactions</h3>
+              <p>{payments.length}</p>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="tabs-container">
@@ -474,19 +605,21 @@ const Payments = () => {
             className={`tab ${activeTab === 'earnings' ? 'active' : ''}`}
             onClick={() => setActiveTab('earnings')}
           >
-            Admin Earnings
+            {isVendor ? 'Payment History' : 'Admin Earnings'}
           </button>
-          <button
-            className={`tab ${activeTab === 'payouts' ? 'active' : ''}`}
-            onClick={() => setActiveTab('payouts')}
-          >
-            Vendor Payouts
-          </button>
+          {!isVendor && (
+            <button
+              className={`tab ${activeTab === 'payouts' ? 'active' : ''}`}
+              onClick={() => setActiveTab('payouts')}
+            >
+              Vendor Payouts
+            </button>
+          )}
           <button
             className={`tab ${activeTab === 'withdrawals' ? 'active' : ''}`}
             onClick={() => setActiveTab('withdrawals')}
           >
-            Withdrawal Requests
+            {isVendor ? 'Admin Payments' : 'Withdrawal Requests'}
           </button>
         </div>
 
@@ -499,7 +632,7 @@ const Payments = () => {
                 <div className="search-box">
                   <input
                     type="text"
-                    placeholder="Search by Order ID, Customer, or Vendor..."
+                    placeholder={isVendor ? "Search by Order ID or Customer..." : "Search by Order ID, Customer, or Vendor..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="search-input"
@@ -539,10 +672,9 @@ const Payments = () => {
                     <tr>
                       <th>Order ID</th>
                       <th>Customer</th>
-                      <th>Vendor</th>
-                      <th>Order Amount</th>
-                      <th>Commission</th>
-                      <th>Vendor Earnings</th>
+                      {!isVendor && <th>Vendor</th>}
+                      {!isVendor && <th>Commission</th>}
+                      <th>{isVendor ? 'My Earnings' : 'Vendor Earnings'}</th>
                       <th>Payment Method</th>
                       <th>Status</th>
                       <th>Date</th>
@@ -553,9 +685,8 @@ const Payments = () => {
                       <tr key={payment.id}>
                         <td>{payment.orderId}</td>
                         <td>{payment.customerName}</td>
-                        <td>{getVendorName(payment.vendorId)}</td>
-                        <td>{formatCurrency(payment.amount)}</td>
-                        <td className="commission">{formatCurrency(payment.commission)}</td>
+                        {!isVendor && <td>{getVendorName(payment.vendorId)}</td>}
+                        {!isVendor && <td className="commission">{formatCurrency(payment.commission)}</td>}
                         <td>{formatCurrency(payment.vendorEarnings)}</td>
                         <td>{payment.paymentMethod}</td>
                         <td>
@@ -680,74 +811,84 @@ const Payments = () => {
                 <table className="withdrawals-table">
                   <thead>
                     <tr>
-                      <th>Vendor</th>
+                      {!isVendor && <th>Vendor</th>}
                       <th>Amount</th>
                       <th>Payment Method</th>
-                      <th>Account Details</th>
-                      <th>Request Date</th>
+                      <th>{isVendor ? 'Payment Date & Time' : 'Request Date'}</th>
+                      {isVendor && <th>Processed By</th>}
                       <th>Status</th>
-                      <th>Actions</th>
+                      {!isVendor && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {getPaginatedData(getFilteredWithdrawals()).map((withdrawal) => (
-                      <tr key={withdrawal.id}>
-                        <td>{withdrawal.vendorName}</td>
-                        <td>{formatCurrency(withdrawal.amount)}</td>
-                        <td>{withdrawal.paymentMethod}</td>
-                        <td>{withdrawal.accountDetails}</td>
-                        <td>{withdrawal.requestDate ? formatDate(withdrawal.requestDate) : '-'}</td>
-                        <td>
-                          <span className={`status-badge ${getStatusBadgeClass(withdrawal.status)}`}>
-                            {withdrawal.status}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="action-buttons">
-                            {withdrawal.status === 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setSelectedWithdrawal(withdrawal);
-                                    setShowWithdrawalModal(true);
-                                  }}
-                                  className="btn btn-info btn-sm"
-                                >
-                                  View Details
-                                </button>
-                                <button
-                                  onClick={() => handleWithdrawalAction(withdrawal.id)}
-                                  className="btn btn-success btn-sm"
-                                >
-                                  Approve
-                                </button>
-                              </>
-                            )}
-                            {withdrawal.status !== 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setSelectedWithdrawal(withdrawal);
-                                    setShowWithdrawalModal(true);
-                                  }}
-                                  className="btn btn-secondary btn-sm"
-                                >
-                                  View Details
-                                </button>
-                                {withdrawal.status === 'approved' && !String(withdrawal.id || '').startsWith('pending-') && (
-                                  <button
-                                    onClick={() => handleDeleteWithdrawal(withdrawal)}
-                                    className="btn btn-danger btn-sm"
-                                  >
-                                    Delete
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </div>
+                    {getPaginatedData(getFilteredWithdrawals()).length === 0 ? (
+                      <tr>
+                        <td colSpan={isVendor ? 5 : 7} style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                          {isVendor ? 'No admin payments found' : 'No withdrawal requests found'}
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      getPaginatedData(getFilteredWithdrawals()).map((withdrawal) => (
+                        <tr key={withdrawal.id}>
+                          {!isVendor && <td>{withdrawal.vendorName}</td>}
+                          <td>{formatCurrency(withdrawal.amount)}</td>
+                          <td>{withdrawal.paymentMethod}</td>
+                          <td>{withdrawal.processedDate ? formatDateTime(withdrawal.processedDate) : (withdrawal.requestDate ? formatDateTime(withdrawal.requestDate) : '-')}</td>
+                          {isVendor && <td>{withdrawal.processedBy || '-'}</td>}
+                          <td>
+                            <span className={`status-badge ${getStatusBadgeClass(withdrawal.status)}`}>
+                              {withdrawal.status}
+                            </span>
+                          </td>
+                          {!isVendor && (
+                            <td>
+                              <div className="action-buttons">
+                                {withdrawal.status === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedWithdrawal(withdrawal);
+                                        setShowWithdrawalModal(true);
+                                      }}
+                                      className="btn btn-info btn-sm"
+                                    >
+                                      View Details
+                                    </button>
+                                    <button
+                                      onClick={() => handleWithdrawalAction(withdrawal.id)}
+                                      className="btn btn-success btn-sm"
+                                    >
+                                      Approve
+                                    </button>
+                                  </>
+                                )}
+                                {withdrawal.status !== 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedWithdrawal(withdrawal);
+                                        setShowWithdrawalModal(true);
+                                      }}
+                                      className="btn btn-secondary btn-sm"
+                                    >
+                                      View Details
+                                    </button>
+                                    {withdrawal.status === 'approved' && !String(withdrawal.id || '').startsWith('pending-') && (
+                                      <button
+                                        onClick={() => handleDeleteWithdrawal(withdrawal)}
+                                        className="btn btn-danger btn-sm"
+                                      >
+                                        Delete
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -865,25 +1006,39 @@ const Payments = () => {
           <div className="modal">
             <div className="modal-header">
               <h2>Manual Payout</h2>
-              <button onClick={() => setShowPayoutModal(false)} className="close-btn">&times;</button>
+              <button onClick={() => {
+                setShowPayoutModal(false);
+                setSelectedVendor(null);
+                setPayoutAmount('');
+              }} className="close-btn">&times;</button>
             </div>
             <div className="modal-body">
               <div className="payout-form">
                 <div className="form-group">
                   <label>Select Vendor:</label>
                   <select
-                    value={selectedVendor?.id || ''}
+                    value={selectedVendor?.id ? String(selectedVendor.id) : ''}
                     onChange={(e) => {
-                      const vendor = vendors.find(v => v.id === parseInt(e.target.value));
-                      setSelectedVendor(vendor);
+                      const selectedId = e.target.value;
+                      if (!selectedId) {
+                        setSelectedVendor(null);
+                        setPayoutAmount('');
+                        return;
+                      }
+                      // Try to find vendor by matching id as both string and number
+                      const vendor = vendors.find(v => String(v.id) === String(selectedId) || v.id === parseInt(selectedId));
                       if (vendor) {
+                        setSelectedVendor(vendor);
                         setPayoutAmount(getVendorBalance(vendor.id).toFixed(2));
+                      } else {
+                        setSelectedVendor(null);
+                        setPayoutAmount('');
                       }
                     }}
                   >
                     <option value="">Choose a vendor</option>
                     {vendors.map(vendor => (
-                      <option key={vendor.id} value={vendor.id}>
+                      <option key={vendor.id} value={String(vendor.id)}>
                         {vendor.companyName} (Balance: {formatCurrency(getVendorBalance(vendor.id))})
                       </option>
                     ))}
@@ -908,7 +1063,11 @@ const Payments = () => {
               </div>
             </div>
             <div className="modal-footer">
-              <button onClick={() => setShowPayoutModal(false)} className="btn btn-secondary">
+              <button onClick={() => {
+                setShowPayoutModal(false);
+                setSelectedVendor(null);
+                setPayoutAmount('');
+              }} className="btn btn-secondary">
                 Cancel
               </button>
               <button

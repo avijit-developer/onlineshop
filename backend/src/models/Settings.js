@@ -9,7 +9,8 @@ const SettingsSchema = new mongoose.Schema({
 		address: { type: String, default: '' },
 		siteLogo: { type: String, default: '' },
 		siteUrl: { type: String, default: '' },
-		minAppVersion: { type: String, default: '' }
+		minAppVersion: { type: String, default: '' },
+		lowStockQuantity: { type: Number, default: 10 }
 	},
 	localization: {
 		dateFormat: { type: String, default: 'MM/DD/YYYY' },

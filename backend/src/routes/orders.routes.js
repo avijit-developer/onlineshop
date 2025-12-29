@@ -328,12 +328,22 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			customerPhone = u?.phone || '';
 		} catch (_) {}
 
+		// Debug: Log coordinates before saving
+		console.log('🔍 Creating order with coordinates:');
+		console.log('   Order Number:', orderNumber);
+		console.log('   addressLatitude:', addressLatitude, 'Type:', typeof addressLatitude);
+		console.log('   addressLongitude:', addressLongitude, 'Type:', typeof addressLongitude);
+		console.log('   deliveryLatitude (to save):', addressLatitude != null ? Number(addressLatitude) : null);
+		console.log('   deliveryLongitude (to save):', addressLongitude != null ? Number(addressLongitude) : null);
+
 		const order = await Order.create({
 			user: req.user.id,
 			orderNumber,
 			status: 'confirmed',
 			items,
 			shippingAddress,
+			deliveryLatitude: addressLatitude != null ? Number(addressLatitude) : null,
+			deliveryLongitude: addressLongitude != null ? Number(addressLongitude) : null,
 			paymentMethod,
 			tax,
 			shippingCost: effectiveShippingCost,
@@ -345,6 +355,11 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 			customerPhone,
 			statusHistory: [{ status: 'confirmed', updatedBy: 'system' }],
 		});
+
+		// Debug: Verify saved coordinates
+		console.log('✅ Order created. Saved coordinates:');
+		console.log('   deliveryLatitude:', order.deliveryLatitude);
+		console.log('   deliveryLongitude:', order.deliveryLongitude);
 		
 		// Reduce stock for order items
 		await reduceStockForOrderItems(items);

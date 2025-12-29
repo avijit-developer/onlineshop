@@ -133,17 +133,9 @@ export const AddressProvider = ({ children }) => {
             // Transform API addresses to match our format
             const apiAddresses = transformApiAddresses(response.data);
 
-            // Merge with local addresses, prioritizing API data
+            // Use only API addresses (current user's addresses only)
+            // Don't merge with local addresses to prevent showing other user's addresses
             const mergedAddresses = [...apiAddresses];
-            const localAddresses = storedAddresses ? JSON.parse(storedAddresses) : [];
-            
-            // Add local addresses that don't exist in API
-            localAddresses.forEach(localAddr => {
-              const exists = mergedAddresses.find(apiAddr => apiAddr.id === localAddr.id);
-              if (!exists) {
-                mergedAddresses.push(localAddr);
-              }
-            });
 
             // Normalize a single default (prefer API default)
             const apiDefault = mergedAddresses.find(addr => addr.isDefault);
@@ -157,7 +149,13 @@ export const AddressProvider = ({ children }) => {
             }
             // Save only API-backed addresses to local storage (preserve _originalId)
             const apiOnlyAddresses = dedupeBySignature(normalized).filter(addr => addr._originalId);
-            if (apiOnlyAddresses.length > 0) await saveAddresses(apiOnlyAddresses);
+            if (apiOnlyAddresses.length > 0) {
+              await saveAddresses(apiOnlyAddresses);
+            } else {
+              // Clear local storage if no addresses from API
+              await AsyncStorage.removeItem('userAddresses');
+              await AsyncStorage.removeItem('defaultAddressId');
+            }
           }
         } catch (apiError) {
           console.log('API address fetch failed, using local addresses:', apiError);

@@ -65,7 +65,7 @@ const Layout = ({ children, user, onLogout }) => {
     !isVendor && { path: '/admin/brands', label: 'Brands', icon: '🏷️' },
     (!isVendor || userPerms.has('orders.view')) && { path: '/admin/orders', label: 'Orders', icon: '🛒' },
     !isVendor && { path: '/admin/inventory', label: 'Inventory', icon: '📋' },
-    !isVendor && { path: '/admin/payments', label: 'Report & Payment', icon: '💰' },
+    (!isVendor || userPerms.has('reports.view') || userPerms.has('report.view') || userPerms.has('report')) && { path: '/admin/payments', label: 'Report & Payment', icon: '💰' },
     // Marketplace collapsible placeholder marker
     !isVendor && { path: '#marketplace', label: 'Marketplace', icon: '🛍️', children: marketplaceMenu.map(m => ({ ...m, path: `/admin${m.path}` })) },
     !isVendor && { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
