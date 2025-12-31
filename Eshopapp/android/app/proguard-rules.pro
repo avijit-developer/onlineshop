@@ -33,3 +33,13 @@
 -keep class com.reactnativedocumentpicker.** { *; }
 -dontwarn com.imagepicker.**
 -dontwarn com.reactnativedocumentpicker.**
+
+# JAXB and Java Activation Framework - ignore missing AWT classes on Android
+-dontwarn javax.xml.bind.**
+-dontwarn org.glassfish.jaxb.**
+-dontwarn javax.activation.**
+-dontwarn java.awt.datatransfer.Transferable
+-dontwarn java.awt.datatransfer.DataFlavor
+-dontwarn java.awt.datatransfer.**
+-dontwarn java.beans.Beans
+-dontwarn java.beans.**

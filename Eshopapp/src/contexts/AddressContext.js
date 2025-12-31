@@ -42,7 +42,14 @@ export const AddressProvider = ({ children }) => {
       country: addr.country || 'India',
       isDefault: addr.isDefault || false,
       createdAt: addr.createdAt || new Date().toISOString(),
-      updatedAt: addr.updatedAt || new Date().toISOString()
+      updatedAt: addr.updatedAt || new Date().toISOString(),
+      // Preserve location coordinates from API
+      location: addr.location || (addr.latitude && addr.longitude ? {
+        type: 'Point',
+        coordinates: [addr.longitude, addr.latitude]
+      } : null),
+      latitude: addr.latitude || (addr.location?.coordinates ? addr.location.coordinates[1] : null),
+      longitude: addr.longitude || (addr.location?.coordinates ? addr.location.coordinates[0] : null)
     };
   });
 
@@ -236,6 +243,11 @@ export const AddressProvider = ({ children }) => {
             isDefault: !!address.isDefault,
             latitude: address.latitude || null,
             longitude: address.longitude || null,
+            // Send location object if available
+            location: address.location || (address.latitude && address.longitude ? {
+              type: 'Point',
+              coordinates: [address.longitude, address.latitude]
+            } : null),
           });
           await refreshFromAPI();
           return null;
@@ -289,8 +301,23 @@ export const AddressProvider = ({ children }) => {
             return; // Don't throw error, just skip API update
           }
           
+          // Ensure location object is included in updates if latitude/longitude are present
+          const apiUpdates = { ...updates };
+          if (updates.latitude !== undefined || updates.longitude !== undefined) {
+            const lat = updates.latitude !== undefined ? updates.latitude : (address.latitude || null);
+            const lon = updates.longitude !== undefined ? updates.longitude : (address.longitude || null);
+            if (lat !== null && lon !== null) {
+              apiUpdates.location = updates.location || {
+                type: 'Point',
+                coordinates: [lon, lat]
+              };
+            }
+          } else if (updates.location) {
+            apiUpdates.location = updates.location;
+          }
+          
           // Use the original MongoDB ObjectId for the API call
-          await api.updateUserAddress(address._originalId, updates);
+          await api.updateUserAddress(address._originalId, apiUpdates);
           await refreshFromAPI();
         } catch (apiError) {
           console.log('Failed to update address in API:', apiError);

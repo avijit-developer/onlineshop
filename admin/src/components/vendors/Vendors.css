@@ -210,6 +210,7 @@
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid #eee;
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -238,6 +239,9 @@
 
 .modal-body {
   padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .modal-footer {
@@ -532,6 +536,9 @@
   width: 100%;
   border-radius: 12px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
 
 .vendor-profile {
@@ -555,6 +562,8 @@
 /* Make profile modal visually cleaner */
 .modal.profile-modal .modal-body {
   padding-top: 12px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .modal.profile-modal .profile-header h3 {
   font-size: 1.25rem;

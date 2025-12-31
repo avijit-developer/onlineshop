@@ -23,7 +23,17 @@ const AddressMapScreen = ({ navigation, route }) => {
   const isNewUser = route?.params?.isNewUser || false;
   const { addAddress, updateAddress } = useAddress();
 
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  
+
+  // Initialize selectedLocation with existing address location if editing
+  const [selectedLocation, setSelectedLocation] = useState(
+    existingAddress?.location?.coordinates 
+      ? {
+          latitude: existingAddress.location.coordinates[1],
+          longitude: existingAddress.location.coordinates[0],
+        }
+      : null
+  );
   const [currentLocation, setCurrentLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,6 +60,7 @@ const AddressMapScreen = ({ navigation, route }) => {
   const [isMapInteracting, setIsMapInteracting] = useState(false);
   const scrollViewRef = useRef(null);
   const webViewRef = useRef(null);
+  const isEditingRef = useRef(!!existingAddress); // Track if we're editing an existing address
 
   useEffect(() => {
     initializeLocation();
@@ -107,25 +118,16 @@ const AddressMapScreen = ({ navigation, route }) => {
       setLoading(true);
       let location = null;
 
-      // Try to get current location
-      try {
-        location = await getCurrentLocation();
-        setCurrentLocation(location);
-      } catch (error) {
-        console.error('Error getting current location:', error);
-        // Use default location (Bishnupur)
-        location = { latitude: 23.0732, longitude: 87.3199 };
-        setCurrentLocation(location);
-      }
-
-      // If editing existing address, use its location
+      // If editing existing address, use its location ONLY - don't get current location at all
       if (existingAddress?.location?.coordinates) {
         location = {
           latitude: existingAddress.location.coordinates[1],
           longitude: existingAddress.location.coordinates[0],
         };
+        
+        // Set address details from existing address
         setAddressDetails({
-          address: existingAddress.address || '', // Load existing address (floor/house number)
+          address: existingAddress.address || '',
           road: existingAddress.road || '',
           locality: existingAddress.locality || '',
           area: existingAddress.area || '',
@@ -136,11 +138,32 @@ const AddressMapScreen = ({ navigation, route }) => {
           fullAddress: existingAddress.fullAddress || 
             [existingAddress.road, existingAddress.locality, existingAddress.area, existingAddress.city].filter(Boolean).join(', ') || '',
         });
+        
+        // Set selected location to existing address location
+        setSelectedLocation(location);
+        
+        // Mark that we're editing existing address
+        isEditingRef.current = true;
+        if (webViewRef.current) {
+          webViewRef.current._isEditingAddress = true;
+        }
+        
+        // DON'T get current location at all when editing - we already have the location we need
+        // The map will use selectedLocation which is set to existing address location
+      } else {
+        // Only get current location if NOT editing an existing address
+        try {
+          location = await getCurrentLocation();
+          setCurrentLocation(location);
+        } catch (error) {
+          console.error('Error getting current location:', error);
+          // Use default location (Bishnupur)
+          location = { latitude: 23.0732, longitude: 87.3199 };
+          setCurrentLocation(location);
+        }
+        setSelectedLocation(location);
+        await loadAddressFromLocation(location, false);
       }
-
-      setSelectedLocation(location);
-      // When editing existing address, preserve the address field (floor/house number)
-      await loadAddressFromLocation(location, true);
     } catch (error) {
       console.error('Error initializing location:', error);
     } finally {
@@ -150,6 +173,11 @@ const AddressMapScreen = ({ navigation, route }) => {
 
   const loadAddressFromLocation = async (location, preserveAddress = false) => {
     if (!location) return;
+    
+    // If editing existing address and this is not a user-initiated action, don't update
+    if (isEditingRef.current && !preserveAddress) {
+      return; // Don't load address from location if editing and not user-initiated
+    }
     
     try {
       setLoadingAddress(true);
@@ -162,9 +190,9 @@ const AddressMapScreen = ({ navigation, route }) => {
           // Update all address components from reverse geocoding for detailed display
           // Never auto-fill the address field - user must enter floor/house number manually
           // Preserve address field if preserveAddress is true or if editing existing address
-          const shouldPreserveAddress = preserveAddress || existingAddress;
+          const shouldPreserveAddress = preserveAddress || isEditingRef.current;
           const currentAddress = shouldPreserveAddress ? (prev.address || existingAddress?.address || '') : (prev.address || '');
-          
+
           // Build full address for display
           const parts = [];
           if (geoData.road) parts.push(geoData.road);
@@ -175,8 +203,8 @@ const AddressMapScreen = ({ navigation, route }) => {
           if (geoData.postalCode) parts.push(geoData.postalCode);
           const fullAddress = geoData.fullAddress || geoData.display || parts.join(', ') || '';
           
-          // Update map popup with address
-          if (webViewRef.current) {
+          // Update map popup with address (but don't update location if editing existing address)
+          if (webViewRef.current && !isEditingRef.current) {
             webViewRef.current.postMessage(JSON.stringify({
               type: 'updateAddress',
               address: fullAddress || 'Address not available'
@@ -197,8 +225,8 @@ const AddressMapScreen = ({ navigation, route }) => {
         });
       }
 
-      // Calculate distance from current location
-      if (currentLocation) {
+      // Calculate distance from current location (only if not editing existing address)
+      if (currentLocation && !isEditingRef.current) {
         const distance = calculateDistance(
           location.latitude,
           location.longitude,
@@ -335,6 +363,9 @@ const AddressMapScreen = ({ navigation, route }) => {
           latitude: data.latitude,
           longitude: data.longitude,
         };
+        // Always allow user to move marker on map (even when editing)
+        // When user moves marker, they're intentionally changing location
+        isEditingRef.current = false; // User has moved marker, so no longer preserving original location
         setSelectedLocation(location);
         // When pin is moved on map, update city/state/zipCode but preserve user's entered address
         // User will enter floor/house number manually - don't auto-fill address field
@@ -343,13 +374,46 @@ const AddressMapScreen = ({ navigation, route }) => {
         setLoading(false);
         // Only set initial location on first mapReady, not after user interactions
         // Use a ref to track if we've already set the initial location
-        if (selectedLocation && webViewRef.current && !webViewRef.current._initialLocationSet) {
-          webViewRef.current.postMessage(JSON.stringify({
-            type: 'setLocation',
-            latitude: selectedLocation.latitude,
-            longitude: selectedLocation.longitude,
-          }));
-          webViewRef.current._initialLocationSet = true;
+        // Priority: existing address location > selectedLocation
+        if (existingAddress?.location?.coordinates) {
+          // We're editing an existing address - use its location
+          const locationToUse = {
+            latitude: existingAddress.location.coordinates[1], 
+            longitude: existingAddress.location.coordinates[0] 
+          };
+          
+          if (webViewRef.current && !webViewRef.current._initialLocationSet) {
+            console.log('Setting initial location for edit mode:', locationToUse);
+            // Send location to WebView - this is the ONLY location update allowed when editing
+            webViewRef.current.postMessage(JSON.stringify({
+              type: 'setLocation',
+              latitude: locationToUse.latitude,
+              longitude: locationToUse.longitude,
+            }));
+            webViewRef.current._initialLocationSet = true;
+            webViewRef.current._isEditingAddress = true;
+            isEditingRef.current = true;
+            
+            // Send editing mode flag to WebView to prevent ALL future location updates
+            setTimeout(() => {
+              if (webViewRef.current && isEditingRef.current) {
+                webViewRef.current.postMessage(JSON.stringify({
+                  type: 'setEditingMode',
+                  isEditing: true
+                }));
+              }
+            }, 500);
+          }
+        } else if (selectedLocation) {
+          // New address - use selected location
+          if (webViewRef.current && !webViewRef.current._initialLocationSet) {
+            webViewRef.current.postMessage(JSON.stringify({
+              type: 'setLocation',
+              latitude: selectedLocation.latitude,
+              longitude: selectedLocation.longitude,
+            }));
+            webViewRef.current._initialLocationSet = true;
+          }
         }
       }
     } catch (error) {
@@ -359,6 +423,12 @@ const AddressMapScreen = ({ navigation, route }) => {
 
 
   const handleUseCurrentLocation = async () => {
+    // Don't allow using current location when editing existing address
+    if (existingAddress || isEditingRef.current) {
+      Alert.alert('Info', 'Cannot change location when editing an address. Please move the marker on the map to update the location.');
+      return;
+    }
+    
     try {
       setLoading(true);
       const location = await getCurrentLocation();
@@ -366,7 +436,7 @@ const AddressMapScreen = ({ navigation, route }) => {
         setCurrentLocation(location);
         setSelectedLocation(location);
         
-        if (webViewRef.current) {
+        if (webViewRef.current && !isEditingRef.current) {
           webViewRef.current.postMessage(JSON.stringify({
             type: 'setLocation',
             latitude: location.latitude,
@@ -448,6 +518,8 @@ const AddressMapScreen = ({ navigation, route }) => {
       Alert.alert('Error', error.message || 'Failed to save address. Please try again.');
     }
   };
+  console.log('selectedLocation',selectedLocation)
+  console.log('route',route?.params?.address)
 
   const mapHTML = `
     <!DOCTYPE html>
@@ -526,8 +598,11 @@ const AddressMapScreen = ({ navigation, route }) => {
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
       <script>
         let map, marker;
-        let currentLat = ${selectedLocation?.latitude || currentLocation?.latitude || 23.0732};
-        let currentLon = ${selectedLocation?.longitude || currentLocation?.longitude || 87.3199};
+        // When editing existing address, ONLY use existing address location - never use currentLocation
+        let currentLat = ${existingAddress?.location?.coordinates?.[1] || selectedLocation?.latitude || 23.0732};
+        let currentLon = ${existingAddress?.location?.coordinates?.[0] || selectedLocation?.longitude || 87.3199};
+        // Store if we're editing to prevent any location updates
+        let isEditingAddress = ${!!existingAddress};
         let currentAddress = '${(addressDetails.fullAddress || searchQuery || [addressDetails.road, addressDetails.locality, addressDetails.area, addressDetails.city].filter(Boolean).join(', ') || 'Loading address...').replace(/'/g, "\\'")}';
         
         // Initialize map with zoom controls enabled
@@ -653,21 +728,50 @@ const AddressMapScreen = ({ navigation, route }) => {
               if (isUserDragging) {
                 return;
               }
-              // Only update if location is significantly different (avoid reset on drag)
+              // STRICT: If editing existing address, block ALL location updates after initial set
+              if (isEditingAddress) {
+                if (!map._initialLocationSet) {
+                  // First time setting location - allow it and mark as set
+                  const latDiff = Math.abs(currentLat - data.latitude);
+                  const lonDiff = Math.abs(currentLon - data.longitude);
+                  if (latDiff > 0.0001 || lonDiff > 0.0001) {
+                    currentLat = data.latitude;
+                    currentLon = data.longitude;
+                    const currentZoom = map.getZoom();
+                    map.setView([currentLat, currentLon], currentZoom, { animate: true, duration: 0.3 });
+                    marker.setLatLng([currentLat, currentLon], { animate: true, duration: 0.3 });
+                    map._initialLocationSet = true; // Mark that initial location is set
+                  }
+                }
+                // Block ALL subsequent location updates when editing
+                return;
+              }
+              // For new address, allow location updates normally
               const latDiff = Math.abs(currentLat - data.latitude);
               const lonDiff = Math.abs(currentLon - data.longitude);
-              // Only update if difference is more than 0.0001 degrees (~11 meters)
               if (latDiff > 0.0001 || lonDiff > 0.0001) {
                 currentLat = data.latitude;
                 currentLon = data.longitude;
                 const currentZoom = map.getZoom();
-                map.setView([currentLat, currentLon], currentZoom, { animate: true, duration: 0.3 }); // Smooth animation
-                marker.setLatLng([currentLat, currentLon], { animate: true, duration: 0.3 }); // Smooth marker movement
+                map.setView([currentLat, currentLon], currentZoom, { animate: true, duration: 0.3 });
+                marker.setLatLng([currentLat, currentLon], { animate: true, duration: 0.3 });
+              }
+            } else if (data.type === 'setEditingMode') {
+              // Set editing mode flag in WebView
+              isEditingAddress = data.isEditing || false;
+              if (isEditingAddress) {
+                map._initialLocationSet = true; // Mark that initial location is set
               }
             } else if (data.type === 'updateAddress') {
               // Update tooltip with new address
               currentAddress = data.address || 'Loading address...';
               marker.setTooltipContent(currentAddress);
+            } else if (data.type === 'setEditingMode') {
+              // Set editing mode flag in WebView
+              isEditingAddress = data.isEditing || false;
+              if (isEditingAddress) {
+                map._initialLocationSet = true; // Mark that initial location is set
+              }
             }
           } catch (e) {
             console.error('Error handling message:', e);
@@ -902,8 +1006,14 @@ const AddressMapScreen = ({ navigation, route }) => {
             androidHardwareAccelerationDisabled={false}
           />
           <TouchableOpacity 
-            style={styles.currentLocationButton}
+            style={[styles.currentLocationButton, existingAddress && styles.currentLocationButtonDisabled]}
             onPress={async () => {
+              // Don't allow using current location when editing existing address
+              if (existingAddress) {
+                Alert.alert('Info', 'Cannot change location when editing an address. Please move the marker on the map to update the location.');
+                return;
+              }
+              
               try {
                 const location = await getCurrentLocation();
                 setCurrentLocation(location);
@@ -925,6 +1035,7 @@ const AddressMapScreen = ({ navigation, route }) => {
                 Alert.alert('Error', 'Could not get your current location. Please try again.');
               }
             }}
+            disabled={!!existingAddress}
           >
             <Icon name="locate" size={18} color="#f7ab18" />
             <Text style={styles.currentLocationText}>Use current location</Text>
@@ -934,7 +1045,7 @@ const AddressMapScreen = ({ navigation, route }) => {
         {/* Content */}
         {/* Delivery Details */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery details</Text>
+          <Text style={styles.sectionTitle}>Delive1ry details</Text>
           <TouchableOpacity style={styles.addressCard}>
             <Icon name="location" size={20} color="#f7ab18" />
             <Text style={styles.addressText} numberOfLines={3}>
@@ -1194,6 +1305,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
     zIndex: 1,
+  },
+  currentLocationButtonDisabled: {
+    opacity: 0.5,
   },
   currentLocationButton: {
     position: 'absolute',

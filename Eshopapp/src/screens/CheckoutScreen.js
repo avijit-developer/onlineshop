@@ -423,49 +423,62 @@ const CheckoutScreen = () => {
     setIsProcessing(true);
 
     try {
-      // Get address coordinates - use validated coordinates if available, otherwise extract from address
+      // Get address coordinates - ensure we always extract from selected address
       let addressLatitude = null;
       let addressLongitude = null;
       
-      // Check if we have validated coordinates for this address
       const addressToUse = selectedAddress || getDefaultAddress();
-      const addressId = addressToUse?.id || addressToUse?._id;
-      const currentAddressKey = addressToUse ? `${addressId}_${addressToUse.latitude}_${addressToUse.longitude}` : null;
       
-      // Use validated coordinates if they match the current address
-      if (validatedCoordinates.current.addressKey === currentAddressKey && 
-          validatedCoordinates.current.latitude != null && 
-          validatedCoordinates.current.longitude != null) {
-        addressLatitude = validatedCoordinates.current.latitude;
-        addressLongitude = validatedCoordinates.current.longitude;
-        console.log('Order placement: Using validated coordinates from previous validation:', addressLatitude, addressLongitude);
+      if (!addressToUse) {
+        console.warn('⚠️ No address selected for order placement');
       } else {
-        // Extract coordinates from address (same logic as validation)
-        // Priority 1: Direct latitude/longitude fields (from AddressMapScreen)
-        if (addressToUse?.latitude != null && addressToUse?.longitude != null) {
+        // Priority 1: Location coordinates array (most reliable - from database)
+        if (addressToUse?.location?.coordinates && Array.isArray(addressToUse.location.coordinates) && addressToUse.location.coordinates.length >= 2) {
+          addressLatitude = Number(addressToUse.location.coordinates[1]); // latitude is at index 1
+          addressLongitude = Number(addressToUse.location.coordinates[0]); // longitude is at index 0
+          console.log('✅ Order placement: Using location.coordinates from address:', addressLatitude, addressLongitude);
+        }
+        // Priority 2: Direct latitude/longitude fields (from AddressMapScreen)
+        else if (addressToUse?.latitude != null && addressToUse?.longitude != null) {
           addressLatitude = Number(addressToUse.latitude);
           addressLongitude = Number(addressToUse.longitude);
-          console.log('Order placement: Using direct lat/long from address:', addressLatitude, addressLongitude);
+          console.log('✅ Order placement: Using direct lat/long fields from address:', addressLatitude, addressLongitude);
         }
-        // Priority 2: Location coordinates array
-        else if (addressToUse?.location?.coordinates && Array.isArray(addressToUse.location.coordinates) && addressToUse.location.coordinates.length >= 2) {
-          addressLatitude = Number(addressToUse.location.coordinates[1]);
-          addressLongitude = Number(addressToUse.location.coordinates[0]);
-          console.log('Order placement: Using location coordinates from address:', addressLatitude, addressLongitude);
-        } else {
-          // If no coordinates in address, geocode the address string
-          const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
-          try {
-            const coords = await geocodeAddress(shippingAddressStr);
-            if (coords) {
-              addressLatitude = Number(coords.latitude);
-              addressLongitude = Number(coords.longitude);
-              console.log('Order placement: Geocoded coordinates:', addressLatitude, addressLongitude);
+        // Priority 3: Use validated coordinates if they match the current address
+        else {
+          const addressId = addressToUse?.id || addressToUse?._id;
+          const currentAddressKey = addressToUse ? `${addressId}_${addressToUse.latitude}_${addressToUse.longitude}` : null;
+          
+          if (validatedCoordinates.current.addressKey === currentAddressKey && 
+              validatedCoordinates.current.latitude != null && 
+              validatedCoordinates.current.longitude != null) {
+            addressLatitude = validatedCoordinates.current.latitude;
+            addressLongitude = validatedCoordinates.current.longitude;
+            console.log('✅ Order placement: Using validated coordinates from previous validation:', addressLatitude, addressLongitude);
+          } else {
+            // Priority 4: If no coordinates in address, geocode the address string
+            const shippingAddressStr = `${effectiveAddress.firstName} ${effectiveAddress.lastName}, ${effectiveAddress.address}, ${effectiveAddress.city}, ${effectiveAddress.state} ${effectiveAddress.zipCode}, ${effectiveAddress.country}`;
+            try {
+              console.log('⚠️ No coordinates found in address, geocoding...');
+              const coords = await geocodeAddress(shippingAddressStr);
+              if (coords) {
+                addressLatitude = Number(coords.latitude);
+                addressLongitude = Number(coords.longitude);
+                console.log('✅ Order placement: Geocoded coordinates:', addressLatitude, addressLongitude);
+              } else {
+                console.warn('⚠️ Geocoding failed - no coordinates available');
+              }
+            } catch (err) {
+              console.error('❌ Failed to geocode address:', err);
             }
-          } catch (err) {
-            console.error('Failed to geocode address:', err);
           }
         }
+      }
+      
+      // Final validation - ensure we have coordinates
+      if (addressLatitude == null || addressLongitude == null) {
+        console.warn('⚠️ WARNING: Order will be placed without coordinates!');
+        console.warn('   Address used:', JSON.stringify(addressToUse, null, 2));
       }
 
       // Delivery area validation is already done on checkout screen
@@ -499,8 +512,9 @@ const CheckoutScreen = () => {
         shippingCost: appliedCoupon?.freeShipping ? 0 : shipping,
         couponCode: (appliedCoupon?.couponCode || couponCode.trim()) || undefined,
         orderNote: orderNote.trim() || undefined,
-        addressLatitude,
-        addressLongitude,
+        // Always send coordinates (even if null) - backend will handle null values
+        addressLatitude: addressLatitude != null ? Number(addressLatitude) : null,
+        addressLongitude: addressLongitude != null ? Number(addressLongitude) : null,
       };
       
       console.log('📦 Order payload (coordinates):', {

@@ -201,13 +201,6 @@ const Settings = () => {
               Email
             </button>
             <button
-              className={`nav-item ${activeTab === 'vendor' ? 'active' : ''}`}
-              onClick={() => setActiveTab('vendor')}
-            >
-              <span className="nav-icon">🏪</span>
-              Vendor Settings
-            </button>
-            <button
               className={`nav-item ${activeTab === 'delivery' ? 'active' : ''}`}
               onClick={() => setActiveTab('delivery')}
             >

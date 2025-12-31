@@ -227,6 +227,13 @@ const AddressListScreen = ({ route }) => {
         
         <View style={styles.addressContent}>
           <Text style={styles.addressLabel}>{item.label || 'Address'}</Text>
+          {(item.firstName || item.lastName || item.name) && (
+            <Text style={styles.receiverName}>
+              {item.firstName && item.lastName 
+                ? `${item.firstName} ${item.lastName}`.trim()
+                : item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim()}
+            </Text>
+          )}
           <Text style={styles.addressText}>
             {[item.address, item.city, item.state].filter(Boolean).join(', ')}
           </Text>
@@ -474,6 +481,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: 4,
+  },
+  receiverName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#444',
     marginBottom: 4,
   },
   addressText: {

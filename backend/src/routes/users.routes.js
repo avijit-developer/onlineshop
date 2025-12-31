@@ -221,8 +221,18 @@ router.post('/me/addresses', authenticate, requireRole(['customer']), async (req
   addressData.zipCode = addressData.zipCode || '';
   addressData.country = addressData.country || 'United States';
   
-  // Handle location coordinates if latitude/longitude provided
-  if (addressData.latitude != null && addressData.longitude != null) {
+  // Handle location coordinates - prioritize location object if provided, otherwise use latitude/longitude
+  if (addressData.location && addressData.location.coordinates && Array.isArray(addressData.location.coordinates)) {
+    // Location object already provided, ensure it's in correct format
+    addressData.location = {
+      type: addressData.location.type || 'Point',
+      coordinates: [
+        Number(addressData.location.coordinates[0]), // longitude
+        Number(addressData.location.coordinates[1])  // latitude
+      ]
+    };
+  } else if (addressData.latitude != null && addressData.longitude != null) {
+    // Create location object from latitude/longitude
     addressData.location = {
       type: 'Point',
       coordinates: [Number(addressData.longitude), Number(addressData.latitude)] // [lon, lat] format for MongoDB
@@ -297,8 +307,18 @@ router.put('/me/addresses/:addressId', authenticate, requireRole(['customer']), 
     addressData.name = `${addressData.firstName || ''} ${addressData.lastName || ''}`.trim();
   }
 
-  // Handle location coordinates if latitude/longitude provided
-  if (addressData.latitude != null && addressData.longitude != null) {
+  // Handle location coordinates - prioritize location object if provided, otherwise use latitude/longitude
+  if (addressData.location && addressData.location.coordinates && Array.isArray(addressData.location.coordinates)) {
+    // Location object already provided, ensure it's in correct format
+    addressData.location = {
+      type: addressData.location.type || 'Point',
+      coordinates: [
+        Number(addressData.location.coordinates[0]), // longitude
+        Number(addressData.location.coordinates[1])  // latitude
+      ]
+    };
+  } else if (addressData.latitude != null && addressData.longitude != null) {
+    // Create location object from latitude/longitude
     addressData.location = {
       type: 'Point',
       coordinates: [Number(addressData.longitude), Number(addressData.latitude)] // [lon, lat] format for MongoDB
@@ -530,8 +550,18 @@ router.post('/:id/addresses', authenticate, requireAdmin, async (req, res) => {
     user.addresses.forEach(addr => addr.isDefault = false);
   }
 
-  // Handle location coordinates if latitude/longitude provided
-  if (addressData.latitude != null && addressData.longitude != null) {
+  // Handle location coordinates - prioritize location object if provided, otherwise use latitude/longitude
+  if (addressData.location && addressData.location.coordinates && Array.isArray(addressData.location.coordinates)) {
+    // Location object already provided, ensure it's in correct format
+    addressData.location = {
+      type: addressData.location.type || 'Point',
+      coordinates: [
+        Number(addressData.location.coordinates[0]), // longitude
+        Number(addressData.location.coordinates[1])  // latitude
+      ]
+    };
+  } else if (addressData.latitude != null && addressData.longitude != null) {
+    // Create location object from latitude/longitude
     addressData.location = {
       type: 'Point',
       coordinates: [Number(addressData.longitude), Number(addressData.latitude)] // [lon, lat] format for MongoDB
