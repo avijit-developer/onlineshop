@@ -37,13 +37,31 @@ router.post('/apply', async (req, res) => {
       bankAccountNumber,
       bankName,
       bankIFSC,
-      bankBranch
+      bankBranch,
+      panCard,
+      panCardPublicId,
+      aadharCard,
+      aadharCardPublicId,
+      bankDetailsDocument,
+      bankDetailsDocumentPublicId
     } = req.body || {};
 
     const applicantEmail = (email || req.user.email || '').trim().toLowerCase();
     if (!companyName || !applicantEmail || !phone) {
       res.status(400);
       throw new Error('companyName, email and phone are required');
+    }
+    if (!panCard) {
+      res.status(400);
+      throw new Error('PAN Card upload is required');
+    }
+    if (!aadharCard) {
+      res.status(400);
+      throw new Error('Aadhar Card upload is required');
+    }
+    if (!bankDetailsDocument) {
+      res.status(400);
+      throw new Error('Bank Details Document upload is required');
     }
     if (!isValidEmail(applicantEmail)) {
       res.status(400);
@@ -89,7 +107,13 @@ router.post('/apply', async (req, res) => {
       bankAccountNumber: bankAccountNumber ? String(bankAccountNumber).trim() : '',
       bankName: bankName ? String(bankName).trim() : '',
       bankIFSC: bankIFSC ? String(bankIFSC).trim() : '',
-      bankBranch: bankBranch ? String(bankBranch).trim() : ''
+      bankBranch: bankBranch ? String(bankBranch).trim() : '',
+      panCard: panCard ? String(panCard).trim() : '',
+      panCardPublicId: panCardPublicId ? String(panCardPublicId).trim() : '',
+      aadharCard: aadharCard ? String(aadharCard).trim() : '',
+      aadharCardPublicId: aadharCardPublicId ? String(aadharCardPublicId).trim() : '',
+      bankDetailsDocument: bankDetailsDocument ? String(bankDetailsDocument).trim() : '',
+      bankDetailsDocumentPublicId: bankDetailsDocumentPublicId ? String(bankDetailsDocumentPublicId).trim() : ''
     });
 
     // Handle vendor user association/creation logic
@@ -213,19 +237,109 @@ router.get('/', authenticate, requireAnyPermission(['vendor.view', 'vendor.edit'
     Vendor.countDocuments(filters)
   ]);
 
-  console.log('Query results - items count:', items.length);
-  console.log('Query results - total count:', total);
-  console.log('Query results - items:', items.map(item => ({ id: item._id, companyName: item.companyName })));
+  // Fetch additional statistics for each vendor
+  const Product = require('../models/Product');
+  const Order = require('../models/Order');
+  const Review = require('../models/Review');
+  const Payout = require('../models/Payout');
+  
+  // Helper function to compute vendor balance (similar to payments.routes.js)
+  const computeVendorBalance = async (vendorId) => {
+    const vendorIdStr = vendorId.toString();
+    if (!vendorIdStr || !mongoose.Types.ObjectId.isValid(vendorIdStr)) {
+      return { vendorEarnings: 0, paid: 0, due: 0 };
+    }
+    const vendorObjectId = new mongoose.Types.ObjectId(vendorIdStr);
+    const orders = await Order.find({ 'items.vendor': vendorObjectId }).lean();
+    let vendorEarnings = 0;
+    
+    // Calculate earnings from completed/delivered orders
+    for (const order of orders) {
+      const orderStatus = String(order.status || '').toLowerCase();
+      // Only count completed/delivered orders
+      if (orderStatus !== 'delivered' && orderStatus !== 'completed') continue;
+      
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const itemVendorId = item.vendor ? item.vendor.toString() : '';
+        if (itemVendorId !== vendorIdStr) continue;
+        const qty = Number(item.quantity || 0);
+        if (!(qty > 0)) continue;
+        const vendorUnit = Number(
+          item.vendorUnitPrice ??
+          item.vendorPrice ??
+          0
+        );
+        vendorEarnings += vendorUnit * qty;
+      }
+    }
+    
+    // Get total payouts
+    const payouts = await Payout.find({ vendor: vendorObjectId }).lean();
+    const paid = payouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const due = Math.max(0, vendorEarnings - paid);
+    
+    return { vendorEarnings, paid, due };
+  };
+  
+  const itemsWithStats = await Promise.all(items.map(async (vendor) => {
+    const vendorId = vendor._id;
+    const vendorIdStr = vendorId.toString();
+    
+    // Get products count
+    const productsCount = await Product.countDocuments({ vendor: vendorId });
+    
+    // Get orders count (orders that have items from this vendor)
+    const ordersCount = await Order.countDocuments({ 'items.vendor': vendorId });
+    
+    // Get average rating from reviews (only approved reviews)
+    const reviews = await Review.find({ vendor: vendorId, status: 'approved' }).lean();
+    const rating = reviews.length > 0
+      ? (reviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / reviews.length).toFixed(1)
+      : null;
+    
+    // Calculate actual balance and total earnings from orders
+    const balanceData = await computeVendorBalance(vendorId);
+    
+    return {
+      ...vendor,
+      productsCount,
+      ordersCount,
+      rating: rating ? parseFloat(rating) : null,
+      balance: balanceData.due, // Due amount (earnings - paid)
+      totalEarnings: balanceData.vendorEarnings // Total earnings from all completed orders
+    };
+  }));
 
-  res.json({ success: true, data: items, meta: { total, page: pageNum, limit: perPage } });
+  console.log('Query results - items count:', itemsWithStats.length);
+  console.log('Query results - total count:', total);
+  console.log('Query results - items:', itemsWithStats.map(item => ({ id: item._id, companyName: item.companyName })));
+
+  res.json({ success: true, data: itemsWithStats, meta: { total, page: pageNum, limit: perPage } });
 });
 
 // POST /vendors (accepts direct upload fields imageUrl/imagePublicId for logo)
 router.post('/', authenticate, requirePermission('vendor.add'), async (req, res) => {
-  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, bankAccountHolderName, bankAccountNumber, bankName, bankIFSC, bankBranch } = req.body || {};
+  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, bankAccountHolderName, bankAccountNumber, bankName, bankIFSC, bankBranch, panCard, panCardPublicId, aadharCard, aadharCardPublicId, bankDetailsDocument, bankDetailsDocumentPublicId } = req.body || {};
   if (!name || !companyName || !email || !phone || !address1 || !city || !zip) {
     res.status(400);
     throw new Error('name, companyName, email, phone, address1, city and zip are required');
+  }
+  if (!panCard) {
+    res.status(400);
+    throw new Error('PAN Card upload is required');
+  }
+  if (!aadharCard) {
+    res.status(400);
+    throw new Error('Aadhar Card upload is required');
+  }
+  if (!bankAccountHolderName || !bankAccountNumber || !bankName || !bankIFSC) {
+    res.status(400);
+    throw new Error('Bank details are required (Account Holder Name, Account Number, Bank Name, IFSC Code)');
+  }
+  if (!bankDetailsDocument) {
+    res.status(400);
+    throw new Error('Bank Details Document upload is required');
   }
   if (!isValidEmail(email)) {
     res.status(400);
@@ -269,7 +383,13 @@ router.post('/', authenticate, requirePermission('vendor.add'), async (req, res)
     bankAccountNumber: bankAccountNumber ? String(bankAccountNumber).trim() : '',
     bankName: bankName ? String(bankName).trim() : '',
     bankIFSC: bankIFSC ? String(bankIFSC).trim() : '',
-    bankBranch: bankBranch ? String(bankBranch).trim() : ''
+    bankBranch: bankBranch ? String(bankBranch).trim() : '',
+    panCard: panCard || '',
+    panCardPublicId: panCardPublicId || '',
+    aadharCard: aadharCard || '',
+    aadharCardPublicId: aadharCardPublicId || '',
+    bankDetailsDocument: bankDetailsDocument || '',
+    bankDetailsDocumentPublicId: bankDetailsDocumentPublicId || ''
   });
 
   // If the user creating the vendor is a vendor user, automatically assign them to this new vendor
@@ -292,7 +412,7 @@ router.post('/', authenticate, requirePermission('vendor.add'), async (req, res)
 // PUT /vendors/:id
 router.put('/:id', authenticate, requirePermission('vendor.edit'), async (req, res) => {
   const { id } = req.params;
-  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, status, enabled, bankAccountHolderName, bankAccountNumber, bankName, bankIFSC, bankBranch } = req.body || {};
+  const { name, companyName, email, phone, address1, address2, city, zip, address, commission, imageUrl, imagePublicId, status, enabled, bankAccountHolderName, bankAccountNumber, bankName, bankIFSC, bankBranch, panCard, panCardPublicId, aadharCard, aadharCardPublicId, bankDetailsDocument, bankDetailsDocumentPublicId } = req.body || {};
 
   // If user is a vendor, ensure they can only edit their own vendor
   if (req.user.role === 'vendor' && req.user.vendorId !== id) {
@@ -346,6 +466,30 @@ router.put('/:id', authenticate, requirePermission('vendor.edit'), async (req, r
   if (bankName !== undefined) vendor.bankName = String(bankName).trim();
   if (bankIFSC !== undefined) vendor.bankIFSC = String(bankIFSC).trim();
   if (bankBranch !== undefined) vendor.bankBranch = String(bankBranch).trim();
+  if (panCard !== undefined) vendor.panCard = panCard;
+  if (panCardPublicId !== undefined) vendor.panCardPublicId = panCardPublicId;
+  if (aadharCard !== undefined) vendor.aadharCard = aadharCard;
+  if (aadharCardPublicId !== undefined) vendor.aadharCardPublicId = aadharCardPublicId;
+  if (bankDetailsDocument !== undefined) vendor.bankDetailsDocument = bankDetailsDocument;
+  if (bankDetailsDocumentPublicId !== undefined) vendor.bankDetailsDocumentPublicId = bankDetailsDocumentPublicId;
+  
+  // Validate mandatory fields before saving
+  if (!vendor.panCard) {
+    res.status(400);
+    throw new Error('PAN Card upload is required');
+  }
+  if (!vendor.aadharCard) {
+    res.status(400);
+    throw new Error('Aadhar Card upload is required');
+  }
+  if (!vendor.bankAccountHolderName || !vendor.bankAccountNumber || !vendor.bankName || !vendor.bankIFSC) {
+    res.status(400);
+    throw new Error('Bank details are required (Account Holder Name, Account Number, Bank Name, IFSC Code)');
+  }
+  if (!vendor.bankDetailsDocument) {
+    res.status(400);
+    throw new Error('Bank Details Document upload is required');
+  }
 
   const updated = await vendor.save();
   res.json({ success: true, data: updated });

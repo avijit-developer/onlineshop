@@ -25,7 +25,14 @@ const vendorSchema = new mongoose.Schema(
     bankAccountNumber: { type: String, trim: true },
     bankName: { type: String, trim: true },
     bankIFSC: { type: String, trim: true },
-    bankBranch: { type: String, trim: true }
+    bankBranch: { type: String, trim: true },
+    // Document uploads
+    panCard: { type: String, trim: true },
+    panCardPublicId: { type: String, trim: true },
+    aadharCard: { type: String, trim: true },
+    aadharCardPublicId: { type: String, trim: true },
+    bankDetailsDocument: { type: String, trim: true },
+    bankDetailsDocumentPublicId: { type: String, trim: true }
   },
   { timestamps: true }
 );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { launchImageLibrary } from 'react-native-image-picker';
 import api, { API_BASE } from '../utils/api';
 
 const VendorApplyScreen = ({ navigation }) => {
@@ -30,12 +31,125 @@ const VendorApplyScreen = ({ navigation }) => {
 	const [submitting, setSubmitting] = useState(false);
 	const [showPw, setShowPw] = useState(false);
 	const [showPw2, setShowPw2] = useState(false);
+	const [panCardFile, setPanCardFile] = useState(null);
+	const [aadharCardFile, setAadharCardFile] = useState(null);
+	const [bankDetailsDocumentFile, setBankDetailsDocumentFile] = useState(null);
 
 	const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+	const getUploadSignature = async (subfolder, resourceType = 'auto') => {
+		try {
+			const token = await api.getStoredToken?.();
+			const res = await fetch(`${API_BASE}/api/v1/uploads/signature`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...(token ? { 'Authorization': `Bearer ${token}` } : {})
+				},
+				body: JSON.stringify({ folder: subfolder, resource_type: resourceType })
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json?.message || 'Failed to get upload signature');
+			return json.data;
+		} catch (error) {
+			throw new Error('Failed to get upload signature: ' + error.message);
+		}
+	};
+
+	const uploadToCloudinary = async (file, subfolder = 'vendors') => {
+		try {
+			const isPDF = file.type === 'application/pdf' || (file.name && file.name.toLowerCase().endsWith('.pdf'));
+			const resourceType = isPDF ? 'raw' : 'image';
+			
+			const { signature, timestamp, folder, apiKey, cloudName } = await getUploadSignature(subfolder, resourceType);
+			
+			const fd = new FormData();
+			fd.append('file', {
+				uri: file.uri,
+				type: file.type || (isPDF ? 'application/pdf' : 'image/jpeg'),
+				name: file.name || (isPDF ? 'document.pdf' : 'image.jpg')
+			});
+			fd.append('api_key', apiKey);
+			fd.append('timestamp', String(timestamp));
+			fd.append('signature', signature);
+			fd.append('folder', folder);
+			fd.append('unique_filename', 'true');
+			fd.append('overwrite', 'false');
+			fd.append('type', 'upload');
+			// Note: resource_type is in the URL path, not in FormData
+			
+			const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+				method: 'POST',
+				body: fd
+			});
+			
+			const json = await res.json();
+			
+			if (!res.ok) {
+				throw new Error(json?.error?.message || 'Cloudinary upload failed');
+			}
+			
+			if (!json.secure_url) {
+				throw new Error('Upload successful but URL not returned');
+			}
+			
+			return { imageUrl: json.secure_url, imagePublicId: json.public_id };
+		} catch (error) {
+			throw error;
+		}
+	};
+
+	const pickImage = async (type) => {
+		try {
+			// Allow both images and PDFs from gallery
+			const result = await launchImageLibrary({ 
+				mediaType: 'mixed', // This allows both images and videos, but we'll handle PDFs separately
+				quality: 0.8,
+				selectionLimit: 1
+			});
+			if (result?.assets && result.assets[0]) {
+				const asset = result.assets[0];
+				// Check if it's a PDF based on file name or type
+				const isPDF = asset.fileName?.toLowerCase().endsWith('.pdf') || 
+							  asset.type === 'application/pdf' ||
+							  asset.uri?.toLowerCase().endsWith('.pdf');
+				const file = {
+					uri: asset.uri,
+					type: isPDF ? 'application/pdf' : (asset.type || 'image/jpeg'),
+					name: asset.fileName || (isPDF ? 'document.pdf' : 'image.jpg')
+				};
+				if (type === 'pan') {
+					setPanCardFile(file);
+				} else if (type === 'aadhar') {
+					setAadharCardFile(file);
+				} else if (type === 'bank') {
+					setBankDetailsDocumentFile(file);
+				}
+			}
+		} catch (error) {
+			Alert.alert('Error', 'Failed to pick file');
+		}
+	};
 
 	const submit = async () => {
 		if (!form.companyName || !form.email || !form.phone) {
 			Alert.alert('Validation', 'Company name, email and phone are required');
+			return;
+		}
+		if (!form.bankAccountHolderName || !form.bankAccountNumber || !form.bankName || !form.bankIFSC || !form.bankBranch) {
+			Alert.alert('Validation', 'Bank details are required (Account Holder Name, Account Number, Bank Name, IFSC Code, Branch)');
+			return;
+		}
+		if (!panCardFile) {
+			Alert.alert('Validation', 'PAN Card upload is required');
+			return;
+		}
+		if (!aadharCardFile) {
+			Alert.alert('Validation', 'Aadhar Card upload is required');
+			return;
+		}
+		if (!bankDetailsDocumentFile) {
+			Alert.alert('Validation', 'Bank Details Document upload is required');
 			return;
 		}
 		// When creating a new vendor user, ensure password rules
@@ -59,6 +173,15 @@ const VendorApplyScreen = ({ navigation }) => {
 		}
 		setSubmitting(true);
 		try {
+			// Upload documents first
+			Alert.alert('Uploading', 'Please wait while we upload your documents...');
+			
+			const [panCardResult, aadharCardResult, bankDetailsResult] = await Promise.all([
+				uploadToCloudinary(panCardFile, 'vendors/documents'),
+				uploadToCloudinary(aadharCardFile, 'vendors/documents'),
+				uploadToCloudinary(bankDetailsDocumentFile, 'vendors/documents')
+			]);
+			
 			const token = await api.getStoredToken?.();
 			const res = await fetch(`${API_BASE}/api/v1/vendors/apply`, {
 				method: 'POST',
@@ -69,7 +192,13 @@ const VendorApplyScreen = ({ navigation }) => {
 				// Do not send confirm password to backend
 				body: JSON.stringify({
 					...form,
-					confirmVendorUserPassword: undefined
+					confirmVendorUserPassword: undefined,
+					panCard: panCardResult.imageUrl,
+					panCardPublicId: panCardResult.imagePublicId,
+					aadharCard: aadharCardResult.imageUrl,
+					aadharCardPublicId: aadharCardResult.imagePublicId,
+					bankDetailsDocument: bankDetailsResult.imageUrl,
+					bankDetailsDocumentPublicId: bankDetailsResult.imagePublicId
 				})
 			});
 			const json = await res.json();
@@ -100,15 +229,15 @@ const VendorApplyScreen = ({ navigation }) => {
 						<TextInput style={styles.input} value={form.name} onChangeText={v => update('name', v)} placeholder="John Doe" placeholderTextColor="#777" />
 					</View>
 					<View style={styles.formGroup}> 
-						<Text style={styles.label}>Company Name *</Text>
+						<Text style={styles.label}>Company Name <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 						<TextInput style={styles.input} value={form.companyName} onChangeText={v => update('companyName', v)} placeholder="Acme Pvt Ltd" placeholderTextColor="#777" />
 					</View>
 					<View style={styles.formGroup}> 
-						<Text style={styles.label}>Email *</Text>
+						<Text style={styles.label}>Email <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 						<TextInput style={styles.input} value={form.email} onChangeText={v => update('email', v)} placeholder="company@email.com" autoCapitalize="none" keyboardType="email-address" placeholderTextColor="#777" />
 					</View>
 					<View style={styles.formGroup}> 
-						<Text style={styles.label}>Phone *</Text>
+						<Text style={styles.label}>Phone <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 						<TextInput style={styles.input} value={form.phone} onChangeText={v => update('phone', v)} placeholder="+91 90000 00000" keyboardType="phone-pad" placeholderTextColor="#777" />
 					</View>
 					<View style={styles.formGroup}> 
@@ -133,28 +262,59 @@ const VendorApplyScreen = ({ navigation }) => {
 						<Text style={styles.label}>Additional Address Info</Text>
 						<TextInput style={styles.input} value={form.address} onChangeText={v => update('address', v)} placeholder="Landmark, notes" placeholderTextColor="#777" />
 					</View>
-					<Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>Bank Details</Text>
+					<Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>Bank Details <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 					<View style={styles.formGroup}>
-						<Text style={styles.label}>Account Holder Name</Text>
+						<Text style={styles.label}>Account Holder Name <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 						<TextInput style={styles.input} value={form.bankAccountHolderName} onChangeText={v => update('bankAccountHolderName', v)} placeholder="Account holder name" placeholderTextColor="#777" />
 					</View>
 					<View style={styles.formGroup}>
-						<Text style={styles.label}>Account Number</Text>
+						<Text style={styles.label}>Account Number <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 						<TextInput style={styles.input} value={form.bankAccountNumber} onChangeText={v => update('bankAccountNumber', v)} placeholder="Bank account number" keyboardType="numeric" placeholderTextColor="#777" />
 					</View>
 					<View style={styles.formGroup}>
-						<Text style={styles.label}>Bank Name</Text>
+						<Text style={styles.label}>Bank Name <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 						<TextInput style={styles.input} value={form.bankName} onChangeText={v => update('bankName', v)} placeholder="Bank name" placeholderTextColor="#777" />
 					</View>
 					<View style={styles.formRow}>
 						<View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-							<Text style={styles.label}>IFSC Code</Text>
+							<Text style={styles.label}>IFSC Code <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 							<TextInput style={styles.input} value={form.bankIFSC} onChangeText={v => update('bankIFSC', v.toUpperCase())} placeholder="IFSC Code" autoCapitalize="characters" placeholderTextColor="#777" />
 						</View>
 						<View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-							<Text style={styles.label}>Branch</Text>
+							<Text style={styles.label}>Branch <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 							<TextInput style={styles.input} value={form.bankBranch} onChangeText={v => update('bankBranch', v)} placeholder="Branch name" placeholderTextColor="#777" />
 						</View>
+					</View>
+					<Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>Documents <Text style={{ color: '#f7ab18' }}>*</Text></Text>
+					<View style={styles.formGroup}>
+						<Text style={styles.label}>PAN Card <Text style={{ color: '#f7ab18' }}>*</Text></Text>
+						<TouchableOpacity style={styles.fileButton} onPress={() => pickImage('pan')}>
+							<Icon name="document-attach-outline" size={20} color="#f7ab18" />
+							<Text style={styles.fileButtonText}>{panCardFile ? panCardFile.name || 'File selected' : 'Select PAN Card'}</Text>
+						</TouchableOpacity>
+						{panCardFile && panCardFile.type !== 'application/pdf' && (
+							<Image source={{ uri: panCardFile.uri }} style={styles.previewImage} />
+						)}
+					</View>
+					<View style={styles.formGroup}>
+						<Text style={styles.label}>Aadhar Card <Text style={{ color: '#f7ab18' }}>*</Text></Text>
+						<TouchableOpacity style={styles.fileButton} onPress={() => pickImage('aadhar')}>
+							<Icon name="document-attach-outline" size={20} color="#f7ab18" />
+							<Text style={styles.fileButtonText}>{aadharCardFile ? aadharCardFile.name || 'File selected' : 'Select Aadhar Card'}</Text>
+						</TouchableOpacity>
+						{aadharCardFile && aadharCardFile.type !== 'application/pdf' && (
+							<Image source={{ uri: aadharCardFile.uri }} style={styles.previewImage} />
+						)}
+					</View>
+					<View style={styles.formGroup}>
+						<Text style={styles.label}>Bank Details Document <Text style={{ color: '#f7ab18' }}>*</Text></Text>
+						<TouchableOpacity style={styles.fileButton} onPress={() => pickImage('bank')}>
+							<Icon name="document-attach-outline" size={20} color="#f7ab18" />
+							<Text style={styles.fileButtonText}>{bankDetailsDocumentFile ? bankDetailsDocumentFile.name || 'File selected' : 'Select Bank Details Document'}</Text>
+						</TouchableOpacity>
+						{bankDetailsDocumentFile && bankDetailsDocumentFile.type !== 'application/pdf' && (
+							<Image source={{ uri: bankDetailsDocumentFile.uri }} style={styles.previewImage} />
+						)}
 					</View>
 					<Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>Vendor User Link</Text>
 					<View style={styles.formGroup}>
@@ -170,21 +330,21 @@ const VendorApplyScreen = ({ navigation }) => {
 					</View>
 					{form.useExistingVendorUser ? (
 						<View style={styles.formGroup}>
-							<Text style={styles.label}>Existing Vendor User Email *</Text>
+							<Text style={styles.label}>Existing Vendor User Email <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 							<TextInput style={styles.input} value={form.vendorUserEmail} onChangeText={v => update('vendorUserEmail', v)} placeholder="existing@vendor.com" autoCapitalize="none" keyboardType="email-address" placeholderTextColor="#777" />
 						</View>
 					) : (
 						<>
 							<View style={styles.formGroup}>
-								<Text style={styles.label}>New Vendor User Name *</Text>
+								<Text style={styles.label}>New Vendor User Name <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 								<TextInput style={styles.input} value={form.vendorUserName} onChangeText={v => update('vendorUserName', v)} placeholder="Contact Person Name" placeholderTextColor="#777" />
 							</View>
 							<View style={styles.formGroup}>
-								<Text style={styles.label}>New Vendor User Email *</Text>
+								<Text style={styles.label}>New Vendor User Email <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 								<TextInput style={styles.input} value={form.vendorUserEmail} onChangeText={v => update('vendorUserEmail', v)} placeholder="user@company.com" autoCapitalize="none" keyboardType="email-address" placeholderTextColor="#777" />
 							</View>
 							<View style={styles.formGroup}>
-								<Text style={styles.label}>Password *</Text>
+								<Text style={styles.label}>Password <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 								<View style={{ position: 'relative' }}>
 									<TextInput
 										style={[styles.input, { paddingRight: 42 }]}
@@ -201,7 +361,7 @@ const VendorApplyScreen = ({ navigation }) => {
 								</View>
 							</View>
 							<View style={styles.formGroup}>
-								<Text style={styles.label}>Confirm Password *</Text>
+								<Text style={styles.label}>Confirm Password <Text style={{ color: '#f7ab18' }}>*</Text></Text>
 								<View style={{ position: 'relative' }}>
 									<TextInput
 										style={[styles.input, { paddingRight: 42 }]}
@@ -245,7 +405,10 @@ const styles = StyleSheet.create({
 	choice: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#fff' },
 	choiceActive: { backgroundColor: '#fff9e6', borderColor: '#f7ab18' },
 	choiceText: { color: '#666', fontWeight: '600' },
-	choiceTextActive: { color: '#f7ab18' }
+	choiceTextActive: { color: '#f7ab18' },
+	fileButton: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff', gap: 8 },
+	fileButtonText: { color: '#333', fontSize: 14, flex: 1 },
+	previewImage: { marginTop: 8, width: '100%', height: 200, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb' }
 });
 
 export default VendorApplyScreen;

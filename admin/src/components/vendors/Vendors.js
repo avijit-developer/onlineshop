@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './Vendors.css';
 import defaultVendor from '../../assets/default-vendor.png';
+import { getCurrencySettings } from '../../utils/currency';
 
 const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
 const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
@@ -16,6 +17,7 @@ const Vendors = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [total, setTotal] = useState(0);
   const [rowAction, setRowAction] = useState({});
+  const [currencySymbol, setCurrencySymbol] = useState('₹');
 
   // Get current user and permissions
   const getCurrentUser = () => {
@@ -46,6 +48,7 @@ const Vendors = () => {
     address2: '',
     city: '',
     zip: '',
+    address: '',
     // commission field removed per new logic; keep placeholder for backend compatibility if needed
     commission: undefined,
     logoPreview: '',
@@ -53,9 +56,15 @@ const Vendors = () => {
     bankAccountNumber: '',
     bankName: '',
     bankIFSC: '',
-    bankBranch: ''
+    bankBranch: '',
+    panCardPreview: '',
+    aadharCardPreview: '',
+    bankDetailsDocumentPreview: ''
   });
   const [imageFile, setImageFile] = useState(null);
+  const [panCardFile, setPanCardFile] = useState(null);
+  const [aadharCardFile, setAadharCardFile] = useState(null);
+  const [bankDetailsDocumentFile, setBankDetailsDocumentFile] = useState(null);
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('adminToken');
@@ -78,6 +87,12 @@ const Vendors = () => {
       .filter(Boolean);
     return parts.join(', ');
   };
+
+  useEffect(() => {
+    // Load currency symbol from settings
+    const currencySettings = getCurrencySettings();
+    setCurrencySymbol(currencySettings.currencySymbol || '₹');
+  }, []);
 
   useEffect(() => {
     fetchVendors();
@@ -187,11 +202,11 @@ const Vendors = () => {
     setShowProfileModal(true);
   };
 
-  const getUploadSignature = async (subfolder) => {
+  const getUploadSignature = async (subfolder, resourceType = 'auto') => {
     const res = await fetch(`${API_BASE}/api/v1/uploads/signature`, {
       method: 'POST',
       headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder: subfolder })
+      body: JSON.stringify({ folder: subfolder, resource_type: resourceType })
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json?.message || 'Failed to get upload signature');
@@ -199,27 +214,85 @@ const Vendors = () => {
   };
 
   const uploadToCloudinary = async (file, subfolder = 'vendors') => {
-    const { signature, timestamp, folder, apiKey, cloudName } = await getUploadSignature(subfolder);
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('api_key', apiKey);
-    fd.append('timestamp', String(timestamp));
-    fd.append('signature', signature);
-    fd.append('folder', folder);
-    fd.append('unique_filename', 'true');
-    fd.append('overwrite', 'false');
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: 'POST',
-      body: fd
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.error?.message || 'Cloudinary upload failed');
-    return { imageUrl: json.secure_url, imagePublicId: json.public_id };
+    try {
+      // Determine resource type based on file type
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const resourceType = isPDF ? 'raw' : 'image'; // Use 'raw' for PDF, 'image' for images
+      
+      // Get signature with resource_type parameter
+      const { signature, timestamp, folder, apiKey, cloudName } = await getUploadSignature(subfolder, resourceType);
+      
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('api_key', apiKey);
+      fd.append('timestamp', String(timestamp));
+      fd.append('signature', signature);
+      fd.append('folder', folder);
+      fd.append('unique_filename', 'true');
+      fd.append('overwrite', 'false');
+      fd.append('resource_type', resourceType);
+      fd.append('type', 'upload'); // Ensure public access
+      
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+        method: 'POST',
+        body: fd
+      });
+      
+      const json = await res.json();
+      
+      if (!res.ok) {
+        console.error('Cloudinary upload error:', json);
+        throw new Error(json?.error?.message || 'Cloudinary upload failed');
+      }
+      
+      // Check if secure_url exists
+      if (!json.secure_url) {
+        console.error('Cloudinary response missing secure_url:', json);
+        throw new Error('Upload successful but URL not returned');
+      }
+      
+      console.log('Cloudinary upload success:', {
+        secure_url: json.secure_url,
+        public_id: json.public_id,
+        resource_type: json.resource_type,
+        format: json.format,
+        url: json.url,
+        bytes: json.bytes
+      });
+      
+      // For raw files (PDFs), Cloudinary returns secure_url
+      // But we need to ensure the URL is accessible
+      let finalUrl = json.secure_url || json.url;
+      
+      if (!finalUrl) {
+        // If no URL in response, construct it manually for raw files
+        if (resourceType === 'raw' && json.public_id) {
+          finalUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${json.public_id}`;
+          console.log('Constructed raw URL:', finalUrl);
+        } else {
+          throw new Error('No URL returned from Cloudinary');
+        }
+      }
+      
+      // Verify URL format for raw files
+      if (resourceType === 'raw' && !finalUrl.includes('/raw/upload/')) {
+        console.warn('Raw file URL may be incorrect. Expected format: .../raw/upload/...');
+        console.warn('Actual URL:', finalUrl);
+      }
+      
+      return { imageUrl: finalUrl, imagePublicId: json.public_id };
+    } catch (error) {
+      console.error('Upload to Cloudinary failed:', error);
+      throw error;
+    }
   };
 
   const handleOpenAdd = () => {
-    setFormData({ name: '', companyName: '', email: '', phone: '', address1: '', address2: '', city: '', zip: '', commission: undefined, logoPreview: '', bankAccountHolderName: '', bankAccountNumber: '', bankName: '', bankIFSC: '', bankBranch: '' });
+    setFormData({ name: '', companyName: '', email: '', phone: '', address1: '', address2: '', city: '', zip: '', address: '', commission: undefined, logoPreview: '', bankAccountHolderName: '', bankAccountNumber: '', bankName: '', bankIFSC: '', bankBranch: '', panCardPreview: '', aadharCardPreview: '', bankDetailsDocumentPreview: '' });
     setImageFile(null);
+    setPanCardFile(null);
+    setAadharCardFile(null);
+    setBankDetailsDocumentFile(null);
     setShowAddModal(true);
   };
 
@@ -236,6 +309,163 @@ const Vendors = () => {
     }
   };
 
+  // Helper function to check if URL is PDF
+  const isPDFUrl = (url) => {
+    if (!url) return false;
+    const urlLower = url.toLowerCase();
+    return urlLower.includes('.pdf') || urlLower.includes('/pdf/') || urlLower.endsWith('#pdf');
+  };
+
+  // Helper function to open PDF in new tab
+  const openPDFInNewTab = async (url) => {
+    try {
+      const cleanUrl = url.replace('#pdf', '').trim();
+      
+      if (!cleanUrl) {
+        toast.error('Invalid file URL');
+        return;
+      }
+      
+      console.log('Opening PDF URL:', cleanUrl);
+      
+      // Try multiple approaches for maximum compatibility
+      
+      // Approach 1: Try Google Docs Viewer (works for most public URLs)
+      const encodedUrl = encodeURIComponent(cleanUrl);
+      const viewerUrl = `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`;
+      
+      // Open in new tab
+      let newWindow = window.open(viewerUrl, '_blank');
+      
+      if (newWindow) {
+        toast.success('Opening PDF in viewer...');
+        // Give it a moment, if it fails, try direct URL
+        setTimeout(() => {
+          try {
+            if (newWindow.closed) {
+              // Viewer failed, try direct URL
+              console.log('Viewer closed, trying direct URL...');
+              window.open(cleanUrl, '_blank');
+            }
+          } catch (e) {
+            // Cross-origin check, but window exists, so likely working
+          }
+        }, 1000);
+      } else {
+        // Popup blocked, try direct URL
+        toast.error('Popup blocked. Trying direct URL...');
+        window.open(cleanUrl, '_blank');
+      }
+      
+    } catch (error) {
+      console.error('Open PDF failed:', error);
+      toast.error(`Failed to open PDF: ${error.message}. Please use Download button.`);
+    }
+  };
+
+  // Helper function to download file
+  const downloadFile = async (url, filename) => {
+    try {
+      // Clean URL (remove #pdf flag if present)
+      const cleanUrl = url.replace('#pdf', '').trim();
+      
+      if (!cleanUrl) {
+        toast.error('Invalid file URL');
+        return;
+      }
+      
+      // For Cloudinary raw/PDF URLs, we need to use fetch and create blob
+      if (cleanUrl.includes('cloudinary.com') && cleanUrl.includes('/raw/upload/')) {
+        // Fetch the PDF file
+        const response = await fetch(cleanUrl, {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Get blob
+        const blob = await response.blob();
+        
+        // Check if blob is valid
+        if (blob.size === 0) {
+          throw new Error('Downloaded file is empty');
+        }
+        
+        // Create download link
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+      } else {
+        // For non-Cloudinary URLs or images, use direct download
+        const link = document.createElement('a');
+        link.href = cleanUrl;
+        link.download = filename;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(link);
+        }, 100);
+      }
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Download failed. Opening in new tab...');
+      // Fallback: open in new tab
+      const cleanUrl = url.replace('#pdf', '').trim();
+      window.open(cleanUrl, '_blank');
+    }
+  };
+
+  const handlePanCardChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPanCardFile(file);
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const previewUrl = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, panCardPreview: isPDF ? previewUrl + '#pdf' : previewUrl }));
+    }
+  };
+
+  const handleAadharCardChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAadharCardFile(file);
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const previewUrl = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, aadharCardPreview: isPDF ? previewUrl + '#pdf' : previewUrl }));
+    }
+  };
+
+  const handleBankDetailsDocumentChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setBankDetailsDocumentFile(file);
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const previewUrl = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, bankDetailsDocumentPreview: isPDF ? previewUrl + '#pdf' : previewUrl }));
+    }
+  };
+
   const submitAddVendor = async (e) => {
     e.preventDefault();
     try {
@@ -243,6 +473,26 @@ const Vendors = () => {
       setAddSubmitting(true);
       if (!formData.name.trim() || !formData.companyName.trim() || !formData.email.trim()) {
         toast.error('Name, Company and Email are required');
+        setAddSubmitting(false);
+        return;
+      }
+      if (!panCardFile) {
+        toast.error('PAN Card upload is required');
+        setAddSubmitting(false);
+        return;
+      }
+      if (!aadharCardFile) {
+        toast.error('Aadhar Card upload is required');
+        setAddSubmitting(false);
+        return;
+      }
+      if (!formData.bankAccountHolderName.trim() || !formData.bankAccountNumber.trim() || !formData.bankName.trim() || !formData.bankIFSC.trim()) {
+        toast.error('Bank details are required (Account Holder Name, Account Number, Bank Name, IFSC Code)');
+        setAddSubmitting(false);
+        return;
+      }
+      if (!bankDetailsDocumentFile) {
+        toast.error('Bank Details Document upload is required');
         setAddSubmitting(false);
         return;
       }
@@ -255,6 +505,7 @@ const Vendors = () => {
         address2: formData.address2.trim(),
         city: formData.city.trim(),
         zip: formData.zip.trim(),
+        address: formData.address.trim(),
         // commission removed; do not send unless explicitly set
         bankAccountHolderName: formData.bankAccountHolderName.trim(),
         bankAccountNumber: formData.bankAccountNumber.trim(),
@@ -266,6 +517,33 @@ const Vendors = () => {
         const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'vendors');
         payload.imageUrl = imageUrl;
         payload.imagePublicId = imagePublicId;
+      }
+      // Upload PAN card
+      if (panCardFile) {
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(panCardFile, 'vendors/documents');
+        payload.panCard = imageUrl;
+        payload.panCardPublicId = imagePublicId;
+        // Update preview with uploaded URL, preserve PDF flag if it's a PDF
+        const isPDF = panCardFile.type === 'application/pdf' || panCardFile.name.toLowerCase().endsWith('.pdf');
+        setFormData(prev => ({ ...prev, panCardPreview: isPDF ? imageUrl + '#pdf' : imageUrl }));
+      }
+      // Upload Aadhar card
+      if (aadharCardFile) {
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(aadharCardFile, 'vendors/documents');
+        payload.aadharCard = imageUrl;
+        payload.aadharCardPublicId = imagePublicId;
+        // Update preview with uploaded URL, preserve PDF flag if it's a PDF
+        const isPDF = aadharCardFile.type === 'application/pdf' || aadharCardFile.name.toLowerCase().endsWith('.pdf');
+        setFormData(prev => ({ ...prev, aadharCardPreview: isPDF ? imageUrl + '#pdf' : imageUrl }));
+      }
+      // Upload Bank Details Document
+      if (bankDetailsDocumentFile) {
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(bankDetailsDocumentFile, 'vendors/documents');
+        payload.bankDetailsDocument = imageUrl;
+        payload.bankDetailsDocumentPublicId = imagePublicId;
+        // Update preview with uploaded URL, preserve PDF flag if it's a PDF
+        const isPDF = bankDetailsDocumentFile.type === 'application/pdf' || bankDetailsDocumentFile.name.toLowerCase().endsWith('.pdf');
+        setFormData(prev => ({ ...prev, bankDetailsDocumentPreview: isPDF ? imageUrl + '#pdf' : imageUrl }));
       }
       const res = await fetch(`${API_BASE}/api/v1/vendors`, {
         method: 'POST',
@@ -296,15 +574,22 @@ const Vendors = () => {
       address2: vendor.address2 || '',
       city: vendor.city || '',
       zip: vendor.zip || '',
+      address: vendor.address || '',
       commission: undefined,
       logoPreview: vendor.logo || '',
       bankAccountHolderName: vendor.bankAccountHolderName || '',
       bankAccountNumber: vendor.bankAccountNumber || '',
       bankName: vendor.bankName || '',
       bankIFSC: vendor.bankIFSC || '',
-      bankBranch: vendor.bankBranch || ''
+      bankBranch: vendor.bankBranch || '',
+      panCardPreview: vendor.panCard ? (isPDFUrl(vendor.panCard) ? vendor.panCard + '#pdf' : vendor.panCard) : '',
+      aadharCardPreview: vendor.aadharCard ? (isPDFUrl(vendor.aadharCard) ? vendor.aadharCard + '#pdf' : vendor.aadharCard) : '',
+      bankDetailsDocumentPreview: vendor.bankDetailsDocument ? (isPDFUrl(vendor.bankDetailsDocument) ? vendor.bankDetailsDocument + '#pdf' : vendor.bankDetailsDocument) : ''
     });
     setImageFile(null);
+    setPanCardFile(null);
+    setAadharCardFile(null);
+    setBankDetailsDocumentFile(null);
     setShowEditModal(true);
   };
 
@@ -320,6 +605,29 @@ const Vendors = () => {
         setEditSubmitting(false);
         return;
       }
+      // For edit, check if PAN card exists or new file is uploaded
+      if (!selectedVendor.panCard && !panCardFile) {
+        toast.error('PAN Card upload is required');
+        setEditSubmitting(false);
+        return;
+      }
+      // For edit, check if Aadhar card exists or new file is uploaded
+      if (!selectedVendor.aadharCard && !aadharCardFile) {
+        toast.error('Aadhar Card upload is required');
+        setEditSubmitting(false);
+        return;
+      }
+      if (!formData.bankAccountHolderName.trim() || !formData.bankAccountNumber.trim() || !formData.bankName.trim() || !formData.bankIFSC.trim()) {
+        toast.error('Bank details are required (Account Holder Name, Account Number, Bank Name, IFSC Code)');
+        setEditSubmitting(false);
+        return;
+      }
+      // For edit, check if bank details document exists or new file is uploaded
+      if (!selectedVendor.bankDetailsDocument && !bankDetailsDocumentFile) {
+        toast.error('Bank Details Document upload is required');
+        setEditSubmitting(false);
+        return;
+      }
       let payload = {
         name: formData.name.trim(),
         companyName: formData.companyName.trim(),
@@ -329,6 +637,7 @@ const Vendors = () => {
         address2: formData.address2.trim(),
         city: formData.city.trim(),
         zip: formData.zip.trim(),
+        address: formData.address.trim(),
         // commission removed; do not send unless explicitly set
         bankAccountHolderName: formData.bankAccountHolderName.trim(),
         bankAccountNumber: formData.bankAccountNumber.trim(),
@@ -340,6 +649,33 @@ const Vendors = () => {
         const { imageUrl, imagePublicId } = await uploadToCloudinary(imageFile, 'vendors');
         payload.imageUrl = imageUrl;
         payload.imagePublicId = imagePublicId;
+      }
+      // Upload PAN card if new file is provided
+      if (panCardFile) {
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(panCardFile, 'vendors/documents');
+        payload.panCard = imageUrl;
+        payload.panCardPublicId = imagePublicId;
+        // Update preview with uploaded URL, preserve PDF flag if it's a PDF
+        const isPDF = panCardFile.type === 'application/pdf' || panCardFile.name.toLowerCase().endsWith('.pdf');
+        setFormData(prev => ({ ...prev, panCardPreview: isPDF ? imageUrl + '#pdf' : imageUrl }));
+      }
+      // Upload Aadhar card if new file is provided
+      if (aadharCardFile) {
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(aadharCardFile, 'vendors/documents');
+        payload.aadharCard = imageUrl;
+        payload.aadharCardPublicId = imagePublicId;
+        // Update preview with uploaded URL, preserve PDF flag if it's a PDF
+        const isPDF = aadharCardFile.type === 'application/pdf' || aadharCardFile.name.toLowerCase().endsWith('.pdf');
+        setFormData(prev => ({ ...prev, aadharCardPreview: isPDF ? imageUrl + '#pdf' : imageUrl }));
+      }
+      // Upload Bank Details Document if new file is provided
+      if (bankDetailsDocumentFile) {
+        const { imageUrl, imagePublicId } = await uploadToCloudinary(bankDetailsDocumentFile, 'vendors/documents');
+        payload.bankDetailsDocument = imageUrl;
+        payload.bankDetailsDocumentPublicId = imagePublicId;
+        // Update preview with uploaded URL, preserve PDF flag if it's a PDF
+        const isPDF = bankDetailsDocumentFile.type === 'application/pdf' || bankDetailsDocumentFile.name.toLowerCase().endsWith('.pdf');
+        setFormData(prev => ({ ...prev, bankDetailsDocumentPreview: isPDF ? imageUrl + '#pdf' : imageUrl }));
       }
       const res = await fetch(`${API_BASE}/api/v1/vendors/${vendorId}`, {
         method: 'PUT',
@@ -440,7 +776,7 @@ const Vendors = () => {
         </div>
         <div className="stat-card">
           <h3>Total Revenue</h3>
-          <p>${vendors.reduce((sum, v) => sum + (v.totalEarnings || 0), 0).toLocaleString()}</p>
+          <p>{currencySymbol}{vendors.reduce((sum, v) => sum + (v.totalEarnings || 0), 0).toLocaleString()}</p>
         </div>
       </div>
 
@@ -573,28 +909,128 @@ const Vendors = () => {
                   <label>ZIP *</label>
                   <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} required />
                 </div>
+                <div className="form-group">
+                  <label>Landmark / Additional Address Info</label>
+                  <input type="text" name="address" value={formData.address} onChange={handleAddInput} placeholder="Landmark, notes" />
+                </div>
                 <div className="form-group full-width">
-                  <h4 style={{ margin: '20px 0 10px 0', color: '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Bank Details</h4>
+                  <h4 style={{ margin: '20px 0 10px 0', color: '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Bank Details *</h4>
                 </div>
                 <div className="form-group">
-                  <label>Account Holder Name</label>
-                  <input type="text" name="bankAccountHolderName" value={formData.bankAccountHolderName} onChange={handleAddInput} />
+                  <label>Account Holder Name *</label>
+                  <input type="text" name="bankAccountHolderName" value={formData.bankAccountHolderName} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>Account Number</label>
-                  <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleAddInput} />
+                  <label>Account Number *</label>
+                  <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>Bank Name</label>
-                  <input type="text" name="bankName" value={formData.bankName} onChange={handleAddInput} />
+                  <label>Bank Name *</label>
+                  <input type="text" name="bankName" value={formData.bankName} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>IFSC Code</label>
-                  <input type="text" name="bankIFSC" value={formData.bankIFSC} onChange={handleAddInput} style={{ textTransform: 'uppercase' }} />
+                  <label>IFSC Code *</label>
+                  <input type="text" name="bankIFSC" value={formData.bankIFSC} onChange={handleAddInput} style={{ textTransform: 'uppercase' }} required />
                 </div>
                 <div className="form-group">
                   <label>Branch</label>
                   <input type="text" name="bankBranch" value={formData.bankBranch} onChange={handleAddInput} />
+                </div>
+                <div className="form-group full-width">
+                  <h4 style={{ margin: '20px 0 10px 0', color: '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Documents *</h4>
+                </div>
+                <div className="form-group full-width">
+                  <label>PAN Card * (Image or PDF)</label>
+                  <input type="file" accept="image/*,.pdf" onChange={handlePanCardChange} />
+                  {formData.panCardPreview && (
+                    <div className="image-preview">
+                      {isPDFUrl(formData.panCardPreview) ? (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            <button onClick={() => downloadFile(formData.panCardPreview.replace('#pdf', ''), `PAN_Card_${formData.companyName || 'vendor'}.pdf`)} style={{ color: '#fff', background: '#28a745', border: '1px solid #28a745', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer', fontWeight: '500' }}>⬇️ Download PDF</button>
+                            <button onClick={() => openPDFInNewTab(formData.panCardPreview)} style={{ display: 'inline-block', color: '#007bff', background: 'white', padding: '8px 16px', border: '1px solid #007bff', borderRadius: '4px', textAlign: 'center', cursor: 'pointer' }}>📄 Try Open in Browser</button>
+                          </div>
+                          <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '12px', background: '#f8f9fa' }}>
+                            <p style={{ fontSize: '13px', color: '#666', margin: '0 0 8px 0' }}><strong>Note:</strong> PDF preview may not work due to browser security. Please use <strong>Download</strong> button to view the PDF file.</p>
+                            <iframe 
+                              src={`https://docs.google.com/viewer?url=${encodeURIComponent(formData.panCardPreview.replace('#pdf', ''))}&embedded=true`}
+                              style={{ width: '100%', height: '500px', border: 'none', borderRadius: '4px' }}
+                              title="PAN Card PDF Preview"
+                              onError={(e) => {
+                                console.error('PDF iframe error:', e);
+                                const parent = e.target.parentNode;
+                                parent.innerHTML = '<p style="padding: 20px; text-align: center; color: #dc3545; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">PDF preview not available. Please use <strong>Download</strong> button to view the PDF.</p>';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={formData.panCardPreview} alt="PAN Card preview" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="form-group full-width">
+                  <label>Aadhar Card * (Image or PDF)</label>
+                  <input type="file" accept="image/*,.pdf" onChange={handleAadharCardChange} />
+                  {formData.aadharCardPreview && (
+                    <div className="image-preview">
+                      {isPDFUrl(formData.aadharCardPreview) ? (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            <button onClick={() => downloadFile(formData.aadharCardPreview.replace('#pdf', ''), `Aadhar_Card_${formData.companyName || 'vendor'}.pdf`)} style={{ color: '#fff', background: '#28a745', border: '1px solid #28a745', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer', fontWeight: '500' }}>⬇️ Download PDF</button>
+                            <button onClick={() => openPDFInNewTab(formData.aadharCardPreview)} style={{ display: 'inline-block', color: '#007bff', background: 'white', padding: '8px 16px', border: '1px solid #007bff', borderRadius: '4px', textAlign: 'center', cursor: 'pointer' }}>📄 Try Open in Browser</button>
+                          </div>
+                          <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '12px', background: '#f8f9fa' }}>
+                            <p style={{ fontSize: '13px', color: '#666', margin: '0 0 8px 0' }}><strong>Note:</strong> PDF preview may not work due to browser security. Please use <strong>Download</strong> button to view the PDF file.</p>
+                            <iframe 
+                              src={`https://docs.google.com/viewer?url=${encodeURIComponent(formData.aadharCardPreview.replace('#pdf', ''))}&embedded=true`}
+                              style={{ width: '100%', height: '500px', border: 'none', borderRadius: '4px' }}
+                              title="Aadhar Card PDF Preview"
+                              onError={(e) => {
+                                console.error('PDF iframe error:', e);
+                                const parent = e.target.parentNode;
+                                parent.innerHTML = '<p style="padding: 20px; text-align: center; color: #dc3545; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">PDF preview not available. Please use <strong>Download</strong> button to view the PDF.</p>';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={formData.aadharCardPreview} alt="Aadhar Card preview" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="form-group full-width">
+                  <label>Bank Details Document * (Image or PDF)</label>
+                  <input type="file" accept="image/*,.pdf" onChange={handleBankDetailsDocumentChange} />
+                  {formData.bankDetailsDocumentPreview && (
+                    <div className="image-preview">
+                      {isPDFUrl(formData.bankDetailsDocumentPreview) ? (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            <button onClick={() => downloadFile(formData.bankDetailsDocumentPreview.replace('#pdf', ''), `Bank_Details_${formData.companyName || 'vendor'}.pdf`)} style={{ color: '#fff', background: '#28a745', border: '1px solid #28a745', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer', fontWeight: '500' }}>⬇️ Download PDF</button>
+                            <button onClick={() => openPDFInNewTab(formData.bankDetailsDocumentPreview)} style={{ display: 'inline-block', color: '#007bff', background: 'white', padding: '8px 16px', border: '1px solid #007bff', borderRadius: '4px', textAlign: 'center', cursor: 'pointer' }}>📄 Try Open in Browser</button>
+                          </div>
+                          <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '12px', background: '#f8f9fa' }}>
+                            <p style={{ fontSize: '13px', color: '#666', margin: '0 0 8px 0' }}><strong>Note:</strong> PDF preview may not work due to browser security. Please use <strong>Download</strong> button to view the PDF file.</p>
+                            <iframe 
+                              src={`https://docs.google.com/viewer?url=${encodeURIComponent(formData.bankDetailsDocumentPreview.replace('#pdf', ''))}&embedded=true`}
+                              style={{ width: '100%', height: '500px', border: 'none', borderRadius: '4px' }}
+                              title="Bank Details Document PDF Preview"
+                              onError={(e) => {
+                                console.error('PDF iframe error:', e);
+                                const parent = e.target.parentNode;
+                                parent.innerHTML = '<p style="padding: 20px; text-align: center; color: #dc3545; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">PDF preview not available. Please use <strong>Download</strong> button to view the PDF.</p>';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={formData.bankDetailsDocumentPreview} alt="Bank Details Document preview" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                      )}
+                    </div>
+                  )}
                 </div>
                 {/* Commission removed */}
                 <div className="form-group full-width">
@@ -658,28 +1094,128 @@ const Vendors = () => {
                   <label>ZIP *</label>
                   <input type="text" name="zip" value={formData.zip} onChange={handleAddInput} required />
                 </div>
+                <div className="form-group">
+                  <label>Landmark / Additional Address Info</label>
+                  <input type="text" name="address" value={formData.address} onChange={handleAddInput} placeholder="Landmark, notes" />
+                </div>
                 <div className="form-group full-width">
-                  <h4 style={{ margin: '20px 0 10px 0', color: '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Bank Details</h4>
+                  <h4 style={{ margin: '20px 0 10px 0', color: '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Bank Details *</h4>
                 </div>
                 <div className="form-group">
-                  <label>Account Holder Name</label>
-                  <input type="text" name="bankAccountHolderName" value={formData.bankAccountHolderName} onChange={handleAddInput} />
+                  <label>Account Holder Name *</label>
+                  <input type="text" name="bankAccountHolderName" value={formData.bankAccountHolderName} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>Account Number</label>
-                  <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleAddInput} />
+                  <label>Account Number *</label>
+                  <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>Bank Name</label>
-                  <input type="text" name="bankName" value={formData.bankName} onChange={handleAddInput} />
+                  <label>Bank Name *</label>
+                  <input type="text" name="bankName" value={formData.bankName} onChange={handleAddInput} required />
                 </div>
                 <div className="form-group">
-                  <label>IFSC Code</label>
-                  <input type="text" name="bankIFSC" value={formData.bankIFSC} onChange={handleAddInput} style={{ textTransform: 'uppercase' }} />
+                  <label>IFSC Code *</label>
+                  <input type="text" name="bankIFSC" value={formData.bankIFSC} onChange={handleAddInput} style={{ textTransform: 'uppercase' }} required />
                 </div>
                 <div className="form-group">
                   <label>Branch</label>
                   <input type="text" name="bankBranch" value={formData.bankBranch} onChange={handleAddInput} />
+                </div>
+                <div className="form-group full-width">
+                  <h4 style={{ margin: '20px 0 10px 0', color: '#333', borderBottom: '2px solid #007bff', paddingBottom: '8px' }}>Documents *</h4>
+                </div>
+                <div className="form-group full-width">
+                  <label>PAN Card * (Image or PDF) {selectedVendor?.panCard && <span style={{ color: '#666', fontSize: '12px' }}>(Current file exists)</span>}</label>
+                  <input type="file" accept="image/*,.pdf" onChange={handlePanCardChange} />
+                  {formData.panCardPreview && (
+                    <div className="image-preview">
+                      {isPDFUrl(formData.panCardPreview) ? (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            <button onClick={() => downloadFile(formData.panCardPreview.replace('#pdf', ''), `PAN_Card_${formData.companyName || 'vendor'}.pdf`)} style={{ color: '#fff', background: '#28a745', border: '1px solid #28a745', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer', fontWeight: '500' }}>⬇️ Download PDF</button>
+                            <button onClick={() => openPDFInNewTab(formData.panCardPreview)} style={{ display: 'inline-block', color: '#007bff', background: 'white', padding: '8px 16px', border: '1px solid #007bff', borderRadius: '4px', textAlign: 'center', cursor: 'pointer' }}>📄 Try Open in Browser</button>
+                          </div>
+                          <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '12px', background: '#f8f9fa' }}>
+                            <p style={{ fontSize: '13px', color: '#666', margin: '0 0 8px 0' }}><strong>Note:</strong> PDF preview may not work due to browser security. Please use <strong>Download</strong> button to view the PDF file.</p>
+                            <iframe 
+                              src={`https://docs.google.com/viewer?url=${encodeURIComponent(formData.panCardPreview.replace('#pdf', ''))}&embedded=true`}
+                              style={{ width: '100%', height: '500px', border: 'none', borderRadius: '4px' }}
+                              title="PAN Card PDF Preview"
+                              onError={(e) => {
+                                console.error('PDF iframe error:', e);
+                                const parent = e.target.parentNode;
+                                parent.innerHTML = '<p style="padding: 20px; text-align: center; color: #dc3545; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">PDF preview not available. Please use <strong>Download</strong> button to view the PDF.</p>';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={formData.panCardPreview} alt="PAN Card preview" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="form-group full-width">
+                  <label>Aadhar Card * (Image or PDF) {selectedVendor?.aadharCard && <span style={{ color: '#666', fontSize: '12px' }}>(Current file exists)</span>}</label>
+                  <input type="file" accept="image/*,.pdf" onChange={handleAadharCardChange} />
+                  {formData.aadharCardPreview && (
+                    <div className="image-preview">
+                      {isPDFUrl(formData.aadharCardPreview) ? (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            <button onClick={() => downloadFile(formData.aadharCardPreview.replace('#pdf', ''), `Aadhar_Card_${formData.companyName || 'vendor'}.pdf`)} style={{ color: '#fff', background: '#28a745', border: '1px solid #28a745', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer', fontWeight: '500' }}>⬇️ Download PDF</button>
+                            <button onClick={() => openPDFInNewTab(formData.aadharCardPreview)} style={{ display: 'inline-block', color: '#007bff', background: 'white', padding: '8px 16px', border: '1px solid #007bff', borderRadius: '4px', textAlign: 'center', cursor: 'pointer' }}>📄 Try Open in Browser</button>
+                          </div>
+                          <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '12px', background: '#f8f9fa' }}>
+                            <p style={{ fontSize: '13px', color: '#666', margin: '0 0 8px 0' }}><strong>Note:</strong> PDF preview may not work due to browser security. Please use <strong>Download</strong> button to view the PDF file.</p>
+                            <iframe 
+                              src={`https://docs.google.com/viewer?url=${encodeURIComponent(formData.aadharCardPreview.replace('#pdf', ''))}&embedded=true`}
+                              style={{ width: '100%', height: '500px', border: 'none', borderRadius: '4px' }}
+                              title="Aadhar Card PDF Preview"
+                              onError={(e) => {
+                                console.error('PDF iframe error:', e);
+                                const parent = e.target.parentNode;
+                                parent.innerHTML = '<p style="padding: 20px; text-align: center; color: #dc3545; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">PDF preview not available. Please use <strong>Download</strong> button to view the PDF.</p>';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={formData.aadharCardPreview} alt="Aadhar Card preview" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="form-group full-width">
+                  <label>Bank Details Document * (Image or PDF) {selectedVendor?.bankDetailsDocument && <span style={{ color: '#666', fontSize: '12px' }}>(Current file exists)</span>}</label>
+                  <input type="file" accept="image/*,.pdf" onChange={handleBankDetailsDocumentChange} />
+                  {formData.bankDetailsDocumentPreview && (
+                    <div className="image-preview">
+                      {isPDFUrl(formData.bankDetailsDocumentPreview) ? (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            <button onClick={() => downloadFile(formData.bankDetailsDocumentPreview.replace('#pdf', ''), `Bank_Details_${formData.companyName || 'vendor'}.pdf`)} style={{ color: '#fff', background: '#28a745', border: '1px solid #28a745', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer', fontWeight: '500' }}>⬇️ Download PDF</button>
+                            <button onClick={() => openPDFInNewTab(formData.bankDetailsDocumentPreview)} style={{ display: 'inline-block', color: '#007bff', background: 'white', padding: '8px 16px', border: '1px solid #007bff', borderRadius: '4px', textAlign: 'center', cursor: 'pointer' }}>📄 Try Open in Browser</button>
+                          </div>
+                          <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '12px', background: '#f8f9fa' }}>
+                            <p style={{ fontSize: '13px', color: '#666', margin: '0 0 8px 0' }}><strong>Note:</strong> PDF preview may not work due to browser security. Please use <strong>Download</strong> button to view the PDF file.</p>
+                            <iframe 
+                              src={`https://docs.google.com/viewer?url=${encodeURIComponent(formData.bankDetailsDocumentPreview.replace('#pdf', ''))}&embedded=true`}
+                              style={{ width: '100%', height: '500px', border: 'none', borderRadius: '4px' }}
+                              title="Bank Details Document PDF Preview"
+                              onError={(e) => {
+                                console.error('PDF iframe error:', e);
+                                const parent = e.target.parentNode;
+                                parent.innerHTML = '<p style="padding: 20px; text-align: center; color: #dc3545; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">PDF preview not available. Please use <strong>Download</strong> button to view the PDF.</p>';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={formData.bankDetailsDocumentPreview} alt="Bank Details Document preview" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                      )}
+                    </div>
+                  )}
                 </div>
                 {/* Commission removed */}
                 <div className="form-group full-width">
@@ -740,55 +1276,104 @@ const Vendors = () => {
                     <span className="label">Phone</span>
                     <span className="value">{selectedVendor.phone || '—'}</span>
                   </div>
+                  <div className="detail full" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eef2f7' }}>
+                    <span className="label" style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Address</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">Address Line 1</span>
+                    <span className="value">{selectedVendor.address1 || '—'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">Address Line 2</span>
+                    <span className="value">{selectedVendor.address2 || '—'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">City</span>
+                    <span className="value">{selectedVendor.city || '—'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">ZIP / PIN</span>
+                    <span className="value">{selectedVendor.zip || '—'}</span>
+                  </div>
                   <div className="detail full">
-                    <span className="label">Address</span>
-                    <span className="value">{formatAddress(selectedVendor) || '—'}</span>
+                    <span className="label">Landmark / Additional Address Info</span>
+                    <span className="value">{selectedVendor.address || '—'}</span>
                   </div>
                   <div className="detail">
                     <span className="label">Status</span>
                     <span className="value"><span className={`status-badge ${selectedVendor.status}`}>{selectedVendor.status}</span></span>
                   </div>
-                  <div className="detail">
-                    <span className="label">Balance</span>
-                    <span className="value">${selectedVendor.balance?.toLocaleString() || '0'}</span>
+                  <div className="detail full" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eef2f7' }}>
+                    <span className="label" style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Bank Details</span>
                   </div>
                   <div className="detail">
-                    <span className="label">Total Earnings</span>
-                    <span className="value">${selectedVendor.totalEarnings?.toLocaleString() || '0'}</span>
+                    <span className="label">Account Holder</span>
+                    <span className="value">{selectedVendor.bankAccountHolderName || '—'}</span>
                   </div>
-                  {(selectedVendor.bankAccountHolderName || selectedVendor.bankAccountNumber || selectedVendor.bankName || selectedVendor.bankIFSC) && (
+                  <div className="detail">
+                    <span className="label">Account Number</span>
+                    <span className="value">{selectedVendor.bankAccountNumber || '—'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">Bank Name</span>
+                    <span className="value">{selectedVendor.bankName || '—'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">IFSC Code</span>
+                    <span className="value">{selectedVendor.bankIFSC || '—'}</span>
+                  </div>
+                  <div className="detail">
+                    <span className="label">Branch</span>
+                    <span className="value">{selectedVendor.bankBranch || '—'}</span>
+                  </div>
+                  {(selectedVendor.panCard || selectedVendor.aadharCard || selectedVendor.bankDetailsDocument) && (
                     <>
                       <div className="detail full" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eef2f7' }}>
-                        <span className="label" style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Bank Details</span>
+                        <span className="label" style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Documents</span>
                       </div>
-                      {selectedVendor.bankAccountHolderName && (
-                        <div className="detail">
-                          <span className="label">Account Holder</span>
-                          <span className="value">{selectedVendor.bankAccountHolderName}</span>
+                      {selectedVendor.panCard && (
+                        <div className="detail full">
+                          <span className="label">PAN Card</span>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                            {isPDFUrl(selectedVendor.panCard) ? (
+                              <button onClick={() => downloadFile(selectedVendor.panCard, `PAN_Card_${selectedVendor.companyName || 'vendor'}.pdf`)} style={{ color: '#28a745', background: 'white', border: '1px solid #28a745', borderRadius: '4px', fontSize: '13px', padding: '6px 12px', cursor: 'pointer' }}>⬇️ Download</button>
+                            ) : (
+                              <>
+                                <button onClick={() => downloadFile(selectedVendor.panCard, `PAN_Card_${selectedVendor.companyName || 'vendor'}.jpg`)} style={{ color: '#28a745', background: 'white', border: '1px solid #28a745', borderRadius: '4px', fontSize: '13px', padding: '6px 12px', cursor: 'pointer' }}>⬇️ Download</button>
+                                <img src={selectedVendor.panCard} alt="PAN Card" style={{ maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #ddd', marginLeft: '8px' }} />
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
-                      {selectedVendor.bankAccountNumber && (
-                        <div className="detail">
-                          <span className="label">Account Number</span>
-                          <span className="value">{selectedVendor.bankAccountNumber}</span>
+                      {selectedVendor.aadharCard && (
+                        <div className="detail full">
+                          <span className="label">Aadhar Card</span>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                            {isPDFUrl(selectedVendor.aadharCard) ? (
+                              <button onClick={() => downloadFile(selectedVendor.aadharCard, `Aadhar_Card_${selectedVendor.companyName || 'vendor'}.pdf`)} style={{ color: '#28a745', background: 'white', border: '1px solid #28a745', borderRadius: '4px', fontSize: '13px', padding: '6px 12px', cursor: 'pointer' }}>⬇️ Download</button>
+                            ) : (
+                              <>
+                                <button onClick={() => downloadFile(selectedVendor.aadharCard, `Aadhar_Card_${selectedVendor.companyName || 'vendor'}.jpg`)} style={{ color: '#28a745', background: 'white', border: '1px solid #28a745', borderRadius: '4px', fontSize: '13px', padding: '6px 12px', cursor: 'pointer' }}>⬇️ Download</button>
+                                <img src={selectedVendor.aadharCard} alt="Aadhar Card" style={{ maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #ddd', marginLeft: '8px' }} />
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
-                      {selectedVendor.bankName && (
-                        <div className="detail">
-                          <span className="label">Bank Name</span>
-                          <span className="value">{selectedVendor.bankName}</span>
-                        </div>
-                      )}
-                      {selectedVendor.bankIFSC && (
-                        <div className="detail">
-                          <span className="label">IFSC Code</span>
-                          <span className="value">{selectedVendor.bankIFSC}</span>
-                        </div>
-                      )}
-                      {selectedVendor.bankBranch && (
-                        <div className="detail">
-                          <span className="label">Branch</span>
-                          <span className="value">{selectedVendor.bankBranch}</span>
+                      {selectedVendor.bankDetailsDocument && (
+                        <div className="detail full">
+                          <span className="label">Bank Details Document</span>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                            {isPDFUrl(selectedVendor.bankDetailsDocument) ? (
+                              <button onClick={() => downloadFile(selectedVendor.bankDetailsDocument, `Bank_Details_${selectedVendor.companyName || 'vendor'}.pdf`)} style={{ color: '#28a745', background: 'white', border: '1px solid #28a745', borderRadius: '4px', fontSize: '13px', padding: '6px 12px', cursor: 'pointer' }}>⬇️ Download</button>
+                            ) : (
+                              <>
+                                <button onClick={() => downloadFile(selectedVendor.bankDetailsDocument, `Bank_Details_${selectedVendor.companyName || 'vendor'}.jpg`)} style={{ color: '#28a745', background: 'white', border: '1px solid #28a745', borderRadius: '4px', fontSize: '13px', padding: '6px 12px', cursor: 'pointer' }}>⬇️ Download</button>
+                                <img src={selectedVendor.bankDetailsDocument} alt="Bank Details Document" style={{ maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #ddd', marginLeft: '8px' }} />
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
                     </>
@@ -804,8 +1389,16 @@ const Vendors = () => {
                     <span className="sub">Orders</span>
                   </div>
                   <div className="mini-stat">
-                    <span className="big">{selectedVendor.rating || '—'}</span>
+                    <span className="big">{selectedVendor.rating ? selectedVendor.rating.toFixed(1) : '—'}</span>
                     <span className="sub">Rating</span>
+                  </div>
+                  <div className="mini-stat">
+                    <span className="big">{currencySymbol}{(selectedVendor.balance || 0).toLocaleString()}</span>
+                    <span className="sub">Balance</span>
+                  </div>
+                  <div className="mini-stat">
+                    <span className="big">{currencySymbol}{(selectedVendor.totalEarnings || 0).toLocaleString()}</span>
+                    <span className="sub">Total Earnings</span>
                   </div>
                 </div>
               </div>
