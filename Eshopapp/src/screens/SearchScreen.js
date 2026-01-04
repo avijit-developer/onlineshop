@@ -536,7 +536,8 @@ const styles = StyleSheet.create({
     top: 10,
     left: 0,
     fontSize: 18,
-    color: '#aaa',
+    color: '#999',
+    fontWeight: '400',
     pointerEvents: 'none',
   },
 

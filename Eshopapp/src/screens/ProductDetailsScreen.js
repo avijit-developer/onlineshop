@@ -36,6 +36,7 @@ export default function ProductDetailsScreen() {
     const [deliveryAreaError, setDeliveryAreaError] = useState('');
     const [validatingAddress, setValidatingAddress] = useState(false);
     const lastValidatedAddressId = useRef(null);
+    const abortControllerRef = useRef(null);
 
     // Variant handling
     const [attributeOptions, setAttributeOptions] = useState({}); // { Color: ['Red','Blue'], Size: ['M','L'] }
@@ -45,26 +46,52 @@ export default function ProductDetailsScreen() {
     useEffect(() => {
         console.log('ProductDetailsScreen useEffect triggered:', { productId, productData });
         
+        // Cancel any ongoing request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        
         // If we have product data directly, use it
         if (productData) {
             setProduct(productData);
             setLoading(false);
+            setError(null);
             setupProductData(productData);
             return;
         }
         
         // Otherwise fetch by productId, but only once per id
         if (productId) {
-            if (lastFetchedProductIdRef.current === productId) {
+            // Reset state for new product
+            setProduct(null);
+            setError(null);
+            setLoading(true);
+            
+            // Create new abort controller for this request
+            const abortController = new AbortController();
+            abortControllerRef.current = abortController;
+            
+            // Only skip if we already fetched this exact productId
+            if (lastFetchedProductIdRef.current === productId && product) {
+                setLoading(false);
                 return;
             }
+            
             lastFetchedProductIdRef.current = productId;
-            fetchProductDetails();
+            fetchProductDetails(abortController.signal);
         } else {
             setError('No product information provided');
             setLoading(false);
         }
-    }, [productId]);
+        
+        // Cleanup function
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
+        };
+    }, [productId, productData]);
 
     // Check wishlist status when product changes
     useEffect(() => {
@@ -105,14 +132,24 @@ export default function ProductDetailsScreen() {
         }
     };
 
-    const fetchProductDetails = async () => {
+    const fetchProductDetails = async (signal) => {
         if (!productId) return;
         
         setLoading(true);
         setError(null);
         
         try {
-            const res = await api.getProductPublic(productId);
+            // Check if request was aborted before making the call
+            if (signal?.aborted) {
+                return;
+            }
+            
+            const res = await api.getProductPublic(productId, { signal });
+            
+            // Check again after the call
+            if (signal?.aborted) {
+                return;
+            }
             
             if (res?.success) {
                 const p = res.data;
@@ -122,18 +159,31 @@ export default function ProductDetailsScreen() {
                 setError(`Failed to fetch product details: ${res?.message || 'Unknown error'}`);
             }
         } catch (err) {
+            // Don't update state if request was aborted
+            if (signal?.aborted || err.name === 'AbortError') {
+                console.log('ProductDetails: Request was aborted');
+                return;
+            }
+            
             console.error('Error fetching product:', err);
             
             // Handle different types of errors
-            if (err.message.includes('Network error')) {
+            if (err.message?.includes('timeout') || err.status === 408) {
+                setError('Request timeout: The server took too long to respond. Please try again.');
+            } else if (err.message?.includes('Network error') || err.status === 0) {
                 setError('Network error: Please check your internet connection and try again.');
-            } else if (err.message.includes('HTTP error')) {
-                setError(`Server error: ${err.message}. Please try again later.`);
+            } else if (err.message?.includes('HTTP error') || (err.status >= 400 && err.status < 500)) {
+                setError(`Server error: ${err.message || 'Failed to load product'}. Please try again later.`);
+            } else if (err.status >= 500) {
+                setError('Server error: Please try again in a few moments.');
             } else {
-                setError(`Failed to load product: ${err.message}`);
+                setError(`Failed to load product: ${err.message || 'Unknown error'}`);
             }
         } finally {
-            setLoading(false);
+            // Only update loading state if request wasn't aborted
+            if (!signal?.aborted) {
+                setLoading(false);
+            }
         }
     };
 
@@ -291,15 +341,28 @@ export default function ProductDetailsScreen() {
 
     // Load shipping settings
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+        
         (async () => {
             try {
                 const res = await api.getShippingSettings();
+                
+                if (!isMounted || abortController.signal.aborted) return;
+                
                 const data = res?.data || res;
                 setShippingSettings(data || {});
-            } catch (_) {
+            } catch (err) {
+                if (!isMounted || abortController.signal.aborted) return;
+                console.warn('Error fetching shipping settings:', err);
                 setShippingSettings(null);
             }
         })();
+        
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
     // Calculate distance between two coordinates using Haversine formula
@@ -607,8 +670,17 @@ export default function ProductDetailsScreen() {
                 <Text style={styles.debugText}>productData: {productData ? 'provided' : 'not provided'}</Text>
                 
                 {productId && (
-                    <TouchableOpacity style={styles.retryButton} onPress={fetchProductDetails}>
-                        <Text style={styles.retryButtonText}>Retry API Call</Text>
+                    <TouchableOpacity style={styles.retryButton} onPress={() => {
+                        // Reset and retry
+                        setError(null);
+                        setLoading(true);
+                        setProduct(null);
+                        lastFetchedProductIdRef.current = null;
+                        const abortController = new AbortController();
+                        abortControllerRef.current = abortController;
+                        fetchProductDetails(abortController.signal);
+                    }}>
+                        <Text style={styles.retryButtonText}>Retry</Text>
                     </TouchableOpacity>
                 )}
                 

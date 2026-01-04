@@ -19,24 +19,113 @@ class ApiError extends Error {
   }
 }
 
+// Helper function to create a timeout promise
+const createTimeout = (ms) => {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Request timeout')), ms);
+  });
+};
+
+// Helper function to retry a request with exponential backoff
+const retryRequest = async (requestFn, maxRetries = 3, timeoutMs = 15000, externalSignal = null) => {
+  let lastError;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // Check if external signal is aborted
+    if (externalSignal?.aborted) {
+      throw new Error('Request aborted');
+    }
+    
+    try {
+      // Create abort controller for this attempt
+      const abortController = new AbortController();
+      
+      // If external signal exists, listen to it and abort internal controller when external is aborted
+      if (externalSignal) {
+        externalSignal.addEventListener('abort', () => {
+          abortController.abort();
+        });
+      }
+      
+      // Create timeout promise
+      const timeoutPromise = createTimeout(timeoutMs);
+      
+      // Race between the request and timeout
+      const requestPromise = requestFn(abortController.signal);
+      
+      const result = await Promise.race([requestPromise, timeoutPromise]);
+      
+      // If we got here, request succeeded
+      return result;
+    } catch (error) {
+      // Check if aborted
+      if (externalSignal?.aborted || error.name === 'AbortError') {
+        throw new Error('Request aborted');
+      }
+      
+      lastError = error;
+      
+      // Don't retry on certain errors
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408) {
+        // Client errors (except timeout) shouldn't be retried
+        throw error;
+      }
+      
+      // If this was the last attempt, throw the error
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Calculate exponential backoff delay (1s, 2s, 4s)
+      const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+      console.log(`[API] Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+      
+      // Wait before retrying, but check for abort during wait
+      await new Promise((resolve) => {
+        const timeoutId = setTimeout(resolve, delay);
+        if (externalSignal) {
+          externalSignal.addEventListener('abort', () => {
+            clearTimeout(timeoutId);
+            resolve();
+          });
+        }
+      });
+      
+      // Check again after delay
+      if (externalSignal?.aborted) {
+        throw new Error('Request aborted');
+      }
+    }
+  }
+  
+  throw lastError;
+};
+
 const api = {
   async request(endpoint, options = {}) {
     const initialBase = API_BASE;
     let url = `${initialBase}${endpoint}`;
     
-    // Ensure headers are merged correctly and not overwritten by spreading options
-    const { headers: optionHeaders, ...restOptions } = options || {};
-    const config = {
-      ...restOptions,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(optionHeaders || {}),
-      },
-    };
+    // Extract abort signal from options if provided
+    const { signal: externalSignal, headers: optionHeaders, ...restOptions } = options || {};
+    
+    // Create internal abort controller if not provided
+    const internalAbortController = externalSignal ? null : new AbortController();
+    const abortSignal = externalSignal || internalAbortController.signal;
+    
+    const makeRequest = async (signal) => {
+      const config = {
+        ...restOptions,
+        signal, // Add abort signal to fetch config
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(optionHeaders || {}),
+        },
+      };
 
-    try {
       const response = await fetch(url, config);
+      
       // Handle expired/invalid sessions: redirect vendor portal to login on 401
       if (response && response.status === 401) {
         try { await AsyncStorage.removeItem('vendorAuthToken'); } catch (_) {}
@@ -52,17 +141,33 @@ const api = {
           }
         } catch (_) {}
       }
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new ApiError(errorData.message || `HTTP error! status: ${response.status}`, response.status);
       }
+      
       const json = await response.json();
       return json;
+    };
+
+    try {
+      // Use retry logic with timeout (15 seconds per attempt, max 2 retries)
+      const result = await retryRequest(makeRequest, 2, 15000, abortSignal);
+      return result;
     } catch (error) {
+      // Handle abort errors separately
+      if (error.name === 'AbortError' || error.message === 'Request timeout') {
+        console.warn('[API] Request aborted or timed out:', endpoint);
+        throw new ApiError('Request timeout. Please try again.', 408);
+      }
+      
       // Network error; no alternate base retry (dev uses localhost, release uses prod env)
       const isNetwork = !(error instanceof ApiError);
       if (error instanceof ApiError) throw error;
-      console.warn('[API] Network error. Base:', initialBase, 'Endpoint:', endpoint);
+      
+      console.warn('[API] Network error. Base:', initialBase, 'Endpoint:', endpoint, 'Error:', error.message);
+      
       // Surface a global navigation to NetworkError if available (guard repeated attempts)
       try {
         const nav = global.__APP_NAV__;
@@ -74,6 +179,7 @@ const api = {
           }
         }
       } catch (_) {}
+      
       throw new ApiError('Network error. Please check your connection.', 0);
     }
   },
@@ -287,14 +393,14 @@ const api = {
   },
 
   // Categories (public)
-  async getCategoriesPublic(params = {}) {
+  async getCategoriesPublic(params = {}, options = {}) {
     const parts = [];
     if (params.parent) parts.push('parent=' + encodeURIComponent(String(params.parent)));
     if (params.q) parts.push('q=' + encodeURIComponent(String(params.q)));
     if (params.page != null) parts.push('page=' + encodeURIComponent(String(params.page)));
     if (params.limit != null) parts.push('limit=' + encodeURIComponent(String(params.limit)));
     const qs = parts.length ? '?' + parts.join('&') : '';
-    return this.request(`/api/v1/categories/public${qs}`);
+    return this.request(`/api/v1/categories/public${qs}`, options);
   },
 
   // Products (public)
@@ -345,8 +451,8 @@ const api = {
     return this.request(`/api/v1/products/${productId}/related/public`);
   },
 
-  async getProductPublic(productId) {
-    return this.request(`/api/v1/products/${productId}/public`);
+  async getProductPublic(productId, options = {}) {
+    return this.request(`/api/v1/products/${productId}/public`, options);
   },
 
   // Product search with filters
