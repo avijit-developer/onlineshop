@@ -435,6 +435,99 @@ const Orders = () => {
       toast.error('Failed to download invoice');
     }
   };
+ 
+  const escapeCsv = (value) => {
+    const str = String(value ?? '');
+    if (/[",\n]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const formatCsvDate = (d) => {
+    try {
+      return require('../../utils/date').formatDateTime(d);
+    } catch (_) {
+      return String(d || '');
+    }
+  };
+
+  const buildOrdersCsv = (rows) => {
+    const headers = [
+      'Order ID',
+      'Order Number',
+      'Status',
+      'Created At',
+      'Customer Name',
+      'Customer Email',
+      'Customer Phone',
+      'Vendor',
+      'Items',
+      'Subtotal',
+      'Tax',
+      'Shipping',
+      'Total'
+    ];
+    const lines = [headers.map(escapeCsv).join(',')];
+    rows.forEach(order => {
+      const orderId = order._id || order.id || '';
+      const orderNumber = order.orderNumber || '';
+      const status = aggregateMultiVendorStatus(order) || order.status || '';
+      const createdAt = formatCsvDate(order.createdAt);
+      const customerName = getCustomerName(order);
+      const customerEmail = order.user?.email || order.customerEmail || '';
+      const customerPhone = order.customerPhone || order.user?.phone || '';
+      const vendorName = getVendorName(order);
+      const itemsText = (order.items || []).map(it => {
+        const name = it.name || '';
+        const qty = it.quantity || 0;
+        const price = it.price ?? '';
+        return `${name} x${qty} @ ${price}`;
+      }).join(' | ');
+      const subtotal = isVendor
+        ? (order.vendorSubtotal != null ? Number(order.vendorSubtotal) : calculateOrderTotal({ ...order, tax: 0, shippingCost: 0 }))
+        : (order.items || []).reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+      const tax = isVendor ? '' : Number(order.tax || 0);
+      const shipping = isVendor ? '' : Number(order.shippingCost || 0);
+      const total = calculateOrderTotal(order);
+      const row = [
+        orderId,
+        orderNumber,
+        status,
+        createdAt,
+        customerName,
+        customerEmail,
+        customerPhone,
+        vendorName,
+        itemsText,
+        subtotal,
+        tax,
+        shipping,
+        total
+      ].map(escapeCsv).join(',');
+      lines.push(row);
+    });
+    return lines.join('\n');
+  };
+
+  const downloadOrdersCsv = (rows, label) => {
+    if (!rows || rows.length === 0) {
+      toast.error('No orders to export');
+      return;
+    }
+    const csv = buildOrdersCsv(rows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateTag = new Date().toISOString().slice(0, 10);
+    a.download = `orders-${label}-${dateTag}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    toast.success('CSV downloaded');
+  };
 
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -462,6 +555,20 @@ const Orders = () => {
             />
             <button className="btn btn-secondary" onClick={() => setFiltersOpen(v => !v)}>
               {filtersOpen ? 'Hide Filters' : 'Show Filters'}
+            </button>
+            <button
+              className="btn btn-success"
+              onClick={() => downloadOrdersCsv(filteredOrders, 'filtered')}
+              title="Download filtered orders as CSV"
+            >
+              Download CSV
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => downloadOrdersCsv(currentOrders, 'page')}
+              title="Download current page as CSV"
+            >
+              CSV (This Page)
             </button>
           </div>
         </div>
