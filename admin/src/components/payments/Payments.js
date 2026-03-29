@@ -546,6 +546,97 @@ const Payments = () => {
       : getFilteredWithdrawals().length / itemsPerPage
   );
 
+  const escapeCsv = (value) => {
+    const str = String(value ?? '');
+    if (/[",\n]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const buildPaymentsCsv = (rows) => {
+    const headers = [
+      'Payment ID',
+      'Order ID',
+      'Customer',
+      'Vendor',
+      'Commission',
+      'Vendor Earnings',
+      'Amount',
+      'Payment Method',
+      'Status',
+      'Date'
+    ];
+    const lines = [headers.map(escapeCsv).join(',')];
+    rows.forEach((p) => {
+      const row = [
+        p.id,
+        p.orderId,
+        p.customerName,
+        isVendor ? '' : getVendorName(p.vendorId),
+        isVendor ? '' : p.commission,
+        p.vendorEarnings,
+        p.amount,
+        p.paymentMethod,
+        p.status,
+        p.date ? formatDateTime(p.date) : ''
+      ].map(escapeCsv).join(',');
+      lines.push(row);
+    });
+    return lines.join('\n');
+  };
+
+  const buildWithdrawalsCsv = (rows) => {
+    const headers = [
+      'Withdrawal ID',
+      'Vendor',
+      'Amount',
+      'Status',
+      'Payment Method',
+      'Account Details',
+      'Request Date',
+      'Processed Date',
+      'Processed By',
+      'Note'
+    ];
+    const lines = [headers.map(escapeCsv).join(',')];
+    rows.forEach((w) => {
+      const row = [
+        w.id,
+        w.vendorName || getVendorName(w.vendorId),
+        w.amount,
+        w.status,
+        w.paymentMethod,
+        w.accountDetails,
+        w.requestDate ? formatDateTime(w.requestDate) : '',
+        w.processedDate ? formatDateTime(w.processedDate) : '',
+        w.processedBy || '',
+        w.note || ''
+      ].map(escapeCsv).join(',');
+      lines.push(row);
+    });
+    return lines.join('\n');
+  };
+
+  const downloadCsv = (rows, label, builder) => {
+    if (!rows || rows.length === 0) {
+      toast.error('No records to export');
+      return;
+    }
+    const csv = builder(rows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateTag = new Date().toISOString().slice(0, 10);
+    a.download = `payments-${label}-${dateTag}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    toast.success('CSV downloaded');
+  };
+
   if (loading) {
     return <div className="loading">Loading payments...</div>;
   }
@@ -554,7 +645,44 @@ const Payments = () => {
     <div className="payments-container">
       <div className="page-header">
         <h1>Payments & Transactions</h1>
-        <div className="header-actions" />
+        <div className="header-actions" style={{ display: 'flex', gap: 8 }}>
+          {activeTab === 'earnings' && (
+            <>
+              <button
+                className="btn btn-success"
+                onClick={() => downloadCsv(getFilteredPayments(), 'earnings', buildPaymentsCsv)}
+                title="Download payment transactions as CSV"
+              >
+                Download CSV
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => downloadCsv(getPaginatedData(getFilteredPayments()), 'earnings-page', buildPaymentsCsv)}
+                title="Download current page as CSV"
+              >
+                CSV (This Page)
+              </button>
+            </>
+          )}
+          {activeTab === 'withdrawals' && (
+            <>
+              <button
+                className="btn btn-success"
+                onClick={() => downloadCsv(getFilteredWithdrawals(), 'withdrawals', buildWithdrawalsCsv)}
+                title="Download withdrawal transactions as CSV"
+              >
+                Download CSV
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => downloadCsv(getPaginatedData(getFilteredWithdrawals()), 'withdrawals-page', buildWithdrawalsCsv)}
+                title="Download current page as CSV"
+              >
+                CSV (This Page)
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="stats-cards">
