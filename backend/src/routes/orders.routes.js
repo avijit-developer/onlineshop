@@ -545,7 +545,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 			query.user = userId;
 		}
 		const [orders, total] = await Promise.all([
-			Order.find(query).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').lean(),
+			Order.find(query).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').populate('driver', 'name email phone').lean(),
 			Order.countDocuments(query)
 		]);
 		try {
@@ -845,7 +845,11 @@ router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) =
         order.driverStatusHistory.push({ status: 'assigned', updatedBy: req.user?.email || 'admin' });
         order.statusHistory.push({ status: 'driver:assigned', updatedBy: req.user?.email || 'admin' });
         await order.save();
-        res.json({ success: true, data: order });
+        const populatedOrder = await Order.findById(order._id)
+            .populate('user', 'name email phone')
+            .populate('driver', 'name email phone')
+            .lean();
+        res.json({ success: true, data: populatedOrder });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to assign driver' });
     }

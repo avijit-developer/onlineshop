@@ -9,7 +9,7 @@ const StatusButton = ({ label, onPress, disabled }) => (
   </TouchableOpacity>
 );
 
-const DriverOrders = () => {
+const DriverOrders = ({ navigation }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,19 +40,20 @@ const DriverOrders = () => {
   const renderItem = ({ item }) => {
     const ds = String(item.driverStatus || '').toLowerCase();
     return (
-      <View style={styles.card}>
+      <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={() => navigation.navigate('DriverOrderDetails', { order: item, orderId: item._id || item.id })}>
         <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
           <Text style={styles.orderNum}>#{item.orderNumber}</Text>
           <Text style={styles.badge}>{ds || 'assigned'}</Text>
         </View>
         <Text style={styles.customer}>{item.user?.name || item.user?.email || 'Customer'}</Text>
         <Text style={styles.address}>{item.shippingAddress}</Text>
+        <Text style={styles.total}>Rs {Number(item.total || 0).toFixed(2)}</Text>
         <View style={styles.btnRow}>
           <StatusButton label="Pickup completed" onPress={() => updateStatus(item, 'pickup_completed')} disabled={ds && ds !== 'assigned'} />
           <StatusButton label="On the way" onPress={() => updateStatus(item, 'on_the_way')} disabled={ds !== 'pickup_completed'} />
           <StatusButton label="Delivered" onPress={() => updateStatus(item, 'delivery_completed')} disabled={ds !== 'on_the_way'} />
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -68,7 +69,7 @@ const DriverOrders = () => {
 
 const styles = StyleSheet.create({
   container:{ flex:1, padding:16, backgroundColor:'#fff' }, title:{ fontSize:18, fontWeight:'700', marginBottom:8 },
-  card:{ borderWidth:1, borderColor:'#eee', borderRadius:12, padding:12, marginBottom:12 }, orderNum:{ fontWeight:'700' }, badge:{ backgroundColor:'#f1f5f9', color:'#334155', paddingHorizontal:8, paddingVertical:4, borderRadius:999, overflow:'hidden', textTransform:'capitalize' }, customer:{ marginTop:6, fontWeight:'600' }, address:{ color:'#555', marginTop:2 }, btnRow:{ flexDirection:'row', marginTop:12, gap:8, justifyContent:'space-between' }, statusBtn:{ flex:1, backgroundColor:'#f7ab18', borderRadius:8, paddingVertical:10, alignItems:'center' }, statusBtnText:{ color:'#fff', fontWeight:'700', fontSize:12 }
+  card:{ borderWidth:1, borderColor:'#eee', borderRadius:12, padding:12, marginBottom:12 }, orderNum:{ fontWeight:'700' }, badge:{ backgroundColor:'#f1f5f9', color:'#334155', paddingHorizontal:8, paddingVertical:4, borderRadius:999, overflow:'hidden', textTransform:'capitalize' }, customer:{ marginTop:6, fontWeight:'600' }, address:{ color:'#555', marginTop:2 }, total:{ color:'#111827', fontWeight:'700', marginTop:8 }, btnRow:{ flexDirection:'row', marginTop:12, gap:8, justifyContent:'space-between' }, statusBtn:{ flex:1, backgroundColor:'#f7ab18', borderRadius:8, paddingVertical:10, alignItems:'center' }, statusBtnText:{ color:'#fff', fontWeight:'700', fontSize:12 }
 });
 
 export default DriverOrders;

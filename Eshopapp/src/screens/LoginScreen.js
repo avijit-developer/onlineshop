@@ -135,6 +135,23 @@ const LoginScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          <View style={{ marginTop: 16 }}>
+            <Text style={{ color: '#666', marginBottom: 8, fontWeight: '600' }}>Driver Portal</Text>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#fff',
+                borderWidth: 1,
+                borderColor: '#f7ab18',
+                borderRadius: 8,
+                paddingVertical: 12,
+                alignItems: 'center'
+              }}
+              onPress={() => navigation.navigate('DriverLogin')}
+            >
+              <Text style={{ color: '#f7ab18', fontWeight: '700' }}>Enter Driver Portal</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* <TouchableOpacity style={styles.skipButton} onPress={() => navigation.replace('Home')}>
             <Text style={styles.skipButtonText}>Skip for now</Text>
           </TouchableOpacity> */}

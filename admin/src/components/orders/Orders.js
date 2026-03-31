@@ -29,13 +29,12 @@ const Orders = () => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [approvedDrivers, setApprovedDrivers] = useState([]);
+  const [driversLoading, setDriversLoading] = useState(false);
+  const [driverAssigning, setDriverAssigning] = useState(false);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
   const [customers, setCustomers] = useState([]);
   const [vendors, setVendors] = useState([]);
-  const [deliveryPartners, setDeliveryPartners] = useState([
-    { id: 1, name: 'Express Delivery', phone: '+1234567890' },
-    { id: 2, name: 'FastTrack Logistics', phone: '+1234567891' },
-    { id: 3, name: 'QuickShip', phone: '+1234567892' }
-  ]);
 
   const normalizeAddress = (addr) => {
     try {
@@ -146,6 +145,25 @@ const Orders = () => {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
       setLoading(false);
+    }
+  };
+
+  const fetchApprovedDrivers = async () => {
+    try {
+      setDriversLoading(true);
+      const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+      const resp = await fetch(`${baseUrl}/api/v1/drivers?status=approved&page=1&limit=1000`, {
+        headers: getAuthHeaders()
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(json?.message || 'Failed to load approved drivers');
+      const drivers = Array.isArray(json?.data) ? json.data.filter(driver => driver.enabled !== false) : [];
+      setApprovedDrivers(drivers);
+    } catch (error) {
+      toast.error(error.message || 'Failed to load approved drivers');
+    } finally {
+      setDriversLoading(false);
     }
   };
 
@@ -303,43 +321,40 @@ const Orders = () => {
 
   const handleAssignDelivery = (order) => {
     setSelectedOrder(order);
+    setSelectedDriverId(order?.driver?._id || order?.driver?.id || order?.driver || '');
     setShowDeliveryModal(true);
+    fetchApprovedDrivers();
   };
 
-  const assignDriverByEmail = async (order) => {
+  const assignSelectedDriver = async () => {
     try {
-      const email = window.prompt('Enter driver email to assign:');
-      if (!email) return;
+      if (!selectedOrder) return;
+      if (!selectedDriverId) {
+        toast.error('Please select a driver');
+        return;
+      }
+      setDriverAssigning(true);
       const ORIGIN2 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN2 && ORIGIN2.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN2 || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
-      const resp = await fetch(`${baseUrl}/api/v1/orders/${order._id || order.id}/assign-driver`, {
+      const resp = await fetch(`${baseUrl}/api/v1/orders/${selectedOrder._id || selectedOrder.id}/assign-driver`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
-        body: JSON.stringify({ driverEmail: email })
+        body: JSON.stringify({ driverId: selectedDriverId })
       });
       const json = await resp.json().catch(()=>({}));
       if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to assign driver');
-      toast.success('Driver assigned');
-      fetchData();
-    } catch (e) { toast.error(e?.message || 'Failed to assign driver'); }
-  };
-
-  const assignDeliveryPartner = (partnerId) => {
-    if (selectedOrder) {
-      const partner = deliveryPartners.find(p => p.id === partnerId);
-      const updatedOrders = orders.map(order =>
-        order.id === selectedOrder.id 
-          ? { 
-              ...order, 
-              deliveryPartner: partner,
-              updatedAt: new Date().toISOString()
-            }
-          : order
-      );
-      setOrders(updatedOrders);
+      const updatedOrder = json.data;
+      setOrders(prev => prev.map(order => (
+        String(order._id || order.id) === String(updatedOrder._id || updatedOrder.id) ? { ...order, ...updatedOrder } : order
+      )));
+      setSelectedOrder(updatedOrder);
       setShowDeliveryModal(false);
-      toast.success(`Delivery partner assigned: ${partner.name}`);
+      toast.success('Driver assigned successfully');
+    } catch (e) {
+      toast.error(e?.message || 'Failed to assign driver');
+    } finally {
+      setDriverAssigning(false);
     }
   };
 
@@ -644,6 +659,7 @@ const Orders = () => {
             <tr>
               <th>Order</th>
               <th>Vendor</th>
+              <th>Driver</th>
               <th>Items</th>
               <th>Total</th>
               <th>Status</th>
@@ -661,6 +677,12 @@ const Orders = () => {
                   </div>
                 </td>
                 <td>{getVendorName(order)}</td>
+                <td>
+                  <div className="customer-info">
+                    <strong>{order?.driver?.name || 'Unassigned'}</strong>
+                    {order?.driver?.email ? <small>{order.driver.email}</small> : null}
+                  </div>
+                </td>
                 <td>
                   <span className="items-count">
                     {(order.items || []).length} item{(order.items || []).length !== 1 ? 's' : ''}
@@ -700,17 +722,10 @@ const Orders = () => {
                     <button
                       onClick={() => handleAssignDelivery(order)}
                       className="btn btn-primary btn-sm"
+                      style={{ display: isVendor ? 'none' : undefined }}
                     >
-                      Delivery
+                      {order?.driver?.name ? 'Reassign Driver' : 'Assign Driver'}
                     </button>
-                    {!isVendor && (
-                      <button
-                        onClick={() => assignDriverByEmail(order)}
-                        className="btn btn-success btn-sm"
-                      >
-                        Assign Driver
-                      </button>
-                    )}
                     <button
                       onClick={() => {
                         setSelectedOrder(order);
@@ -784,9 +799,9 @@ const Orders = () => {
 
                   <div className="order-sections">
                     {!isVendor && (
-                      <div className="section">
-                        <h3>Customer Information</h3>
-                        <div className="info-grid">
+                  <div className="section">
+                    <h3>Customer Information</h3>
+                    <div className="info-grid">
                           <div className="info-item">
                             <label>Name:</label>
                             <span>{getCustomerName(selectedOrder)}</span>
@@ -825,6 +840,14 @@ const Orders = () => {
                               </a>
                             </div>
                           )}
+                          <div className="info-item">
+                            <label>Assigned Driver:</label>
+                            <span>{selectedOrder.driver?.name ? `${selectedOrder.driver.name} (${selectedOrder.driver.email || 'No email'})` : 'Not assigned'}</span>
+                          </div>
+                          <div className="info-item">
+                            <label>Driver Status:</label>
+                            <span>{selectedOrder.driverStatus || 'N/A'}</span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1143,28 +1166,53 @@ const Orders = () => {
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h2>Assign Delivery Partner</h2>
+              <h2>Assign Driver</h2>
               <button onClick={() => setShowDeliveryModal(false)} className="close-btn">&times;</button>
             </div>
             <div className="modal-body">
               <div className="delivery-partners">
-                <p>Select a delivery partner for order #{selectedOrder.orderNumber}:</p>
-                {deliveryPartners.map(partner => (
-                  <div key={partner.id} className="partner-option">
-                    <input
-                      type="radio"
-                      id={`partner-${partner.id}`}
-                      name="deliveryPartner"
-                      value={partner.id}
-                      onChange={() => assignDeliveryPartner(partner.id)}
-                    />
-                    <label htmlFor={`partner-${partner.id}`}>
-                      <strong>{partner.name}</strong>
-                      <span>{partner.phone}</span>
-                    </label>
+                <p>Select an approved driver for order #{selectedOrder.orderNumber}:</p>
+                <div className="assigned-driver-note">
+                  Current driver: {selectedOrder.driver?.name ? `${selectedOrder.driver.name} (${selectedOrder.driver.email || 'No email'})` : 'Not assigned'}
+                </div>
+                {driversLoading ? (
+                  <div className="loading-inline">
+                    <div className="spinner"></div>
+                    Loading approved drivers...
                   </div>
-                ))}
+                ) : approvedDrivers.length === 0 ? (
+                  <div className="driver-empty-state">No approved drivers are available right now.</div>
+                ) : (
+                  approvedDrivers.map(driver => (
+                    <div key={driver._id || driver.id} className="partner-option">
+                      <input
+                        type="radio"
+                        id={`driver-${driver._id || driver.id}`}
+                        name="assignedDriver"
+                        value={driver._id || driver.id}
+                        checked={String(selectedDriverId) === String(driver._id || driver.id)}
+                        onChange={() => setSelectedDriverId(driver._id || driver.id)}
+                      />
+                      <label htmlFor={`driver-${driver._id || driver.id}`}>
+                        <strong>{driver.name}</strong>
+                        <span>{driver.email}</span>
+                      </label>
+                    </div>
+                  ))
+                )}
               </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setShowDeliveryModal(false)} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                onClick={assignSelectedDriver}
+                className="btn btn-primary"
+                disabled={driverAssigning || driversLoading || approvedDrivers.length === 0 || !selectedDriverId}
+              >
+                {driverAssigning ? 'Assigning...' : 'Assign Driver'}
+              </button>
             </div>
           </div>
         </div>

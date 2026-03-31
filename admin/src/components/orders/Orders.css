@@ -587,6 +587,24 @@
   gap: 15px;
 }
 
+.assigned-driver-note {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  color: #333;
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.driver-empty-state {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  background: #f8fafc;
+  text-align: center;
+}
+
 .delivery-partners p {
   margin: 0 0 15px 0;
   font-size: 16px;

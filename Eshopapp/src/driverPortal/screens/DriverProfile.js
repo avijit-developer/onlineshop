@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CommonActions } from '@react-navigation/native';
 import { API_BASE } from '../../utils/api';
 
-const DriverProfile = () => {
+const DriverProfile = ({ navigation }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [driverUser, setDriverUser] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('driverUser');
+        if (stored) setDriverUser(JSON.parse(stored));
+      } catch (_) {}
+    })();
+  }, []);
 
   const changePassword = async () => {
     try {
@@ -28,12 +39,24 @@ const DriverProfile = () => {
   const logout = async () => {
     await AsyncStorage.removeItem('driverAuthToken');
     await AsyncStorage.removeItem('driverUser');
-    Alert.alert('Logged out', 'You have been logged out.');
+    const parent = navigation.getParent && navigation.getParent();
+    const root = parent && parent.getParent ? parent.getParent() : null;
+    const dispatcher = (root && root.dispatch) || (parent && parent.dispatch) || navigation.dispatch;
+    dispatcher(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      })
+    );
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Profile</Text>
+      <View style={styles.userCard}>
+        <Text style={styles.userName}>{driverUser?.name || 'Driver'}</Text>
+        {driverUser?.email ? <Text style={styles.userMeta}>{driverUser.email}</Text> : null}
+      </View>
       <Text style={styles.section}>Change Password</Text>
       <View style={styles.formGroup}><Text style={styles.label}>Current Password</Text><TextInput style={styles.input} value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry /></View>
       <View style={styles.formGroup}><Text style={styles.label}>New Password</Text><TextInput style={styles.input} value={newPassword} onChangeText={setNewPassword} secureTextEntry /></View>
@@ -44,7 +67,7 @@ const DriverProfile = () => {
   );
 };
 
-const styles = StyleSheet.create({ container:{ flex:1, padding:16, backgroundColor:'#fff' }, title:{ fontSize:18, fontWeight:'700', marginBottom:8 }, section:{ marginTop:16, marginBottom:8, fontWeight:'600', color:'#555' }, formGroup:{ marginBottom:12 }, label:{ fontSize:12, color:'#666', marginBottom:6, fontWeight:'600' }, input:{ borderWidth:1, borderColor:'#e5e7eb', borderRadius:8, paddingHorizontal:12, paddingVertical:10, backgroundColor:'#fff' }, btn:{ backgroundColor:'#f7ab18', borderRadius:10, paddingVertical:12, alignItems:'center', marginTop:8 }, btnText:{ color:'#fff', fontWeight:'700' } });
+const styles = StyleSheet.create({ container:{ flex:1, padding:16, backgroundColor:'#fff' }, title:{ fontSize:18, fontWeight:'700', marginBottom:8 }, userCard:{ padding:14, borderWidth:1, borderColor:'#e5e7eb', borderRadius:12, backgroundColor:'#f8fafc', marginTop:8 }, userName:{ fontWeight:'700', fontSize:16, color:'#111827' }, userMeta:{ marginTop:4, color:'#64748b' }, section:{ marginTop:16, marginBottom:8, fontWeight:'600', color:'#555' }, formGroup:{ marginBottom:12 }, label:{ fontSize:12, color:'#666', marginBottom:6, fontWeight:'600' }, input:{ borderWidth:1, borderColor:'#e5e7eb', borderRadius:8, paddingHorizontal:12, paddingVertical:10, backgroundColor:'#fff' }, btn:{ backgroundColor:'#f7ab18', borderRadius:10, paddingVertical:12, alignItems:'center', marginTop:8 }, btnText:{ color:'#fff', fontWeight:'700' } });
 
 export default DriverProfile;
 

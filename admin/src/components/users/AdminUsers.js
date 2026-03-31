@@ -450,7 +450,8 @@ const AdminUsers = () => {
                                 'products.view','products.add','products.edit','products.delete',
                                 'orders.view','orders.add','orders.edit','orders.delete',
                                 'reports.view',
-                                'vendor.add','vendor.edit','vendor.delete'
+                                'vendor.add','vendor.edit','vendor.delete',
+                                'driver.view','driver.add','driver.edit','driver.approve'
                               ];
                               setValue('permissions', selectAll ? all : []);
                             }}
@@ -491,6 +492,16 @@ const AdminUsers = () => {
                         <summary>Vendor</summary>
                         <div className="permissions-checkboxes">
                           {['vendor.add','vendor.edit','vendor.delete'].map(p => (
+                            <label key={p} className="checkbox-label">
+                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                      <details>
+                        <summary>Driver</summary>
+                        <div className="permissions-checkboxes">
+                          {['driver.view','driver.add','driver.edit','driver.approve'].map(p => (
                             <label key={p} className="checkbox-label">
                               <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
                             </label>
