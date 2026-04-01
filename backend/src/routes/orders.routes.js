@@ -181,6 +181,27 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 	return R * c; // Distance in kilometers
 }
 
+function buildActiveDriverOrderQuery(driverId, excludeOrderId) {
+	const query = {
+		driver: driverId,
+		status: { $nin: ['delivered', 'cancelled', 'canceled', 'refunded'] },
+		driverStatus: { $nin: ['delivered', 'delivery_completed'] },
+	};
+	if (excludeOrderId) {
+		query._id = { $ne: excludeOrderId };
+	}
+	return query;
+}
+
+function isTerminalOrderStatus(orderOrStatus, driverStatusArg = null) {
+	const status = typeof orderOrStatus === 'object' && orderOrStatus !== null ? orderOrStatus.status : orderOrStatus;
+	const driverStatus = typeof orderOrStatus === 'object' && orderOrStatus !== null ? orderOrStatus.driverStatus : driverStatusArg;
+	const normalized = String(status || '').toLowerCase();
+	const normalizedDriverStatus = String(driverStatus || '').toLowerCase();
+	if (['delivered', 'cancelled', 'canceled', 'refunded'].includes(normalized)) return true;
+	return ['delivered', 'delivery_completed'].includes(normalizedDriverStatus);
+}
+
 // Customer: create order (uses provided items or cart)
 router.post('/me', authenticate, requireRole(['customer']), async (req, res) => {
 	try {
@@ -721,19 +742,41 @@ router.get('/summary', authenticate, requireAdmin, async (req, res) => {
 router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 	try {
 		const { status, cancellationReason } = req.body || {};
+		const driverStatuses = ['pickup_completed', 'on_the_way', 'delivered'];
 		if (!status) return res.status(400).json({ success: false, message: 'status is required' });
 		const order = await Order.findById(req.params.id);
 		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+		if (isTerminalOrderStatus(order)) {
+			return res.status(409).json({ success: false, message: 'Delivered, cancelled, or refunded orders cannot be changed' });
+		}
 		
 		const previousStatus = order.status;
 		const isCancelling = (status === 'cancelled' || status === 'refunded') && previousStatus !== 'cancelled' && previousStatus !== 'refunded';
 		const isRestoring = (previousStatus === 'cancelled' || previousStatus === 'refunded') && status !== 'cancelled' && status !== 'refunded';
-		
-		order.status = status;
-		if (isCancelling && cancellationReason) {
-			order.cancellationReason = String(cancellationReason).trim();
+		const isDriverStatusUpdate = driverStatuses.includes(status);
+
+		if (isDriverStatusUpdate) {
+			order.driverStatus = status;
+			order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
+			order.driverStatusHistory.push({ status, updatedBy: req.user?.name || 'admin' });
+			order.statusHistory.push({ status: `driver:${status}`, updatedBy: req.user?.name || 'admin' });
+			if (status === 'delivered') {
+				order.status = 'delivered';
+				order.statusHistory.push({ status: 'delivered', updatedBy: req.user?.name || 'admin' });
+			}
+		} else {
+			order.status = status;
+			if (status === 'delivered' && order.driver) {
+				order.driverStatus = 'delivered';
+				order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
+				order.driverStatusHistory.push({ status: 'delivered', updatedBy: req.user?.name || 'admin' });
+				order.statusHistory.push({ status: 'driver:delivered', updatedBy: req.user?.name || 'admin' });
+			}
+			if (isCancelling && cancellationReason) {
+				order.cancellationReason = String(cancellationReason).trim();
+			}
+			order.statusHistory.push({ status, updatedBy: req.user?.name || 'admin' });
 		}
-		order.statusHistory.push({ status, updatedBy: req.user?.name || 'admin' });
 		await order.save();
 		
 		// Restore stock if order is being cancelled
@@ -824,6 +867,31 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 	}
 });
 
+router.patch('/:id/driver-commission', authenticate, requireAdmin, async (req, res) => {
+	try {
+		const { driverCommission } = req.body || {};
+		const order = await Order.findById(req.params.id);
+		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+		if (String(order.status || '').toLowerCase() !== 'delivered') {
+			return res.status(400).json({ success: false, message: 'Driver commission can only be set for delivered orders' });
+		}
+		const amount = Number(driverCommission);
+		if (!Number.isFinite(amount) || amount < 0) {
+			return res.status(400).json({ success: false, message: 'driverCommission must be a non-negative number' });
+		}
+		order.driverCommission = amount;
+		order.statusHistory.push({ status: `driver:commission:${amount}`, updatedBy: req.user?.name || 'admin' });
+		await order.save();
+		const populatedOrder = await Order.findById(order._id)
+			.populate('user', 'name email phone')
+			.populate('driver', 'name email phone')
+			.lean();
+		res.json({ success: true, data: populatedOrder });
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Failed to update driver commission' });
+	}
+});
+
 module.exports = router;
 
 // Admin: assign driver to order
@@ -839,6 +907,18 @@ router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) =
         if (!driver) return res.status(404).json({ success: false, message: 'Driver not found' });
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        if (isTerminalOrderStatus(order)) {
+            return res.status(409).json({ success: false, message: 'Delivered, cancelled, or refunded orders cannot be assigned or reassigned' });
+        }
+        const busyOrder = await Order.findOne(buildActiveDriverOrderQuery(driver._id, order._id))
+            .select('orderNumber')
+            .lean();
+        if (busyOrder) {
+            return res.status(409).json({
+                success: false,
+                message: `Driver is busy with order ${busyOrder.orderNumber || busyOrder._id}`,
+            });
+        }
         order.driver = driver._id;
         order.driverStatus = 'assigned';
         order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
@@ -852,6 +932,29 @@ router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) =
         res.json({ success: true, data: populatedOrder });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to assign driver' });
+    }
+});
+
+router.delete('/:id/assign-driver', authenticate, requireAdmin, async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        if (isTerminalOrderStatus(order)) {
+            return res.status(409).json({ success: false, message: 'Delivered, cancelled, or refunded orders cannot be assigned or changed' });
+        }
+        order.driver = undefined;
+        order.driverStatus = undefined;
+        order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
+        order.driverStatusHistory.push({ status: 'unassigned', updatedBy: req.user?.email || 'admin' });
+        order.statusHistory.push({ status: 'driver:unassigned', updatedBy: req.user?.email || 'admin' });
+        await order.save();
+        const populatedOrder = await Order.findById(order._id)
+            .populate('user', 'name email phone')
+            .populate('driver', 'name email phone')
+            .lean();
+        res.json({ success: true, data: populatedOrder });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to remove driver' });
     }
 });
 
@@ -876,10 +979,13 @@ router.get('/driver', authenticate, requireRole(['driver']), async (req, res) =>
 router.patch('/driver/:id/status', authenticate, requireRole(['driver']), async (req, res) => {
     try {
         const { status } = req.body || {};
-        const allowed = ['pickup_completed','on_the_way','delivery_completed'];
+        const allowed = ['pickup_completed','on_the_way','delivered'];
         if (!allowed.includes(status)) return res.status(400).json({ success: false, message: 'Invalid status' });
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        if (isTerminalOrderStatus(order)) {
+            return res.status(409).json({ success: false, message: 'This order is already closed' });
+        }
         if (String(order.driver || '') !== String(req.user.driverId || req.user.id)) {
             return res.status(403).json({ success: false, message: 'Not your order' });
         }
@@ -887,7 +993,7 @@ router.patch('/driver/:id/status', authenticate, requireRole(['driver']), async 
         order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
         order.driverStatusHistory.push({ status, updatedBy: req.user?.email || 'driver' });
         order.statusHistory.push({ status: `driver:${status}`, updatedBy: req.user?.email || 'driver' });
-        if (status === 'delivery_completed') {
+        if (status === 'delivered') {
             order.status = 'delivered';
             order.statusHistory.push({ status: 'delivered', updatedBy: req.user?.email || 'driver' });
         }

@@ -1,9 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { authenticate, requireAdmin, requireAnyPermission, requirePermission } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireAnyPermission, requirePermission, requireRole } = require('../middleware/auth');
 const Driver = require('../models/Driver');
 const DriverUser = require('../models/DriverUser');
 const Role = require('../models/Role');
+const Order = require('../models/Order');
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
 const User = require('../models/User');
 const Vendor = require('../models/Vendor');
@@ -78,6 +79,14 @@ async function ensureUniqueDriverIdentity({ email, phone, excludeDriverId = null
       throw err;
     }
   }
+}
+
+function buildActiveDriverOrderQuery(driverId) {
+  return {
+    driver: driverId,
+    status: { $nin: ['delivered', 'cancelled', 'canceled', 'refunded'] },
+    driverStatus: { $nin: ['delivery_completed'] },
+  };
 }
 
 // Public: apply to become a driver
@@ -155,6 +164,63 @@ router.post('/', authenticate, requireAnyPermission(['driver.add', 'driver.edit'
   }
 });
 
+// Driver: get my profile
+router.get('/me', authenticate, requireRole(['driver']), async (req, res) => {
+  try {
+    const driverId = req.user.driverId || req.user.id;
+    const driver = await Driver.findById(driverId).lean();
+    if (!driver) {
+      res.status(404);
+      throw new Error('Driver not found');
+    }
+    res.json({ success: true, data: driver });
+  } catch (e) {
+    res.status(res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+    throw e;
+  }
+});
+
+// Driver: update my profile
+router.put('/me/profile', authenticate, requireRole(['driver']), async (req, res) => {
+  try {
+    const driverId = req.user.driverId || req.user.id;
+    const { name, address1, address2, city, zip, address } = req.body || {};
+
+    if (!name || !String(name).trim()) {
+      res.status(400);
+      throw new Error('name is required');
+    }
+
+    const updated = await Driver.findByIdAndUpdate(
+      driverId,
+      {
+        name: String(name).trim(),
+        address1: String(address1 || '').trim(),
+        address2: String(address2 || '').trim(),
+        city: String(city || '').trim(),
+        zip: String(zip || '').trim(),
+        address: String(address || '').trim(),
+      },
+      { new: true }
+    ).lean();
+
+    if (!updated) {
+      res.status(404);
+      throw new Error('Driver not found');
+    }
+
+    await DriverUser.updateOne(
+      { $or: [{ driver: updated._id }, { email: updated.email }] },
+      { $set: { name: updated.name, driver: updated._id } }
+    ).catch(() => {});
+
+    res.json({ success: true, data: updated });
+  } catch (e) {
+    res.status(res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+    throw e;
+  }
+});
+
 // Admin: list drivers
 router.get('/', authenticate, requireAnyPermission(['driver.view', 'driver.edit']), async (req, res) => {
   const { status = 'all', q = '', page = 1, limit = 10 } = req.query;
@@ -167,7 +233,28 @@ router.get('/', authenticate, requireAnyPermission(['driver.view', 'driver.edit'
     Driver.find(filters).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).lean(),
     Driver.countDocuments(filters)
   ]);
-  res.json({ success: true, data: items, meta: { total, page: p, limit: l } });
+  const driverIds = items.map(item => item._id).filter(Boolean);
+  const activeOrders = driverIds.length > 0
+    ? await Order.find(buildActiveDriverOrderQuery({ $in: driverIds }))
+      .select('driver orderNumber')
+      .sort({ createdAt: -1 })
+      .lean()
+    : [];
+  const activeOrderByDriver = new Map();
+  activeOrders.forEach(order => {
+    const key = String(order.driver || '');
+    if (key && !activeOrderByDriver.has(key)) activeOrderByDriver.set(key, order);
+  });
+  const enriched = items.map(item => {
+    const activeOrder = activeOrderByDriver.get(String(item._id));
+    return {
+      ...item,
+      isBusy: Boolean(activeOrder),
+      busyOrderId: activeOrder?._id || null,
+      busyOrderNumber: activeOrder?.orderNumber || null,
+    };
+  });
+  res.json({ success: true, data: enriched, meta: { total, page: p, limit: l } });
 });
 
 // Admin: update driver

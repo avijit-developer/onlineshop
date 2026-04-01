@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet, BackHandler } from 'react-nat
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DriverDashboard from './screens/DriverDashboard';
 import DriverOrders from './screens/DriverOrders';
 import DriverPayments from './screens/DriverPayments';
 import DriverProfile from './screens/DriverProfile';
@@ -11,7 +10,7 @@ import DriverProfile from './screens/DriverProfile';
 const DriverShell = () => {
   const navigation = useNavigation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [active, setActive] = useState('dashboard');
+  const [active, setActive] = useState('orders');
   const [me, setMe] = useState(null);
 
   useEffect(() => {
@@ -56,13 +55,11 @@ const DriverShell = () => {
     );
   };
 
-  const Screen = active === 'dashboard'
-    ? DriverDashboard
-    : active === 'orders'
-      ? DriverOrders
-      : active === 'payments'
-        ? DriverPayments
-        : DriverProfile;
+  const Screen = active === 'orders'
+    ? DriverOrders
+    : active === 'payments'
+      ? DriverPayments
+      : DriverProfile;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -96,10 +93,6 @@ const DriverShell = () => {
         </View>
 
         <Text style={styles.menuTitle}>Menu</Text>
-        <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('dashboard'); setMenuOpen(false); }}>
-          <Icon name="home-outline" size={18} color={active === 'dashboard' ? '#f7ab18' : '#666'} />
-          <Text style={[styles.menuText, active === 'dashboard' && styles.menuTextActive]}>Dashboard</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('orders'); setMenuOpen(false); }}>
           <Icon name="list-outline" size={18} color={active === 'orders' ? '#f7ab18' : '#666'} />
           <Text style={[styles.menuText, active === 'orders' && styles.menuTextActive]}>Orders</Text>

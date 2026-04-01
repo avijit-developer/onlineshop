@@ -7,7 +7,7 @@ import { API_BASE } from '../../utils/api';
 const actionConfig = {
   assigned: { next: 'pickup_completed', label: 'Mark Pickup Completed' },
   pickup_completed: { next: 'on_the_way', label: 'Mark On The Way' },
-  on_the_way: { next: 'delivery_completed', label: 'Mark Delivered' },
+  on_the_way: { next: 'delivered', label: 'Mark Delivered' },
 };
 
 const DriverOrderDetails = ({ navigation, route }) => {
@@ -15,7 +15,8 @@ const DriverOrderDetails = ({ navigation, route }) => {
   const [order, setOrder] = useState(initialOrder);
   const [submitting, setSubmitting] = useState(false);
 
-  const driverStatus = String(order?.driverStatus || 'assigned').toLowerCase();
+  const rawDriverStatus = String(order?.driverStatus || 'assigned').toLowerCase();
+  const driverStatus = rawDriverStatus === 'delivery_completed' ? 'delivered' : rawDriverStatus;
   const nextAction = actionConfig[driverStatus];
 
   const totalItems = useMemo(

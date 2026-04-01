@@ -8,6 +8,7 @@ const DriverLoginScreen = ({ navigation }) => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const login = async () => {
     if (!phone || !password) { Alert.alert('Validation', 'Phone and password are required'); return; }
@@ -33,8 +34,19 @@ const DriverLoginScreen = ({ navigation }) => {
         <View style={{ width: 24 }} />
       </View>
       <View style={styles.form}>
-        <View style={styles.formGroup}><Text style={styles.label}>Phone</Text><TextInput style={styles.input} autoCapitalize="none" keyboardType="phone-pad" value={phone} onChangeText={setPhone} placeholder="+1 555 123 4567" /></View>
-        <View style={styles.formGroup}><Text style={styles.label}>Password</Text><TextInput style={styles.input} secureTextEntry value={password} onChangeText={setPassword} placeholder="********" /></View>
+        <View style={styles.formGroup}><Text style={styles.label}>Phone</Text><TextInput style={styles.input} autoCapitalize="none" keyboardType="phone-pad" value={phone} onChangeText={setPhone} /></View>
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.passwordWrapper}>
+            <TextInput style={[styles.input, styles.passwordInput]} secureTextEntry={!showPassword} value={password} onChangeText={setPassword} />
+            <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeButton}>
+              <Icon name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#777" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword', { mode: 'driver' })} style={styles.forgotLink}>
+          <Text style={styles.forgotText}>Forgot Password?</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={[styles.submitButton, submitting && { opacity: 0.7 }]} onPress={login} disabled={submitting}><Text style={styles.submitText}>{submitting ? 'Signing in...' : 'Sign In'}</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('DriverApply')} style={{ marginTop: 12, alignSelf:'center' }}><Text style={{ color:'#f7ab18', fontWeight:'600' }}>Become a Driver</Text></TouchableOpacity>
       </View>
@@ -45,6 +57,8 @@ const DriverLoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container:{ flex:1, backgroundColor:'#fff' }, header:{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:16, paddingVertical:12, paddingTop:20, borderBottomWidth:1, borderBottomColor:'#f0f0f0' }, backButton:{ padding:8 }, title:{ fontSize:18, fontWeight:'600', color:'#333' },
   form:{ padding:16 }, formGroup:{ marginBottom:12 }, label:{ fontSize:12, color:'#666', marginBottom:6, fontWeight:'600' }, input:{ borderWidth:1, borderColor:'#e5e7eb', borderRadius:8, paddingHorizontal:12, paddingVertical:10, backgroundColor:'#fff' },
+  passwordWrapper:{ position:'relative', justifyContent:'center' }, passwordInput:{ paddingRight:42 }, eyeButton:{ position:'absolute', right:12, top:0, bottom:0, justifyContent:'center', alignItems:'center' },
+  forgotLink:{ alignSelf:'flex-end', marginBottom:8 }, forgotText:{ color:'#f7ab18', fontWeight:'600' },
   submitButton:{ backgroundColor:'#f7ab18', marginTop:8, borderRadius:10, paddingVertical:14, alignItems:'center' }, submitText:{ color:'#fff', fontWeight:'700' }
 });
 

@@ -38,7 +38,8 @@ const DriverOrders = ({ navigation }) => {
   };
 
   const renderItem = ({ item }) => {
-    const ds = String(item.driverStatus || '').toLowerCase();
+    const rawStatus = String(item.driverStatus || '').toLowerCase();
+    const ds = rawStatus === 'delivery_completed' ? 'delivered' : rawStatus;
     return (
       <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={() => navigation.navigate('DriverOrderDetails', { order: item, orderId: item._id || item.id })}>
         <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
@@ -51,7 +52,7 @@ const DriverOrders = ({ navigation }) => {
         <View style={styles.btnRow}>
           <StatusButton label="Pickup completed" onPress={() => updateStatus(item, 'pickup_completed')} disabled={ds && ds !== 'assigned'} />
           <StatusButton label="On the way" onPress={() => updateStatus(item, 'on_the_way')} disabled={ds !== 'pickup_completed'} />
-          <StatusButton label="Delivered" onPress={() => updateStatus(item, 'delivery_completed')} disabled={ds !== 'on_the_way'} />
+          <StatusButton label="Delivered" onPress={() => updateStatus(item, 'delivered')} disabled={ds !== 'on_the_way'} />
         </View>
       </TouchableOpacity>
     );
@@ -59,7 +60,6 @@ const DriverOrders = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My Assigned Orders</Text>
       {loading ? <Text>Loading...</Text> : (
         <FlatList data={orders} keyExtractor={(i)=>String(i._id||i.id)} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 24 }} />
       )}

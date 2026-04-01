@@ -15,7 +15,7 @@ const DriverDashboard = () => {
       const orders = json.data || [];
       const assigned = orders.filter(o => !o.driverStatus || o.driverStatus === 'assigned').length;
       const inTransit = orders.filter(o => o.driverStatus === 'pickup_completed' || o.driverStatus === 'on_the_way').length;
-      const deliveredOrders = orders.filter(o => o.driverStatus === 'delivery_completed');
+      const deliveredOrders = orders.filter(o => o.driverStatus === 'delivered' || o.driverStatus === 'delivery_completed');
       const delivered = deliveredOrders.length;
       const deliveredTotal = deliveredOrders.reduce((s, o) => s + Number(o.total || 0), 0);
       setStats({ assigned, inTransit, delivered, deliveredTotal });

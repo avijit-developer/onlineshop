@@ -14,12 +14,14 @@ const Orders = () => {
   const [dateTo, setDateTo] = useState('');
   const [orderIdFilter, setOrderIdFilter] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
+  const [driverFilter, setDriverFilter] = useState('');
   // Draft filters (edited in UI before Apply)
   const [draftStatus, setDraftStatus] = useState('all');
   const [draftOrderId, setDraftOrderId] = useState('');
   const [draftFrom, setDraftFrom] = useState('');
   const [draftTo, setDraftTo] = useState('');
   const [draftVendor, setDraftVendor] = useState('');
+  const [draftDriver, setDraftDriver] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -32,7 +34,10 @@ const Orders = () => {
   const [approvedDrivers, setApprovedDrivers] = useState([]);
   const [driversLoading, setDriversLoading] = useState(false);
   const [driverAssigning, setDriverAssigning] = useState(false);
+  const [commissionDrafts, setCommissionDrafts] = useState({});
+  const [commissionSavingId, setCommissionSavingId] = useState('');
   const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [driverSearchTerm, setDriverSearchTerm] = useState('');
   const [customers, setCustomers] = useState([]);
   const [vendors, setVendors] = useState([]);
 
@@ -52,6 +57,7 @@ const Orders = () => {
     try { return JSON.parse(localStorage.getItem('adminUser') || 'null'); } catch { return null; }
   })();
   const isVendor = currentUser?.role === 'vendor';
+  const isSuperAdmin = currentUser?.role === 'admin';
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('adminToken');
@@ -94,7 +100,7 @@ const Orders = () => {
 
   useEffect(() => {
     filterOrders();
-  }, [orders, searchTerm, statusFilter, dateFrom, dateTo, orderIdFilter, vendorFilter]);
+  }, [orders, searchTerm, statusFilter, dateFrom, dateTo, orderIdFilter, vendorFilter, driverFilter]);
 
   const fetchData = async () => {
     try {
@@ -120,6 +126,7 @@ const Orders = () => {
               console.log('📦 First order deliveryLongitude:', ordersData[0].deliveryLongitude);
             }
             setOrders(ordersData);
+            setCommissionDrafts(Object.fromEntries((ordersData || []).map(order => [String(order._id || order.id), String(order.driverCommission ?? '')])));
             loadedFromBackend = true;
           }
         }
@@ -244,6 +251,13 @@ const Orders = () => {
       });
     }
 
+    if (driverFilter) {
+      filtered = filtered.filter(order => {
+        const assignedDriverId = String(order?.driver?._id || order?.driver?.id || order?.driver || '');
+        return assignedDriverId === String(driverFilter);
+      });
+    }
+
     setFilteredOrders(filtered);
     setCurrentPage(1);
   };
@@ -254,6 +268,7 @@ const Orders = () => {
     setDateFrom(draftFrom);
     setDateTo(draftTo);
     setVendorFilter(draftVendor);
+    setDriverFilter(draftDriver);
   };
 
   const resetFilters = () => {
@@ -262,15 +277,23 @@ const Orders = () => {
     setDraftFrom('');
     setDraftTo('');
     setDraftVendor('');
+    setDraftDriver('');
     setStatusFilter('all');
     setOrderIdFilter('');
     setDateFrom('');
     setDateTo('');
     setVendorFilter('');
+    setDriverFilter('');
   };
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
+      const targetOrder = orders.find(o => String(o._id || o.id) === String(orderId)) || selectedOrder;
+      if (isTerminalOrder(targetOrder)) {
+        toast.error('Delivered, cancelled, or refunded orders cannot be changed');
+        setShowStatusModal(false);
+        return;
+      }
       setStatusUpdating(true);
       const ORIGIN4 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN4 && ORIGIN4.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN4 || 'http://localhost:5000'));
@@ -281,7 +304,10 @@ const Orders = () => {
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify({ status: newStatus })
       });
-      if (!resp.ok) throw new Error('Failed');
+      if (!resp.ok) {
+        const json = await resp.json().catch(() => ({}));
+        throw new Error(json?.message || 'Failed to update order status');
+      }
       const json = await resp.json();
       if (json?.success) {
         // If vendor response (scoped), merge into existing order shape
@@ -302,7 +328,7 @@ const Orders = () => {
         throw new Error('Failed');
       }
     } catch (error) {
-      toast.error('Failed to update order status');
+      toast.error(error?.message || 'Failed to update order status');
     } finally { setStatusUpdating(false); }
   };
 
@@ -320,10 +346,48 @@ const Orders = () => {
   };
 
   const handleAssignDelivery = (order) => {
+    if (['delivered', 'cancelled', 'canceled', 'refunded'].includes(String(order?.status || '').toLowerCase())) {
+      toast.error('Delivered, cancelled, or refunded orders cannot be assigned or changed');
+      return;
+    }
     setSelectedOrder(order);
     setSelectedDriverId(order?.driver?._id || order?.driver?.id || order?.driver || '');
+    setDriverSearchTerm('');
     setShowDeliveryModal(true);
     fetchApprovedDrivers();
+  };
+
+  const saveDriverCommission = async (order) => {
+    try {
+      const orderId = String(order._id || order.id);
+      const value = commissionDrafts[orderId];
+      const amount = Number(value);
+      if (!Number.isFinite(amount) || amount < 0) {
+        toast.error('Enter a valid non-negative commission');
+        return;
+      }
+      setCommissionSavingId(orderId);
+      const ORIGIN2 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN2 && ORIGIN2.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN2 || 'http://localhost:5000'));
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/orders/${orderId}/driver-commission`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ driverCommission: amount })
+      });
+      const json = await resp.json().catch(()=>({}));
+      if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to update commission');
+      const updatedOrder = json.data;
+      setOrders(prev => prev.map(item => (
+        String(item._id || item.id) === String(updatedOrder._id || updatedOrder.id) ? { ...item, ...updatedOrder } : item
+      )));
+      setCommissionDrafts(prev => ({ ...prev, [orderId]: String(updatedOrder.driverCommission ?? 0) }));
+      toast.success('Driver commission updated');
+    } catch (e) {
+      toast.error(e?.message || 'Failed to update commission');
+    } finally {
+      setCommissionSavingId('');
+    }
   };
 
   const assignSelectedDriver = async () => {
@@ -358,6 +422,33 @@ const Orders = () => {
     }
   };
 
+  const removeAssignedDriver = async () => {
+    try {
+      if (!selectedOrder) return;
+      setDriverAssigning(true);
+      const ORIGIN2 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN2 && ORIGIN2.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN2 || 'http://localhost:5000'));
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`${baseUrl}/api/v1/orders/${selectedOrder._id || selectedOrder.id}/assign-driver`, {
+        method: 'DELETE',
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      const json = await resp.json().catch(()=>({}));
+      if (!resp.ok || !json?.success) throw new Error(json?.message || 'Failed to remove driver');
+      const updatedOrder = json.data;
+      setOrders(prev => prev.map(order => (
+        String(order._id || order.id) === String(updatedOrder._id || updatedOrder.id) ? { ...order, ...updatedOrder } : order
+      )));
+      setSelectedOrder(updatedOrder);
+      setSelectedDriverId('');
+      toast.success('Driver removed successfully');
+    } catch (e) {
+      toast.error(e?.message || 'Failed to remove driver');
+    } finally {
+      setDriverAssigning(false);
+    }
+  };
+
   const getCustomerName = (order) => {
     try {
       if (order.user && (order.user.name || order.user.email)) {
@@ -382,6 +473,26 @@ const Orders = () => {
     } catch (_) { return 'Unknown'; }
   };
 
+  const driverOptions = Array.from(
+    new Map(
+      orders
+        .filter(order => order?.driver?._id || order?.driver?.id || order?.driver)
+        .map(order => {
+          const driverId = String(order?.driver?._id || order?.driver?.id || order?.driver || '');
+          const driverName = order?.driver?.name || 'Unknown Driver';
+          const driverEmail = order?.driver?.email || '';
+          return [driverId, { id: driverId, name: driverName, email: driverEmail }];
+        })
+    ).values()
+  );
+
+  const isTerminalOrder = (order) => {
+    const status = String(order?.status || '').toLowerCase();
+    const driverStatus = String(order?.driverStatus || '').toLowerCase();
+    if (['delivered', 'cancelled', 'canceled', 'refunded'].includes(status)) return true;
+    return ['delivered', 'delivery_completed'].includes(driverStatus);
+  };
+
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case 'pending':
@@ -391,6 +502,10 @@ const Orders = () => {
       case 'processing':
         return 'status-processing';
       case 'shipped':
+        return 'status-shipped';
+      case 'pickup_completed':
+        return 'status-processing';
+      case 'on_the_way':
         return 'status-shipped';
       case 'delivered':
         return 'status-delivered';
@@ -402,6 +517,37 @@ const Orders = () => {
         return 'status-pending';
     }
   };
+
+  const statusOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'processing', label: 'Processing' },
+    { value: 'shipped', label: 'Shipped' },
+    { value: 'pickup_completed', label: 'Pickup Completed' },
+    { value: 'on_the_way', label: 'On The Way' },
+    { value: 'delivered', label: 'Delivered' },
+    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'refunded', label: 'Refunded' }
+  ];
+
+  const getAdminStatusValue = (order) => {
+    const driverStatus = String(order?.driverStatus || '').toLowerCase();
+    if (driverStatus === 'delivery_completed') return 'delivered';
+    if (['pickup_completed', 'on_the_way', 'delivered'].includes(driverStatus)) return driverStatus;
+    return String(order?.status || 'pending').toLowerCase();
+  };
+
+  const filteredApprovedDrivers = approvedDrivers.filter(driver => {
+    const term = String(driverSearchTerm || '').trim().toLowerCase();
+    if (!term) return true;
+    return [
+      driver.name,
+      driver.email,
+      driver.phone,
+      driver.city,
+      driver.busyOrderNumber
+    ].some(value => String(value || '').toLowerCase().includes(term));
+  });
 
   const calculateOrderTotal = (order) => {
     if (isVendor) {
@@ -613,6 +759,17 @@ const Orders = () => {
                 ))}
               </select>
             </div>
+            <div className="filter-control">
+              <label>Driver</label>
+              <select value={draftDriver} onChange={(e) => setDraftDriver(e.target.value)} className="filter-input">
+                <option value="">All Drivers</option>
+                {driverOptions.map(driver => (
+                  <option key={driver.id} value={driver.id}>
+                    {driver.name}{driver.email ? ` (${driver.email})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="filter-control" style={{ gridColumn: '1 / -1' }}>
               <label>Order ID</label>
               <input type="text" value={draftOrderId} onChange={(e) => setDraftOrderId(e.target.value)} placeholder="Enter Order ID" className="filter-input" />
@@ -663,6 +820,7 @@ const Orders = () => {
               <th>Items</th>
               <th>Total</th>
               <th>Status</th>
+              {isSuperAdmin ? <th>Driver Commission</th> : null}
               <th>Date</th>
               <th>Actions</th>
             </tr>
@@ -699,6 +857,31 @@ const Orders = () => {
                     })()}
                   </span>
                 </td>
+                {isSuperAdmin ? (
+                  <td>
+                    {String(order.status || '').toLowerCase() === 'delivered' ? (
+                      <div className="driver-commission-cell">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="driver-commission-input"
+                          value={commissionDrafts[String(order._id || order.id)] ?? String(order.driverCommission ?? '')}
+                          onChange={(e) => setCommissionDrafts(prev => ({ ...prev, [String(order._id || order.id)]: e.target.value }))}
+                        />
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => saveDriverCommission(order)}
+                          disabled={commissionSavingId === String(order._id || order.id)}
+                        >
+                          {commissionSavingId === String(order._id || order.id) ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="driver-commission-muted">Available after delivered</span>
+                    )}
+                  </td>
+                ) : null}
                 <td>
                   <div className="date-info">
                     <span>{order.createdAt ? require('../../utils/date').formatDate(order.createdAt) : ''}</span>
@@ -723,15 +906,21 @@ const Orders = () => {
                       onClick={() => handleAssignDelivery(order)}
                       className="btn btn-primary btn-sm"
                       style={{ display: isVendor ? 'none' : undefined }}
+                      disabled={isTerminalOrder(order)}
                     >
                       {order?.driver?.name ? 'Reassign Driver' : 'Assign Driver'}
                     </button>
                     <button
                       onClick={() => {
+                        if (isTerminalOrder(order)) {
+                          toast.error('Delivered, cancelled, or refunded orders cannot be changed');
+                          return;
+                        }
                         setSelectedOrder(order);
                         setShowStatusModal(true);
                       }}
                       className="btn btn-warning btn-sm"
+                      disabled={isTerminalOrder(order)}
                     >
                       Status
                     </button>
@@ -1136,18 +1325,23 @@ const Orders = () => {
             </div>
             <div className="modal-body">
               <div className="status-update-form">
-                <p>Current Status: <span className={`status-badge ${getStatusBadgeClass(selectedOrder.status)}`}>{selectedOrder.status}</span></p>
+                <p>Current Status: <span className={`status-badge ${getStatusBadgeClass(getAdminStatusValue(selectedOrder))}`}>{getAdminStatusValue(selectedOrder)}</span></p>
                 <div className="status-options">
                   <select
-                    value={selectedOrder.status}
+                    value={getAdminStatusValue(selectedOrder)}
                     onChange={(e) => handleStatusUpdate(selectedOrder._id || selectedOrder.id, e.target.value)}
                     className="filter-select"
-                    disabled={statusUpdating}
+                    disabled={statusUpdating || isTerminalOrder(selectedOrder)}
                   >
-                    {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'].map(s => (
-                      <option key={s} value={s}>{s}</option>
+                    {statusOptions.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
+                  {isTerminalOrder(selectedOrder) ? (
+                    <div className="loading-inline" style={{ marginTop: 8 }}>
+                      This order is final and cannot be changed.
+                    </div>
+                  ) : null}
                   {statusUpdating && (
                     <div className="loading-inline" style={{ marginTop: 8 }}>
                       <div className="spinner"></div>
@@ -1171,10 +1365,19 @@ const Orders = () => {
             </div>
             <div className="modal-body">
               <div className="delivery-partners">
-                <p>Select an approved driver for order #{selectedOrder.orderNumber}:</p>
-                <div className="assigned-driver-note">
-                  Current driver: {selectedOrder.driver?.name ? `${selectedOrder.driver.name} (${selectedOrder.driver.email || 'No email'})` : 'Not assigned'}
+                <div className="delivery-header-row">
+                  <p>Select an approved driver for order #{selectedOrder.orderNumber}:</p>
+                  <div className="assigned-driver-note">
+                    Current driver: {selectedOrder.driver?.name ? `${selectedOrder.driver.name} (${selectedOrder.driver.email || 'No email'})` : 'Not assigned'}
+                  </div>
                 </div>
+                <input
+                  type="text"
+                  className="driver-search-input"
+                  placeholder="Find driver by name, email, phone, city, or order"
+                  value={driverSearchTerm}
+                  onChange={(e) => setDriverSearchTerm(e.target.value)}
+                />
                 {driversLoading ? (
                   <div className="loading-inline">
                     <div className="spinner"></div>
@@ -1182,29 +1385,42 @@ const Orders = () => {
                   </div>
                 ) : approvedDrivers.length === 0 ? (
                   <div className="driver-empty-state">No approved drivers are available right now.</div>
+                ) : filteredApprovedDrivers.length === 0 ? (
+                  <div className="driver-empty-state">No drivers match your search.</div>
                 ) : (
-                  approvedDrivers.map(driver => (
-                    <div key={driver._id || driver.id} className="partner-option">
-                      <input
-                        type="radio"
-                        id={`driver-${driver._id || driver.id}`}
-                        name="assignedDriver"
-                        value={driver._id || driver.id}
-                        checked={String(selectedDriverId) === String(driver._id || driver.id)}
-                        onChange={() => setSelectedDriverId(driver._id || driver.id)}
-                      />
-                      <label htmlFor={`driver-${driver._id || driver.id}`}>
-                        <strong>{driver.name}</strong>
-                        <span>{driver.email}</span>
-                      </label>
-                    </div>
-                  ))
+                  <div className="driver-dropdown-wrap">
+                    <select
+                      className="driver-dropdown"
+                      value={selectedDriverId}
+                      onChange={(e) => setSelectedDriverId(e.target.value)}
+                    >
+                      <option value="">Select driver</option>
+                      {filteredApprovedDrivers.map(driver => {
+                        const driverId = driver._id || driver.id;
+                        const isBusyOnCurrentOrder = String(driver.busyOrderId || '') === String(selectedOrder._id || selectedOrder.id || '');
+                        const isBusy = Boolean(driver.isBusy && !isBusyOnCurrentOrder);
+                        const label = `${driver.name} - ${driver.email}${isBusy ? ` (Busy: #${driver.busyOrderNumber || driver.busyOrderId})` : ''}`;
+                        return (
+                          <option key={driverId} value={driverId} disabled={isBusy}>
+                            {label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                 )}
               </div>
             </div>
             <div className="modal-footer">
               <button onClick={() => setShowDeliveryModal(false)} className="btn btn-secondary">
                 Cancel
+              </button>
+              <button
+                onClick={removeAssignedDriver}
+                className="btn btn-warning"
+                disabled={driverAssigning || !selectedOrder?.driver}
+              >
+                {driverAssigning ? 'Removing...' : 'Remove Driver'}
               </button>
               <button
                 onClick={assignSelectedDriver}

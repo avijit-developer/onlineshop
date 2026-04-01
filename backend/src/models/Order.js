@@ -36,6 +36,7 @@ const orderSchema = new mongoose.Schema({
 	paymentMethod: { type: String, required: true },
 	tax: { type: Number, default: 0 },
 	shippingCost: { type: Number, default: 0 },
+	driverCommission: { type: Number, default: 0 },
 	discountAmount: { type: Number, default: 0 },
 	couponCode: { type: String, default: null },
 	customerPhone: { type: String, default: '' },
@@ -46,7 +47,7 @@ const orderSchema = new mongoose.Schema({
 	statusHistory: [statusHistorySchema],
 	// Driver assignment and status
 	driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', index: true, default: null },
-	driverStatus: { type: String, enum: ['assigned','pickup_completed','on_the_way','delivery_completed', null], default: null },
+	driverStatus: { type: String, enum: ['assigned','pickup_completed','on_the_way','delivered','delivery_completed', null], default: null },
 	driverStatusHistory: [{
 		status: { type: String, required: true },
 		timestamp: { type: Date, default: Date.now },

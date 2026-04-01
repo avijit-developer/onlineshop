@@ -22,6 +22,8 @@ const ForgotPasswordScreen = ({ navigation, route }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isResending, setIsResending] = useState(false);
+  const mode = route?.params?.mode;
+  const signInRoute = mode === 'vendor' ? 'VendorPortal' : mode === 'driver' ? 'DriverLogin' : 'Login';
 
   const isValidEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,8 +94,10 @@ const ForgotPasswordScreen = ({ navigation, route }) => {
     try {
       await api.resetPasswordOtp(email.trim(), otp.trim(), password);
       Alert.alert('Success', 'Password updated. Please login.');
-      if (route?.params?.mode === 'vendor') {
+      if (mode === 'vendor') {
         navigation.reset({ index: 0, routes: [{ name: 'VendorPortal' }] });
+      } else if (mode === 'driver') {
+        navigation.reset({ index: 0, routes: [{ name: 'DriverLogin' }] });
       } else {
         navigation.navigate('Login');
       }
@@ -234,7 +238,7 @@ const ForgotPasswordScreen = ({ navigation, route }) => {
 
         <View style={styles.footerContainer}>
           <Text style={styles.footerText}>Remember your password? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <TouchableOpacity onPress={() => navigation.navigate(signInRoute)}>
             <Text style={styles.footerLink}>Sign In</Text>
           </TouchableOpacity>
         </View>
