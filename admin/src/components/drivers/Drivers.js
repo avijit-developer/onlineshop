@@ -4,6 +4,7 @@ import './Drivers.css';
 
 const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
 const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+const formatMoney = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -19,6 +20,10 @@ const Drivers = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editingDriverId, setEditingDriverId] = useState(null);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({ amount: '', method: 'Manual', note: '' });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -242,25 +247,91 @@ const Drivers = () => {
     } catch (e) { toast.error(e?.message || 'Failed'); }
   };
 
+  const openPayoutModal = (driver) => {
+    setSelectedDriver(driver);
+    setPayoutForm({
+      amount: String(driver.balance || ''),
+      method: 'Manual',
+      note: '',
+    });
+    setShowPayoutModal(true);
+  };
+
+  const submitPayout = async (e) => {
+    e.preventDefault();
+    try {
+      if (!selectedDriver || payoutSubmitting) return;
+      const amount = Number(payoutForm.amount);
+      if (!(amount > 0)) {
+        toast.error('Enter a valid payout amount');
+        return;
+      }
+      setPayoutSubmitting(true);
+      const res = await fetch(`${API_BASE}/api/v1/drivers/${selectedDriver._id || selectedDriver.id}/payouts`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          amount,
+          method: payoutForm.method,
+          note: payoutForm.note,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to process payout');
+      toast.success('Driver payout processed successfully');
+      setShowPayoutModal(false);
+      setSelectedDriver(null);
+      setPayoutForm({ amount: '', method: 'Manual', note: '' });
+      fetchDrivers();
+    } catch (e2) {
+      toast.error(e2?.message || 'Failed to process payout');
+    } finally {
+      setPayoutSubmitting(false);
+    }
+  };
+
   return (
     <div className="drivers-page">
-      <div className="page-header">
-        <h2>Drivers</h2>
-        <div className="header-actions" style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <input placeholder="Search..." value={q} onChange={e => { setQ(e.target.value); setPage(1); }} className="search-input" />
+      <div className="drivers-hero">
+        <div>
+          <span className="drivers-eyebrow">Fleet Management</span>
+          <h2>Drivers</h2>
+          <p className="drivers-subtitle">Manage approvals, balances, and payouts for every driver from one place.</p>
+        </div>
+        {canAddDriver && (
+          <button className="btn btn-primary" onClick={openAddModal}>Add Driver</button>
+        )}
+      </div>
+
+      <div className="drivers-stats">
+        <div className="drivers-stat-card">
+          <span>Total Drivers</span>
+          <strong>{total || drivers.length}</strong>
+        </div>
+        <div className="drivers-stat-card">
+          <span>Approved</span>
+          <strong>{drivers.filter(d => d.status === 'approved').length}</strong>
+        </div>
+        <div className="drivers-stat-card">
+          <span>Total Earnings</span>
+          <strong>{formatMoney(drivers.reduce((sum, d) => sum + Number(d.totalEarnings || 0), 0))}</strong>
+        </div>
+        <div className="drivers-stat-card">
+          <span>Total Due</span>
+          <strong>{formatMoney(drivers.reduce((sum, d) => sum + Number(d.balance || 0), 0))}</strong>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="drivers-toolbar">
+          <input placeholder="Search by name, email, or phone" value={q} onChange={e => { setQ(e.target.value); setPage(1); }} className="search-input drivers-search" />
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} className="filter-select">
             <option value="all">All</option>
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
-          {canAddDriver && (
-            <button className="btn btn-primary" onClick={openAddModal}>Add Driver</button>
-          )}
         </div>
-      </div>
-
-      <div className="card">
         <div className="table-responsive">
           <table className="table">
             <thead>
@@ -268,6 +339,8 @@ const Drivers = () => {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
+                <th>Total Earnings</th>
+                <th>Due Balance</th>
                 <th>Status</th>
                 <th>Enabled</th>
                 <th>Actions</th>
@@ -277,9 +350,24 @@ const Drivers = () => {
               {(drivers || []).length ? (
                 (drivers || []).map(d => (
                   <tr key={d._id || d.id}>
-                    <td>{d.name}</td>
-                    <td>{d.email}</td>
+                    <td>
+                      <div className="driver-primary">
+                        <strong>{d.name}</strong>
+                        {d.city ? <small>{d.city}</small> : null}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="driver-secondary">
+                        <span>{d.email}</span>
+                      </div>
+                    </td>
                     <td>{d.phone}</td>
+                    <td>{formatMoney(d.totalEarnings)}</td>
+                    <td>
+                      <span className={`balance-pill ${Number(d.balance || 0) > 0 ? 'due' : 'clear'}`}>
+                        {formatMoney(d.balance)}
+                      </span>
+                    </td>
                     <td><span className={`status-badge ${d.status}`}>{d.status}</span></td>
                     <td>
                       <label className="toggle-switch">
@@ -290,6 +378,7 @@ const Drivers = () => {
                     <td>
                       <div className="driver-actions">
                         <button className="btn btn-primary btn-sm" onClick={() => openEditModal(d)}>Edit</button>
+                        <button className="btn btn-warning btn-sm" onClick={() => openPayoutModal(d)} disabled={Number(d.balance || 0) <= 0}>Payout</button>
                         {d.status === 'pending' ? (
                           rowAction[d._id || d.id] ? (
                             <span className="loading-inline">Updating...</span>
@@ -306,7 +395,7 @@ const Drivers = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="driver-empty">No drivers found.</td>
+                  <td colSpan="8" className="driver-empty">No drivers found.</td>
                 </tr>
               )}
             </tbody>
@@ -461,6 +550,49 @@ const Drivers = () => {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={editSubmitting}>{editSubmitting ? 'Saving...' : 'Update Driver'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPayoutModal && selectedDriver && (
+        <div className="modal-overlay" onClick={() => setShowPayoutModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Driver Payout</h3>
+              <button className="modal-close" onClick={() => setShowPayoutModal(false)}>✕</button>
+            </div>
+            <form onSubmit={submitPayout}>
+              <div className="modal-body">
+                <div className="driver-payout-summary">
+                  <div><strong>Driver:</strong> {selectedDriver.name}</div>
+                  <div><strong>Total Earnings:</strong> {formatMoney(selectedDriver.totalEarnings)}</div>
+                  <div><strong>Due Balance:</strong> {formatMoney(selectedDriver.balance)}</div>
+                </div>
+                <div className="drivers-form-grid">
+                  <div className="form-group">
+                    <label>Payout Amount *</label>
+                    <input type="number" min="0" step="0.01" value={payoutForm.amount} onChange={e => setPayoutForm(prev => ({ ...prev, amount: e.target.value }))} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Method</label>
+                    <select value={payoutForm.method} onChange={e => setPayoutForm(prev => ({ ...prev, method: e.target.value }))}>
+                      <option value="Manual">Manual</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="UPI">UPI</option>
+                    </select>
+                  </div>
+                  <div className="form-group full-width">
+                    <label>Note</label>
+                    <textarea value={payoutForm.note} onChange={e => setPayoutForm(prev => ({ ...prev, note: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowPayoutModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-warning" disabled={payoutSubmitting}>{payoutSubmitting ? 'Processing...' : 'Pay Driver'}</button>
               </div>
             </form>
           </div>

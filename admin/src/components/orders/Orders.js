@@ -288,12 +288,6 @@ const Orders = () => {
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
-      const targetOrder = orders.find(o => String(o._id || o.id) === String(orderId)) || selectedOrder;
-      if (isTerminalOrder(targetOrder)) {
-        toast.error('Delivered, cancelled, or refunded orders cannot be changed');
-        setShowStatusModal(false);
-        return;
-      }
       setStatusUpdating(true);
       const ORIGIN4 = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN4 && ORIGIN4.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN4 || 'http://localhost:5000'));
@@ -912,15 +906,10 @@ const Orders = () => {
                     </button>
                     <button
                       onClick={() => {
-                        if (isTerminalOrder(order)) {
-                          toast.error('Delivered, cancelled, or refunded orders cannot be changed');
-                          return;
-                        }
                         setSelectedOrder(order);
                         setShowStatusModal(true);
                       }}
                       className="btn btn-warning btn-sm"
-                      disabled={isTerminalOrder(order)}
                     >
                       Status
                     </button>
@@ -1331,17 +1320,12 @@ const Orders = () => {
                     value={getAdminStatusValue(selectedOrder)}
                     onChange={(e) => handleStatusUpdate(selectedOrder._id || selectedOrder.id, e.target.value)}
                     className="filter-select"
-                    disabled={statusUpdating || isTerminalOrder(selectedOrder)}
+                    disabled={statusUpdating}
                   >
                     {statusOptions.map(option => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  {isTerminalOrder(selectedOrder) ? (
-                    <div className="loading-inline" style={{ marginTop: 8 }}>
-                      This order is final and cannot be changed.
-                    </div>
-                  ) : null}
                   {statusUpdating && (
                     <div className="loading-inline" style={{ marginTop: 8 }}>
                       <div className="spinner"></div>

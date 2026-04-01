@@ -2,6 +2,79 @@
   max-width: 100%;
 }
 
+.drivers-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.drivers-eyebrow {
+  display: inline-block;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.drivers-hero h2 {
+  margin: 0;
+}
+
+.drivers-subtitle {
+  margin: 8px 0 0;
+  color: #64748b;
+  max-width: 620px;
+}
+
+.drivers-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.drivers-stat-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.drivers-stat-card span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.drivers-stat-card strong {
+  display: block;
+  margin-top: 10px;
+  color: #111827;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.drivers-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.drivers-search {
+  min-width: 280px;
+}
+
 .drivers-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -41,6 +114,21 @@
   align-items: center;
 }
 
+.driver-primary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.driver-primary strong {
+  color: #111827;
+}
+
+.driver-primary small,
+.driver-secondary span {
+  color: #64748b;
+}
+
 .driver-status-toggle {
   display: flex;
   align-items: center;
@@ -52,6 +140,35 @@
   text-align: center;
   color: #666;
   padding: 20px;
+}
+
+.driver-payout-summary {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+}
+
+.balance-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.balance-pill.due {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.balance-pill.clear {
+  background: #ecfdf5;
+  color: #166534;
 }
 
 .toggle-switch .slider {
@@ -87,6 +204,20 @@
 }
 
 @media (max-width: 768px) {
+  .drivers-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .drivers-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .drivers-search {
+    min-width: 0;
+  }
+
   .drivers-form-grid {
     grid-template-columns: 1fr;
   }

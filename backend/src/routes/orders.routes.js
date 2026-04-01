@@ -746,9 +746,6 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 		if (!status) return res.status(400).json({ success: false, message: 'status is required' });
 		const order = await Order.findById(req.params.id);
 		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-		if (isTerminalOrderStatus(order)) {
-			return res.status(409).json({ success: false, message: 'Delivered, cancelled, or refunded orders cannot be changed' });
-		}
 		
 		const previousStatus = order.status;
 		const isCancelling = (status === 'cancelled' || status === 'refunded') && previousStatus !== 'cancelled' && previousStatus !== 'refunded';

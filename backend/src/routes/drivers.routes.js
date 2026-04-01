@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { authenticate, requireAdmin, requireAnyPermission, requirePermission, requireRole } = require('../middleware/auth');
 const Driver = require('../models/Driver');
 const DriverUser = require('../models/DriverUser');
+const DriverPayout = require('../models/DriverPayout');
 const Role = require('../models/Role');
 const Order = require('../models/Order');
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
@@ -86,6 +87,29 @@ function buildActiveDriverOrderQuery(driverId) {
     driver: driverId,
     status: { $nin: ['delivered', 'cancelled', 'canceled', 'refunded'] },
     driverStatus: { $nin: ['delivery_completed'] },
+  };
+}
+
+async function computeDriverBalance(driverId) {
+  const [orders, payouts] = await Promise.all([
+    Order.find({
+      driver: driverId,
+      $or: [
+        { status: 'delivered' },
+        { driverStatus: { $in: ['delivered', 'delivery_completed'] } }
+      ]
+    }).select('driverCommission').lean(),
+    DriverPayout.find({ driver: driverId }).select('amount').lean(),
+  ]);
+
+  const totalEarnings = orders.reduce((sum, order) => sum + Number(order.driverCommission || 0), 0);
+  const totalPaid = payouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
+  const balance = Math.max(0, totalEarnings - totalPaid);
+
+  return {
+    totalEarnings: Math.round(totalEarnings * 100) / 100,
+    totalPaid: Math.round(totalPaid * 100) / 100,
+    balance: Math.round(balance * 100) / 100,
   };
 }
 
@@ -221,6 +245,45 @@ router.put('/me/profile', authenticate, requireRole(['driver']), async (req, res
   }
 });
 
+router.get('/me/payouts', authenticate, requireRole(['driver']), async (req, res) => {
+  try {
+    const driverId = req.user.driverId || req.user.id;
+    const [driver, balanceInfo, payouts] = await Promise.all([
+      Driver.findById(driverId).lean(),
+      computeDriverBalance(driverId),
+      DriverPayout.find({ driver: driverId })
+        .sort({ createdAt: -1 })
+        .select('amount method note createdAt updatedAt')
+        .lean(),
+    ]);
+
+    if (!driver) {
+      res.status(404);
+      throw new Error('Driver not found');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        totalEarnings: balanceInfo.totalEarnings,
+        totalPaid: balanceInfo.totalPaid,
+        balance: balanceInfo.balance,
+        payouts: payouts.map((payout) => ({
+          id: payout._id,
+          amount: Number(payout.amount || 0),
+          method: payout.method || 'Manual',
+          note: payout.note || '',
+          createdAt: payout.createdAt,
+          updatedAt: payout.updatedAt,
+        })),
+      }
+    });
+  } catch (e) {
+    res.status(res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+    throw e;
+  }
+});
+
 // Admin: list drivers
 router.get('/', authenticate, requireAnyPermission(['driver.view', 'driver.edit']), async (req, res) => {
   const { status = 'all', q = '', page = 1, limit = 10 } = req.query;
@@ -245,16 +308,82 @@ router.get('/', authenticate, requireAnyPermission(['driver.view', 'driver.edit'
     const key = String(order.driver || '');
     if (key && !activeOrderByDriver.has(key)) activeOrderByDriver.set(key, order);
   });
+  const balanceEntries = await Promise.all(items.map(async item => [String(item._id), await computeDriverBalance(item._id)]));
+  const balanceMap = new Map(balanceEntries);
   const enriched = items.map(item => {
     const activeOrder = activeOrderByDriver.get(String(item._id));
+    const balanceInfo = balanceMap.get(String(item._id)) || { totalEarnings: 0, totalPaid: 0, balance: 0 };
     return {
       ...item,
       isBusy: Boolean(activeOrder),
       busyOrderId: activeOrder?._id || null,
       busyOrderNumber: activeOrder?.orderNumber || null,
+      totalEarnings: balanceInfo.totalEarnings,
+      totalPaid: balanceInfo.totalPaid,
+      balance: balanceInfo.balance,
     };
   });
   res.json({ success: true, data: enriched, meta: { total, page: p, limit: l } });
+});
+
+router.post('/:id/payouts', authenticate, requireAnyPermission(['driver.edit', 'driver.view']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, method, note } = req.body || {};
+    const driver = await Driver.findById(id).lean();
+    if (!driver) {
+      res.status(404);
+      throw new Error('Driver not found');
+    }
+
+    const numericAmount = Math.round(Number(amount) * 100) / 100;
+    if (!(numericAmount > 0)) {
+      res.status(400);
+      throw new Error('amount must be greater than 0');
+    }
+
+    const balanceInfo = await computeDriverBalance(id);
+    if (!(balanceInfo.balance > 0)) {
+      res.status(400);
+      throw new Error('Driver has no payable balance');
+    }
+    if (numericAmount - balanceInfo.balance > 0.01) {
+      res.status(400);
+      throw new Error('Payout exceeds available balance');
+    }
+
+    const payout = await DriverPayout.create({
+      driver: id,
+      amount: numericAmount,
+      method: method || 'Manual',
+      note: note || '',
+      processedBy: req.user?.id,
+    });
+
+    const updatedBalance = await computeDriverBalance(id);
+    await Driver.updateOne(
+      { _id: id },
+      { $set: { totalEarnings: updatedBalance.totalEarnings, balance: updatedBalance.balance } }
+    ).catch(() => {});
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: payout._id,
+        driverId: id,
+        amount: payout.amount,
+        method: payout.method,
+        note: payout.note,
+        createdAt: payout.createdAt,
+        balance: updatedBalance.balance,
+        totalPaid: updatedBalance.totalPaid,
+        totalEarnings: updatedBalance.totalEarnings,
+      }
+    });
+  } catch (e) {
+    res.status(res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+    throw e;
+  }
 });
 
 // Admin: update driver
