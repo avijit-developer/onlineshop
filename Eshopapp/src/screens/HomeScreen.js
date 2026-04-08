@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  BackHandler,
+  Platform,
 } from 'react-native';
 
 import Header from '../components/Header';
@@ -52,33 +54,41 @@ const HomeScreen = ({ navigation }) => {
     }
   }, []);
 
-  // Check if user has address, redirect to AddressMap if not
+  // Load addresses when Home is focused (no forced redirect to AddressMap)
   useFocusEffect(
     React.useCallback(() => {
-      const checkAddress = async () => {
+      const loadAddressData = async () => {
         try {
           const token = await AsyncStorage.getItem('authToken');
           if (!token) return;
-          
-          // Check if user has any addresses
-          const response = await api.getUserAddresses().catch(() => null);
-          const userAddresses = response?.data || [];
-          
-          if (userAddresses.length === 0) {
-            // No address found, redirect to AddressMap
-            navigation.replace('AddressMap', { isNewUser: false });
-          } else {
-            // Load addresses and default address
-            await loadAddresses();
-            await loadUserDefaultAddress();
-          }
+          await loadAddresses();
+          await loadUserDefaultAddress();
         } catch (error) {
-          console.error('Error checking address:', error);
+          console.error('Error loading address data:', error);
         }
       };
-      
-      checkAddress();
-    }, [navigation, loadAddresses, loadUserDefaultAddress])
+      loadAddressData();
+    }, [loadAddresses, loadUserDefaultAddress])
+  );
+
+  // Confirm app exit on Android back button from Home
+  useFocusEffect(
+    React.useCallback(() => {
+      if (Platform.OS !== 'android') return undefined;
+      const onBackPress = () => {
+        Alert.alert(
+          'Exit App',
+          'Do you want to exit the app?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Exit', style: 'destructive', onPress: () => BackHandler.exitApp() },
+          ]
+        );
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [])
   );
 
   useEffect(() => {

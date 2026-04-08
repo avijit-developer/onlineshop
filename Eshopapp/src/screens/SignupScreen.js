@@ -104,8 +104,9 @@ const SignupScreen = ({ navigation }) => {
       const result = await register(userData);
       
       if (result.success) {
-        // Navigate to AddressMap screen to add address
-        navigation.replace('AddressMap', { isNewUser: true });
+        // Go to Home; address can be added later
+        try { await loadUserDefaultAddress(); } catch {}
+        navigation.replace('Home');
       } else {
         if (String(result.error || '').toLowerCase().includes('email')) {
           Alert.alert('Email Already Exists', 'An account with this email already exists. Try signing in instead.');

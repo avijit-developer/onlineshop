@@ -20,6 +20,9 @@ export const LocationProvider = ({ children }) => {
   const [area, setArea] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const isLoadingRef = React.useRef(false);
+  const lastLoadTimeRef = React.useRef(0);
+  const LOAD_THROTTLE_MS = 30000;
 
   // Load user's default address on app start
   useEffect(() => {
@@ -28,6 +31,12 @@ export const LocationProvider = ({ children }) => {
 
   const loadUserDefaultAddress = async () => {
     try {
+      if (isLoadingRef.current) return;
+      const now = Date.now();
+      if (now - lastLoadTimeRef.current < LOAD_THROTTLE_MS) return;
+      isLoadingRef.current = true;
+      lastLoadTimeRef.current = now;
+
       // First try local storage (fast path)
       const storedAddresses = await AsyncStorage.getItem('userAddresses');
       const storedDefaultId = await AsyncStorage.getItem('defaultAddressId');
@@ -45,7 +54,7 @@ export const LocationProvider = ({ children }) => {
           }
         }
       }
-      // Then try API (authoritative path)
+      // Then try API (authoritative path) if token exists and not throttled
       const token = await AsyncStorage.getItem('authToken');
       if (!token) return;
       const response = await api.request('/api/v1/users/me/addresses', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -60,6 +69,8 @@ export const LocationProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Failed to load user address:', error);
+    } finally {
+      isLoadingRef.current = false;
     }
   };
 
@@ -105,6 +116,14 @@ export const LocationProvider = ({ children }) => {
     }
   };
 
+  const resetLocation = () => {
+    setLocation(null);
+    setAddress('Select your location');
+    setArea('');
+    setCity('');
+    setPostalCode('');
+  };
+
   const value = {
     location,
     address,
@@ -120,6 +139,7 @@ export const LocationProvider = ({ children }) => {
     setCity,
     setPostalCode,
     loadUserDefaultAddress,
+    resetLocation,
   };
 
   return (

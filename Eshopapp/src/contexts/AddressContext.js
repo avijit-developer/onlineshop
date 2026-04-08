@@ -439,6 +439,17 @@ export const AddressProvider = ({ children }) => {
     return loadAddresses();
   };
 
+  const clearLocalAddresses = async () => {
+    try {
+      setAddresses([]);
+      setDefaultAddressId(null);
+      await AsyncStorage.removeItem('userAddresses');
+      await AsyncStorage.removeItem('defaultAddressId');
+    } catch (e) {
+      console.log('Error clearing local addresses:', e);
+    }
+  };
+
   const forceRefreshFromAPI = async () => {
     try {
       const token = await AsyncStorage.getItem('authToken');
@@ -515,6 +526,7 @@ export const AddressProvider = ({ children }) => {
     getAddressById,
     loadAddresses,
     refreshAddresses,
+    clearLocalAddresses,
     syncLocalAddresses,
     forceRefreshFromAPI,
   };

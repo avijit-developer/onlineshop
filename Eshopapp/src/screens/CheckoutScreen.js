@@ -613,7 +613,13 @@ const CheckoutScreen = () => {
           <Text style={styles.noAddressText}>No addresses found</Text>
           <TouchableOpacity 
             style={styles.addAddressButton}
-            onPress={() => setShowAddressForm(true)}
+            onPress={() => navigation.navigate('AddressMap', {
+              isNewUser: false,
+              onSave: (addr) => {
+                try { setSelectedAddress(addr); } catch (_) {}
+                try { refreshAddresses(); } catch (_) {}
+              }
+            })}
           >
             <Icon name="add-circle-outline" size={16} color="#f7ab18" />
             <Text style={styles.addAddressButtonText}>Add New Address</Text>
@@ -632,132 +638,7 @@ const CheckoutScreen = () => {
         </View>
       )}
 
-      {/* New Address Form (shown when no addresses exist) */}
-      {showAddressForm && (
-        <View style={styles.addressFormContainer}>
-          <Text style={styles.formTitle}>Add New Address</Text>
-          
-          <View style={styles.formRow}>
-            <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>First Name *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shippingInfo.firstName}
-                onChangeText={(value) => handleInputChange('firstName', value)}
-                placeholder="Enter first name"
-                autoCapitalize="words"
-              />
-            </View>
-            <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>Last Name *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shippingInfo.lastName}
-                onChangeText={(value) => handleInputChange('lastName', value)}
-                placeholder="Enter last name"
-                autoCapitalize="words"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formRow}>
-            <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>Email *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shippingInfo.email}
-                onChangeText={(value) => handleInputChange('email', value)}
-                placeholder="Enter email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-            <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>Phone *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shippingInfo.phone}
-                onChangeText={(value) => handleInputChange('phone', value)}
-                placeholder="Enter phone number"
-                keyboardType="phone-pad"
-                maxLength={10}
-              />
-            </View>
-          </View>
-
-          <Text style={styles.inputLabel}>Address *</Text>
-          <TextInput
-            style={[styles.textInput, styles.fullWidthInput]}
-            value={shippingInfo.address}
-            onChangeText={(value) => handleInputChange('address', value)}
-            placeholder="Enter full address"
-            multiline
-            numberOfLines={3}
-          />
-
-          <View style={styles.formRow}>
-            <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>City *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shippingInfo.city}
-                onChangeText={(value) => handleInputChange('city', value)}
-                placeholder="Enter city"
-                autoCapitalize="words"
-              />
-            </View>
-            <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>State *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shippingInfo.state}
-                onChangeText={(value) => handleInputChange('state', value)}
-                placeholder="Enter state"
-                autoCapitalize="words"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formRow}>
-            <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>ZIP Code *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shippingInfo.zipCode}
-                onChangeText={(value) => handleInputChange('zipCode', value)}
-                placeholder="Enter ZIP code"
-                keyboardType="numeric"
-                maxLength={6}
-              />
-            </View>
-            <View style={styles.halfInput}>
-              <Text style={styles.inputLabel}>Country</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shippingInfo.country}
-                onChangeText={(value) => handleInputChange('country', value)}
-                placeholder="Enter country"
-                autoCapitalize="words"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formActions}>
-            <TouchableOpacity 
-              style={styles.cancelFormButton}
-              onPress={() => setShowAddressForm(false)}
-            >
-              <Text style={styles.cancelFormButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.saveFormButton}
-              onPress={handleAddNewAddress}
-            >
-              <Text style={styles.saveFormButtonText}>Save Address</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      {/* Address add now handled via AddressMap screen */}
     </View>
   );
 

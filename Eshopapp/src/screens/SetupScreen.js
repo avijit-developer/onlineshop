@@ -67,25 +67,10 @@ const SetupScreen = ({ navigation, route }) => {
       try {
         const token = await AsyncStorage.getItem('authToken');
         if (token) {
-          // Check if user has any addresses
-          try {
-            const existingRes = await api.getMyAddresses(token).catch(() => null);
-            const existing = existingRes?.data || [];
-            
-            if (existing.length === 0) {
-              // No address found, navigate to AddressMap to add address
-              targetRoute = 'AddressMap';
-            } else {
-              // Address exists, load it and go to Home
-              try {
-                await loadUserDefaultAddress();
-              } catch {}
-              targetRoute = 'Home';
-            }
-          } catch (e) {
-            // If check fails, navigate to AddressMap to add address
-            targetRoute = 'AddressMap';
-          }
+          // Always proceed to Home for logged-in users.
+          // Address creation can be done later from within the app.
+          try { await loadUserDefaultAddress(); } catch {}
+          targetRoute = 'Home';
         } else {
           targetRoute = 'Login';
         }

@@ -13,13 +13,17 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
+import { useAddress } from '../contexts/AddressContext';
+import { useLocation } from '../contexts/LocationContext';
 import api from '../utils/api';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user, orders, logout } = useUser();
-  const { getCartItemsCount } = useCart();
-  const { getWishlistCount, wishlist } = useWishlist();
+  const { getCartItemsCount, resetCartLocal } = useCart();
+  const { getWishlistCount, wishlist, resetWishlist } = useWishlist();
+  const { clearLocalAddresses } = useAddress();
+  const { resetLocation } = useLocation();
 
   // Render avatar or initials fallback
   const renderAvatar = () => {
@@ -84,13 +88,6 @@ const ProfileScreen = () => {
       onPress: () => navigation.navigate('VendorApply'),
     },
     {
-      id: 'driver-login',
-      title: 'Driver Login',
-      subtitle: 'Access driver portal',
-      icon: 'car-outline',
-      onPress: () => navigation.navigate('DriverLogin'),
-    },
-    {
       id: 'become-driver',
       title: 'Become a Driver',
       subtitle: 'Apply to deliver orders',
@@ -114,6 +111,10 @@ const ProfileScreen = () => {
           style: 'destructive', 
           onPress: async () => {
             try {
+              try { await resetCartLocal(); } catch {}
+              try { resetWishlist(); } catch {}
+              try { await clearLocalAddresses(); } catch {}
+              try { resetLocation(); } catch {}
               await logout();
             } catch {}
             navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -139,6 +140,10 @@ const ProfileScreen = () => {
               Alert.alert('Error', e?.message || 'Failed to delete account');
               return;
             }
+            try { await resetCartLocal(); } catch {}
+            try { resetWishlist(); } catch {}
+            try { await clearLocalAddresses(); } catch {}
+            try { resetLocation(); } catch {}
             try { await logout(); } catch {}
             navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
           }

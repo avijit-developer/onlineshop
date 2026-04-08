@@ -122,14 +122,19 @@ export const UserProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Clear in-memory user-scoped state immediately
+      setUser(null);
+      setToken(null);
+      setOrders([]);
+
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('userData');
       // Clear user addresses on logout to prevent showing other user's addresses
       await AsyncStorage.removeItem('userAddresses');
       await AsyncStorage.removeItem('defaultAddressId');
-      
-      setToken(null);
-      setUser(null);
+      // Clear other user-specific local data
+      await AsyncStorage.removeItem('localCartItems');
+      await AsyncStorage.removeItem('recentSearchesV1');
     } catch (error) {
       console.error('Error during logout:', error);
     }

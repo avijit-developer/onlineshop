@@ -118,6 +118,7 @@ export const CartProvider = ({ children }) => {
       } else {
         setIsAuthenticated(false);
         setCartItems([]);
+        setCartCoupon(null);
       }
       
       setIsInitialized(true);
@@ -125,6 +126,7 @@ export const CartProvider = ({ children }) => {
       console.log('Error checking authentication:', error);
       setIsAuthenticated(false);
       setCartItems([]);
+      setCartCoupon(null);
       setIsInitialized(true);
     } finally {
       setIsLoading(false);
@@ -477,6 +479,16 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  const resetCartLocal = useCallback(async () => {
+    try {
+      setCartItems([]);
+      setCartCoupon(null);
+      await AsyncStorage.removeItem(LOCAL_CART_KEY);
+    } catch (e) {
+      console.log('Error resetting local cart:', e);
+    }
+  }, []);
+
   const parsePrice = (p) => {
     if (typeof p === 'number') return p;
     if (typeof p === 'string') {
@@ -566,13 +578,14 @@ export const CartProvider = ({ children }) => {
     removeFromCart,
     updateQuantity,
     clearCart,
+    resetCartLocal,
     getCartTotal,
     getCartItemsCount,
     getItemPrice,
     getItemTotal,
     getItemImage,
     refreshCart,
-  }), [cartItems, isLoading, isAuthenticated, isInitialized]);
+  }), [cartItems, isLoading, isAuthenticated, isInitialized, cartCoupon, resetCartLocal]);
 
   return (
     <CartContext.Provider value={value}>

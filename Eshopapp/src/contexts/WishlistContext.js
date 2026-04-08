@@ -119,6 +119,12 @@ export const WishlistProvider = ({ children }) => {
 
   const isInWishlist = useCallback((productId) => wishlistStatus[productId] || false, [wishlistStatus]);
 
+  const resetWishlist = useCallback(() => {
+    setWishlist([]);
+    setWishlistStatus({});
+    setIsLoading(false);
+  }, []);
+
   const value = useMemo(() => ({
     wishlist,
     isLoading,
@@ -130,7 +136,8 @@ export const WishlistProvider = ({ children }) => {
     loadWishlist,
     getWishlistCount,
     isInWishlist,
-  }), [wishlist, isLoading, wishlistStatus, addToWishlist, removeFromWishlist, toggleWishlist, checkWishlistStatus, loadWishlist, getWishlistCount, isInWishlist]);
+    resetWishlist,
+  }), [wishlist, isLoading, wishlistStatus, addToWishlist, removeFromWishlist, toggleWishlist, checkWishlistStatus, loadWishlist, getWishlistCount, isInWishlist, resetWishlist]);
 
   return (
     <WishlistContext.Provider value={value}>
