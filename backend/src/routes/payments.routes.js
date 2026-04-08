@@ -123,12 +123,16 @@ router.get('/admin-earnings', authenticate, requireAdmin, async (req, res) => {
       for (const [, agg] of vendorMap.entries()) {
         const vendorStatusLower = getVendorStatus(o, agg.vendorId);
         if (!matchesStatusFilter(vendorStatusLower, statusFilter)) continue;
+        const share = orderSubtotal > 0 ? (agg.customerSubtotal / orderSubtotal) : 0;
+        const taxShare = taxAmount * share;
+        const shippingShare = shipping * share;
+        const adminCommission = Math.max(0, agg.adminMargin + taxShare + shippingShare);
         entries.push({
           id: `${o._id}_${agg.vendorId}`,
           orderId: o.orderNumber || String(o._id).slice(-6),
           customerName: (o.user && (o.user.name || o.user.email)) || '',
           amount: agg.customerSubtotal || orderTotal,
-          commission: Math.max(0, agg.adminMargin),
+          commission: adminCommission,
           vendorEarnings: Math.max(0, agg.vendorEarnings),
           paymentMethod: o.paymentMethod || '',
           status: vendorStatusLower || toLowerStatus(o.status),
@@ -242,6 +246,12 @@ router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
     const sums = new Map();
     for (const o of orders) {
       const items = Array.isArray(o.items) ? o.items : [];
+      const orderSubtotal = items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
+      const taxPercent = Number(o.tax || 0);
+      const taxAmount = (orderSubtotal * taxPercent) / 100;
+      const shipping = Number(o.shippingCost || 0);
+      const vendorAgg = new Map();
+
       for (const it of items) {
         const vid = normalizeId(it.vendor);
         if (!vid) continue;
@@ -257,10 +267,23 @@ router.get('/vendor-summary', authenticate, requireAdmin, async (req, res) => {
         );
         const vendorEarn = vendorUnit * qty;
         const adminEarn = (customerUnit - vendorUnit) * qty;
-        if (!sums.has(vid)) sums.set(vid, { vendorId: vid, vendorEarnings: 0, adminCommission: 0 });
-        const agg = sums.get(vid);
+        const customerLineTotal = customerUnit * qty;
+        if (!vendorAgg.has(vid)) vendorAgg.set(vid, { vendorId: vid, vendorEarnings: 0, adminMargin: 0, customerSubtotal: 0 });
+        const agg = vendorAgg.get(vid);
         agg.vendorEarnings += vendorEarn;
-        agg.adminCommission += adminEarn;
+        agg.adminMargin += adminEarn;
+        agg.customerSubtotal += customerLineTotal;
+      }
+
+      for (const [, agg] of vendorAgg.entries()) {
+        const share = orderSubtotal > 0 ? (agg.customerSubtotal / orderSubtotal) : 0;
+        const taxShare = taxAmount * share;
+        const shippingShare = shipping * share;
+        const adminCommission = Math.max(0, agg.adminMargin + taxShare + shippingShare);
+        if (!sums.has(agg.vendorId)) sums.set(agg.vendorId, { vendorId: agg.vendorId, vendorEarnings: 0, adminCommission: 0 });
+        const totalAgg = sums.get(agg.vendorId);
+        totalAgg.vendorEarnings += agg.vendorEarnings;
+        totalAgg.adminCommission += adminCommission;
       }
     }
     // Sum payouts

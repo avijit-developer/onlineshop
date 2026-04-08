@@ -34,6 +34,10 @@ const Payments = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvFrom, setCsvFrom] = useState('');
+  const [csvTo, setCsvTo] = useState('');
+  const [csvTarget, setCsvTarget] = useState('earnings');
   const round2 = (n) => {
     const x = Number(n || 0);
     return Math.round((x + Number.EPSILON) * 100) / 100;
@@ -637,6 +641,46 @@ const Payments = () => {
     toast.success('CSV downloaded');
   };
 
+  const openCsvModal = (target) => {
+    setCsvTarget(target);
+    setCsvFrom('');
+    setCsvTo('');
+    setShowCsvModal(true);
+  };
+
+  const exportCsvByDateRange = () => {
+    if (csvTarget === 'earnings') {
+      let rows = getFilteredPayments();
+      if (csvFrom || csvTo) {
+        const from = csvFrom ? new Date(`${csvFrom}T00:00:00`) : null;
+        const to = csvTo ? new Date(`${csvTo}T23:59:59.999`) : null;
+        rows = rows.filter(p => {
+          const d = p.date ? new Date(p.date) : null;
+          if (!d) return false;
+          if (from && d < from) return false;
+          if (to && d > to) return false;
+          return true;
+        });
+      }
+      downloadCsv(rows, 'earnings', buildPaymentsCsv);
+    } else {
+      let rows = getFilteredWithdrawals();
+      if (csvFrom || csvTo) {
+        const from = csvFrom ? new Date(`${csvFrom}T00:00:00`) : null;
+        const to = csvTo ? new Date(`${csvTo}T23:59:59.999`) : null;
+        rows = rows.filter(w => {
+          const d = w.requestDate ? new Date(w.requestDate) : null;
+          if (!d) return false;
+          if (from && d < from) return false;
+          if (to && d > to) return false;
+          return true;
+        });
+      }
+      downloadCsv(rows, 'withdrawals', buildWithdrawalsCsv);
+    }
+    setShowCsvModal(false);
+  };
+
   if (loading) {
     return <div className="loading">Loading payments...</div>;
   }
@@ -650,17 +694,10 @@ const Payments = () => {
             <>
               <button
                 className="btn btn-success"
-                onClick={() => downloadCsv(getFilteredPayments(), 'earnings', buildPaymentsCsv)}
+                onClick={() => openCsvModal('earnings')}
                 title="Download payment transactions as CSV"
               >
                 Download CSV
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => downloadCsv(getPaginatedData(getFilteredPayments()), 'earnings-page', buildPaymentsCsv)}
-                title="Download current page as CSV"
-              >
-                CSV (This Page)
               </button>
             </>
           )}
@@ -668,22 +705,59 @@ const Payments = () => {
             <>
               <button
                 className="btn btn-success"
-                onClick={() => downloadCsv(getFilteredWithdrawals(), 'withdrawals', buildWithdrawalsCsv)}
+                onClick={() => openCsvModal('withdrawals')}
                 title="Download withdrawal transactions as CSV"
               >
                 Download CSV
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => downloadCsv(getPaginatedData(getFilteredWithdrawals()), 'withdrawals-page', buildWithdrawalsCsv)}
-                title="Download current page as CSV"
-              >
-                CSV (This Page)
               </button>
             </>
           )}
         </div>
       </div>
+
+      {showCsvModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>Download CSV</h2>
+              <button onClick={() => setShowCsvModal(false)} className="close-btn">&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="filters-grid">
+                <div className="filter-control">
+                  <label>From</label>
+                  <input
+                    type="date"
+                    value={csvFrom}
+                    max={csvTo || undefined}
+                    onChange={(e) => setCsvFrom(e.target.value)}
+                    className="filter-input"
+                  />
+                </div>
+                <div className="filter-control">
+                  <label>To</label>
+                  <input
+                    type="date"
+                    value={csvTo}
+                    min={csvFrom || undefined}
+                    onChange={(e) => setCsvTo(e.target.value)}
+                    className="filter-input"
+                  />
+                </div>
+              </div>
+              <small className="filter-hint">Leave empty to export all filtered records.</small>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setShowCsvModal(false)} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button onClick={exportCsvByDateRange} className="btn btn-success">
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="stats-cards">
         {isVendor ? (

@@ -1246,7 +1246,8 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
                 return { ...it, vendorUnitPrice: finalRegular, vendorDisplayUnitPrice: display, vendorLineTotal: display * quantity };
             });
             const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
-            const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
+            const vendorCommissionBase = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
+            const vendorCommission = vendorCommissionBase + vendorTaxShare + vendorShippingShare;
             const vendorNet = vendorSubtotal - vendorCommission;
             const orderSubtotal = Number(o.subtotal || 0);
             const taxPercent = Number(o.tax || 0);
@@ -1410,7 +1411,8 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
             };
         });
         const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
-        const vendorCommission = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
+        const vendorCommissionBase = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
+        const vendorCommission = vendorCommissionBase + vendorTaxShare + vendorShippingShare;
         const vendorNet = vendorSubtotal - vendorCommission;
         const orderSubtotal = Number(o.subtotal || 0);
         const taxPercent = Number(o.tax || 0);

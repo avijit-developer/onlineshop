@@ -31,6 +31,9 @@ const Orders = () => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvFrom, setCsvFrom] = useState('');
+  const [csvTo, setCsvTo] = useState('');
   const [approvedDrivers, setApprovedDrivers] = useState([]);
   const [driversLoading, setDriversLoading] = useState(false);
   const [driverAssigning, setDriverAssigning] = useState(false);
@@ -684,6 +687,28 @@ const Orders = () => {
     toast.success('CSV downloaded');
   };
 
+  const openCsvModal = () => {
+    setCsvFrom(draftFrom || dateFrom || '');
+    setCsvTo(draftTo || dateTo || '');
+    setShowCsvModal(true);
+  };
+
+  const exportCsvByDateRange = () => {
+    let rows = filteredOrders;
+    if (csvFrom || csvTo) {
+      const from = csvFrom ? new Date(`${csvFrom}T00:00:00`) : null;
+      const to = csvTo ? new Date(`${csvTo}T23:59:59.999`) : null;
+      rows = rows.filter(order => {
+        const created = new Date(order.createdAt);
+        if (from && created < from) return false;
+        if (to && created > to) return false;
+        return true;
+      });
+    }
+    downloadOrdersCsv(rows, 'date-range');
+    setShowCsvModal(false);
+  };
+
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -713,17 +738,10 @@ const Orders = () => {
             </button>
             <button
               className="btn btn-success"
-              onClick={() => downloadOrdersCsv(filteredOrders, 'filtered')}
+              onClick={openCsvModal}
               title="Download filtered orders as CSV"
             >
               Download CSV
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => downloadOrdersCsv(currentOrders, 'page')}
-              title="Download current page as CSV"
-            >
-              CSV (This Page)
             </button>
           </div>
         </div>
@@ -1297,6 +1315,51 @@ const Orders = () => {
                 Close
               </button>
               <button onClick={downloadInvoice} className="btn btn-success">
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Date Range Modal */}
+      {showCsvModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>Download Orders CSV</h2>
+              <button onClick={() => setShowCsvModal(false)} className="close-btn">&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="filters-grid">
+                <div className="filter-control">
+                  <label>From</label>
+                  <input
+                    type="date"
+                    value={csvFrom}
+                    max={csvTo || undefined}
+                    onChange={(e) => setCsvFrom(e.target.value)}
+                    className="filter-input"
+                  />
+                </div>
+                <div className="filter-control">
+                  <label>To</label>
+                  <input
+                    type="date"
+                    value={csvTo}
+                    min={csvFrom || undefined}
+                    onChange={(e) => setCsvTo(e.target.value)}
+                    className="filter-input"
+                  />
+                </div>
+              </div>
+              <small className="filter-hint">Leave empty to export all filtered orders.</small>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setShowCsvModal(false)} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button onClick={exportCsvByDateRange} className="btn btn-success">
                 Download
               </button>
             </div>
