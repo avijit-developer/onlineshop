@@ -149,7 +149,7 @@ const Login = ({ onLogin }) => {
               className="btn btn-primary w-100"
               disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in...' : 'Sign Inn'}
             </button>
           </div>
           
