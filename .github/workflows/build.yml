@@ -25,9 +25,8 @@ jobs:
           npm install
           CI=false npm run build
 
-      # ---------- ESHOP APP ----------
-      - name: Build eshop
+      # ---------- ESHOP APP (React Native) ----------
+      - name: Install eshop app
         run: |
           cd Eshopapp
           npm install
-          CI=false npm run build
