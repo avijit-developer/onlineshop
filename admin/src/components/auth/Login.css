@@ -41,6 +41,10 @@
   margin-bottom: 20px;
 }
 
+.login-form .remember-me-group {
+  margin-top: -6px;
+}
+
 .login-form .form-label {
   display: block;
   margin-bottom: 8px;
@@ -74,6 +78,24 @@
   font-size: 12px;
   margin-top: 5px;
   display: block;
+}
+
+.remember-me-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #555;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-me-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #667eea;
+  cursor: pointer;
 }
 
 .login-form .btn {

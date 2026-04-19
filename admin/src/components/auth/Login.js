@@ -6,11 +6,18 @@ import './Login.css';
 
 const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
 const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
+const REMEMBERED_PHONE_KEY = 'adminRememberedPhone';
 
 const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const rememberedPhone = typeof window !== 'undefined' ? localStorage.getItem(REMEMBERED_PHONE_KEY) || '' : '';
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: {
+      phone: rememberedPhone,
+      rememberMe: Boolean(rememberedPhone)
+    }
+  });
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -36,6 +43,13 @@ const Login = ({ onLogin }) => {
       }
 
       onLogin({ token, user });
+      if (typeof window !== 'undefined') {
+        if (data.rememberMe) {
+          localStorage.setItem(REMEMBERED_PHONE_KEY, data.phone || '');
+        } else {
+          localStorage.removeItem(REMEMBERED_PHONE_KEY);
+        }
+      }
       toast.success('Login successful!');
     } catch (error) {
       toast.error('Login failed. Please try again.');
@@ -59,6 +73,7 @@ const Login = ({ onLogin }) => {
               type="tel"
               className={`form-control ${errors.phone ? 'error' : ''}`}
               placeholder="Enter your phone number"
+              autoComplete="username"
               {...register('phone', {
                 required: 'Phone number is required',
                 pattern: {
@@ -78,6 +93,7 @@ const Login = ({ onLogin }) => {
                 className={`form-control ${errors.password ? 'error' : ''}`}
                 placeholder="Enter your password"
                 style={{ paddingRight: '40px' }}
+                autoComplete="current-password"
                 {...register('password', {
                   required: 'Password is required',
                   minLength: {
@@ -114,6 +130,17 @@ const Login = ({ onLogin }) => {
               </button>
             </div>
             {errors.password && <span className="error-message">{errors.password.message}</span>}
+          </div>
+
+          <div className="form-group remember-me-group">
+            <label className="remember-me-label">
+              <input
+                type="checkbox"
+                className="remember-me-checkbox"
+                {...register('rememberMe')}
+              />
+              <span>Remember me on this device</span>
+            </label>
           </div>
           
           <div className="form-group">
