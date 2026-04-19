@@ -1,0 +1,33 @@
+name: Auto Build Fullstack
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+
+      # ---------- BACKEND ----------
+      - name: Install backend
+        run: |
+          cd backend
+          npm install
+
+      # ---------- ADMIN FRONTEND ----------
+      - name: Build admin
+        run: |
+          cd admin
+          npm install
+          npm run build
+
+      # ---------- ESHOP APP ----------
+      - name: Build eshop
+        run: |
+          cd Eshopapp
+          npm install
+          npm run build
