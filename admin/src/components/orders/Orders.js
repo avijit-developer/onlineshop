@@ -542,7 +542,8 @@ const Orders = () => {
       driver.email,
       driver.phone,
       driver.city,
-      driver.busyOrderNumber
+      driver.busyOrderNumber,
+      ...(Array.isArray(driver.activeOrderNumbers) ? driver.activeOrderNumbers : [])
     ].some(value => String(value || '').toLowerCase().includes(term));
   });
 
@@ -1444,16 +1445,25 @@ const Orders = () => {
                       <option value="">Select driver</option>
                       {filteredApprovedDrivers.map(driver => {
                         const driverId = driver._id || driver.id;
-                        const isBusyOnCurrentOrder = String(driver.busyOrderId || '') === String(selectedOrder._id || selectedOrder.id || '');
-                        const isBusy = Boolean(driver.isBusy && !isBusyOnCurrentOrder);
-                        const label = `${driver.name} - ${driver.email}${isBusy ? ` (Busy: #${driver.busyOrderNumber || driver.busyOrderId})` : ''}`;
+                        const activeOrderCount = Number(driver.activeOrderCount || 0);
+                        const label = `${driver.name} - ${driver.email}${activeOrderCount > 0 ? ` (${activeOrderCount} active order${activeOrderCount === 1 ? '' : 's'})` : ''}`;
                         return (
-                          <option key={driverId} value={driverId} disabled={isBusy}>
+                          <option key={driverId} value={driverId}>
                             {label}
                           </option>
                         );
                       })}
                     </select>
+                    {selectedDriverId ? (() => {
+                      const selectedDriver = filteredApprovedDrivers.find(driver => String(driver._id || driver.id) === String(selectedDriverId));
+                      const activeOrderNumbers = Array.isArray(selectedDriver?.activeOrderNumbers) ? selectedDriver.activeOrderNumbers.filter(Boolean) : [];
+                      if (!selectedDriver || activeOrderNumbers.length === 0) return null;
+                      return (
+                        <div className="driver-assignment-help">
+                          Active orders: {activeOrderNumbers.join(', ')}
+                        </div>
+                      );
+                    })() : null}
                   </div>
                 )}
               </div>

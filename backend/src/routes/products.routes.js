@@ -6,7 +6,7 @@ const Review = require('../models/Review');
 const Category = require('../models/Category');
 const Brand = require('../models/Brand');
 const Vendor = require('../models/Vendor');
-const { authenticate, requireAdmin, requireRole, requirePermission, requireAnyPermission } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireRole, requirePermission, requireAnyPermission, getUserPermissions } = require('../middleware/auth');
 const { uploadImageBuffer, deleteImageByPublicId } = require('../config/cloudinary');
 
 const router = express.Router();
@@ -242,10 +242,12 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
     vendor: body.vendor,
     sku: body.sku ? String(body.sku).trim() : undefined,
     tags: Array.isArray(body.tags) ? body.tags : [],
-    // Admin and Vendor pricing captured separately
+    // Admin and vendor pricing can both be set by admin; vendors only manage vendor pricing
     regularPrice: !isVendorUser && body.regularPrice !== undefined ? Number(body.regularPrice) : undefined,
     specialPrice: !isVendorUser && body.specialPrice !== undefined ? Number(body.specialPrice) : undefined,
-    vendorRegularPrice: isVendorUser && (body.vendorRegularPrice !== undefined ? Number(body.vendorRegularPrice) : (body.regularPrice !== undefined ? Number(body.regularPrice) : undefined)),
+    vendorRegularPrice: body.vendorRegularPrice !== undefined
+      ? Number(body.vendorRegularPrice)
+      : (isVendorUser && body.regularPrice !== undefined ? Number(body.regularPrice) : undefined),
     tax: body.tax !== undefined ? Number(body.tax) : undefined,
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
     images: Array.isArray(body.images) ? body.images : [],
@@ -258,7 +260,9 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
           sku: v.sku ? String(v.sku).trim() : undefined,
           price: !isVendorUser && v.price !== undefined ? Number(v.price) : undefined,
           specialPrice: !isVendorUser && v.specialPrice !== undefined ? Number(v.specialPrice) : undefined,
-          vendorPrice: isVendorUser && (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : undefined)),
+          vendorPrice: v.vendorPrice !== undefined
+            ? Number(v.vendorPrice)
+            : (isVendorUser && v.price !== undefined ? Number(v.price) : undefined),
           stock: v.stock !== undefined ? Number(v.stock) : 0,
           images: Array.isArray(v.images) ? v.images : []
         }))
@@ -273,7 +277,7 @@ router.post('/', authenticate, requireRole(['admin','vendor']), requirePermissio
 });
 
 // PUT /products/:id
-router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermission('products.edit'), async (req, res) => {
+router.put('/:id', authenticate, requireRole(['admin','vendor']), requireAnyPermission(['products.edit', 'products.price']), async (req, res) => {
   const { id } = req.params;
   const body = req.body || {};
   const product = await Product.findById(id);
@@ -287,52 +291,61 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
     throw new Error('Forbidden');
   }
 
-  if (body.name !== undefined) product.name = String(body.name).trim();
-  if (body.description !== undefined) product.description = String(body.description).trim();
-  if (body.shortDescription !== undefined) product.shortDescription = String(body.shortDescription).trim();
-  if (body.category !== undefined) {
-    const c = await Category.findById(body.category).lean();
-    if (!c) { res.status(400); throw new Error('invalid category'); }
-    product.category = body.category;
-  }
-  if (body.brand !== undefined) {
-    if (body.brand) {
-      const b = await Brand.findById(body.brand).lean();
-      if (!b) { res.status(400); throw new Error('invalid brand'); }
-      product.brand = body.brand;
-    } else {
-      product.brand = undefined;
+  const perms = await getUserPermissions(req);
+  const canEditFull = perms.includes('*') || perms.includes('products.edit');
+  const canEditPrices = perms.includes('*') || perms.includes('products.price') || req.user.role === 'admin';
+
+  if (canEditFull) {
+    if (body.name !== undefined) product.name = String(body.name).trim();
+    if (body.description !== undefined) product.description = String(body.description).trim();
+    if (body.shortDescription !== undefined) product.shortDescription = String(body.shortDescription).trim();
+    if (body.category !== undefined) {
+      const c = await Category.findById(body.category).lean();
+      if (!c) { res.status(400); throw new Error('invalid category'); }
+      product.category = body.category;
     }
-  }
-  if (body.vendor !== undefined) {
-    const v = await Vendor.findById(body.vendor).lean();
-    if (!v) { res.status(400); throw new Error('invalid vendor'); }
-    product.vendor = body.vendor;
+    if (body.brand !== undefined) {
+      if (body.brand) {
+        const b = await Brand.findById(body.brand).lean();
+        if (!b) { res.status(400); throw new Error('invalid brand'); }
+        product.brand = body.brand;
+      } else {
+        product.brand = undefined;
+      }
+    }
+    if (body.vendor !== undefined) {
+      const v = await Vendor.findById(body.vendor).lean();
+      if (!v) { res.status(400); throw new Error('invalid vendor'); }
+      product.vendor = body.vendor;
+    }
+
+    if (body.sku !== undefined) {
+      const newSku = String(body.sku).trim();
+      const existsSku = await Product.findOne({ _id: { $ne: id }, sku: newSku }).select({ _id: 1 }).lean();
+      if (existsSku) { res.status(409); throw new Error('Product SKU already exists'); }
+      product.sku = newSku;
+    }
+    if (body.tags !== undefined) product.tags = Array.isArray(body.tags) ? body.tags : [];
   }
 
-  if (body.sku !== undefined) {
-    const newSku = String(body.sku).trim();
-    const existsSku = await Product.findOne({ _id: { $ne: id }, sku: newSku }).select({ _id: 1 }).lean();
-    if (existsSku) { res.status(409); throw new Error('Product SKU already exists'); }
-    product.sku = newSku;
-  }
-  if (body.tags !== undefined) product.tags = Array.isArray(body.tags) ? body.tags : [];
-
-  // Admin can set admin prices; vendor can set vendor prices
-  if (req.user.role === 'admin') {
+  // Admin can set both admin and vendor prices; vendor can set vendor prices
+  if (canEditPrices && req.user.role === 'admin') {
     if (body.regularPrice !== undefined) product.regularPrice = Number(body.regularPrice);
     if (body.specialPrice !== undefined) product.specialPrice = Number(body.specialPrice);
-  }
-  if (req.user.role === 'vendor') {
     if (body.vendorRegularPrice !== undefined) product.vendorRegularPrice = Number(body.vendorRegularPrice);
   }
-  if (body.tax !== undefined) product.tax = Number(body.tax);
-  if (body.stock !== undefined) product.stock = Number(body.stock);
+  if (canEditPrices && req.user.role === 'vendor') {
+    if (body.vendorRegularPrice !== undefined) product.vendorRegularPrice = Number(body.vendorRegularPrice);
+  }
+  if (canEditFull) {
+    if (body.tax !== undefined) product.tax = Number(body.tax);
+    if (body.stock !== undefined) product.stock = Number(body.stock);
 
-  if (body.images !== undefined) product.images = Array.isArray(body.images) ? body.images : [];
-  if (body.imagePublicIds !== undefined) product.imagePublicIds = Array.isArray(body.imagePublicIds) ? body.imagePublicIds : [];
-  if (body.videoUrl !== undefined) product.videoUrl = String(body.videoUrl || '').trim();
-  if (body.videoPublicId !== undefined) product.videoPublicId = String(body.videoPublicId || '').trim();
+    if (body.images !== undefined) product.images = Array.isArray(body.images) ? body.images : [];
+    if (body.imagePublicIds !== undefined) product.imagePublicIds = Array.isArray(body.imagePublicIds) ? body.imagePublicIds : [];
+    if (body.videoUrl !== undefined) product.videoUrl = String(body.videoUrl || '').trim();
+    if (body.videoPublicId !== undefined) product.videoPublicId = String(body.videoPublicId || '').trim();
+  }
   if (body.variants !== undefined) {
     if (!Array.isArray(body.variants)) { res.status(400); throw new Error('variants must be an array'); }
     const variantSkus = body.variants.map(v => (v?.sku || '').trim()).filter(Boolean);
@@ -343,43 +356,46 @@ router.put('/:id', authenticate, requireRole(['admin','vendor']), requirePermiss
       if (dupInPayload.size) { res.status(409); throw new Error(`Duplicate variant SKU(s): ${Array.from(dupInPayload).join(', ')}`); }
       // Do not check across other products; uniqueness enforced within product only
     }
-    // Preserve vendor variant prices when admin updates
     const existingBySku = new Map((product.variants || []).map(ev => [String(ev.sku || ''), ev]));
     product.variants = body.variants.map(v => {
       const sku = v.sku ? String(v.sku).trim() : undefined;
       const existing = sku ? existingBySku.get(sku) : undefined;
       const isAdmin = req.user.role === 'admin';
       const isVendor = req.user.role === 'vendor';
-      // Business rule: vendor sets vendor prices; admin updates should NOT override vendor prices
-      const nextVendorPrice = isVendor
-        ? (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : (existing?.vendorPrice)))
-        : (existing?.vendorPrice);
+      const nextVendorPrice = (canEditPrices && isAdmin)
+        ? (v.vendorPrice !== undefined ? Number(v.vendorPrice) : existing?.vendorPrice)
+        : (isVendor
+          ? (canEditPrices
+            ? (v.vendorPrice !== undefined ? Number(v.vendorPrice) : (v.price !== undefined ? Number(v.price) : existing?.vendorPrice))
+            : existing?.vendorPrice)
+          : existing?.vendorPrice);
       return {
-        attributes: v.attributes || {},
-        sku,
+        attributes: canEditFull ? (v.attributes || {}) : (existing?.attributes || {}),
+        sku: canEditFull ? sku : (existing?.sku || sku),
         // Admin can update admin prices; vendor updates should preserve existing admin prices
-        price: isAdmin ? (v.price !== undefined ? Number(v.price) : (existing?.price)) : (existing?.price),
-        specialPrice: isAdmin ? (v.specialPrice !== undefined ? Number(v.specialPrice) : (existing?.specialPrice)) : (existing?.specialPrice),
-        // Vendor prices only change on vendor updates; admin edits never overwrite them
+        price: (canEditPrices && isAdmin) ? (v.price !== undefined ? Number(v.price) : (existing?.price)) : (existing?.price),
+        specialPrice: (canEditPrices && isAdmin) ? (v.specialPrice !== undefined ? Number(v.specialPrice) : (existing?.specialPrice)) : (existing?.specialPrice),
         vendorPrice: nextVendorPrice,
-        stock: v.stock !== undefined ? Number(v.stock) : (existing?.stock ?? 0),
-        images: Array.isArray(v.images) ? v.images : (existing?.images || [])
+        stock: canEditFull ? (v.stock !== undefined ? Number(v.stock) : (existing?.stock ?? 0)) : (existing?.stock ?? 0),
+        images: canEditFull ? (Array.isArray(v.images) ? v.images : (existing?.images || [])) : (existing?.images || [])
       };
     });
   }
 
-  if (body.status !== undefined) product.status = body.status;
-  if (body.featured !== undefined) product.featured = Boolean(body.featured);
-  if (body.enabled !== undefined) product.enabled = Boolean(body.enabled);
+  if (canEditFull) {
+    if (body.status !== undefined) product.status = body.status;
+    if (body.featured !== undefined) product.featured = Boolean(body.featured);
+    if (body.enabled !== undefined) product.enabled = Boolean(body.enabled);
+  }
 
   // If name changed, update slug to a unique one
-  if (body.name !== undefined) {
+  if (canEditFull && body.name !== undefined) {
     const nextSlug = await ensureUniqueSlug(product.name, product._id);
     product.slug = nextSlug;
   }
 
   // Update productType based on variants
-  if (body.variants !== undefined) {
+  if (canEditFull && body.variants !== undefined) {
     const hasVariants = Array.isArray(body.variants) && body.variants.length > 0;
     const newProductType = hasVariants ? 'configurable' : 'simple';
     

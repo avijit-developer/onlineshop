@@ -128,4 +128,4 @@ const requireAnyPermission = (permissions) => async (req, res, next) => {
   }
 };
 
-module.exports = { authenticate, requireAdmin, requireRole, requirePermission, requireAnyPermission };
+module.exports = { authenticate, requireAdmin, requireRole, requirePermission, requireAnyPermission, getUserPermissions };

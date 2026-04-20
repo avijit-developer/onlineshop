@@ -907,15 +907,6 @@ router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) =
         if (isTerminalOrderStatus(order)) {
             return res.status(409).json({ success: false, message: 'Delivered, cancelled, or refunded orders cannot be assigned or reassigned' });
         }
-        const busyOrder = await Order.findOne(buildActiveDriverOrderQuery(driver._id, order._id))
-            .select('orderNumber')
-            .lean();
-        if (busyOrder) {
-            return res.status(409).json({
-                success: false,
-                message: `Driver is busy with order ${busyOrder.orderNumber || busyOrder._id}`,
-            });
-        }
         order.driver = driver._id;
         order.driverStatus = 'assigned';
         order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];

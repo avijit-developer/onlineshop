@@ -671,6 +671,16 @@
   box-shadow: 0 0 0 3px rgba(247, 171, 24, 0.14);
 }
 
+.driver-assignment-help {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 13px;
+}
+
 /* Pagination Styles */
 .pagination {
   display: flex;

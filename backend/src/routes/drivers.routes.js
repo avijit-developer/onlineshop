@@ -303,21 +303,27 @@ router.get('/', authenticate, requireAnyPermission(['driver.view', 'driver.edit'
       .sort({ createdAt: -1 })
       .lean()
     : [];
-  const activeOrderByDriver = new Map();
+  const activeOrdersByDriver = new Map();
   activeOrders.forEach(order => {
     const key = String(order.driver || '');
-    if (key && !activeOrderByDriver.has(key)) activeOrderByDriver.set(key, order);
+    if (!key) return;
+    const existing = activeOrdersByDriver.get(key) || [];
+    existing.push(order);
+    activeOrdersByDriver.set(key, existing);
   });
   const balanceEntries = await Promise.all(items.map(async item => [String(item._id), await computeDriverBalance(item._id)]));
   const balanceMap = new Map(balanceEntries);
   const enriched = items.map(item => {
-    const activeOrder = activeOrderByDriver.get(String(item._id));
+    const activeDriverOrders = activeOrdersByDriver.get(String(item._id)) || [];
+    const activeOrder = activeDriverOrders[0] || null;
     const balanceInfo = balanceMap.get(String(item._id)) || { totalEarnings: 0, totalPaid: 0, balance: 0 };
     return {
       ...item,
       isBusy: Boolean(activeOrder),
       busyOrderId: activeOrder?._id || null,
       busyOrderNumber: activeOrder?.orderNumber || null,
+      activeOrderCount: activeDriverOrders.length,
+      activeOrderNumbers: activeDriverOrders.map(order => order.orderNumber).filter(Boolean),
       totalEarnings: balanceInfo.totalEarnings,
       totalPaid: balanceInfo.totalPaid,
       balance: balanceInfo.balance,

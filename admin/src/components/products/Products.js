@@ -192,7 +192,11 @@ const Products = () => {
   const canViewProducts = !isVendorUser || vendorPerms.has('products.view');
   const canAddProducts = !isVendorUser || vendorPerms.has('products.add');
   const canEditProducts = !isVendorUser || vendorPerms.has('products.edit');
+  const hasProductPricePermission = !isVendorUser || vendorPerms.has('products.price');
+  const canEditProductPrices = !isVendorUser || showAddModal || hasProductPricePermission;
+  const canOpenProductEditor = canEditProducts || hasProductPricePermission;
   const canDeleteProducts = !isVendorUser || vendorPerms.has('products.delete');
+  const isPriceReadOnlyInEdit = showEditModal && !canEditProductPrices;
 
   useEffect(() => {
     fetchData();
@@ -437,10 +441,10 @@ const Products = () => {
         category: normalizeId(formData.categoryId),
         brand: normalizeId(formData.brandId),
         vendor: isVendorUser ? currentVendorId : normalizeId(formData.vendorId),
-        // Admin sets admin prices; vendors set vendor prices
-        regularPrice: (!isVendorUser && formData.regularPrice !== '') ? Number(formData.regularPrice) : undefined,
-        specialPrice: (!isVendorUser && formData.specialPrice !== '') ? Number(formData.specialPrice) : undefined,
-        vendorRegularPrice: (isVendorUser && formData.vendorRegularPrice !== '') ? Number(formData.vendorRegularPrice) : undefined,
+        // Admin sets both admin and vendor prices; vendors set vendor prices only
+        regularPrice: (!isVendorUser && canEditProductPrices && formData.regularPrice !== '') ? Number(formData.regularPrice) : undefined,
+        specialPrice: (!isVendorUser && canEditProductPrices && formData.specialPrice !== '') ? Number(formData.specialPrice) : undefined,
+        vendorRegularPrice: (canEditProductPrices && formData.vendorRegularPrice !== '') ? Number(formData.vendorRegularPrice) : undefined,
         tax: formData.tax !== '' ? Number(formData.tax) : undefined,
         stock: formData.stock !== '' ? Number(formData.stock) : undefined,
         sku: formData.sku?.trim() || undefined,
@@ -455,9 +459,11 @@ const Products = () => {
         payload.variants = matrixVariants.map(v => ({
           attributes: Object.fromEntries(Object.entries(v).filter(([k]) => variantAttributes.includes(k))),
           sku: (v.sku || '').trim(),
-          price: (!isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
-          specialPrice: (!isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
-          vendorPrice: (isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
+          price: (!isVendorUser && canEditProductPrices && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
+          specialPrice: (!isVendorUser && canEditProductPrices && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
+          vendorPrice: isVendorUser
+            ? ((v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined)
+            : ((canEditProductPrices && v.vendorPrice !== '' && v.vendorPrice !== undefined) ? Number(v.vendorPrice) : undefined),
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
           images: (v.images || []).map(img => typeof img === 'string' ? img : img.imageUrl)
         }));
@@ -465,9 +471,11 @@ const Products = () => {
         payload.variants = formData.variants.map(v => ({
           attributes: v.attributes || {},
           sku: (v.sku || '').trim(),
-          price: (!isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
-          specialPrice: (!isVendorUser && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
-          vendorPrice: (isVendorUser && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
+          price: (!isVendorUser && canEditProductPrices && v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined,
+          specialPrice: (!isVendorUser && canEditProductPrices && v.specialPrice !== '' && v.specialPrice !== undefined) ? Number(v.specialPrice) : undefined,
+          vendorPrice: isVendorUser
+            ? ((v.price !== '' && v.price !== undefined) ? Number(v.price) : undefined)
+            : ((canEditProductPrices && v.vendorPrice !== '' && v.vendorPrice !== undefined) ? Number(v.vendorPrice) : undefined),
           stock: v.stock !== '' && v.stock !== undefined ? Number(v.stock) : 0,
           images: Array.isArray(v.images) ? v.images : []
         }));
@@ -480,7 +488,7 @@ const Products = () => {
       if (payload.variants.length > 0) {
         for (const v of payload.variants) {
           const hasSku = !!v.sku;
-          const hasRequiredPrice = isVendorUser ? (v.vendorPrice !== undefined) : (v.price !== undefined);
+          const hasRequiredPrice = isVendorUser ? (v.vendorPrice !== undefined) : (!showEditModal || canEditProductPrices ? (v.price !== undefined) : true);
           if (!hasSku || !hasRequiredPrice) {
             toast.error('Each variant must have SKU and Price');
             return;
@@ -882,7 +890,7 @@ const Products = () => {
                 </td>
                 <td>
                   <div className="action-buttons">
-                    {(!isVendorUser || canEditProducts) && (
+                    {(!isVendorUser || canOpenProductEditor) && (
                       <button
                         onClick={() => handleEditProduct(product)}
                         className="btn btn-info btn-sm"
@@ -1009,9 +1017,6 @@ const Products = () => {
                 {!isVendorUser && showEditModal && selectedProduct && selectedProduct.status !== 'approved' && (
                   <button onClick={() => handleStatusChange(selectedProduct._id || selectedProduct.id, 'approved')} className="btn btn-success btn-sm">Approve</button>
                 )}
-                {!isVendorUser && showEditModal && selectedProduct && selectedProduct.status !== 'rejected' && (
-                  <button onClick={() => handleStatusChange(selectedProduct._id || selectedProduct.id, 'rejected')} className="btn btn-danger btn-sm">Reject</button>
-                )}
                 <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="close-btn">&times;</button>
               </div>
             </div>
@@ -1112,6 +1117,7 @@ const Products = () => {
                         min="0"
                         step="0.01"
                         required
+                        readOnly={isPriceReadOnlyInEdit}
                       />
                     </div>
                   </>
@@ -1123,10 +1129,10 @@ const Products = () => {
                         type="number"
                         name="vendorRegularPrice"
                         value={formData.vendorRegularPrice}
-                        onChange={() => {}}
+                        onChange={handleInputChange}
                         min="0"
                         step="0.01"
-                        disabled
+                        disabled={!canEditProductPrices}
                       />
                     </div>
                     <div className="form-group">
@@ -1139,6 +1145,7 @@ const Products = () => {
                         min="0"
                         step="0.01"
                         required
+                        disabled={!canEditProductPrices}
                       />
                     </div>
                     <div className="form-group">
@@ -1150,6 +1157,7 @@ const Products = () => {
                         onChange={handleInputChange}
                         min="0"
                         step="0.01"
+                        disabled={!canEditProductPrices}
                       />
                     </div>
                   </>
@@ -1433,7 +1441,8 @@ const Products = () => {
                                     value={variant.vendorPrice ?? ''}
                                     min="0"
                                     step="0.01"
-                                    disabled
+                                    disabled={!canEditProductPrices}
+                                    onChange={e => updateMatrixVariant(index, 'vendorPrice', e.target.value)}
                                   />
                                 </td>
                               )}
@@ -1443,6 +1452,8 @@ const Products = () => {
                                   value={variant.price}
                                   min="0"
                                   step="0.01"
+                                  readOnly={isPriceReadOnlyInEdit}
+                                  disabled={!isVendorUser && !canEditProductPrices}
                                   onChange={e => updateMatrixVariant(index, 'price', e.target.value)}
                                   required
                                 />
@@ -1454,6 +1465,7 @@ const Products = () => {
                                     value={variant.specialPrice}
                                     min="0"
                                     step="0.01"
+                                    disabled={!canEditProductPrices}
                                     onChange={e => updateMatrixVariant(index, 'specialPrice', e.target.value)}
                                   />
                                 </td>
@@ -1545,15 +1557,22 @@ const Products = () => {
                               </td>
                               {!isVendorUser && (
                                 <td>
-                                  <input type="number" min="0" step="0.01" value={v.vendorPrice ?? ''} disabled />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={v.vendorPrice ?? ''}
+                                    disabled={!canEditProductPrices}
+                                    onChange={e => updateExistingVariantField(i, 'vendorPrice', e.target.value)}
+                                  />
                                 </td>
                               )}
                               <td>
-                                <input type="number" min="0" step="0.01" value={v.price ?? ''} onChange={e => updateExistingVariantField(i, 'price', e.target.value)} />
+                                <input type="number" min="0" step="0.01" value={v.price ?? ''} readOnly={isPriceReadOnlyInEdit} disabled={!isVendorUser && !canEditProductPrices} onChange={e => updateExistingVariantField(i, 'price', e.target.value)} />
                               </td>
                               {!isVendorUser && (
                                 <td>
-                                  <input type="number" min="0" step="0.01" value={v.specialPrice ?? ''} onChange={e => updateExistingVariantField(i, 'specialPrice', e.target.value)} />
+                                  <input type="number" min="0" step="0.01" value={v.specialPrice ?? ''} disabled={!canEditProductPrices} onChange={e => updateExistingVariantField(i, 'specialPrice', e.target.value)} />
                                 </td>
                               )}
                               <td>

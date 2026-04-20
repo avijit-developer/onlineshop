@@ -6,16 +6,27 @@ import './Login.css';
 
 const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
 const API_BASE = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
-const REMEMBERED_PHONE_KEY = 'adminRememberedPhone';
+const REMEMBERED_CREDENTIALS_KEY = 'adminRememberedCredentials';
 
 const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const rememberedPhone = typeof window !== 'undefined' ? localStorage.getItem(REMEMBERED_PHONE_KEY) || '' : '';
+  const rememberedCredentials = (() => {
+    if (typeof window === 'undefined') return { phone: '', password: '' };
+    try {
+      const parsed = JSON.parse(localStorage.getItem(REMEMBERED_CREDENTIALS_KEY) || '{}');
+      return {
+        phone: parsed?.phone || '',
+        password: parsed?.password || '',
+      };
+    } catch (_) {
+      return { phone: '', password: '' };
+    }
+  })();
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
-      phone: rememberedPhone,
-      rememberMe: Boolean(rememberedPhone)
+      phone: rememberedCredentials.phone,
+      password: rememberedCredentials.password,
     }
   });
 
@@ -44,11 +55,10 @@ const Login = ({ onLogin }) => {
 
       onLogin({ token, user });
       if (typeof window !== 'undefined') {
-        if (data.rememberMe) {
-          localStorage.setItem(REMEMBERED_PHONE_KEY, data.phone || '');
-        } else {
-          localStorage.removeItem(REMEMBERED_PHONE_KEY);
-        }
+        localStorage.setItem(REMEMBERED_CREDENTIALS_KEY, JSON.stringify({
+          phone: data.phone || '',
+          password: data.password || '',
+        }));
       }
       toast.success('Login successful!');
     } catch (error) {
@@ -132,24 +142,13 @@ const Login = ({ onLogin }) => {
             {errors.password && <span className="error-message">{errors.password.message}</span>}
           </div>
 
-          <div className="form-group remember-me-group">
-            <label className="remember-me-label">
-              <input
-                type="checkbox"
-                className="remember-me-checkbox"
-                {...register('rememberMe')}
-              />
-              <span>Remember me on this device</span>
-            </label>
-          </div>
-          
           <div className="form-group">
             <button
               type="submit"
               className="btn btn-primary w-100"
               disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign Inn'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </div>
           

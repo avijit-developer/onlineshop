@@ -21,6 +21,11 @@ const AdminUsers = () => {
 
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm();
 
+  const permissionLabel = (permission) => {
+    if (permission === 'products.price') return 'edit price';
+    return permission.split('.')[1];
+  };
+
   // Get current logged-in admin user ID
   const getCurrentAdminId = () => {
     try {
@@ -447,7 +452,7 @@ const AdminUsers = () => {
                             onChange={(e) => {
                               const selectAll = e.target.checked;
                               const all = [
-                                'products.view','products.add','products.edit','products.delete',
+                                'products.view','products.add','products.edit','products.price','products.delete',
                                 'orders.view','orders.add','orders.edit','orders.delete',
                                 'reports.view',
                                 'vendor.add','vendor.edit','vendor.delete',
@@ -461,9 +466,9 @@ const AdminUsers = () => {
                       <details>
                         <summary>Products</summary>
                         <div className="permissions-checkboxes">
-                          {['products.view','products.add','products.edit','products.delete'].map(p => (
+                          {['products.view','products.add','products.edit','products.price','products.delete'].map(p => (
                             <label key={p} className="checkbox-label">
-                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                              <input type="checkbox" value={p} {...register('permissions')} /> {permissionLabel(p)}
                             </label>
                           ))}
                         </div>
@@ -473,7 +478,7 @@ const AdminUsers = () => {
                         <div className="permissions-checkboxes">
                           {['orders.view','orders.add','orders.edit','orders.delete'].map(p => (
                             <label key={p} className="checkbox-label">
-                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                              <input type="checkbox" value={p} {...register('permissions')} /> {permissionLabel(p)}
                             </label>
                           ))}
                         </div>
@@ -483,7 +488,7 @@ const AdminUsers = () => {
                         <div className="permissions-checkboxes">
                           {['reports.view'].map(p => (
                             <label key={p} className="checkbox-label">
-                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                              <input type="checkbox" value={p} {...register('permissions')} /> {permissionLabel(p)}
                             </label>
                           ))}
                         </div>
@@ -493,7 +498,7 @@ const AdminUsers = () => {
                         <div className="permissions-checkboxes">
                           {['vendor.add','vendor.edit','vendor.delete'].map(p => (
                             <label key={p} className="checkbox-label">
-                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                              <input type="checkbox" value={p} {...register('permissions')} /> {permissionLabel(p)}
                             </label>
                           ))}
                         </div>
@@ -503,7 +508,7 @@ const AdminUsers = () => {
                         <div className="permissions-checkboxes">
                           {['driver.view','driver.add','driver.edit','driver.approve'].map(p => (
                             <label key={p} className="checkbox-label">
-                              <input type="checkbox" value={p} {...register('permissions')} /> {p.split('.')[1]}
+                              <input type="checkbox" value={p} {...register('permissions')} /> {permissionLabel(p)}
                             </label>
                           ))}
                         </div>
