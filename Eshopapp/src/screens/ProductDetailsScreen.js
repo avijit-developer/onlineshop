@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, Modal, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Alert, Animated, Easing } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import RelatedProducts from '../components/RelatedProducts';
@@ -7,7 +7,6 @@ import ProductSpecifications from '../components/ProductSpecifications';
 import ProductReviews from '../components/ProductReviews';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ViewCartFooter from '../components/ViewCartFooter';
-import LottieView from 'lottie-react-native';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useAddress } from '../contexts/AddressContext';
@@ -29,6 +28,8 @@ export default function ProductDetailsScreen() {
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [showAddAnimation, setShowAddAnimation] = useState(false);
+    const addToCartAnim = useRef(new Animated.Value(0)).current;
+    const addToCartTimeoutRef = useRef(null);
     const lastFetchedProductIdRef = useRef(null);
     const [actionBarHeight, setActionBarHeight] = useState(84);
     const [shippingSettings, setShippingSettings] = useState(null);
@@ -99,6 +100,14 @@ export default function ProductDetailsScreen() {
             checkWishlistStatus(product._id);
         }
     }, [product, checkWishlistStatus]);
+
+    useEffect(() => {
+        return () => {
+            if (addToCartTimeoutRef.current) {
+                clearTimeout(addToCartTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const setupProductData = (productData) => {
         if (!productData) return;
@@ -609,9 +618,39 @@ export default function ProductDetailsScreen() {
                 return false;
             }
             
-            // Show success animation only on success
+            // Show simple native success animation only on success
+            if (addToCartTimeoutRef.current) {
+                clearTimeout(addToCartTimeoutRef.current);
+            }
+
             setShowAddAnimation(true);
-            setTimeout(() => setShowAddAnimation(false), 1500);
+            addToCartAnim.stopAnimation();
+            addToCartAnim.setValue(0);
+
+            Animated.sequence([
+                Animated.timing(addToCartAnim, {
+                    toValue: 1,
+                    duration: 220,
+                    easing: Easing.out(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.delay(900),
+                Animated.timing(addToCartAnim, {
+                    toValue: 0,
+                    duration: 180,
+                    easing: Easing.in(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ]).start(({ finished }) => {
+                if (finished) {
+                    setShowAddAnimation(false);
+                }
+            });
+
+            addToCartTimeoutRef.current = setTimeout(() => {
+                setShowAddAnimation(false);
+                addToCartAnim.setValue(0);
+            }, 1500);
             return true;
         } catch (error) {
             Alert.alert('Add to Cart Failed', error?.message || 'Unable to add this product to your cart right now.');
@@ -1010,19 +1049,37 @@ export default function ProductDetailsScreen() {
                 </TouchableOpacity>
             </View>
 
-            <Modal visible={showAddAnimation} transparent animationType="fade" onRequestClose={() => setShowAddAnimation(false)}>
-                <View style={styles.successOverlay}>
-                    <View style={styles.successCard}>
-                        <LottieView
-                            source={{ uri: 'https://assets10.lottiefiles.com/packages/lf20_jbrw3hcz.json' }}
-                            autoPlay
-                            loop={false}
-                            style={{ width: 140, height: 140 }}
-                        />
+            {showAddAnimation && (
+                <View pointerEvents="none" style={styles.successOverlay}>
+                    <Animated.View
+                        style={[
+                            styles.successToast,
+                            {
+                                opacity: addToCartAnim,
+                                transform: [
+                                    {
+                                        translateY: addToCartAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [16, 0],
+                                        }),
+                                    },
+                                    {
+                                        scale: addToCartAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [0.92, 1],
+                                        }),
+                                    },
+                                ],
+                            },
+                        ]}
+                    >
+                        <View style={styles.successIconCircle}>
+                            <Text style={styles.successIcon}>✓</Text>
+                        </View>
                         <Text style={styles.successText}>Added to cart</Text>
-                    </View>
+                    </Animated.View>
                 </View>
-            </Modal>
+            )}
             
             <ViewCartFooter bottomOffset={actionBarHeight + 8} />
         </>
@@ -1315,26 +1372,44 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     successOverlay: {
-        flex: 1,
+        ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.18)',
     },
-    successCard: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 20,
+    successToast: {
+        position: 'absolute',
+        minWidth: 180,
         alignItems: 'center',
-        elevation: 5,
+        justifyContent: 'center',
+        backgroundColor: '#e8f5e9',
+        borderRadius: 20,
+        paddingVertical: 22,
+        paddingHorizontal: 26,
+        elevation: 6,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.18,
+        shadowRadius: 8,
+    },
+    successIconCircle: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#2e7d32',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    successIcon: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#fff',
     },
     successText: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
-        color: '#43a047',
-        marginTop: 10,
+        color: '#1b5e20',
+        textAlign: 'center',
     },
 });
