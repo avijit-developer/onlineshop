@@ -34,7 +34,10 @@ const CategoryScreen = () => {
     const parentCategoryId = !categoryId || categoryId === 'all' ? 'root' : categoryId;
     
     try {
-      const res = await api.getCategoriesPublic({ parent: parentCategoryId, limit: 200 }, { signal: abortSignal });
+      const res = await api.getCategoriesPublic(
+        { parent: parentCategoryId, limit: 200 },
+        { signal: abortSignal, suppressNetworkErrorScreen: true }
+      );
       
       if (abortSignal?.aborted) return;
       
@@ -141,7 +144,10 @@ const CategoryScreen = () => {
     (async () => {
       try {
         // Fetch featured categories from root level
-        const res = await api.getCategoriesPublic({ parent: 'root', limit: 100 }, { signal: abortController.signal });
+        const res = await api.getCategoriesPublic(
+          { parent: 'root', limit: 100 },
+          { signal: abortController.signal, suppressNetworkErrorScreen: true }
+        );
         
         if (!isMounted || abortController.signal.aborted) return;
         
@@ -235,7 +241,10 @@ const CategoryScreen = () => {
               const parentCategoryId = !categoryId || categoryId === 'all' ? 'root' : categoryId;
               
               try {
-                const res = await api.getCategoriesPublic({ parent: parentCategoryId, limit: 200 });
+                const res = await api.getCategoriesPublic(
+                  { parent: parentCategoryId, limit: 200 },
+                  { suppressNetworkErrorScreen: true }
+                );
                 console.log('[CategoryScreen] Retry response:', res);
                 if (res?.success) {
                   const mapped = (res.data || []).map(c => ({ 

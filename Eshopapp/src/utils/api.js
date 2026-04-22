@@ -107,7 +107,12 @@ const api = {
     let url = `${initialBase}${endpoint}`;
     
     // Extract abort signal from options if provided
-    const { signal: externalSignal, headers: optionHeaders, ...restOptions } = options || {};
+    const {
+      signal: externalSignal,
+      headers: optionHeaders,
+      suppressNetworkErrorScreen = false,
+      ...restOptions
+    } = options || {};
     
     // Create internal abort controller if not provided
     const internalAbortController = externalSignal ? null : new AbortController();
@@ -171,7 +176,7 @@ const api = {
       // Surface a global navigation to NetworkError if available (guard repeated attempts)
       try {
         const nav = global.__APP_NAV__;
-        if (nav && typeof nav.navigate === 'function') {
+        if (!suppressNetworkErrorScreen && nav && typeof nav.navigate === 'function') {
           if (!global.__NETWORK_ERROR_ACTIVE__) {
             global.__NETWORK_ERROR_ACTIVE__ = true;
             const go = () => { try { nav.navigate('NetworkError', { retryAt: endpoint }); } catch (_) {} };
