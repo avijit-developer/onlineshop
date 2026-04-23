@@ -353,9 +353,10 @@ router.post('/reset-password', async (req, res) => {
 // Public customer registration
 router.post('/register', async (req, res) => {
   const { name, email, password, phone } = req.body || {};
-  if (!name || !email || !password || !phone) {
+  // Relax validation: only email and password are strictly required
+  if (!email || !password) {
     res.status(400);
-    throw new Error('name, email, phone and password are required');
+    throw new Error('Email and password are required');
   }
   if (!isValidEmail(email)) {
     res.status(400);
@@ -369,7 +370,7 @@ router.post('/register', async (req, res) => {
   const exists = await User.findOne({ email: email.trim().toLowerCase() }).lean();
   if (exists) { res.status(409); throw new Error('Email already in use'); }
   // Check phone uniqueness if provided
-  const phoneNorm = String(phone).trim();
+  const phoneNorm = String(phone || '').trim();
   if (phoneNorm) {
     const [userPhone, vendorPhone, driverPhone] = await Promise.all([
       User.findOne({ phone: phoneNorm }).lean(),
@@ -382,13 +383,17 @@ router.post('/register', async (req, res) => {
     }
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  const created = await User.create({ 
-    name: String(name).trim(), 
-    email: String(email).trim().toLowerCase(), 
-    phone: String(phone).trim(),
-    passwordHash 
-  });
+  const passwordHash = await bcrypt.hash(String(password), 10);
+  const normalizedName = String(name || '').trim() || String(email).split('@')[0] || 'Customer';
+  const userDoc = {
+    name: normalizedName,
+    email: String(email).trim().toLowerCase(),
+    passwordHash
+  };
+  if (phoneNorm) {
+    userDoc.phone = phoneNorm;
+  }
+  const created = await User.create(userDoc);
 
   const token = jwt.sign(
     { id: created._id.toString(), role: 'customer', email: created.email },
