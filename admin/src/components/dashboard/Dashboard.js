@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '../../utils/currency';
 import { Line } from 'react-chartjs-2';
 import {
@@ -12,6 +12,7 @@ import {
   Legend,
 } from 'chart.js';
 import './Dashboard.css';
+import { createAdminSocket } from '../../utils/socket';
 
 ChartJS.register(
   CategoryScale,
@@ -37,12 +38,37 @@ const Dashboard = () => {
   })();
   const isVendor = currentUser?.role === 'vendor';
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const socket = createAdminSocket();
+    if (!socket) return undefined;
+
+    const refreshDashboard = () => {
+      loadDashboardData({ showLoading: false });
+    };
+
+    socket.on('order:created', refreshDashboard);
+    socket.on('order:updated', refreshDashboard);
+    socket.on('order:deleted', refreshDashboard);
+
+    return () => {
+      socket.off('order:created', refreshDashboard);
+      socket.off('order:updated', refreshDashboard);
+      socket.off('order:deleted', refreshDashboard);
+      socket.disconnect();
+    };
+  }, []);
+
+  const loadDashboardData = useCallback(async ({ showLoading = true } = {}) => {
     try {
+      if (showLoading) {
+        setLoading(true);
+      }
       // Vendor path: build dashboard without hitting admin-only endpoint
       if (isVendor) {
         try {
@@ -251,9 +277,11 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
-  };
+  }, [isVendor]);
 
   const getChartData = () => {
     if (!data) return null;

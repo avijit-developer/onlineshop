@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '../../utils/currency';
 import { toast } from 'react-hot-toast';
 import './Orders.css';
+import { createAdminSocket } from '../../utils/socket';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -52,8 +53,30 @@ const Orders = () => {
     } catch (_) { return String(addr || ''); }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const socket = createAdminSocket();
+    if (!socket) return undefined;
+
+    const refreshOrders = () => {
+      fetchData({ showLoading: false });
+    };
+
+    socket.on('order:created', refreshOrders);
+    socket.on('order:updated', refreshOrders);
+    socket.on('order:deleted', refreshOrders);
+
+    return () => {
+      socket.off('order:created', refreshOrders);
+      socket.off('order:updated', refreshOrders);
+      socket.off('order:deleted', refreshOrders);
+      socket.disconnect();
+    };
   }, []);
 
   const currentUser = (() => {
@@ -129,8 +152,11 @@ const Orders = () => {
     filterOrders();
   }, [orders, searchTerm, statusFilter, dateFrom, dateTo, orderIdFilter, vendorFilter, driverFilter]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async ({ showLoading = true } = {}) => {
     try {
+      if (showLoading) {
+        setLoading(true);
+      }
       const ORIGIN = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
       const baseUrl = process.env.REACT_APP_API_URL || (ORIGIN && ORIGIN.includes('localhost:3000') ? 'http://localhost:5000' : (ORIGIN || 'http://localhost:5000'));
       const token = localStorage.getItem('adminToken');
@@ -174,13 +200,17 @@ const Orders = () => {
           toast.error('Failed to load data');
         }
       }
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
-  };
+  }, [isVendor]);
 
   const fetchApprovedDrivers = async () => {
     try {

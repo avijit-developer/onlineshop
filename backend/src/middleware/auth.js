@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const DriverUser = require('../models/DriverUser');
+const Driver = require('../models/Driver');
 const VendorUser = require('../models/VendorUser');
 
 function getJwtSecret() {
@@ -18,6 +20,23 @@ const authenticate = async (req, res, next) => {
   }
   try {
     const payload = jwt.verify(token, getJwtSecret());
+
+    if (payload.role === 'driver' && !payload.driverId) {
+      try {
+        const driverUser = await DriverUser.findById(payload.id).select('driver email name').lean();
+        if (driverUser?.driver) {
+          payload.driverId = String(driverUser.driver);
+        } else if (driverUser?.email) {
+          const driver = await Driver.findOne({ email: String(driverUser.email).trim().toLowerCase() }).select('_id').lean();
+          if (driver?._id) payload.driverId = String(driver._id);
+        } else if (driverUser?.name) {
+          const driver = await Driver.findOne({ name: String(driverUser.name).trim() }).select('_id').lean();
+          if (driver?._id) payload.driverId = String(driver._id);
+        }
+      } catch (driverResolveErr) {
+        console.warn('Failed to resolve driver context during auth:', driverResolveErr?.message || driverResolveErr);
+      }
+    }
     
     // Check if token is invalidated for vendor users
     if (payload.role === 'vendor') {
@@ -128,4 +147,4 @@ const requireAnyPermission = (permissions) => async (req, res, next) => {
   }
 };
 
-module.exports = { authenticate, requireAdmin, requireRole, requirePermission, requireAnyPermission, getUserPermissions };
+module.exports = { authenticate, requireAdmin, requireRole, requirePermission, requireAnyPermission, getUserPermissions, getJwtSecret };

@@ -4,6 +4,7 @@ const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const User = require('../models/User');
+const DriverUser = require('../models/DriverUser');
 const { authenticate, requireRole, requireAdmin } = require('../middleware/auth');
 const Driver = require('../models/Driver');
 const Vendor = require('../models/Vendor');
@@ -13,6 +14,35 @@ const PDFDocument = require('pdfkit');
 const router = express.Router();
 const { sendMail, buildEmailHtml } = require('../utils/mailer');
 const { validateAndComputeCoupon } = require('../utils/coupons');
+
+async function getRealtimeOrder(orderId) {
+	if (!orderId) return null;
+	return Order.findById(orderId)
+		.populate('user', 'name email phone')
+		.populate('driver', 'name email phone')
+		.lean();
+}
+
+async function emitOrderEvent(req, eventName, orderOrId, meta = {}) {
+	try {
+		const io = req?.app?.get('io');
+		if (!io) return;
+
+		const orderId = typeof orderOrId === 'object' && orderOrId !== null
+			? (orderOrId._id || orderOrId.id)
+			: orderOrId;
+		const payloadOrder = typeof orderOrId === 'object' && orderOrId !== null && orderOrId._id
+			? orderOrId
+			: await getRealtimeOrder(orderId);
+
+		io.emit(eventName, {
+			order: payloadOrder || orderOrId,
+			meta,
+		});
+	} catch (error) {
+		console.error('Failed to emit order event:', error);
+	}
+}
 
 // Helper to compute totals
 function computeTotals(items, taxPercent = 0, shippingCost = 0, discountAmount = 0) {
@@ -200,6 +230,45 @@ function isTerminalOrderStatus(orderOrStatus, driverStatusArg = null) {
 	const normalizedDriverStatus = String(driverStatus || '').toLowerCase();
 	if (['delivered', 'cancelled', 'canceled', 'refunded'].includes(normalized)) return true;
 	return ['delivered', 'delivery_completed'].includes(normalizedDriverStatus);
+}
+
+function isDriverClosedOrder(orderOrStatus, driverStatusArg = null) {
+	const status = typeof orderOrStatus === 'object' && orderOrStatus !== null ? orderOrStatus.status : orderOrStatus;
+	const driverStatus = typeof orderOrStatus === 'object' && orderOrStatus !== null ? orderOrStatus.driverStatus : driverStatusArg;
+	const normalized = String(status || '').toLowerCase();
+	const normalizedDriverStatus = String(driverStatus || '').toLowerCase();
+	return ['cancelled', 'canceled', 'refunded'].includes(normalized) || ['delivered', 'delivery_completed'].includes(normalizedDriverStatus);
+}
+
+async function resolveDriverId(req) {
+	const directId = req.user?.driverId;
+	if (directId) return String(directId);
+
+	const userId = req.user?.id;
+	if (!userId) return '';
+
+	if (req.user?.role !== 'driver') {
+		return String(userId);
+	}
+
+	try {
+		const driverUser = await DriverUser.findById(userId).select('driver email name').lean();
+		if (driverUser?.driver) {
+			return String(driverUser.driver);
+		}
+		if (driverUser?.email) {
+			const driver = await Driver.findOne({ email: String(driverUser.email).trim().toLowerCase() }).select('_id').lean();
+			if (driver?._id) return String(driver._id);
+		}
+		if (driverUser?.name) {
+			const driver = await Driver.findOne({ name: String(driverUser.name).trim() }).select('_id').lean();
+			if (driver?._id) return String(driver._id);
+		}
+	} catch (error) {
+		console.warn('Failed to resolve driver id for order query:', error?.message || error);
+	}
+
+	return String(userId);
 }
 
 // Customer: create order (uses provided items or cart)
@@ -414,7 +483,9 @@ router.post('/me', authenticate, requireRole(['customer']), async (req, res) => 
 				await sendMail({ to, subject: `Order Placed - ${orderNumber}`, html });
 			}
 		} catch (_) {}
-		res.status(201).json({ success: true, data: order });
+		const liveOrder = await getRealtimeOrder(order._id);
+		await emitOrderEvent(req, 'order:created', liveOrder || order, { source: 'customer' });
+		res.status(201).json({ success: true, data: liveOrder || order });
 	} catch (err) {
 		console.error('Create order error:', err);
 		res.status(500).json({ success: false, message: 'Failed to create order' });
@@ -548,8 +619,11 @@ router.post('/me/:id/cancel', authenticate, requireRole(['customer']), async (re
 		
 		// Restore stock
 		await restoreStockForOrderItems(order.items || []);
-		
-		res.json({ success: true, message: 'Order cancelled successfully', data: order });
+
+		const liveOrder = await getRealtimeOrder(order._id);
+		await emitOrderEvent(req, 'order:updated', liveOrder || order, { source: 'customer', action: 'cancel' });
+
+		res.json({ success: true, message: 'Order cancelled successfully', data: liveOrder || order });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to cancel order' });
 	}
@@ -784,6 +858,8 @@ router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
 		if (isRestoring && (status === 'confirmed' || status === 'processing')) {
 			await reduceStockForOrderItems(order.items || []);
 		}
+		const liveOrder = await getRealtimeOrder(order._id);
+		await emitOrderEvent(req, 'order:updated', liveOrder || order, { source: 'admin', action: 'status' });
 		// Notify customer
 		try {
 			const u = await User.findById(order.user).select('email name').lean();
@@ -858,6 +934,7 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
 		}
 		
 		await Order.findByIdAndDelete(req.params.id);
+		await emitOrderEvent(req, 'order:deleted', order, { source: 'admin' });
 		res.json({ success: true, message: 'Order deleted' });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to delete order' });
@@ -883,6 +960,7 @@ router.patch('/:id/driver-commission', authenticate, requireAdmin, async (req, r
 			.populate('user', 'name email phone')
 			.populate('driver', 'name email phone')
 			.lean();
+		await emitOrderEvent(req, 'order:updated', populatedOrder || order, { source: 'admin', action: 'driverCommission' });
 		res.json({ success: true, data: populatedOrder });
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Failed to update driver commission' });
@@ -917,6 +995,7 @@ router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) =
             .populate('user', 'name email phone')
             .populate('driver', 'name email phone')
             .lean();
+        await emitOrderEvent(req, 'order:updated', populatedOrder || order, { source: 'admin', action: 'assignDriver' });
         res.json({ success: true, data: populatedOrder });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to assign driver' });
@@ -940,6 +1019,7 @@ router.delete('/:id/assign-driver', authenticate, requireAdmin, async (req, res)
             .populate('user', 'name email phone')
             .populate('driver', 'name email phone')
             .lean();
+        await emitOrderEvent(req, 'order:updated', populatedOrder || order, { source: 'admin', action: 'removeDriver' });
         res.json({ success: true, data: populatedOrder });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to remove driver' });
@@ -952,12 +1032,12 @@ router.get('/driver', authenticate, requireRole(['driver']), async (req, res) =>
         const { page = 1, limit = 20, mode = 'all', status = 'all', q = '', from = '', to = '' } = req.query;
         const p = Math.max(parseInt(page, 10) || 1, 1);
         const l = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
-        const driverId = req.user.driverId || req.user.id;
+        const driverId = await resolveDriverId(req);
         const query = { driver: driverId };
         const andClauses = [];
 
         const activeStatusClause = {
-            status: { $nin: ['delivered', 'cancelled', 'canceled', 'refunded'] },
+            status: { $nin: ['cancelled', 'canceled', 'refunded'] },
             driverStatus: { $nin: ['delivered', 'delivery_completed'] },
         };
         const deliveredHistoryClause = {
@@ -1020,12 +1100,13 @@ router.patch('/driver/:id/status', authenticate, requireRole(['driver']), async 
         const { status, deliveryPaymentMethod } = req.body || {};
         const allowed = ['pickup_completed','on_the_way','delivered'];
         if (!allowed.includes(status)) return res.status(400).json({ success: false, message: 'Invalid status' });
+        const driverId = await resolveDriverId(req);
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-        if (isTerminalOrderStatus(order)) {
+        if (isDriverClosedOrder(order)) {
             return res.status(409).json({ success: false, message: 'This order is already closed' });
         }
-        if (String(order.driver || '') !== String(req.user.driverId || req.user.id)) {
+        if (String(order.driver || '') !== String(driverId)) {
             return res.status(403).json({ success: false, message: 'Not your order' });
         }
         if (status === 'delivered') {
@@ -1044,7 +1125,9 @@ router.patch('/driver/:id/status', authenticate, requireRole(['driver']), async 
             order.statusHistory.push({ status: 'delivered', updatedBy: req.user?.email || 'driver' });
         }
         await order.save();
-        res.json({ success: true, data: order });
+        const populatedOrder = await getRealtimeOrder(order._id);
+        await emitOrderEvent(req, 'order:updated', populatedOrder || order, { source: 'driver', action: 'status' });
+        res.json({ success: true, data: populatedOrder || order });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to update status' });
     }

@@ -202,11 +202,18 @@
 }
 
 .status-badge {
-  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
   border-radius: 20px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: capitalize;
+  white-space: nowrap;
+  line-height: 1;
+  vertical-align: middle;
+  max-width: 100%;
 }
 
 .status-pending {
@@ -771,6 +778,11 @@
   .orders-table td {
     padding: 10px 8px;
   }
+
+  .status-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
   
   .action-buttons {
     flex-direction: column;
@@ -826,6 +838,11 @@
   
   .orders-table {
     font-size: 12px;
+  }
+
+  .status-badge {
+    font-size: 10px;
+    padding: 3px 7px;
   }
   
   .order-info,

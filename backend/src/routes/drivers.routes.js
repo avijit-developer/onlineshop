@@ -85,8 +85,8 @@ async function ensureUniqueDriverIdentity({ email, phone, excludeDriverId = null
 function buildActiveDriverOrderQuery(driverId) {
   return {
     driver: driverId,
-    status: { $nin: ['delivered', 'cancelled', 'canceled', 'refunded'] },
-    driverStatus: { $nin: ['delivery_completed'] },
+    status: { $nin: ['cancelled', 'canceled', 'refunded'] },
+    driverStatus: { $nin: ['delivered', 'delivery_completed'] },
   };
 }
 
@@ -111,6 +111,35 @@ async function computeDriverBalance(driverId) {
     totalPaid: Math.round(totalPaid * 100) / 100,
     balance: Math.round(balance * 100) / 100,
   };
+}
+
+async function resolveDriverId(req) {
+  const directId = req.user?.driverId;
+  if (directId) return String(directId);
+
+  const userId = req.user?.id;
+  if (!userId) return '';
+
+  if (req.user?.role !== 'driver') {
+    return String(userId);
+  }
+
+  try {
+    const driverUser = await DriverUser.findById(userId).select('driver email name').lean();
+    if (driverUser?.driver) return String(driverUser.driver);
+    if (driverUser?.email) {
+      const driver = await Driver.findOne({ email: String(driverUser.email).trim().toLowerCase() }).select('_id').lean();
+      if (driver?._id) return String(driver._id);
+    }
+    if (driverUser?.name) {
+      const driver = await Driver.findOne({ name: String(driverUser.name).trim() }).select('_id').lean();
+      if (driver?._id) return String(driver._id);
+    }
+  } catch (error) {
+    console.warn('Failed to resolve driver id for driver route:', error?.message || error);
+  }
+
+  return String(userId);
 }
 
 // Public: apply to become a driver
@@ -191,7 +220,7 @@ router.post('/', authenticate, requireAnyPermission(['driver.add', 'driver.edit'
 // Driver: get my profile
 router.get('/me', authenticate, requireRole(['driver']), async (req, res) => {
   try {
-    const driverId = req.user.driverId || req.user.id;
+    const driverId = await resolveDriverId(req);
     const driver = await Driver.findById(driverId).lean();
     if (!driver) {
       res.status(404);
@@ -207,7 +236,7 @@ router.get('/me', authenticate, requireRole(['driver']), async (req, res) => {
 // Driver: update my profile
 router.put('/me/profile', authenticate, requireRole(['driver']), async (req, res) => {
   try {
-    const driverId = req.user.driverId || req.user.id;
+    const driverId = await resolveDriverId(req);
     const { name, address1, address2, city, zip, address } = req.body || {};
 
     if (!name || !String(name).trim()) {
@@ -247,7 +276,7 @@ router.put('/me/profile', authenticate, requireRole(['driver']), async (req, res
 
 router.get('/me/payouts', authenticate, requireRole(['driver']), async (req, res) => {
   try {
-    const driverId = req.user.driverId || req.user.id;
+    const driverId = await resolveDriverId(req);
     const [driver, balanceInfo, payouts] = await Promise.all([
       Driver.findById(driverId).lean(),
       computeDriverBalance(driverId),
