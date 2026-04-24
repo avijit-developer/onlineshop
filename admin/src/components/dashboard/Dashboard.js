@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '../../utils/currency';
+import { toast } from 'react-hot-toast';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -48,18 +49,33 @@ const Dashboard = () => {
     const socket = createAdminSocket();
     if (!socket) return undefined;
 
-    const refreshDashboard = () => {
+    const getOrderLabel = (event) => {
+      const order = event?.order || {};
+      return order.orderNumber || order._id || order.id || 'new order';
+    };
+
+    const refreshDashboard = (event) => {
+      if (event?.meta?.source === 'customer') {
+        toast.success(`New order received: ${getOrderLabel(event)}`);
+      }
+      loadDashboardData({ showLoading: false });
+    };
+
+    const refreshDashboardOnUpdate = (event) => {
+      if (event?.meta?.action === 'cancel') return;
       loadDashboardData({ showLoading: false });
     };
 
     socket.on('order:created', refreshDashboard);
-    socket.on('order:updated', refreshDashboard);
+    socket.on('order:updated', refreshDashboardOnUpdate);
     socket.on('order:deleted', refreshDashboard);
+    socket.on('order:cancelled', refreshDashboard);
 
     return () => {
       socket.off('order:created', refreshDashboard);
-      socket.off('order:updated', refreshDashboard);
+      socket.off('order:updated', refreshDashboardOnUpdate);
       socket.off('order:deleted', refreshDashboard);
+      socket.off('order:cancelled', refreshDashboard);
       socket.disconnect();
     };
   }, []);

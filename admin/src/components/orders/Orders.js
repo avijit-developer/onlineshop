@@ -63,18 +63,33 @@ const Orders = () => {
     const socket = createAdminSocket();
     if (!socket) return undefined;
 
-    const refreshOrders = () => {
+    const getOrderLabel = (event) => {
+      const order = event?.order || {};
+      return order.orderNumber || order._id || order.id || 'new order';
+    };
+
+    const refreshOrders = (event) => {
+      if (event?.meta?.source === 'customer') {
+        toast.success(`New order received: ${getOrderLabel(event)}`);
+      }
+      fetchData({ showLoading: false });
+    };
+
+    const refreshOrdersOnUpdate = (event) => {
+      if (event?.meta?.action === 'cancel') return;
       fetchData({ showLoading: false });
     };
 
     socket.on('order:created', refreshOrders);
-    socket.on('order:updated', refreshOrders);
+    socket.on('order:updated', refreshOrdersOnUpdate);
     socket.on('order:deleted', refreshOrders);
+    socket.on('order:cancelled', refreshOrders);
 
     return () => {
       socket.off('order:created', refreshOrders);
-      socket.off('order:updated', refreshOrders);
+      socket.off('order:updated', refreshOrdersOnUpdate);
       socket.off('order:deleted', refreshOrders);
+      socket.off('order:cancelled', refreshOrders);
       socket.disconnect();
     };
   }, []);

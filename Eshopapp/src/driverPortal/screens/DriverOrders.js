@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, Modal, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE } from '../../utils/api';
+import { createDriverSocket } from '../../utils/driverSocket';
 
 const formatMoney = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
@@ -31,7 +32,20 @@ const StatusButton = ({ label, onPress, disabled }) => (
   </TouchableOpacity>
 );
 
-const DriverOrders = ({ navigation }) => {
+const isDriverOrderMatch = (order, driverId) => {
+  if (!driverId) return false;
+  const assignedDriverId = String(order?.driver?._id || order?.driver?.id || order?.driver || '');
+  return assignedDriverId === String(driverId);
+};
+
+const isActiveDriverOrder = (order) => {
+  const status = String(order?.status || '').toLowerCase();
+  const driverStatus = String(order?.driverStatus || '').toLowerCase();
+  if (['cancelled', 'canceled', 'refunded'].includes(status)) return false;
+  return !['delivered', 'delivery_completed'].includes(driverStatus);
+};
+
+const DriverOrders = ({ navigation, socket, driverId = '' }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,6 +72,63 @@ const DriverOrders = ({ navigation }) => {
 
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    let localSocket = null;
+    const activeSocket = socket || null;
+
+    const handleRelevantUpdate = (payload = {}) => {
+      const order = payload?.order || payload || {};
+      if (!isDriverOrderMatch(order, driverId)) return;
+      if (!isActiveDriverOrder(order)) return;
+      load({ showLoading: false });
+    };
+
+    const bindSocket = async () => {
+      if (activeSocket) {
+        activeSocket.on('driver:order_assigned', handleRelevantUpdate);
+        activeSocket.on('driver:order_unassigned', () => {
+          load({ showLoading: false });
+        });
+        activeSocket.on('order:updated', handleRelevantUpdate);
+        return;
+      }
+
+      const token = await AsyncStorage.getItem('driverAuthToken');
+      localSocket = createDriverSocket(token);
+      if (!localSocket) return;
+      localSocket.on('driver:order_assigned', handleRelevantUpdate);
+      localSocket.on('driver:order_unassigned', () => {
+        load({ showLoading: false });
+      });
+      localSocket.on('order:updated', handleRelevantUpdate);
+    };
+
+    bindSocket();
+
+    return () => {
+      if (activeSocket) {
+        activeSocket.off('driver:order_assigned', handleRelevantUpdate);
+        activeSocket.off('driver:order_unassigned');
+        activeSocket.off('order:updated', handleRelevantUpdate);
+      }
+      if (localSocket) {
+        localSocket.off('driver:order_assigned', handleRelevantUpdate);
+        localSocket.off('driver:order_unassigned');
+        localSocket.off('order:updated', handleRelevantUpdate);
+        localSocket.disconnect();
+      }
+    };
+  }, [socket, driverId]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        load({ showLoading: false });
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
   const onRefresh = async () => {

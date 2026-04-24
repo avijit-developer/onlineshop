@@ -44,6 +44,16 @@ async function emitOrderEvent(req, eventName, orderOrId, meta = {}) {
 	}
 }
 
+async function emitDriverEvent(req, driverId, eventName, payload = {}) {
+	try {
+		const io = req?.app?.get('io');
+		if (!io || !driverId) return;
+		io.to(`driver:${driverId}`).emit(eventName, payload);
+	} catch (error) {
+		console.error('Failed to emit driver event:', error);
+	}
+}
+
 // Helper to compute totals
 function computeTotals(items, taxPercent = 0, shippingCost = 0, discountAmount = 0) {
 	const subtotal = items.reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 0)), 0);
@@ -622,6 +632,7 @@ router.post('/me/:id/cancel', authenticate, requireRole(['customer']), async (re
 
 		const liveOrder = await getRealtimeOrder(order._id);
 		await emitOrderEvent(req, 'order:updated', liveOrder || order, { source: 'customer', action: 'cancel' });
+		await emitOrderEvent(req, 'order:cancelled', liveOrder || order, { source: 'customer', action: 'cancel' });
 
 		res.json({ success: true, message: 'Order cancelled successfully', data: liveOrder || order });
 	} catch (err) {
@@ -973,17 +984,23 @@ module.exports = router;
 router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) => {
     try {
         const { driverId, driverEmail } = req.body || {};
+        let previousDriverId = null;
         let driver = null;
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        const currentDriverId = String(order.driver || '');
         if (driverId) {
             driver = await Driver.findById(driverId).lean();
         } else if (driverEmail) {
             driver = await Driver.findOne({ email: String(driverEmail).trim().toLowerCase() }).lean();
         }
         if (!driver) return res.status(404).json({ success: false, message: 'Driver not found' });
-        const order = await Order.findById(req.params.id);
-        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
         if (isTerminalOrderStatus(order)) {
             return res.status(409).json({ success: false, message: 'Delivered, cancelled, or refunded orders cannot be assigned or reassigned' });
+        }
+        const isDriverChanged = currentDriverId && currentDriverId !== String(driver._id);
+        if (currentDriverId && currentDriverId !== String(driver._id)) {
+            previousDriverId = currentDriverId;
         }
         order.driver = driver._id;
         order.driverStatus = 'assigned';
@@ -996,6 +1013,22 @@ router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) =
             .populate('driver', 'name email phone')
             .lean();
         await emitOrderEvent(req, 'order:updated', populatedOrder || order, { source: 'admin', action: 'assignDriver' });
+        if (!currentDriverId || isDriverChanged) {
+            await emitDriverEvent(req, String(driver._id), 'driver:order_assigned', {
+                order: populatedOrder || order,
+                message: `Order #${order.orderNumber} has been assigned to you.`,
+                action: 'assignDriver',
+                source: 'admin',
+            });
+        }
+        if (previousDriverId && previousDriverId !== String(driver._id)) {
+            await emitDriverEvent(req, previousDriverId, 'driver:order_unassigned', {
+                order: populatedOrder || order,
+                message: `Order #${order.orderNumber} has been reassigned to another driver.`,
+                action: 'reassignDriver',
+                source: 'admin',
+            });
+        }
         res.json({ success: true, data: populatedOrder });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to assign driver' });
@@ -1009,6 +1042,7 @@ router.delete('/:id/assign-driver', authenticate, requireAdmin, async (req, res)
         if (isTerminalOrderStatus(order)) {
             return res.status(409).json({ success: false, message: 'Delivered, cancelled, or refunded orders cannot be assigned or changed' });
         }
+        const previousDriverId = String(order.driver || '');
         order.driver = undefined;
         order.driverStatus = undefined;
         order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
@@ -1020,6 +1054,14 @@ router.delete('/:id/assign-driver', authenticate, requireAdmin, async (req, res)
             .populate('driver', 'name email phone')
             .lean();
         await emitOrderEvent(req, 'order:updated', populatedOrder || order, { source: 'admin', action: 'removeDriver' });
+        if (previousDriverId) {
+            await emitDriverEvent(req, previousDriverId, 'driver:order_unassigned', {
+                order: populatedOrder || order,
+                message: `Order #${order.orderNumber} has been removed from your list.`,
+                action: 'removeDriver',
+                source: 'admin',
+            });
+        }
         res.json({ success: true, data: populatedOrder });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to remove driver' });

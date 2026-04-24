@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, BackHandler } from 'react-native';
+import { Alert, View, Text, TouchableOpacity, StyleSheet, BackHandler } from 'react-native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,12 +7,14 @@ import DriverOrders from './screens/DriverOrders';
 import DriverHistoryOrders from './screens/DriverHistoryOrders';
 import DriverPayments from './screens/DriverPayments';
 import DriverProfile from './screens/DriverProfile';
+import { createDriverSocket } from '../utils/driverSocket';
 
 const DriverShell = () => {
   const navigation = useNavigation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [active, setActive] = useState('orders');
   const [me, setMe] = useState(null);
+  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
     const handler = () => true;
@@ -40,6 +42,67 @@ const DriverShell = () => {
     })();
   }, []);
 
+  useEffect(() => {
+    let connection = null;
+    let mounted = true;
+
+    const handleAssigned = (payload = {}) => {
+      const order = payload.order || {};
+      const orderNumber = order.orderNumber ? `#${order.orderNumber}` : 'a new order';
+      const message = payload.message || `${orderNumber} has been assigned to you.`;
+      const openDetails = () => {
+        setActive('orders');
+        setMenuOpen(false);
+        const routeParams = {
+          order,
+          orderId: order._id || order.id,
+          fromNotification: true,
+        };
+        if (typeof navigation.push === 'function') {
+          navigation.push('DriverOrderDetails', routeParams);
+        } else {
+          navigation.navigate('DriverOrderDetails', routeParams);
+        }
+      };
+      Alert.alert('New Order Assigned', message, [
+        { text: 'Later', style: 'cancel' },
+        {
+          text: 'View Details',
+          onPress: openDetails,
+        },
+      ]);
+    };
+
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem('driverAuthToken');
+        if (!mounted || !token) return;
+        connection = createDriverSocket(token);
+        if (!connection) return;
+        connection.on('driver:order_assigned', handleAssigned);
+        connection.on('driver:order_unassigned', (payload = {}) => {
+          const order = payload.order || {};
+          const orderNumber = order.orderNumber ? `#${order.orderNumber}` : 'an order';
+          Alert.alert('Order Updated', payload.message || `${orderNumber} was reassigned.`);
+        });
+        connection.on('connect_error', () => {});
+        if (mounted) {
+          setSocket(connection);
+        } else {
+          connection.disconnect();
+        }
+      } catch (_) {}
+    })();
+
+    return () => {
+      mounted = false;
+      if (connection) {
+        connection.off('driver:order_assigned', handleAssigned);
+        connection.disconnect();
+      }
+    };
+  }, [navigation]);
+
   const logout = async () => {
     try {
       await AsyncStorage.removeItem('driverAuthToken');
@@ -64,6 +127,8 @@ const DriverShell = () => {
       ? DriverPayments
       : DriverProfile;
 
+  const driverId = me?.driverId || me?.driver?._id || me?.driver || '';
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <View style={styles.header}>
@@ -77,7 +142,7 @@ const DriverShell = () => {
       </View>
 
       <View style={{ flex: 1 }}>
-        <Screen navigation={navigation} />
+        <Screen navigation={navigation} socket={socket} driverId={driverId} />
       </View>
 
       {menuOpen && (

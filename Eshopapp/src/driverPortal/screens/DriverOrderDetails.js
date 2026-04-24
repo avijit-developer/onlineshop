@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { API_BASE } from '../../utils/api';
+import { createDriverSocket } from '../../utils/driverSocket';
 
 const actionConfig = {
   assigned: { next: 'pickup_completed', label: 'Mark Pickup Completed' },
@@ -30,6 +31,58 @@ const DriverOrderDetails = ({ navigation, route }) => {
     () => (order?.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
     [order]
   );
+
+  useEffect(() => {
+    let localSocket = null;
+    let mounted = true;
+
+    const handleOrderRemoved = (payload = {}) => {
+      const nextOrder = payload?.order || {};
+      const currentOrderId = String(order?._id || order?.id || '');
+      const nextOrderId = String(nextOrder?._id || nextOrder?.id || '');
+      if (!currentOrderId || currentOrderId !== nextOrderId) return;
+
+      const nextDriverId = String(nextOrder?.driver?._id || nextOrder?.driver?.id || nextOrder?.driver || '');
+      if (nextDriverId) return;
+
+      Alert.alert(
+        'Order Removed',
+        payload.message || 'This order has been removed from your driver list.',
+        [
+          {
+            text: 'Back to Orders',
+            onPress: () => {
+              if (typeof navigation.popToTop === 'function') {
+                navigation.popToTop();
+                return;
+              }
+              navigation.goBack();
+            },
+          },
+        ]
+      );
+    };
+
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem('driverAuthToken');
+        if (!mounted || !token) return;
+        localSocket = createDriverSocket(token);
+        if (!localSocket) return;
+        localSocket.on('driver:order_unassigned', handleOrderRemoved);
+        localSocket.on('order:updated', handleOrderRemoved);
+      } catch (_) {}
+    })();
+
+    return () => {
+      mounted = false;
+      if (localSocket) {
+        localSocket.off('driver:order_unassigned', handleOrderRemoved);
+        localSocket.off('order:updated', handleOrderRemoved);
+        localSocket.disconnect();
+      }
+    };
+  }, [navigation, order?._id, order?.id]);
 
   const updateStatus = async (status, deliveryPaymentMethod = null) => {
     if (!order) return;
