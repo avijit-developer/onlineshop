@@ -14,6 +14,11 @@ const Drivers = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState('drivers');
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvFrom, setCsvFrom] = useState('');
+  const [csvTo, setCsvTo] = useState('');
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [rowAction, setRowAction] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [addSubmitting, setAddSubmitting] = useState(false);
@@ -24,6 +29,20 @@ const Drivers = () => {
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
   const [payoutForm, setPayoutForm] = useState({ amount: '', method: 'Manual', note: '' });
+  const [showPayoutHistoryModal, setShowPayoutHistoryModal] = useState(false);
+  const [payoutHistoryLoading, setPayoutHistoryLoading] = useState(false);
+  const [payoutHistorySummary, setPayoutHistorySummary] = useState({ totalEarnings: 0, totalPaid: 0, balance: 0 });
+  const [payoutHistoryRows, setPayoutHistoryRows] = useState([]);
+  const [ledgerRows, setLedgerRows] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerLimit, setLedgerLimit] = useState(10);
+  const [ledgerTotal, setLedgerTotal] = useState(0);
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [showLedgerCsvModal, setShowLedgerCsvModal] = useState(false);
+  const [ledgerCsvFrom, setLedgerCsvFrom] = useState('');
+  const [ledgerCsvTo, setLedgerCsvTo] = useState('');
+  const [exportingLedgerCsv, setExportingLedgerCsv] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -53,14 +72,19 @@ const Drivers = () => {
     return { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' };
   };
 
+  const buildDriverQueryParams = (pageNumber, pageLimit) => {
+    const qs = new URLSearchParams();
+    if (statusFilter && statusFilter !== 'all') qs.append('status', statusFilter);
+    if (q) qs.append('q', q);
+    qs.append('page', String(pageNumber));
+    qs.append('limit', String(pageLimit));
+    return qs;
+  };
+
   const fetchDrivers = async () => {
     try {
       setLoading(true);
-      const qs = new URLSearchParams();
-      if (statusFilter && statusFilter !== 'all') qs.append('status', statusFilter);
-      if (q) qs.append('q', q);
-      qs.append('page', String(page));
-      qs.append('limit', String(limit));
+      const qs = buildDriverQueryParams(page, limit);
       const res = await fetch(`${API_BASE}/api/v1/drivers?${qs.toString()}`, { headers: getAuthHeaders() });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || 'Failed to load drivers');
@@ -74,6 +98,268 @@ const Drivers = () => {
   };
 
   useEffect(() => { fetchDrivers(); /* eslint-disable-next-line */ }, [statusFilter, q, page, limit]);
+
+  const buildPayoutLedgerQueryParams = (pageNumber, pageLimit) => {
+    const qs = new URLSearchParams();
+    if (ledgerSearch) qs.append('q', ledgerSearch);
+    qs.append('page', String(pageNumber));
+    qs.append('limit', String(pageLimit));
+    return qs;
+  };
+
+  const csvValue = (value) => {
+    if (value === null || value === undefined) return '';
+    const normalized = Array.isArray(value) ? value.join(' | ') : String(value);
+    if (/[",\n\r]/.test(normalized)) {
+      return `"${normalized.replace(/"/g, '""')}"`;
+    }
+    return normalized;
+  };
+
+  const buildDriversCsv = (rows) => {
+    const headers = [
+      'Name',
+      'Email',
+      'Phone',
+      'City',
+      'ZIP',
+      'Address 1',
+      'Address 2',
+      'Address',
+      'Status',
+      'Enabled',
+      'Total Earnings',
+      'Total Paid',
+      'Due Balance',
+      'Busy',
+      'Active Order Count',
+      'Active Order Numbers',
+      'Created At',
+      'Updated At',
+    ];
+
+    const csvRows = rows.map((driver) => [
+      driver.name,
+      driver.email,
+      driver.phone,
+      driver.city,
+      driver.zip,
+      driver.address1,
+      driver.address2,
+      driver.address,
+      driver.status,
+      driver.enabled ? 'Yes' : 'No',
+      Number(driver.totalEarnings || 0).toFixed(2),
+      Number(driver.totalPaid || 0).toFixed(2),
+      Number(driver.balance || 0).toFixed(2),
+      driver.isBusy ? 'Yes' : 'No',
+      Number(driver.activeOrderCount || 0),
+      driver.activeOrderNumbers || [],
+      driver.createdAt ? new Date(driver.createdAt).toISOString() : '',
+      driver.updatedAt ? new Date(driver.updatedAt).toISOString() : '',
+    ]);
+
+    return [headers, ...csvRows]
+      .map((row) => row.map(csvValue).join(','))
+      .join('\n');
+  };
+
+  const fetchAllDriversForExport = async () => {
+    const pageSize = 100;
+    const exportedDrivers = [];
+    let currentPage = 1;
+    let totalCount = null;
+
+    while (true) {
+      const qs = buildDriverQueryParams(currentPage, pageSize);
+      const res = await fetch(`${API_BASE}/api/v1/drivers?${qs.toString()}`, { headers: getAuthHeaders() });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to load drivers for export');
+
+      const items = Array.isArray(json?.data) ? json.data : [];
+      exportedDrivers.push(...items);
+
+      if (totalCount === null) {
+        totalCount = Number(json?.meta?.total || items.length || 0);
+      }
+
+      if (!items.length || exportedDrivers.length >= totalCount || items.length < pageSize) {
+        break;
+      }
+
+      currentPage += 1;
+    }
+
+    return exportedDrivers;
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString();
+  };
+
+  const fetchPayoutLedger = async () => {
+    try {
+      setLedgerLoading(true);
+      const qs = buildPayoutLedgerQueryParams(ledgerPage, ledgerLimit);
+      const res = await fetch(`${API_BASE}/api/v1/drivers/payouts?${qs.toString()}`, { headers: getAuthHeaders() });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to load payout ledger');
+      setLedgerRows(Array.isArray(json?.data) ? json.data : []);
+      setLedgerTotal(Number(json?.meta?.total || 0));
+    } catch (e) {
+      toast.error(e?.message || 'Failed to load payout ledger');
+    } finally {
+      setLedgerLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'ledger') return;
+    fetchPayoutLedger();
+    /* eslint-disable-next-line */
+  }, [activeTab, ledgerSearch, ledgerPage, ledgerLimit]);
+
+  const fetchAllPayoutLedgerForExport = async () => {
+    const pageSize = 100;
+    const exportedRows = [];
+    let currentPage = 1;
+    let totalCount = null;
+
+    while (true) {
+      const qs = new URLSearchParams();
+      if (ledgerSearch) qs.append('q', ledgerSearch);
+      if (ledgerCsvFrom) qs.append('from', `${ledgerCsvFrom}T00:00:00`);
+      if (ledgerCsvTo) qs.append('to', `${ledgerCsvTo}T23:59:59.999`);
+      qs.append('page', String(currentPage));
+      qs.append('limit', String(pageSize));
+
+      const res = await fetch(`${API_BASE}/api/v1/drivers/payouts?${qs.toString()}`, { headers: getAuthHeaders() });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to load payout ledger for export');
+
+      const items = Array.isArray(json?.data) ? json.data : [];
+      exportedRows.push(...items);
+
+      if (totalCount === null) {
+        totalCount = Number(json?.meta?.total || items.length || 0);
+      }
+
+      if (!items.length || exportedRows.length >= totalCount || items.length < pageSize) {
+        break;
+      }
+
+      currentPage += 1;
+    }
+
+    return exportedRows;
+  };
+
+  const openLedgerCsvModal = () => {
+    setLedgerCsvFrom('');
+    setLedgerCsvTo('');
+    setShowLedgerCsvModal(true);
+  };
+
+  const exportLedgerCsvByDateRange = async () => {
+    if (exportingLedgerCsv) return;
+    try {
+      setExportingLedgerCsv(true);
+      const rows = await fetchAllPayoutLedgerForExport();
+      if (!rows.length) {
+        toast.error('No payout records to export');
+        return;
+      }
+
+      const headers = ['Driver', 'Email', 'Phone', 'City', 'Amount', 'Method', 'Note', 'Processed By', 'Created At', 'Updated At'];
+      const csv = [
+        headers,
+        ...rows.map((row) => [
+          row.driverName,
+          row.driverEmail,
+          row.driverPhone,
+          row.driverCity,
+          Number(row.amount || 0).toFixed(2),
+          row.method,
+          row.note,
+          row.processedBy,
+          row.createdAt ? new Date(row.createdAt).toISOString() : '',
+          row.updatedAt ? new Date(row.updatedAt).toISOString() : '',
+        ])
+      ]
+        .map((row) => row.map(csvValue).join(','))
+        .join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateTag = new Date().toISOString().slice(0, 10);
+      a.download = `driver-payout-ledger-${dateTag}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('CSV downloaded');
+      setShowLedgerCsvModal(false);
+    } catch (e) {
+      toast.error(e?.message || 'Failed to export payout ledger');
+    } finally {
+      setExportingLedgerCsv(false);
+    }
+  };
+
+  const openCsvModal = () => {
+    setCsvFrom('');
+    setCsvTo('');
+    setShowCsvModal(true);
+  };
+
+  const exportCsvByDateRange = async () => {
+    if (exportingCsv) return;
+    try {
+      setExportingCsv(true);
+      const rows = await fetchAllDriversForExport();
+      let filteredRows = rows;
+
+      if (csvFrom || csvTo) {
+        const from = csvFrom ? new Date(`${csvFrom}T00:00:00`) : null;
+        const to = csvTo ? new Date(`${csvTo}T23:59:59.999`) : null;
+        filteredRows = rows.filter((driver) => {
+          if (!driver.createdAt) return false;
+          const created = new Date(driver.createdAt);
+          if (from && created < from) return false;
+          if (to && created > to) return false;
+          return true;
+        });
+      }
+
+      if (!filteredRows.length) {
+        toast.error('No drivers to export');
+        return;
+      }
+
+      const csv = buildDriversCsv(filteredRows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateTag = new Date().toISOString().slice(0, 10);
+      a.download = `drivers-date-range-${dateTag}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('CSV downloaded');
+      setShowCsvModal(false);
+    } catch (e) {
+      toast.error(e?.message || 'Failed to export drivers');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
 
   const emptyFormData = () => ({
     name: '',
@@ -257,6 +543,48 @@ const Drivers = () => {
     setShowPayoutModal(true);
   };
 
+  const openPayoutHistoryModal = async (driver) => {
+    const driverId = driver._id || driver.id;
+    if (!driverId) {
+      toast.error('Driver not found');
+      return;
+    }
+
+    setSelectedDriver(driver);
+    setPayoutHistoryRows([]);
+    setPayoutHistorySummary({
+      totalEarnings: Number(driver.totalEarnings || 0),
+      totalPaid: Number(driver.totalPaid || 0),
+      balance: Number(driver.balance || 0),
+    });
+    setPayoutHistoryLoading(true);
+    setShowPayoutHistoryModal(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/drivers/${driverId}/payouts`, { headers: getAuthHeaders() });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to load payout history');
+
+      const data = json?.data || {};
+      setPayoutHistorySummary({
+        totalEarnings: Number(data.totalEarnings || 0),
+        totalPaid: Number(data.totalPaid || 0),
+        balance: Number(data.balance || 0),
+      });
+      setPayoutHistoryRows(Array.isArray(data.payouts) ? data.payouts : []);
+    } catch (e) {
+      toast.error(e?.message || 'Failed to load payout history');
+    } finally {
+      setPayoutHistoryLoading(false);
+    }
+  };
+
+  const closePayoutHistoryModal = () => {
+    setShowPayoutHistoryModal(false);
+    setPayoutHistoryLoading(false);
+    setPayoutHistoryRows([]);
+  };
+
   const submitPayout = async (e) => {
     e.preventDefault();
     try {
@@ -293,8 +621,7 @@ const Drivers = () => {
   return (
     <div className="drivers-page">
       <div className="drivers-hero">
-        <div>
-          <span className="drivers-eyebrow">Fleet Management</span>
+        <div>          
           <h2>Drivers</h2>
           <p className="drivers-subtitle">Manage approvals, balances, and payouts for every driver from one place.</p>
         </div>
@@ -313,7 +640,7 @@ const Drivers = () => {
           <strong>{drivers.filter(d => d.status === 'approved').length}</strong>
         </div>
         <div className="drivers-stat-card">
-          <span>Total Earnings</span>
+          <span>Total Collection</span>
           <strong>{formatMoney(drivers.reduce((sum, d) => sum + Number(d.totalEarnings || 0), 0))}</strong>
         </div>
         <div className="drivers-stat-card">
@@ -322,15 +649,46 @@ const Drivers = () => {
         </div>
       </div>
 
+      <div className="drivers-view-tabs">
+        <button
+          type="button"
+          className={`drivers-view-tab ${activeTab === 'drivers' ? 'active' : ''}`}
+          onClick={() => setActiveTab('drivers')}
+        >
+          Drivers
+        </button>
+        <button
+          type="button"
+          className={`drivers-view-tab ${activeTab === 'ledger' ? 'active' : ''}`}
+          onClick={() => { setLedgerPage(1); setActiveTab('ledger'); }}
+        >
+          Payout Ledger
+        </button>
+      </div>
+
+      {activeTab === 'drivers' && (
       <div className="card">
         <div className="drivers-toolbar">
-          <input placeholder="Search by name, email, or phone" value={q} onChange={e => { setQ(e.target.value); setPage(1); }} className="search-input drivers-search" />
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} className="filter-select">
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          <div className="drivers-toolbar-filters">
+            <input placeholder="Search by name, email, or phone" value={q} onChange={e => { setQ(e.target.value); setPage(1); }} className="search-input drivers-search" />
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} className="filter-select">
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div className="drivers-toolbar-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={openCsvModal}
+              disabled={loading}
+              title="Download filtered drivers as CSV"
+            >
+              Download CSV
+            </button>
+          </div>
         </div>
         <div className="table-responsive">
           <table className="table">
@@ -339,7 +697,7 @@ const Drivers = () => {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
-                <th>Total Earnings</th>
+                <th>Total Collection</th>
                 <th>Due Balance</th>
                 <th>Status</th>
                 <th>Enabled</th>
@@ -378,6 +736,7 @@ const Drivers = () => {
                     <td>
                       <div className="driver-actions">
                         <button className="btn btn-primary btn-sm" onClick={() => openEditModal(d)}>Edit</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => openPayoutHistoryModal(d)}>History</button>
                         <button className="btn btn-warning btn-sm" onClick={() => openPayoutModal(d)} disabled={Number(d.balance || 0) <= 0}>Payout</button>
                         {d.status === 'pending' ? (
                           rowAction[d._id || d.id] ? (
@@ -413,6 +772,173 @@ const Drivers = () => {
           </select>
         </div>
       </div>
+      )}
+
+      {activeTab === 'ledger' && (
+        <div className="card">
+          <div className="drivers-toolbar">
+            <div className="drivers-toolbar-filters">
+              <input
+                placeholder="Search by driver, note, or method"
+                value={ledgerSearch}
+                onChange={e => { setLedgerSearch(e.target.value); setLedgerPage(1); }}
+                className="search-input drivers-search"
+              />
+            </div>
+            <div className="drivers-toolbar-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={openLedgerCsvModal}
+                disabled={ledgerLoading}
+                title="Download payout ledger as CSV"
+              >
+                Download CSV
+              </button>
+            </div>
+          </div>
+          <div className="table-responsive">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Driver</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Note</th>
+                  <th>Processed By</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ledgerLoading ? (
+                  <tr>
+                    <td colSpan="8" className="driver-empty">Loading payout ledger...</td>
+                  </tr>
+                ) : (ledgerRows || []).length ? (
+                  ledgerRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <div className="driver-primary">
+                          <strong>{row.driverName}</strong>
+                          {row.driverCity ? <small>{row.driverCity}</small> : null}
+                        </div>
+                      </td>
+                      <td>{row.driverEmail || '-'}</td>
+                      <td>{row.driverPhone || '-'}</td>
+                      <td>{formatMoney(row.amount)}</td>
+                      <td>{row.method || 'Manual'}</td>
+                      <td className="driver-history-note">{row.note || '-'}</td>
+                      <td>{row.processedBy || 'System'}</td>
+                      <td>{formatDateTime(row.createdAt)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="driver-empty">No payout transactions found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="pagination">
+            <button className="btn btn-secondary" disabled={ledgerPage===1} onClick={()=>setLedgerPage(1)}>First</button>
+            <button className="btn btn-secondary" disabled={ledgerPage===1} onClick={()=>setLedgerPage(p=>Math.max(1,p-1))}>Prev</button>
+            <span className="page-info">Page {ledgerPage}</span>
+            <button className="btn btn-secondary" onClick={()=>setLedgerPage(p=>p+1)} disabled={ledgerRows.length < ledgerLimit || ledgerPage * ledgerLimit >= ledgerTotal}>Next</button>
+            <select value={ledgerLimit} onChange={e=>{ setLedgerLimit(Number(e.target.value)||10); setLedgerPage(1); }} className="page-size-select" style={{ marginLeft: 8 }}>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {showCsvModal && (
+        <div className="modal-overlay" onClick={() => setShowCsvModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Download Drivers CSV</h3>
+              <button className="modal-close" onClick={() => setShowCsvModal(false)}>X</button>
+            </div>
+            <div className="modal-body">
+              <div className="drivers-form-grid">
+                <div className="form-group">
+                  <label>From</label>
+                  <input
+                    type="date"
+                    value={csvFrom}
+                    max={csvTo || undefined}
+                    onChange={(e) => setCsvFrom(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>To</label>
+                  <input
+                    type="date"
+                    value={csvTo}
+                    min={csvFrom || undefined}
+                    onChange={(e) => setCsvTo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <small className="driver-csv-hint">Leave empty to export all filtered drivers.</small>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowCsvModal(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-success" onClick={exportCsvByDateRange} disabled={exportingCsv}>
+                {exportingCsv ? 'Downloading...' : 'Download'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLedgerCsvModal && (
+        <div className="modal-overlay" onClick={() => setShowLedgerCsvModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Download Payout Ledger CSV</h3>
+              <button type="button" className="modal-close" onClick={() => setShowLedgerCsvModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="drivers-form-grid">
+                <div className="form-group">
+                  <label>From</label>
+                  <input
+                    type="date"
+                    value={ledgerCsvFrom}
+                    max={ledgerCsvTo || undefined}
+                    onChange={(e) => setLedgerCsvFrom(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>To</label>
+                  <input
+                    type="date"
+                    value={ledgerCsvTo}
+                    min={ledgerCsvFrom || undefined}
+                    onChange={(e) => setLedgerCsvTo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <small className="driver-csv-hint">Leave empty to export all payout transactions.</small>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowLedgerCsvModal(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-success" onClick={exportLedgerCsvByDateRange} disabled={exportingLedgerCsv}>
+                {exportingLedgerCsv ? 'Downloading...' : 'Download'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
@@ -595,6 +1121,77 @@ const Drivers = () => {
                 <button type="submit" className="btn btn-warning" disabled={payoutSubmitting}>{payoutSubmitting ? 'Processing...' : 'Pay Driver'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showPayoutHistoryModal && selectedDriver && (
+        <div className="modal-overlay" onClick={closePayoutHistoryModal}>
+          <div className="modal driver-history-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Payout Transaction History</h3>
+              <button type="button" className="modal-close" onClick={closePayoutHistoryModal}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="driver-history-summary">
+                <div className="driver-history-summary-item">
+                  <span>Driver</span>
+                  <strong>{selectedDriver.name}</strong>
+                </div>
+                <div className="driver-history-summary-item">
+                  <span>Total Earnings</span>
+                  <strong>{formatMoney(payoutHistorySummary.totalEarnings)}</strong>
+                </div>
+                <div className="driver-history-summary-item">
+                  <span>Total Paid</span>
+                  <strong>{formatMoney(payoutHistorySummary.totalPaid)}</strong>
+                </div>
+                <div className="driver-history-summary-item">
+                  <span>Due Balance</span>
+                  <strong>{formatMoney(payoutHistorySummary.balance)}</strong>
+                </div>
+              </div>
+
+              {payoutHistoryLoading ? (
+                <div className="driver-history-loading">Loading payout history...</div>
+              ) : payoutHistoryRows.length ? (
+                <div className="table-responsive driver-history-table-wrap">
+                  <table className="table driver-history-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Note</th>
+                        <th>Processed By</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payoutHistoryRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{formatDateTime(row.createdAt)}</td>
+                          <td>{formatMoney(row.amount)}</td>
+                          <td>{row.method || 'Manual'}</td>
+                          <td className="driver-history-note">{row.note || '-'}</td>
+                          <td>
+                            {row.processedBy
+                              ? [row.processedBy.name, row.processedBy.email].filter(Boolean).join(' - ')
+                              : 'System'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="driver-history-empty">No payout transactions found for this driver.</div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={closePayoutHistoryModal}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

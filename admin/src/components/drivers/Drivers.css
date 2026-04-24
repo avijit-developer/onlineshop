@@ -37,6 +37,33 @@
   margin-bottom: 18px;
 }
 
+.drivers-view-tabs {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+.drivers-view-tab {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 16px;
+  background: transparent;
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.drivers-view-tab.active {
+  background: #111827;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.15);
+}
+
 .drivers-stat-card {
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border: 1px solid #e5e7eb;
@@ -71,7 +98,21 @@
   margin-bottom: 14px;
 }
 
+.drivers-toolbar-filters,
+.drivers-toolbar-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.drivers-toolbar-filters {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .drivers-search {
+  flex: 1 1 280px;
   min-width: 280px;
 }
 
@@ -150,6 +191,79 @@
   border-radius: 8px;
   background: #f8f9fa;
   border: 1px solid #e5e7eb;
+}
+
+.driver-history-modal {
+  max-width: 980px;
+}
+
+.driver-history-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.driver-history-summary-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.driver-history-summary-item span {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.driver-history-summary-item strong {
+  color: #111827;
+  font-size: 16px;
+}
+
+.driver-history-loading,
+.driver-history-empty {
+  padding: 18px;
+  text-align: center;
+  color: #64748b;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.driver-history-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.driver-history-table {
+  margin: 0;
+}
+
+.driver-history-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+}
+
+.driver-history-note {
+  max-width: 260px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.driver-csv-hint {
+  display: block;
+  margin-top: 12px;
+  color: #64748b;
 }
 
 .balance-pill {

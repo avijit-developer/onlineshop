@@ -949,10 +949,61 @@ router.delete('/:id/assign-driver', authenticate, requireAdmin, async (req, res)
 // Driver: list my assigned orders
 router.get('/driver', authenticate, requireRole(['driver']), async (req, res) => {
     try {
-        const { page = 1, limit = 20 } = req.query;
+        const { page = 1, limit = 20, mode = 'all', status = 'all', q = '', from = '', to = '' } = req.query;
         const p = Math.max(parseInt(page, 10) || 1, 1);
         const l = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
-        const query = { driver: req.user.driverId || req.user.id };
+        const driverId = req.user.driverId || req.user.id;
+        const query = { driver: driverId };
+        const andClauses = [];
+
+        const activeStatusClause = {
+            status: { $nin: ['delivered', 'cancelled', 'canceled', 'refunded'] },
+            driverStatus: { $nin: ['delivered', 'delivery_completed'] },
+        };
+        const deliveredHistoryClause = {
+            driverStatus: 'delivered',
+        };
+
+        if (mode === 'active') {
+            andClauses.push(activeStatusClause);
+        } else if (mode === 'history') {
+            andClauses.push(deliveredHistoryClause);
+        }
+
+        if (status && status !== 'all') {
+            const normalizedStatus = String(status).toLowerCase();
+            if (normalizedStatus === 'delivered') {
+                andClauses.push(deliveredHistoryClause);
+            } else if (['assigned', 'pickup_completed', 'on_the_way', 'delivery_completed'].includes(normalizedStatus)) {
+                andClauses.push({ driverStatus: normalizedStatus });
+            } else {
+                andClauses.push({ status: normalizedStatus });
+            }
+        }
+
+        if (q) {
+            const regex = { $regex: String(q), $options: 'i' };
+            andClauses.push({
+                $or: [
+                    { orderNumber: regex },
+                    { shippingAddress: regex },
+                    { customerPhone: regex },
+                    { orderNote: regex },
+                ]
+            });
+        }
+
+        if (from || to) {
+            const createdAt = {};
+            if (from) createdAt.$gte = new Date(from);
+            if (to) createdAt.$lte = new Date(to);
+            andClauses.push({ createdAt });
+        }
+
+        if (andClauses.length > 0) {
+            query.$and = andClauses;
+        }
+
         const [orders, total] = await Promise.all([
             Order.find(query).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l).populate('user', 'name email phone').lean(),
             Order.countDocuments(query)
@@ -966,7 +1017,7 @@ router.get('/driver', authenticate, requireRole(['driver']), async (req, res) =>
 // Driver: update driver delivery status
 router.patch('/driver/:id/status', authenticate, requireRole(['driver']), async (req, res) => {
     try {
-        const { status } = req.body || {};
+        const { status, deliveryPaymentMethod } = req.body || {};
         const allowed = ['pickup_completed','on_the_way','delivered'];
         if (!allowed.includes(status)) return res.status(400).json({ success: false, message: 'Invalid status' });
         const order = await Order.findById(req.params.id);
@@ -976,6 +1027,13 @@ router.patch('/driver/:id/status', authenticate, requireRole(['driver']), async 
         }
         if (String(order.driver || '') !== String(req.user.driverId || req.user.id)) {
             return res.status(403).json({ success: false, message: 'Not your order' });
+        }
+        if (status === 'delivered') {
+            const normalizedPaymentMethod = String(deliveryPaymentMethod || '').toLowerCase();
+            if (!['cash', 'online'].includes(normalizedPaymentMethod)) {
+                return res.status(400).json({ success: false, message: 'Delivery payment method is required' });
+            }
+            order.deliveryPaymentMethod = normalizedPaymentMethod;
         }
         order.driverStatus = status;
         order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];

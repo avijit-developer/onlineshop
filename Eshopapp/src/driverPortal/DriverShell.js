@@ -4,6 +4,7 @@ import { CommonActions, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DriverOrders from './screens/DriverOrders';
+import DriverHistoryOrders from './screens/DriverHistoryOrders';
 import DriverPayments from './screens/DriverPayments';
 import DriverProfile from './screens/DriverProfile';
 
@@ -57,6 +58,8 @@ const DriverShell = () => {
 
   const Screen = active === 'orders'
     ? DriverOrders
+    : active === 'history'
+      ? DriverHistoryOrders
     : active === 'payments'
       ? DriverPayments
       : DriverProfile;
@@ -96,6 +99,10 @@ const DriverShell = () => {
         <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('orders'); setMenuOpen(false); }}>
           <Icon name="list-outline" size={18} color={active === 'orders' ? '#f7ab18' : '#666'} />
           <Text style={[styles.menuText, active === 'orders' && styles.menuTextActive]}>Orders</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('history'); setMenuOpen(false); }}>
+          <Icon name="time-outline" size={18} color={active === 'history' ? '#f7ab18' : '#666'} />
+          <Text style={[styles.menuText, active === 'history' && styles.menuTextActive]}>History Orders</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('payments'); setMenuOpen(false); }}>
           <Icon name="card-outline" size={18} color={active === 'payments' ? '#f7ab18' : '#666'} />

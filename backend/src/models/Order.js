@@ -34,6 +34,7 @@ const orderSchema = new mongoose.Schema({
 	deliveryLatitude: { type: Number, default: null },
 	deliveryLongitude: { type: Number, default: null },
 	paymentMethod: { type: String, required: true },
+	deliveryPaymentMethod: { type: String, enum: ['cash', 'online', null], default: null },
 	tax: { type: Number, default: 0 },
 	shippingCost: { type: Number, default: 0 },
 	driverCommission: { type: Number, default: 0 },

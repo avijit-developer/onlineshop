@@ -73,9 +73,33 @@ const Orders = () => {
     if (['cancelled','canceled'].includes(v)) return 'cancelled';
     if (['delivered','completed'].includes(v)) return 'delivered';
     if (['shipped','out_for_delivery','out-for-delivery','dispatched','in_transit'].includes(v)) return 'shipped';
+    if (['pickup_completed'].includes(v)) return 'pickup_completed';
+    if (['on_the_way'].includes(v)) return 'on_the_way';
     if (['confirmed'].includes(v)) return 'confirmed';
     if (['processing','packed','pending'].includes(v)) return 'processing';
     return v || 'processing';
+  };
+
+  const getOrderStatusValue = (order) => {
+    const driverStatus = String(order?.driverStatus || '').toLowerCase();
+    if (driverStatus === 'delivery_completed') return 'delivered';
+    if (['pickup_completed', 'on_the_way', 'delivered'].includes(driverStatus)) return driverStatus;
+    return String(order?.status || 'pending').toLowerCase();
+  };
+
+  const getStatusLabel = (status) => {
+    const option = statusOptions.find(item => item.value === status);
+    return option ? option.label : status;
+  };
+
+  const matchesStatusFilter = (order, filter) => {
+    if (filter === 'all') return true;
+    const orderStatus = getOrderStatusValue(order);
+    if (orderStatus === filter) return true;
+    if (filter === 'processing' && orderStatus === 'pickup_completed') return true;
+    if (filter === 'shipped' && orderStatus === 'on_the_way') return true;
+    if (filter === 'delivered' && orderStatus === 'delivery_completed') return true;
+    return normalizeStatus(orderStatus) === normalizeStatus(filter);
   };
 
   // Aggregate per-vendor statuses into a single display status
@@ -214,11 +238,7 @@ const Orders = () => {
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        const orderStatus = normalizeStatus(order.status);
-        const filterStatus = normalizeStatus(statusFilter);
-        return orderStatus === filterStatus;
-      });
+      filtered = filtered.filter(order => matchesStatusFilter(order, statusFilter));
     }
 
     // Order ID filter
@@ -758,6 +778,8 @@ const Orders = () => {
                 <option value="confirmed">Confirmed</option>
                 <option value="processing">Processing</option>
                 <option value="shipped">Shipped</option>
+                <option value="pickup_completed">Pickup Completed</option>
+                <option value="on_the_way">On The Way</option>
                 <option value="delivered">Delivered</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="refunded">Refunded</option>
@@ -811,11 +833,11 @@ const Orders = () => {
         </div>
         <div className="stat-card">
           <h3>Pending Orders</h3>
-          <p>{orders.filter(o => o.status === 'pending').length}</p>
+          <p>{orders.filter(o => matchesStatusFilter(o, 'pending')).length}</p>
         </div>
         <div className="stat-card">
           <h3>Processing</h3>
-          <p>{orders.filter(o => o.status === 'processing').length}</p>
+          <p>{orders.filter(o => matchesStatusFilter(o, 'processing')).length}</p>
         </div>
         <div className="stat-card">
           <h3>Total Revenue</h3>
@@ -863,10 +885,14 @@ const Orders = () => {
                   <strong>{formatCurrency(calculateOrderTotal(order))}</strong>
                 </td>
                 <td>
-                  <span className={`status-badge ${getStatusBadgeClass(order.status)}`}>
+                  <span className={`status-badge ${getStatusBadgeClass(getOrderStatusValue(order))}`}>
                     {(() => {
                       const vendorCount = Array.from(new Set((order.items || []).map(i => String(i.vendor)).filter(Boolean))).length;
-                      return vendorCount > 1 ? aggregateMultiVendorStatus(order) : order.status;
+                      const statusValue = getOrderStatusValue(order);
+                      if (statusValue === 'pickup_completed' || statusValue === 'on_the_way' || statusValue === 'delivered') {
+                        return getStatusLabel(statusValue);
+                      }
+                      return vendorCount > 1 ? aggregateMultiVendorStatus(order) : getStatusLabel(statusValue);
                     })()}
                   </span>
                 </td>
@@ -1378,7 +1404,7 @@ const Orders = () => {
             </div>
             <div className="modal-body">
               <div className="status-update-form">
-                <p>Current Status: <span className={`status-badge ${getStatusBadgeClass(getAdminStatusValue(selectedOrder))}`}>{getAdminStatusValue(selectedOrder)}</span></p>
+                <p>Current Status: <span className={`status-badge ${getStatusBadgeClass(getAdminStatusValue(selectedOrder))}`}>{getStatusLabel(getAdminStatusValue(selectedOrder))}</span></p>
                 <div className="status-options">
                   <select
                     value={getAdminStatusValue(selectedOrder)}

@@ -284,6 +284,120 @@ router.get('/me/payouts', authenticate, requireRole(['driver']), async (req, res
   }
 });
 
+router.get('/:id/payouts', authenticate, requireAnyPermission(['driver.view', 'driver.edit']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [driver, balanceInfo, payouts] = await Promise.all([
+      Driver.findById(id).lean(),
+      computeDriverBalance(id),
+      DriverPayout.find({ driver: id })
+        .sort({ createdAt: -1 })
+        .select('amount method note processedBy createdAt updatedAt')
+        .populate('processedBy', 'name email')
+        .lean(),
+    ]);
+
+    if (!driver) {
+      res.status(404);
+      throw new Error('Driver not found');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        driver: {
+          id: driver._id,
+          name: driver.name,
+          email: driver.email,
+          phone: driver.phone,
+        },
+        totalEarnings: balanceInfo.totalEarnings,
+        totalPaid: balanceInfo.totalPaid,
+        balance: balanceInfo.balance,
+        payouts: payouts.map((payout) => ({
+          id: payout._id,
+          amount: Number(payout.amount || 0),
+          method: payout.method || 'Manual',
+          note: payout.note || '',
+          processedBy: payout.processedBy ? {
+            name: payout.processedBy.name || '',
+            email: payout.processedBy.email || '',
+          } : null,
+          createdAt: payout.createdAt,
+          updatedAt: payout.updatedAt,
+        })),
+      }
+    });
+  } catch (e) {
+    res.status(res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+    throw e;
+  }
+});
+
+router.get('/payouts', authenticate, requireAnyPermission(['driver.view', 'driver.edit']), async (req, res) => {
+  try {
+    const { from = '', to = '', q = '', page = 1, limit = 10 } = req.query || {};
+    const query = {};
+
+    if (from || to) {
+      query.createdAt = {};
+      if (from) query.createdAt.$gte = new Date(from);
+      if (to) query.createdAt.$lte = new Date(to);
+    }
+
+    const payoutPage = Math.max(parseInt(page, 10) || 1, 1);
+    const payoutLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
+
+    const allItems = await DriverPayout.find(query)
+      .sort({ createdAt: -1 })
+      .select('driver amount method note processedBy createdAt updatedAt')
+      .populate('driver', 'name email phone city status')
+      .populate('processedBy', 'name email')
+      .lean();
+
+    const normalizedQ = String(q || '').trim().toLowerCase();
+    const filteredItems = normalizedQ
+      ? allItems.filter((item) => {
+          const driverText = [item.driver?.name, item.driver?.email, item.driver?.phone, item.driver?.city]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          const payoutText = [item.method, item.note, item.processedBy?.name, item.processedBy?.email]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          return driverText.includes(normalizedQ) || payoutText.includes(normalizedQ);
+        })
+      : allItems;
+
+    const total = filteredItems.length;
+    const pagedItems = filteredItems.slice((payoutPage - 1) * payoutLimit, payoutPage * payoutLimit);
+
+    const data = pagedItems.map((payout) => ({
+      id: payout._id.toString(),
+      driverId: String(payout.driver?._id || payout.driver || ''),
+      driverName: payout.driver?.name || 'Unknown Driver',
+      driverEmail: payout.driver?.email || '',
+      driverPhone: payout.driver?.phone || '',
+      driverCity: payout.driver?.city || '',
+      amount: Number(payout.amount || 0),
+      method: payout.method || 'Manual',
+      note: payout.note || '',
+      createdAt: payout.createdAt,
+      updatedAt: payout.updatedAt,
+      processedBy: payout.processedBy?.name || payout.processedBy?.email || '',
+    }));
+
+    return res.json({
+      success: true,
+      data,
+      meta: { total, page: payoutPage, limit: payoutLimit }
+    });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch driver payout ledger' });
+  }
+});
+
 // Admin: list drivers
 router.get('/', authenticate, requireAnyPermission(['driver.view', 'driver.edit']), async (req, res) => {
   const { status = 'all', q = '', page = 1, limit = 10 } = req.query;
