@@ -34,9 +34,11 @@ export const WishlistProvider = ({ children }) => {
       setWishlistStatus(statusMap);
       console.log('WishlistProvider: Wishlist status map:', statusMap);
     } catch (error) {
-      console.error('Error loading wishlist:', error);
-      // Don't show error for initial load if user is not logged in
-      // Set empty wishlist on error
+      if (error?.message === 'No authentication token') {
+        console.log('WishlistProvider: skipping load, no auth token');
+      } else {
+        console.error('Error loading wishlist:', error);
+      }
       setWishlist([]);
       setWishlistStatus({});
     } finally {

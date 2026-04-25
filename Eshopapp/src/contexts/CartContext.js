@@ -142,12 +142,12 @@ export const CartProvider = ({ children }) => {
     const watchAuthToken = async () => {
       try {
         const token = await AsyncStorage.getItem('authToken');
+        const isNowAuthenticated = !!token;
         
         // If token changed (login or logout), refresh cart
         if (token !== lastToken) {
           lastToken = token;
           const wasAuthenticated = isAuthenticated;
-          const isNowAuthenticated = !!token;
           
           if (wasAuthenticated !== isNowAuthenticated && isMounted) {
             setIsAuthenticated(isNowAuthenticated);

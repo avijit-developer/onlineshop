@@ -85,7 +85,9 @@ const DriverShell = () => {
           const orderNumber = order.orderNumber ? `#${order.orderNumber}` : 'an order';
           Alert.alert('Order Updated', payload.message || `${orderNumber} was reassigned.`);
         });
-        connection.on('connect_error', () => {});
+        connection.on('connect_error', (error) => {
+          console.warn('[socket] driver shell connect_error:', error?.message || error);
+        });
         if (mounted) {
           setSocket(connection);
         } else {
@@ -204,5 +206,4 @@ const styles = StyleSheet.create({
 });
 
 export default DriverShell;
-
 

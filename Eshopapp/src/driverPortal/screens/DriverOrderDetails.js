@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { API_BASE } from '../../utils/api';
@@ -16,6 +16,28 @@ const normalizeDriverStep = (value) => {
   if (v === 'delivery_completed') return 'delivered';
   if (['assigned', 'pickup_completed', 'on_the_way', 'delivered'].includes(v)) return v;
   return 'assigned';
+};
+
+const normalizePhoneNumber = (value) => String(value || '').replace(/[^\d+]/g, '');
+
+const callPhoneNumber = async (phone) => {
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized) {
+    Alert.alert('Phone number not available');
+    return;
+  }
+
+  const url = `tel:${normalized}`;
+  try {
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Unable to open dialer', normalized);
+      return;
+    }
+    await Linking.openURL(url);
+  } catch (error) {
+    Alert.alert('Unable to open dialer', error?.message || 'Please try again');
+  }
 };
 
 const getTomorrowStart = () => {
@@ -102,6 +124,7 @@ const DriverOrderDetails = ({ navigation, route }) => {
     () => (order?.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
     [order]
   );
+  const customerPhone = order?.user?.phone || order?.customerPhone || '';
 
   useEffect(() => {
     let localSocket = null;
@@ -287,7 +310,15 @@ const DriverOrderDetails = ({ navigation, route }) => {
           <Text style={styles.orderNumber}>#{order.orderNumber}</Text>
           <Text style={styles.status}>Driver Status: {driverStatus}</Text>
           <Text style={styles.meta}>Customer: {order.user?.name || order.user?.email || 'Customer'}</Text>
-          <Text style={styles.meta}>Phone: {order.user?.phone || order.customerPhone || 'N/A'}</Text>
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => callPhoneNumber(customerPhone)}
+            disabled={!customerPhone}
+          >
+            <Text style={[styles.meta, styles.phoneLink, !customerPhone && styles.phoneDisabled]}>
+              Phone: {customerPhone || 'N/A'}
+            </Text>
+          </TouchableOpacity>
           <Text style={styles.meta}>Payment: {order.paymentMethod || 'N/A'}</Text>
           <Text style={styles.meta}>Total Items: {totalItems}</Text>
           <Text style={styles.meta}>Order Amount: Rs {Number(order.total || 0).toFixed(2)}</Text>
@@ -521,6 +552,8 @@ const styles = StyleSheet.create({
   orderNumber: { fontSize: 20, fontWeight: '800', color: '#111827' },
   status: { marginTop: 8, color: '#f59e0b', fontWeight: '700', textTransform: 'capitalize' },
   meta: { marginTop: 6, color: '#475569' },
+  phoneLink: { color: '#2563eb', textDecorationLine: 'underline' },
+  phoneDisabled: { color: '#475569', textDecorationLine: 'none' },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 10 },
   address: { color: '#334155', lineHeight: 22 },
   coords: { marginTop: 8, color: '#64748b', fontSize: 12 },
