@@ -640,7 +640,7 @@ const Drivers = () => {
           <strong>{drivers.filter(d => d.status === 'approved').length}</strong>
         </div>
         <div className="drivers-stat-card">
-          <span>Total Collection</span>
+          <span>Total Earning</span>
           <strong>{formatMoney(drivers.reduce((sum, d) => sum + Number(d.totalEarnings || 0), 0))}</strong>
         </div>
         <div className="drivers-stat-card">

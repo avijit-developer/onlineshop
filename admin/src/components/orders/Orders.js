@@ -77,6 +77,13 @@ const Orders = () => {
 
     const refreshOrdersOnUpdate = (event) => {
       if (event?.meta?.action === 'cancel') return;
+      if (event?.meta?.action === 'reschedule') {
+        const order = event?.order || {};
+        const driverName = event?.meta?.driver?.name || order?.driverReschedule?.requestedByName || order?.driver?.name || 'Driver';
+        const rescheduleDate = event?.meta?.rescheduleDate || order?.driverReschedule?.rescheduleDate;
+        const dateLabel = rescheduleDate ? require('../../utils/date').formatDateTime(rescheduleDate) : 'a new date';
+        toast.success(`Order #${getOrderLabel(event)} rescheduled by ${driverName} for ${dateLabel}`);
+      }
       fetchData({ showLoading: false });
     };
 
@@ -123,6 +130,20 @@ const Orders = () => {
     if (driverStatus === 'delivery_completed') return 'delivered';
     if (['pickup_completed', 'on_the_way', 'delivered'].includes(driverStatus)) return driverStatus;
     return String(order?.status || 'pending').toLowerCase();
+  };
+
+  const getRescheduleInfo = (order) => {
+    const request = order?.driverReschedule || {};
+    if (!request?.rescheduleDate) return null;
+    const driverName = request.requestedByName || order?.driver?.name || 'Driver';
+    const driverEmail = request.requestedByEmail || order?.driver?.email || '';
+    const dateLabel = require('../../utils/date').formatDateTime(request.rescheduleDate);
+    return {
+      driverName,
+      driverEmail,
+      dateLabel,
+      requestedAt: request.requestedAt ? require('../../utils/date').formatDateTime(request.requestedAt) : '',
+    };
   };
 
   const getStatusLabel = (status) => {
@@ -910,7 +931,17 @@ const Orders = () => {
               <tr key={order._id || order.id}>
                 <td>
                   <div className="order-info">
-                    <strong>#{order.orderNumber || order.id}</strong>
+                    <strong className="order-number-line">
+                      #{order.orderNumber || order.id}
+                      {order?.driverReschedule?.rescheduleDate ? (
+                        <span
+                          className="reschedule-badge"
+                          title={`Rescheduled for ${require('../../utils/date').formatDateTime(order.driverReschedule.rescheduleDate)}`}
+                        >
+                          ↻ Rescheduled
+                        </span>
+                      ) : null}
+                    </strong>
                     <small>{order.paymentMethod || ''}</small>
                   </div>
                 </td>
@@ -1116,6 +1147,16 @@ const Orders = () => {
                             <label>Driver Status:</label>
                             <span>{selectedOrder.driverStatus || 'N/A'}</span>
                           </div>
+                          {getRescheduleInfo(selectedOrder) ? (
+                            <div className="info-item">
+                              <label>Reschedule:</label>
+                              <span>
+                                {getRescheduleInfo(selectedOrder).dateLabel}
+                                {getRescheduleInfo(selectedOrder).driverName ? ` by ${getRescheduleInfo(selectedOrder).driverName}` : ''}
+                                {getRescheduleInfo(selectedOrder).driverEmail ? ` (${getRescheduleInfo(selectedOrder).driverEmail})` : ''}
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     )}

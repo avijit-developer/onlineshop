@@ -1,56 +1,139 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, RefreshControl, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE } from '../../utils/api';
 
 const CURRENCY_SYMBOL = '₹';
 const formatMoney = (value) => `${CURRENCY_SYMBOL}${Number(value || 0).toFixed(2)}`;
 
+const getLocalDayRange = (date = new Date()) => {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+const isWithinToday = (value, today = new Date()) => {
+  const parsed = value ? new Date(value) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) return false;
+  const { start, end } = getLocalDayRange(today);
+  return parsed >= start && parsed <= end;
+};
+
+const getLatestHistoryTimestamp = (history = [], statuses = []) => {
+  const wanted = new Set(statuses.map((status) => String(status || '').toLowerCase()));
+  let latest = null;
+
+  for (const entry of Array.isArray(history) ? history : []) {
+    const status = String(entry?.status || '').toLowerCase();
+    if (!wanted.has(status)) continue;
+    const timestamp = entry?.timestamp ? new Date(entry.timestamp) : null;
+    if (!timestamp || Number.isNaN(timestamp.getTime())) continue;
+    if (!latest || timestamp > latest) latest = timestamp;
+  }
+
+  return latest;
+};
+
+const getOrderAssignedAt = (order) => {
+  const driverHistoryAssigned = getLatestHistoryTimestamp(order?.driverStatusHistory, ['assigned']);
+  const statusHistoryAssigned = getLatestHistoryTimestamp(order?.statusHistory, ['driver:assigned']);
+  return [driverHistoryAssigned, statusHistoryAssigned].reduce((latest, value) => {
+    if (!value) return latest;
+    return !latest || value > latest ? value : latest;
+  }, null);
+};
+
+const getOrderDeliveredAt = (order) => {
+  const driverHistoryDelivered = getLatestHistoryTimestamp(order?.driverStatusHistory, ['delivered', 'delivery_completed']);
+  const statusHistoryDelivered = getLatestHistoryTimestamp(order?.statusHistory, ['driver:delivered', 'delivered']);
+  return [driverHistoryDelivered, statusHistoryDelivered].reduce((latest, value) => {
+    if (!value) return latest;
+    return !latest || value > latest ? value : latest;
+  }, null);
+};
+
+const isTodayAssignedOrder = (order) => isWithinToday(getOrderAssignedAt(order));
+const isTodayDeliveredOrder = (order) => isWithinToday(getOrderDeliveredAt(order));
+const isTodayPayout = (payout) => isWithinToday(payout?.createdAt);
+
 const DriverPayments = () => {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState({ totalDelivered: 0, totalAmount: 0, pendingAmount: 0, totalPaid: 0, balance: 0 });
   const [transactions, setTransactions] = useState([]);
 
+  const load = async ({ showLoading = true } = {}) => {
+    try {
+      if (showLoading) setLoading(true);
+      const token = await AsyncStorage.getItem('driverAuthToken');
+      const [activeRes, historyRes, payoutsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/v1/orders/driver?mode=active&page=1&limit=100`, {
+          headers: { Authorization: token ? `Bearer ${token}` : '' }
+        }),
+        fetch(`${API_BASE}/api/v1/orders/driver?mode=history&page=1&limit=100`, {
+          headers: { Authorization: token ? `Bearer ${token}` : '' }
+        }),
+        fetch(`${API_BASE}/api/v1/drivers/me/payouts`, {
+          headers: { Authorization: token ? `Bearer ${token}` : '' }
+        })
+      ]);
+      const activeJson = await activeRes.json().catch(() => ({}));
+      const historyJson = await historyRes.json().catch(() => ({}));
+      const payoutsJson = await payoutsRes.json().catch(() => ({}));
+      if (!activeRes.ok || !activeJson?.success) return;
+
+      const activeOrders = Array.isArray(activeJson.data) ? activeJson.data : [];
+      const deliveredOrders = Array.isArray(historyJson.data) ? historyJson.data : [];
+      const todaysDelivered = deliveredOrders.filter((order) => isTodayDeliveredOrder(order));
+      const todaysActive = activeOrders.filter((order) => isTodayAssignedOrder(order) && ['assigned', 'pickup_completed', 'on_the_way'].includes(String(order.driverStatus || '').toLowerCase()));
+      const todaysPayouts = Array.isArray(payoutsJson?.data?.payouts) ? payoutsJson.data.payouts.filter(isTodayPayout) : [];
+
+      const totalAmount = todaysDelivered.reduce((sum, order) => sum + Number(order.driverCommission || 0), 0);
+      const pendingAmount = todaysActive.reduce((sum, order) => sum + Number(order.driverCommission || 0), 0);
+      const totalPaid = todaysPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
+      const balance = Math.max(0, totalAmount - totalPaid);
+
+      setSummary({
+        totalDelivered: todaysDelivered.length,
+        totalAmount,
+        pendingAmount,
+        totalPaid,
+        balance,
+      });
+      setTransactions(todaysPayouts);
+    } catch (_) {
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const token = await AsyncStorage.getItem('driverAuthToken');
-        const [ordersRes, payoutsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/v1/orders/driver?page=1&limit=100`, {
-            headers: { Authorization: token ? `Bearer ${token}` : '' }
-          }),
-          fetch(`${API_BASE}/api/v1/drivers/me/payouts`, {
-            headers: { Authorization: token ? `Bearer ${token}` : '' }
-          })
-        ]);
-        const ordersJson = await ordersRes.json().catch(() => ({}));
-        const payoutsJson = await payoutsRes.json().catch(() => ({}));
-        if (!ordersRes.ok || !ordersJson?.success) return;
-        const allOrders = Array.isArray(ordersJson.data) ? ordersJson.data : [];
-        const delivered = allOrders.filter(order => {
-          const status = String(order.driverStatus || '').toLowerCase();
-          return status === 'delivered' || status === 'delivery_completed';
-        });
-        const inProgress = allOrders.filter(order => ['assigned', 'pickup_completed', 'on_the_way'].includes(String(order.driverStatus || '').toLowerCase()));
-        const totalAmount = delivered.reduce((sum, order) => sum + Number(order.driverCommission || 0), 0);
-        const pendingAmount = inProgress.reduce((sum, order) => sum + Number(order.driverCommission || 0), 0);
-        setSummary({
-          totalDelivered: delivered.length,
-          totalAmount,
-          pendingAmount,
-          totalPaid: Number(payoutsJson?.data?.totalPaid || 0),
-          balance: Number(payoutsJson?.data?.balance || 0),
-        });
-        setTransactions(Array.isArray(payoutsJson?.data?.payouts) ? payoutsJson.data.payouts : []);
-      } catch (_) {
-      } finally {
-        setLoading(false);
+    load();
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        load({ showLoading: false });
       }
-    })();
+    });
+    return () => subscription.remove();
   }, []);
 
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await load({ showLoading: false });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f7ab18" colors={['#f7ab18']} />}
+    >
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color="#f7ab18" /></View>
       ) : (
@@ -60,7 +143,7 @@ const DriverPayments = () => {
               <View style={styles.heroTextBlock}>
                 <Text style={styles.eyebrow}>Driver Earnings</Text>
                 <Text style={styles.title}>Payment Report</Text>
-                <Text style={styles.subtitle}>Track delivered commission, pending earnings, and payout history in one place.</Text>
+                <Text style={styles.subtitle}>Track only today's delivered commission, pending earnings, and payout history in one place.</Text>
               </View>
               <View style={styles.heroBadge}>
                 <Text style={styles.heroBadgeValue}>{summary.totalDelivered}</Text>

@@ -54,6 +54,14 @@ const orderSchema = new mongoose.Schema({
 		timestamp: { type: Date, default: Date.now },
 		updatedBy: { type: String, default: 'driver' },
 	}],
+	driverReschedule: {
+		requestedByDriver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', default: null },
+		requestedByName: { type: String, default: '' },
+		requestedByEmail: { type: String, default: '' },
+		rescheduleDate: { type: Date, default: null },
+		requestedAt: { type: Date, default: null },
+		status: { type: String, enum: ['requested', 'handled'], default: 'requested' },
+	},
 	// Vendor-specific statuses
 	vendorStatuses: { type: Map, of: String, default: {} },
 	vendorStatusHistory: [{

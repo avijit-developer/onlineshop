@@ -165,10 +165,10 @@ const DriverShell = () => {
           <Icon name="list-outline" size={18} color={active === 'orders' ? '#f7ab18' : '#666'} />
           <Text style={[styles.menuText, active === 'orders' && styles.menuTextActive]}>Orders</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('history'); setMenuOpen(false); }}>
+        {/* <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('history'); setMenuOpen(false); }}>
           <Icon name="time-outline" size={18} color={active === 'history' ? '#f7ab18' : '#666'} />
           <Text style={[styles.menuText, active === 'history' && styles.menuTextActive]}>History Orders</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity style={styles.menuItem} onPress={() => { setActive('payments'); setMenuOpen(false); }}>
           <Icon name="card-outline" size={18} color={active === 'payments' ? '#f7ab18' : '#666'} />
           <Text style={[styles.menuText, active === 'payments' && styles.menuTextActive]}>Payments</Text>

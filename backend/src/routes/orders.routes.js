@@ -250,6 +250,19 @@ function isDriverClosedOrder(orderOrStatus, driverStatusArg = null) {
 	return ['cancelled', 'canceled', 'refunded'].includes(normalized) || ['delivered', 'delivery_completed'].includes(normalizedDriverStatus);
 }
 
+function getTomorrowStart() {
+	const tomorrow = new Date();
+	tomorrow.setHours(0, 0, 0, 0);
+	tomorrow.setDate(tomorrow.getDate() + 1);
+	return tomorrow;
+}
+
+function parseFutureRescheduleDate(value) {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return null;
+	return date;
+}
+
 async function resolveDriverId(req) {
 	const directId = req.user?.driverId;
 	if (directId) return String(directId);
@@ -1004,6 +1017,7 @@ router.post('/:id/assign-driver', authenticate, requireAdmin, async (req, res) =
         }
         order.driver = driver._id;
         order.driverStatus = 'assigned';
+        order.driverReschedule = undefined;
         order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
         order.driverStatusHistory.push({ status: 'assigned', updatedBy: req.user?.email || 'admin' });
         order.statusHistory.push({ status: 'driver:assigned', updatedBy: req.user?.email || 'admin' });
@@ -1045,6 +1059,7 @@ router.delete('/:id/assign-driver', authenticate, requireAdmin, async (req, res)
         const previousDriverId = String(order.driver || '');
         order.driver = undefined;
         order.driverStatus = undefined;
+        order.driverReschedule = undefined;
         order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
         order.driverStatusHistory.push({ status: 'unassigned', updatedBy: req.user?.email || 'admin' });
         order.statusHistory.push({ status: 'driver:unassigned', updatedBy: req.user?.email || 'admin' });
@@ -1066,6 +1081,69 @@ router.delete('/:id/assign-driver', authenticate, requireAdmin, async (req, res)
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to remove driver' });
     }
+});
+
+// Driver: reschedule my assigned order
+router.post('/driver/:id/reschedule', authenticate, requireRole(['driver']), async (req, res) => {
+	try {
+		const { rescheduleDate } = req.body || {};
+		const driverId = await resolveDriverId(req);
+		const order = await Order.findById(req.params.id);
+		if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+		if (isDriverClosedOrder(order)) {
+			return res.status(409).json({ success: false, message: 'This order cannot be rescheduled' });
+		}
+		if (String(order.driver || '') !== String(driverId)) {
+			return res.status(403).json({ success: false, message: 'Not your order' });
+		}
+
+		const parsedDate = parseFutureRescheduleDate(rescheduleDate);
+		if (!parsedDate) {
+			return res.status(400).json({ success: false, message: 'Valid reschedule date is required' });
+		}
+		const tomorrowStart = getTomorrowStart();
+		if (parsedDate < tomorrowStart) {
+			return res.status(400).json({ success: false, message: 'Reschedule date must be tomorrow or later' });
+		}
+
+		const driver = await Driver.findById(driverId).select('name email').lean();
+		order.driverReschedule = {
+			requestedByDriver: driver?._id || driverId,
+			requestedByName: driver?.name || req.user?.name || '',
+			requestedByEmail: driver?.email || req.user?.email || '',
+			rescheduleDate: parsedDate,
+			requestedAt: new Date(),
+			status: 'requested',
+		};
+		order.driver = undefined;
+		order.driverStatus = undefined;
+		order.driverStatusHistory = Array.isArray(order.driverStatusHistory) ? order.driverStatusHistory : [];
+		order.driverStatusHistory.push({ status: 'rescheduled', updatedBy: req.user?.email || 'driver' });
+		order.statusHistory.push({ status: 'driver:rescheduled', updatedBy: req.user?.email || 'driver' });
+		await order.save();
+
+		const populatedOrder = await getRealtimeOrder(order._id);
+		await emitOrderEvent(req, 'order:updated', populatedOrder || order, {
+			source: 'driver',
+			action: 'reschedule',
+			rescheduleDate: parsedDate,
+			driver: {
+				id: String(driver?._id || driverId),
+				name: driver?.name || req.user?.name || '',
+				email: driver?.email || req.user?.email || '',
+			},
+		});
+		await emitDriverEvent(req, driverId, 'driver:order_unassigned', {
+			order: populatedOrder || order,
+			message: `Order #${order.orderNumber} has been rescheduled and removed from your list.`,
+			action: 'reschedule',
+			source: 'driver',
+		});
+
+		res.json({ success: true, data: populatedOrder || order });
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Failed to reschedule order' });
+	}
 });
 
 // Driver: list my assigned orders

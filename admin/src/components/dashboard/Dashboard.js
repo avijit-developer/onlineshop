@@ -63,6 +63,13 @@ const Dashboard = () => {
 
     const refreshDashboardOnUpdate = (event) => {
       if (event?.meta?.action === 'cancel') return;
+      if (event?.meta?.action === 'reschedule') {
+        const order = event?.order || {};
+        const driverName = event?.meta?.driver?.name || order?.driverReschedule?.requestedByName || order?.driver?.name || 'Driver';
+        const rescheduleDate = event?.meta?.rescheduleDate || order?.driverReschedule?.rescheduleDate;
+        const dateLabel = rescheduleDate ? require('../../utils/date').formatDateTime(rescheduleDate) : 'a new date';
+        toast.success(`Order #${getOrderLabel(event)} rescheduled by ${driverName} for ${dateLabel}`);
+      }
       loadDashboardData({ showLoading: false });
     };
 

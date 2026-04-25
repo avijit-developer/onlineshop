@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -18,11 +18,82 @@ const normalizeDriverStep = (value) => {
   return 'assigned';
 };
 
+const getTomorrowStart = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return tomorrow;
+};
+
+const formatRescheduleDate = (date) => {
+  if (!date) return 'Select a date';
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(new Date(date));
+  } catch (_) {
+    return new Date(date).toLocaleDateString();
+  }
+};
+
+const normalizeDate = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getDateParts = (date) => {
+  const normalized = normalizeDate(date) || new Date();
+  return {
+    year: normalized.getFullYear(),
+    month: normalized.getMonth() + 1,
+    day: normalized.getDate(),
+  };
+};
+
+const fromDateParts = ({ year, month, day }) => {
+  const date = normalizeDate(new Date(year, month - 1, day));
+  if (!date) return null;
+  return date;
+};
+
+const getTomorrowParts = () => getDateParts(getTomorrowStart());
+
+const getDaysInMonth = (year, month) => new Date(year, month, 0).getDate();
+
+const getSelectableYears = () => {
+  const tomorrow = getTomorrowParts();
+  return Array.from({ length: 10 }, (_, i) => tomorrow.year + i);
+};
+
+const getSelectableMonths = (year) => {
+  const tomorrow = getTomorrowParts();
+  const minMonth = year === tomorrow.year ? tomorrow.month : 1;
+  return Array.from({ length: 12 - minMonth + 1 }, (_, i) => minMonth + i);
+};
+
+const getSelectableDays = (year, month) => {
+  const tomorrow = getTomorrowParts();
+  const minDay = year === tomorrow.year && month === tomorrow.month ? tomorrow.day : 1;
+  const maxDay = getDaysInMonth(year, month);
+  return Array.from({ length: maxDay - minDay + 1 }, (_, i) => minDay + i);
+};
+
 const DriverOrderDetails = ({ navigation, route }) => {
   const initialOrder = route?.params?.order || null;
   const [order, setOrder] = useState(initialOrder);
   const [submitting, setSubmitting] = useState(false);
+  const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleMode, setRescheduleMode] = useState('tomorrow');
+  const [rescheduleDate, setRescheduleDate] = useState(getTomorrowStart());
+  const [draftRescheduleDate, setDraftRescheduleDate] = useState(getTomorrowStart());
+  const rescheduleInFlight = useRef(false);
 
   const driverStatus = normalizeDriverStep(order?.driverStatus);
   const nextAction = actionConfig[driverStatus];
@@ -44,6 +115,10 @@ const DriverOrderDetails = ({ navigation, route }) => {
 
       const nextDriverId = String(nextOrder?.driver?._id || nextOrder?.driver?.id || nextOrder?.driver || '');
       if (nextDriverId) return;
+
+      if (rescheduleInFlight.current && payload?.action === 'reschedule') {
+        return;
+      }
 
       Alert.alert(
         'Order Removed',
@@ -106,6 +181,77 @@ const DriverOrderDetails = ({ navigation, route }) => {
     } finally {
       setSubmitting(false);
       setShowPaymentModal(false);
+    }
+  };
+
+  const openRescheduleModal = () => {
+    const tomorrow = getTomorrowStart();
+    setRescheduleMode('tomorrow');
+    setDraftRescheduleDate(rescheduleDate || tomorrow);
+    setShowRescheduleModal(true);
+  };
+
+  const clampRescheduleParts = (parts) => {
+    const tomorrowParts = getTomorrowParts();
+    const year = Math.max(Number(parts?.year) || tomorrowParts.year, tomorrowParts.year);
+    const months = getSelectableMonths(year);
+    const nextMonth = months.includes(Number(parts?.month)) ? Number(parts.month) : months[0];
+    const days = getSelectableDays(year, nextMonth);
+    const nextDay = days.includes(Number(parts?.day)) ? Number(parts.day) : days[0];
+    return { year, month: nextMonth, day: nextDay };
+  };
+
+  const updateDraftRescheduleDate = (parts) => {
+    const nextParts = clampRescheduleParts(parts);
+    const nextDate = fromDateParts(nextParts);
+    if (nextDate) {
+      setDraftRescheduleDate(nextDate);
+    }
+  };
+
+  const submitReschedule = async () => {
+    if (!order) return;
+    try {
+      const tomorrowStart = getTomorrowStart();
+      const payloadDate = normalizeDate(draftRescheduleDate || rescheduleDate);
+      if (!payloadDate) {
+        Alert.alert('Validation', 'Please enter a valid future date.');
+        return;
+      }
+      if (payloadDate < tomorrowStart) {
+        Alert.alert('Validation', 'Reschedule date must be tomorrow or later.');
+        return;
+      }
+      setRescheduleDate(payloadDate);
+      setRescheduleSubmitting(true);
+      rescheduleInFlight.current = true;
+      const token = await AsyncStorage.getItem('driverAuthToken');
+      const res = await fetch(`${API_BASE}/api/v1/orders/driver/${order._id || order.id}/reschedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ rescheduleDate: payloadDate.toISOString() })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) throw new Error(json?.message || 'Failed to reschedule order');
+      setOrder(json.data || order);
+      setShowRescheduleModal(false);
+      Alert.alert('Success', 'Order rescheduled and removed from your list.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            rescheduleInFlight.current = false;
+            navigation.goBack();
+          },
+        },
+      ]);
+    } catch (error) {
+      rescheduleInFlight.current = false;
+      Alert.alert('Error', error?.message || 'Failed to reschedule order');
+    } finally {
+      setRescheduleSubmitting(false);
     }
   };
 
@@ -178,6 +324,17 @@ const DriverOrderDetails = ({ navigation, route }) => {
             <Text style={styles.doneText}>This order has completed all driver steps.</Text>
           </View>
         )}
+
+        {nextAction ? (
+          <TouchableOpacity
+            style={[styles.rescheduleButton, (submitting || rescheduleSubmitting) && { opacity: 0.7 }]}
+            onPress={openRescheduleModal}
+            disabled={submitting || rescheduleSubmitting}
+          >
+            <Icon name="calendar-outline" size={18} color="#f7ab18" />
+            <Text style={styles.rescheduleText}>Reschedule</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
 
       <Modal
@@ -195,7 +352,7 @@ const DriverOrderDetails = ({ navigation, route }) => {
                 if (!submitting) setShowPaymentModal(false);
               }}
             >
-              <Text style={styles.modalCloseText}>×</Text>
+              <Text style={styles.modalCloseText}>X</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select Payment Method</Text>
             <Text style={styles.modalSubtitle}>Choose one before completing delivery.</Text>
@@ -216,6 +373,135 @@ const DriverOrderDetails = ({ navigation, route }) => {
                 <Text style={styles.paymentOptionText}>Online</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showRescheduleModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!rescheduleSubmitting) {
+            setShowRescheduleModal(false);
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              disabled={rescheduleSubmitting}
+              onPress={() => {
+                if (!rescheduleSubmitting) {
+                  setShowRescheduleModal(false);
+                }
+              }}
+            >
+              <Text style={styles.modalCloseText}>X</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Reschedule Order</Text>
+            <Text style={styles.modalSubtitle}>Choose tomorrow or pick a custom future date. This order will be removed from your list after saving.</Text>
+
+            <View style={styles.rescheduleOptions}>
+              <TouchableOpacity
+                style={[styles.rescheduleOption, rescheduleMode === 'tomorrow' && styles.rescheduleOptionActive]}
+                onPress={() => {
+                  setRescheduleMode('tomorrow');
+                  const tomorrow = getTomorrowStart();
+                  setDraftRescheduleDate(tomorrow);
+                }}
+                disabled={rescheduleSubmitting}
+              >
+                <Text style={[styles.rescheduleOptionText, rescheduleMode === 'tomorrow' && styles.rescheduleOptionTextActive]}>Tomorrow</Text>
+                <Text style={styles.rescheduleOptionHint}>{formatRescheduleDate(getTomorrowStart())}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.rescheduleOption, rescheduleMode === 'custom' && styles.rescheduleOptionActive]}
+                onPress={() => {
+                  setRescheduleMode('custom');
+                }}
+                disabled={rescheduleSubmitting}
+              >
+                <Text style={[styles.rescheduleOptionText, rescheduleMode === 'custom' && styles.rescheduleOptionTextActive]}>Custom Date</Text>
+                <Text style={styles.rescheduleOptionHint}>{formatRescheduleDate(draftRescheduleDate)}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {rescheduleMode === 'custom' ? (
+              <View style={styles.pickerWrap}>
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerTitle}>Select Custom Date</Text>
+                  <TouchableOpacity onPress={() => setRescheduleMode('tomorrow')}>
+                    <Icon name="close-outline" size={20} color="#111827" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.datePickerContainer}>
+                  {[
+                    {
+                      label: 'Year',
+                      values: getSelectableYears(),
+                      getSelected: (parts) => parts.year,
+                      setSelected: (parts, value) => clampRescheduleParts({ ...parts, year: value }),
+                    },
+                    {
+                      label: 'Month',
+                      values: getSelectableMonths(getDateParts(draftRescheduleDate).year),
+                      getSelected: (parts) => parts.month,
+                      setSelected: (parts, value) => clampRescheduleParts({ ...parts, month: value }),
+                    },
+                    {
+                      label: 'Day',
+                      values: getSelectableDays(getDateParts(draftRescheduleDate).year, getDateParts(draftRescheduleDate).month),
+                      getSelected: (parts) => parts.day,
+                      setSelected: (parts, value) => clampRescheduleParts({ ...parts, day: value }),
+                    },
+                  ].map((column) => {
+                    const parts = getDateParts(draftRescheduleDate);
+                    return (
+                      <View key={column.label} style={styles.datePickerColumn}>
+                        <Text style={styles.datePickerLabel}>{column.label}</Text>
+                        <ScrollView style={styles.datePickerScroll} nestedScrollEnabled>
+                          {column.values.map((value) => {
+                            const selected = column.getSelected(parts) === value;
+                            return (
+                              <TouchableOpacity
+                                key={`${column.label}-${value}`}
+                                style={[styles.datePickerOption, selected && styles.datePickerOptionActive]}
+                                onPress={() => {
+                                  const nextParts = column.setSelected(parts, value);
+                                  updateDraftRescheduleDate(nextParts);
+                                }}
+                              >
+                                <Text style={[styles.datePickerOptionText, selected && styles.datePickerOptionTextActive]}>
+                                  {column.label === 'Month'
+                                    ? new Date(2000, value - 1).toLocaleString('default', { month: 'short' })
+                                    : value}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.rescheduleSummary}>
+              <Text style={styles.rescheduleSummaryLabel}>Selected date</Text>
+              <Text style={styles.rescheduleSummaryValue}>{formatRescheduleDate(draftRescheduleDate)}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, (submitting || rescheduleSubmitting) && { opacity: 0.7 }, { marginTop: 16 }]}
+              disabled={submitting || rescheduleSubmitting}
+              onPress={submitReschedule}
+            >
+              <Text style={styles.primaryText}>{rescheduleSubmitting ? 'Saving...' : 'Save Reschedule'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -246,6 +532,19 @@ const styles = StyleSheet.create({
   primaryText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   doneBox: { padding: 14, borderRadius: 12, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0' },
   doneText: { textAlign: 'center', color: '#475569', fontWeight: '600' },
+  rescheduleButton: {
+    marginTop: 12,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#f7ab18',
+    backgroundColor: '#fff7e6',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  rescheduleText: { color: '#f59e0b', fontWeight: '800', fontSize: 16 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
@@ -303,6 +602,119 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '800',
     fontSize: 16,
+  },
+  rescheduleOptions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  rescheduleOption: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: '#f8fafc',
+  },
+  rescheduleOptionActive: {
+    borderColor: '#f7ab18',
+    backgroundColor: '#fff7e6',
+  },
+  rescheduleOptionText: {
+    color: '#111827',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  rescheduleOptionTextActive: {
+    color: '#b45309',
+  },
+  rescheduleOptionHint: {
+    marginTop: 6,
+    color: '#64748b',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  rescheduleSummary: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  rescheduleSummaryLabel: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  rescheduleSummaryValue: {
+    marginTop: 6,
+    color: '#111827',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  pickerWrap: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    padding: 12,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  pickerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  datePickerContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  datePickerColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  datePickerLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 6,
+  },
+  datePickerScroll: {
+    maxHeight: 180,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    backgroundColor: '#f8fafc',
+  },
+  datePickerOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f7',
+    alignItems: 'center',
+  },
+  datePickerOptionActive: {
+    backgroundColor: '#111827',
+  },
+  datePickerOptionText: {
+    color: '#334155',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  datePickerOptionTextActive: {
+    color: '#fff',
   },
 });
 

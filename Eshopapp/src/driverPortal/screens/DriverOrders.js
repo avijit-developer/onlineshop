@@ -6,6 +6,47 @@ import { createDriverSocket } from '../../utils/driverSocket';
 
 const formatMoney = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
+const getLocalDayRange = (date = new Date()) => {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+const isWithinToday = (value, today = new Date()) => {
+  const parsed = value ? new Date(value) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) return false;
+  const { start, end } = getLocalDayRange(today);
+  return parsed >= start && parsed <= end;
+};
+
+const getLatestHistoryTimestamp = (history = [], statuses = []) => {
+  const wanted = new Set(statuses.map((status) => String(status || '').toLowerCase()));
+  let latest = null;
+
+  for (const entry of Array.isArray(history) ? history : []) {
+    const status = String(entry?.status || '').toLowerCase();
+    if (!wanted.has(status)) continue;
+    const timestamp = entry?.timestamp ? new Date(entry.timestamp) : null;
+    if (!timestamp || Number.isNaN(timestamp.getTime())) continue;
+    if (!latest || timestamp > latest) latest = timestamp;
+  }
+
+  return latest;
+};
+
+const getOrderAssignedAt = (order) => {
+  const driverHistoryAssigned = getLatestHistoryTimestamp(order?.driverStatusHistory, ['assigned']);
+  const statusHistoryAssigned = getLatestHistoryTimestamp(order?.statusHistory, ['driver:assigned']);
+  return [driverHistoryAssigned, statusHistoryAssigned].reduce((latest, value) => {
+    if (!value) return latest;
+    return !latest || value > latest ? value : latest;
+  }, null);
+};
+
+const isTodayAssignedOrder = (order) => isWithinToday(getOrderAssignedAt(order));
+
 const normalizeDriverStep = (value) => {
   const v = String(value || '').toLowerCase();
   if (v === 'delivery_completed') return 'delivered';
@@ -57,7 +98,7 @@ const DriverOrders = ({ navigation, socket, driverId = '' }) => {
     try {
       if (showLoading) setLoading(true);
       const token = await AsyncStorage.getItem('driverAuthToken');
-      const res = await fetch(`${API_BASE}/api/v1/orders/driver?mode=active&page=1&limit=50`, {
+      const res = await fetch(`${API_BASE}/api/v1/orders/driver?mode=active&page=1&limit=100`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' },
       });
       const json = await res.json();
@@ -140,6 +181,8 @@ const DriverOrders = ({ navigation, socket, driverId = '' }) => {
     }
   };
 
+  const todaysOrders = orders.filter((order) => isTodayAssignedOrder(order));
+
   const updateStatus = async (order, status, deliveryPaymentMethod = null) => {
     try {
       setUpdating(true);
@@ -213,29 +256,29 @@ const DriverOrders = ({ navigation, socket, driverId = '' }) => {
     <View style={styles.container}>
       <FlatList
         style={{ flex: 1 }}
-        data={orders}
+        data={todaysOrders}
         keyExtractor={(i) => String(i._id || i.id)}
         renderItem={renderItem}
         ListHeaderComponent={
           <View style={styles.heroCard}>
             <Text style={styles.heroEyebrow}>Driver Portal</Text>
             <Text style={styles.heroTitle}>Orders</Text>
-            <Text style={styles.heroSubtitle}>Manage your assigned deliveries and update progress from here.</Text>
+            <Text style={styles.heroSubtitle}>Manage only today's assigned deliveries and update progress from here.</Text>
             <View style={styles.heroStats}>
               <View style={styles.heroStatBox}>
-                <Text style={styles.heroStatValue}>{orders.length}</Text>
+                <Text style={styles.heroStatValue}>{todaysOrders.length}</Text>
                 <Text style={styles.heroStatLabel}>Assigned</Text>
               </View>
               <View style={styles.heroStatBox}>
                 <Text style={styles.heroStatValue}>
-                  {orders.filter((o) => ['on_the_way', 'pickup_completed'].includes(normalizeDriverStep(o.driverStatus))).length}
+                  {todaysOrders.filter((o) => ['on_the_way', 'pickup_completed'].includes(normalizeDriverStep(o.driverStatus))).length}
                 </Text>
                 <Text style={styles.heroStatLabel}>Active</Text>
               </View>
             </View>
           </View>
         }
-        contentContainerStyle={[styles.listContent, orders.length === 0 ? styles.listContentEmpty : null]}
+        contentContainerStyle={[styles.listContent, todaysOrders.length === 0 ? styles.listContentEmpty : null]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f7ab18" colors={['#f7ab18']} />}
         ListEmptyComponent={
@@ -246,8 +289,8 @@ const DriverOrders = ({ navigation, socket, driverId = '' }) => {
             </View>
           ) : (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No assigned orders</Text>
-              <Text style={styles.emptyText}>New delivery tasks will appear here as soon as they are assigned.</Text>
+              <Text style={styles.emptyTitle}>No assigned orders today</Text>
+              <Text style={styles.emptyText}>New delivery tasks assigned today will appear here as soon as they are assigned.</Text>
             </View>
           )
         }
