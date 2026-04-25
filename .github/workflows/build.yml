@@ -20,6 +20,9 @@ jobs:
 
       # ---------- ADMIN FRONTEND ----------
       - name: Build admin
+        env:
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+          REACT_APP_SOCKET_URL: ${{ secrets.REACT_APP_SOCKET_URL }}
         run: |
           cd admin
           npm install

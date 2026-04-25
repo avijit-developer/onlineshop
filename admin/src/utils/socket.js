@@ -1,6 +1,9 @@
 import { io } from 'socket.io-client';
 
 export const getAdminApiBase = () => {
+  const socketBase = process.env.REACT_APP_SOCKET_URL ? String(process.env.REACT_APP_SOCKET_URL).replace(/\/$/, '') : '';
+  if (socketBase) return socketBase;
+
   const envBase = process.env.REACT_APP_API_URL ? String(process.env.REACT_APP_API_URL).replace(/\/$/, '') : '';
   if (envBase) return envBase;
 
@@ -21,11 +24,19 @@ export const createAdminSocket = () => {
   const token = localStorage.getItem('adminToken');
   if (!token) return null;
 
-  return io(getAdminApiBase(), {
+  const socketUrl = getAdminApiBase();
+  console.info('[socket] admin socket base:', socketUrl);
+
+  const socket = io(socketUrl, {
     auth: { token },
-    transports: ['websocket'],
     withCredentials: true,
     reconnection: true,
     reconnectionAttempts: 5,
   });
+
+  socket.on('connect_error', (error) => {
+    console.warn('[socket] admin connect_error:', error?.message || error);
+  });
+
+  return socket;
 };
