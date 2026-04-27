@@ -94,6 +94,13 @@ const ProfileScreen = () => {
       icon: 'bicycle-outline',
       onPress: () => navigation.navigate('DriverApply'),
     },
+    {
+      id: 'contact-us',
+      title: 'Contact Us',
+      subtitle: 'Send a message to our support team',
+      icon: 'mail-open-outline',
+      onPress: () => navigation.navigate('ContactUs'),
+    },
   ];
 
   const handleEditProfile = () => {

@@ -19,7 +19,6 @@ router.post('/signature', async (req, res) => {
     folder: fullFolder,
     overwrite: false,
     timestamp,
-    type: 'upload',
     unique_filename: true
   };
 

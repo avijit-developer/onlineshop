@@ -68,10 +68,22 @@ function App() {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.fetch !== 'function') return;
     const originalFetch = window.fetch;
+    const isManagedApiRequest = (input) => {
+      try {
+        const rawUrl = typeof input === 'string'
+          ? input
+          : (input && input.url ? input.url : '');
+        if (!rawUrl) return false;
+        const resolvedUrl = new URL(rawUrl, window.location.origin);
+        return resolvedUrl.pathname.startsWith('/api/v1/');
+      } catch (_) {
+        return false;
+      }
+    };
     window.fetch = async (...args) => {
       const res = await originalFetch(...args);
       try {
-        if (res && res.status === 401) {
+        if (res && res.status === 401 && isManagedApiRequest(args[0])) {
           // Do not logout on expected 401s (e.g., wrong current password during change-password)
           try {
             const reqUrl = (typeof args[0] === 'string') ? args[0] : (args[0] && args[0].url ? args[0].url : '');

@@ -2,6 +2,7 @@ const express = require('express');
 const Coupon = require('../models/Coupon');
 const Settings = require('../models/Settings');
 const { authenticate, requireAdmin } = require('../middleware/auth');
+const { sendMail, buildEmailHtml } = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -34,6 +35,52 @@ router.get('/email/public', async (req, res) => {
     res.json({ success: true, data: { email: doc?.email?.email || '' } });
   } catch (e) {
     res.status(500).json({ success: false, message: e?.message || 'Failed to load email settings' });
+  }
+});
+
+// Public: contact us form
+router.post('/contact', async (req, res) => {
+  try {
+    const { name = '', email = '', phone = '', comments = '' } = req.body || {};
+    const trimmedName = String(name).trim();
+    const trimmedEmail = String(email).trim().toLowerCase();
+    const trimmedPhone = String(phone).trim();
+    const trimmedComments = String(comments).trim();
+
+    if (!trimmedName || !trimmedEmail || !trimmedPhone || !trimmedComments) {
+      return res.status(400).json({ success: false, message: 'Name, email, phone, and comments are required' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+    }
+
+    const settings = await Settings.findOne().select('general').lean();
+    const contactEmail = String(settings?.general?.contactEmail || '').trim();
+    if (!contactEmail) {
+      return res.status(400).json({ success: false, message: 'Contact email is not configured yet' });
+    }
+
+    const subject = `Contact Us message from ${trimmedName}`;
+    const contentHtml = `
+      <p>You received a new Contact Us enquiry from the mobile app.</p>
+      <p><b>Name:</b> ${trimmedName}</p>
+      <p><b>Email:</b> ${trimmedEmail}</p>
+      <p><b>Phone:</b> ${trimmedPhone}</p>
+      <p><b>Comments:</b><br/>${trimmedComments.replace(/\n/g, '<br/>')}</p>
+    `;
+    const html = await buildEmailHtml({ subject, contentHtml });
+    await sendMail({
+      to: contactEmail,
+      subject,
+      html,
+      text: `Name: ${trimmedName}\nEmail: ${trimmedEmail}\nPhone: ${trimmedPhone}\nComments:\n${trimmedComments}`,
+    });
+
+    return res.json({ success: true, message: 'Your message has been sent successfully' });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e?.message || 'Failed to send contact message' });
   }
 });
 
