@@ -1499,8 +1499,6 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
             });
             const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
             const vendorCommissionBase = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
-            const vendorCommission = vendorCommissionBase + vendorTaxShare + vendorShippingShare;
-            const vendorNet = vendorSubtotal - vendorCommission;
             const orderSubtotal = Number(o.subtotal || 0);
             const taxPercent = Number(o.tax || 0);
             const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
@@ -1509,6 +1507,8 @@ router.get('/vendor', authenticate, requireRole(['vendor']), async (req, res) =>
             const vendorShippingShare = Number(o.shippingCost || 0) * share;
             const orderDiscountAmount = Number(o.discountAmount || 0);
             const vendorDiscountShare = orderDiscountAmount * share;
+            const vendorCommission = vendorCommissionBase + vendorTaxShare + vendorShippingShare;
+            const vendorNet = vendorSubtotal - vendorCommission;
             const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare - vendorDiscountShare;
             // Compute vendor-scoped status across vendors present in this order for this user
             const vendorIdsInOrder = Array.from(new Set(vendorItems.map(it => String(it.vendor)).filter(Boolean)));
@@ -1664,14 +1664,14 @@ router.get('/vendor/:id', authenticate, requireRole(['vendor']), async (req, res
         });
         const vendorSubtotal = vendorItemsWithDisplay.reduce((s, it) => s + (Number(it.vendorDisplayUnitPrice || 0) * Number(it.quantity || 0)), 0);
         const vendorCommissionBase = vendorItems.reduce((s, it) => s + Number(it.commissionAmount || 0), 0);
-        const vendorCommission = vendorCommissionBase + vendorTaxShare + vendorShippingShare;
-        const vendorNet = vendorSubtotal - vendorCommission;
         const orderSubtotal = Number(o.subtotal || 0);
         const taxPercent = Number(o.tax || 0);
         const orderTaxAmount = (orderSubtotal * taxPercent) / 100;
         const share = orderSubtotal > 0 ? (vendorSubtotal / orderSubtotal) : 0;
         const vendorTaxShare = orderTaxAmount * share;
         const vendorShippingShare = Number(o.shippingCost || 0) * share;
+        const vendorCommission = vendorCommissionBase + vendorTaxShare + vendorShippingShare;
+        const vendorNet = vendorSubtotal - vendorCommission;
         const vendorTotalShare = vendorSubtotal + vendorTaxShare + vendorShippingShare;
 
         // Fetch vendor info for items involved in this order (usually one)

@@ -260,6 +260,13 @@ const api = {
     return this.request('/api/v1/settings/shipping/public');
   },
 
+  async submitContactUs(payload) {
+    return this.request('/api/v1/settings/contact', {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  },
+
   async getHomePageSection(sectionName) {
     return this.request(`/api/v1/homepage/sections/${sectionName}`);
   },
