@@ -31,6 +31,7 @@ const ProductList = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [initialProductLoading, setInitialProductLoading] = useState(true);
   const [filterMode, setFilterMode] = useState(false);
   
   // Filter state
@@ -54,6 +55,7 @@ const ProductList = () => {
     setHasMore(true);
     setLoadedCount(0);
     setTotalAvailable(0);
+    setInitialProductLoading(true);
     setFilterMode(false);
   }, [categoryId, sectionName]);
 
@@ -190,9 +192,12 @@ const ProductList = () => {
         setHasMore(false);
       } finally {
         setLoadingMore(false);
+        if (page === 1) {
+          setInitialProductLoading(false);
+        }
       }
     })();
-  }, [page, categoryId, sectionName, loadedCount, currentFilters, filterOptions, filterMode]);
+  }, [page, categoryId, sectionName, loadedCount, hasMore, currentFilters, filterOptions, filterMode]);
 
   const handleEndReached = () => {
     if (hasMore && !loadingMore) {
@@ -221,7 +226,7 @@ const ProductList = () => {
     } finally {
       setFilterLoading(false);
     }
-  }, [categoryId]);
+  }, [categoryId, currentFilters.category]);
 
   const applyFilters = useCallback(async (filters) => {
     try {
@@ -437,11 +442,12 @@ const ProductList = () => {
     setPage(1);
     setHasMore(true);
     setLoadedCount(0);
+    setInitialProductLoading(true);
     setFilterMode(false);
     
     // Reload products for current category only
     // Trigger reload for current category/section via the effect
-  }, [filterOptions, categoryId, sectionName]);
+  }, [filterOptions]);
 
   // Load filter options on mount
   useEffect(() => {
@@ -455,6 +461,7 @@ const ProductList = () => {
   };
 
   const renderItem = ({ item }) => <ProductCard item={item} />;
+  const isInitialProductLoading = initialProductLoading && filteredProducts.length === 0 && !filterMode;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -492,9 +499,13 @@ const ProductList = () => {
       </View>
 
       {/* Product Grid */}
-      {filterLoading ? (
+      {filterLoading && filterMode ? (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Applying filters...</Text>
+        </View>
+      ) : isInitialProductLoading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading products...</Text>
         </View>
       ) : filteredProducts.length === 0 ? (
         <View style={styles.loadingContainer}>

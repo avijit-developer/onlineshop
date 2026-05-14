@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import api from '../utils/api';
-import ViewCartFooter from '../components/ViewCartFooter';
+import Skeleton from '../components/Skeleton';
 
 const placeholder = 'https://via.placeholder.com/80x80.png?text=Cat';
 
@@ -26,39 +26,39 @@ const CategoryScreen = () => {
   const [error, setError] = useState(null);
   const hasFetchedRef = useRef(false);
 
-  const fetchCategories = async (abortSignal) => {
+  const fetchCategories = useCallback(async (abortSignal) => {
     setLoading(true);
     setError(null);
-    
+
     // If no categoryId provided (e.g., from footer navigation), fetch root categories
     const parentCategoryId = !categoryId || categoryId === 'all' ? 'root' : categoryId;
-    
+
     try {
       const res = await api.getCategoriesPublic(
         { parent: parentCategoryId, limit: 200 },
         { signal: abortSignal, suppressNetworkErrorScreen: true }
       );
-      
-      if (abortSignal?.aborted) return;
-      
-      console.log('[CategoryScreen] API Response:', { 
-        success: res?.success, 
+
+      if (abortSignal?.aborted) {return;}
+
+      console.log('[CategoryScreen] API Response:', {
+        success: res?.success,
         count: res?.data?.length || 0,
         categoryId: parentCategoryId,
         originalCategoryId: categoryId,
-        meta: res?.meta 
+        meta: res?.meta,
       });
-      
+
       if (res?.success) {
-        const mapped = (res.data || []).map(c => ({ 
-          id: c._id, 
-          name: c.name, 
-          image: c.image || placeholder 
+        const mapped = (res.data || []).map(c => ({
+          id: c._id,
+          name: c.name,
+          image: c.image || placeholder,
         }));
-        
+
         console.log('[CategoryScreen] Mapped categories:', mapped.length);
         setChildren(mapped);
-        
+
         // Only navigate if truly no categories and we have a specific categoryId (not root)
         if (mapped.length === 0 && categoryId && categoryId !== 'all' && categoryId !== 'root') {
           // Wait a bit before navigating to allow user to see the state
@@ -73,11 +73,11 @@ const CategoryScreen = () => {
         setError('Failed to load categories');
       }
     } catch (err) {
-      if (abortSignal?.aborted) return;
-      
+      if (abortSignal?.aborted) {return;}
+
       console.error('Error fetching categories:', err);
       setError(err.message || 'Failed to load categories');
-      
+
       // Only navigate if it's a critical error (not timeout/network that might recover) and we have a specific categoryId
       if (err.status !== 408 && err.status !== 0 && categoryId && categoryId !== 'all' && categoryId !== 'root') {
         // Wait a bit before navigating to allow retry
@@ -92,7 +92,7 @@ const CategoryScreen = () => {
         setLoading(false);
       }
     }
-  };
+  }, [categoryId, navigation, title]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -102,7 +102,7 @@ const CategoryScreen = () => {
     hasFetchedRef.current = false;
 
     (async () => {
-      if (!isMounted) return;
+      if (!isMounted) {return;}
       await fetchCategories(abortController.signal);
       hasFetchedRef.current = true;
     })();
@@ -111,14 +111,14 @@ const CategoryScreen = () => {
       isMounted = false;
       abortController.abort();
     };
-  }, [categoryId, title, navigation]);
+  }, [categoryId, title, navigation, fetchCategories]);
 
   // Refetch when screen comes into focus (helps with delayed navigation issues)
   // This ensures data is fresh when user navigates to this screen
   useFocusEffect(
     React.useCallback(() => {
       let abortController = null;
-      
+
       // Small delay to ensure navigation is complete before fetching
       const timer = setTimeout(() => {
         if (!hasFetchedRef.current && children.length === 0) {
@@ -127,14 +127,14 @@ const CategoryScreen = () => {
           hasFetchedRef.current = true;
         }
       }, 100);
-      
+
       return () => {
         clearTimeout(timer);
         if (abortController) {
           abortController.abort();
         }
       };
-    }, [categoryId, children.length])
+    }, [children.length, fetchCategories])
   );
 
   useEffect(() => {
@@ -148,9 +148,9 @@ const CategoryScreen = () => {
           { parent: 'root', limit: 100 },
           { signal: abortController.signal, suppressNetworkErrorScreen: true }
         );
-        
-        if (!isMounted || abortController.signal.aborted) return;
-        
+
+        if (!isMounted || abortController.signal.aborted) {return;}
+
         if (res?.success) {
           // Filter only featured categories
           const featured = (res.data || [])
@@ -194,6 +194,18 @@ const CategoryScreen = () => {
     </TouchableOpacity>
   );
 
+  const renderCategorySkeleton = () => (
+    <View style={styles.skeletonGrid}>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <View key={`category-skeleton-${index}`} style={styles.skeletonCard}>
+          <Skeleton width={64} height={64} borderRadius={32} />
+          <Skeleton width={'75%'} height={16} borderRadius={8} style={styles.skeletonTitle} />
+          <Skeleton width={'55%'} height={12} borderRadius={6} style={styles.skeletonText} />
+        </View>
+      ))}
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -229,17 +241,17 @@ const CategoryScreen = () => {
         <View style={styles.errorContainer}>
           <Icon name="alert-circle-outline" size={64} color="#f44336" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton} 
+          <TouchableOpacity
+            style={styles.retryButton}
             onPress={async () => {
               // Force re-fetch manually
               setError(null);
               setLoading(true);
               setChildren([]);
-              
+
               // Use same logic as useEffect - if no categoryId, fetch root categories
               const parentCategoryId = !categoryId || categoryId === 'all' ? 'root' : categoryId;
-              
+
               try {
                 const res = await api.getCategoriesPublic(
                   { parent: parentCategoryId, limit: 200 },
@@ -247,10 +259,10 @@ const CategoryScreen = () => {
                 );
                 console.log('[CategoryScreen] Retry response:', res);
                 if (res?.success) {
-                  const mapped = (res.data || []).map(c => ({ 
-                    id: c._id, 
-                    name: c.name, 
-                    image: c.image || placeholder 
+                  const mapped = (res.data || []).map(c => ({
+                    id: c._id,
+                    name: c.name,
+                    image: c.image || placeholder,
                   }));
                   setChildren(mapped);
                   setError(null);
@@ -298,24 +310,12 @@ const CategoryScreen = () => {
               contentContainerStyle={styles.listContent}
               scrollEnabled={false}
               ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No subcategories found</Text>
-                </View>
+                renderCategorySkeleton()
               }
             />
           </>
         ) : (
-          <View style={styles.emptyContainer}>
-            <Icon name="folder-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No subcategories available</Text>
-            <Text style={styles.emptySubtext}>This category doesn't have any subcategories</Text>
-            <TouchableOpacity 
-              style={styles.viewProductsButton}
-              onPress={() => navigation.navigate('ProductList', { categoryId, title })}
-            >
-              <Text style={styles.viewProductsButtonText}>View Products</Text>
-            </TouchableOpacity>
-          </View>
+          renderCategorySkeleton()
         )}
 
         {/* Featured Categories */}
@@ -342,7 +342,7 @@ const CategoryScreen = () => {
           </View>
         )}
        </ScrollView>
-       
+
      </View>
    );
  };
@@ -500,37 +500,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  skeletonCard: {
+    width: '48%',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eef2f7',
+    marginBottom: 14,
   },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 16,
-    textAlign: 'center',
+  skeletonTitle: {
+    marginTop: 10,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
+  skeletonText: {
     marginTop: 8,
-    textAlign: 'center',
-  },
-  viewProductsButton: {
-    marginTop: 24,
-    backgroundColor: '#1976d2',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  viewProductsButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

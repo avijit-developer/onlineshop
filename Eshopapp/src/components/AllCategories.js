@@ -33,7 +33,7 @@ const AllCategories = () => {
     const renderCategoryItem = ({ item, index }) => (
         <TouchableOpacity 
             style={styles.categoryCard} 
-            onPress={() => navigation.navigate('Category', { categoryId: item.id, title: item.name })}
+            onPress={() => navigation.navigate('ProductList', { categoryId: item.id, title: item.name })}
             activeOpacity={0.8}
         >
             <View style={styles.imageContainer}>
